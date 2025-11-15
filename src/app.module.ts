@@ -4,8 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EmployeeModule } from './employee/employee.module';
-import { DepartmentModule } from './department/department.module';
-import { PositionModule } from './position/position.module';
+import { OrganizationStructureModule } from './organization-structure/organization-structure.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -24,10 +24,8 @@ import { PositionModule } from './position/position.module';
     }),
 
     EmployeeModule,
-
-    DepartmentModule,
-
-    PositionModule,
+    OrganizationStructureModule,
+    NotificationModule,
 
   ],
   controllers: [AppController],

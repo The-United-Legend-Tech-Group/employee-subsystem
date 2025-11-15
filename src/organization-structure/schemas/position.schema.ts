@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { Department } from 'src/department/schemas/department.schema';
+import { Department } from 'src/organization-structure/schemas/department.schema';
 
 @Schema({
   timestamps: true,
@@ -27,7 +27,7 @@ export class Position {
   reportsToPositionId: Position; // For building the org chart hierarchy
 
   @Prop({ required: true, trim: true })
-  payGrade: string;
+  jobGrade: string;
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean; // For deactivation

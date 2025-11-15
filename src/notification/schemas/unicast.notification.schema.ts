@@ -32,8 +32,8 @@ export class Notification {
   @Prop({ default: false })
   isRead: boolean;
 
-  @Prop({ type: [String], default: ['In-App'] })
-  sentVia: string[]; // ['In-App', 'Email', 'SMS']
+  // @Prop({ type: [String], default: ['In-App'] })
+  // sentVia: string[]; // ['In-App', 'Email', 'SMS']
 
   @Prop()
   readAt: Date;

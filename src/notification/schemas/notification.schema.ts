@@ -17,6 +17,9 @@ export class Notification {
   @Prop({ required: true, enum: ['Alert', 'Info', 'Success', 'Warning'] }) //SUBJECT TO CHANGE
   type: string;
 
+  @Prop({ required: true, enum: ['UNICAST', 'MULTICAST', 'BROADCAST'] })
+  deliveryType: string;
+
   @Prop({ required: true, trim: true })
   title: string;
 

@@ -7,6 +7,7 @@ import { EmployeeModule } from './employee/employee.module';
 import { OrganizationStructureModule } from './organization-structure/organization-structure.module';
 import { NotificationModule } from './notification/notification.module';
 import { ProfileChangeRequestModule } from './profile-change-request/profile-change-request.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ProfileChangeRequestModule } from './profile-change-request/profile-cha
     OrganizationStructureModule,
     NotificationModule,
     ProfileChangeRequestModule,
+    AuthModule,
 
   ],
   controllers: [AppController],

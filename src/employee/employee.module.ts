@@ -6,5 +6,6 @@ import { Employee, EmployeeSchema } from './schema/employee.schema';
   imports: [
     MongooseModule.forFeature([{ name: Employee.name, schema: EmployeeSchema }]),
   ],
+  exports: [MongooseModule],
 })
 export class EmployeeModule {}

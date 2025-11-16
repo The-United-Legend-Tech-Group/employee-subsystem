@@ -12,12 +12,12 @@ export class Notification {
     ref: 'User',
     required: true,
   })
-  recipientId: Employee;
+  recipientId: Employee[];
 
   @Prop({ required: true, enum: ['Alert', 'Info', 'Success', 'Warning'] }) //SUBJECT TO CHANGE
   type: string;
 
-  @Prop({ required: true, enum: ['UNICAST', 'MULTICAST', 'BROADCAST'] })
+  @Prop({ required: true, enum: ['UNICAST', 'MULTICAST'] })
   deliveryType: string;
 
   @Prop({ required: true, trim: true })

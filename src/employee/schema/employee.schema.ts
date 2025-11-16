@@ -71,6 +71,8 @@ export class Employee {
   isActive: boolean;
 }
 
+//Add Contract
+
 export const EmployeeSchema = SchemaFactory.createForClass(Employee);
 
 // Add indexes for fields that are frequently queried

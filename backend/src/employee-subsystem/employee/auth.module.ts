@@ -6,12 +6,11 @@ import { JwtModule } from '@nestjs/jwt';
 import * as dotenv from 'dotenv';
 import { AuthGuard } from './guards/authentication.guard';
 import { authorizationGuard } from './guards/authorization.guard';
-import { AuthRepository } from './repository/auth.repository';
 dotenv.config();
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, authorizationGuard, AuthRepository],
+  providers: [AuthService, AuthGuard, authorizationGuard],
   imports: [
     EmployeeModule,
     JwtModule.register({

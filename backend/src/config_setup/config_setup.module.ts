@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigSetupService } from './config_setup.service';
 import { ConfigSetupController } from './config_setup.controller';
+import { DatabaseModule } from '../../database/database.module';
 
 // Schema imports
 import { Allowance, AllowanceSchema } from './schemas/allowance.schema';
@@ -28,6 +29,7 @@ import { TaxRule, TaxRuleSchema } from './schemas/taxrule.schema';
 
 @Module({
   imports: [
+    DatabaseModule,
     MongooseModule.forFeature([
       { name: Allowance.name, schema: AllowanceSchema },
       { name: CompanySettings.name, schema: CompanySettingsSchema },

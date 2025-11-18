@@ -4,7 +4,10 @@ import { DatabaseModule } from '../../database/database.module';
 import { Approval, ApprovalSchema } from './schemas/approval.schema';
 import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
 import { Holiday, HolidaySchema } from './schemas/holiday.schema';
-import { LeaveBalance, LeaveBalanceSchema } from './schemas/leave-balance.schema';
+import {
+  LeaveBalance,
+  LeaveBalanceSchema,
+} from './schemas/leave-balance.schema';
 import {
   LeaveEntitlement,
   LeaveEntitlementSchema,

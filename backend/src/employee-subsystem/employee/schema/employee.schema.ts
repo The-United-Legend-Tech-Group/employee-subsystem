@@ -61,6 +61,12 @@ export class Employee {
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean;
+
+  @Prop({ type: Boolean, default: false})
+  signingBonus: boolean;
+
+  @Prop({ type: Boolean, default: false})
+  resignationStatus: boolean
 }
 
 //Add Contract

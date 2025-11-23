@@ -1,18 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './recruitment.controller';
-import { recruitmentService } from './recruitment.service';
-
-import { RecruitmentModule } from './Recruitment/rec.module';
-import { OnBoardingModule } from './OnBoarding/OnBoarding.module';
-import { OffBoardingModule } from './OffBoarding/OffBoarding.module';
+import { RecruitmentController } from './recruitment.controller';
+import { RecruitmentService } from './recruitment.service';
 
 @Module({
-  imports: [
-    RecruitmentModule,
-    OnBoardingModule,
-    OffBoardingModule,
-  ],
-  controllers: [AppController],
-  providers: [recruitmentService],
+  imports: [],
+  controllers: [RecruitmentController],
+  providers: [RecruitmentService],
 })
-export class recruitmentModule {}
+export class RecruitmentModule {}

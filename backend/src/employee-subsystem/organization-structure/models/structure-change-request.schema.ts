@@ -4,7 +4,7 @@ import {
   StructureRequestStatus,
   StructureRequestType,
 } from '../enums/organization-structure.enums';
-import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
 
 export type StructureChangeRequestDocument =
   HydratedDocument<StructureChangeRequest>;

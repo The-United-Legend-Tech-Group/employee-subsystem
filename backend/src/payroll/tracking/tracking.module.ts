@@ -4,28 +4,18 @@ import { TrackingService } from './tracking.service';
 import { TrackingController } from './tracking.controller';
 import { DatabaseModule } from '../../../database/database.module';
 
-// Schema imports
-import {
-  ExpenseClaim,
-  ExpenseClaimSchema,
-} from './schemas/expenseClaim.schema';
-import {
-  FinalizedPayslip,
-  FinalizedPayslipSchema,
-} from './schemas/FinalizedPayslip.schema';
-import { PayrollSummary, PayrollSummarySchema } from './schemas/payrollsummary';
-import { PayslipDispute, PayslipDisputeSchema } from './schemas/payslipdispute';
-import { TaxDocument, TaxDocumentSchema } from './schemas/taxdocuments';
+// Model imports
+import { claims, claimsSchema } from './models/claims.schema';
+import { disputes, disputesSchema } from './models/disputes.schema';
+import { refunds, refundsSchema } from './models/refunds.schema';
 
 @Module({
   imports: [
     DatabaseModule,
     MongooseModule.forFeature([
-      { name: ExpenseClaim.name, schema: ExpenseClaimSchema },
-      { name: FinalizedPayslip.name, schema: FinalizedPayslipSchema },
-      { name: PayrollSummary.name, schema: PayrollSummarySchema },
-      { name: PayslipDispute.name, schema: PayslipDisputeSchema },
-      { name: TaxDocument.name, schema: TaxDocumentSchema },
+      { name: claims.name, schema: claimsSchema },
+      { name: disputes.name, schema: disputesSchema },
+      { name: refunds.name, schema: refundsSchema },
     ]),
   ],
   controllers: [TrackingController],

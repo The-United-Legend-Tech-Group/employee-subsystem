@@ -4,16 +4,16 @@ import { ExecutionService } from './execution.service';
 import { ExecutionController } from './execution.controller';
 import { DatabaseModule } from '../../../database/database.module';
 
-// Schema imports
-import { PayrollRun, PayrollRunSchema } from './schemas/payrollRun.schema';
-import { Payslip, EmployeePayslipSchema } from './schemas/paySlip.schema';
+// Model imports
+import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
+import { paySlip, paySlipSchema } from './models/payslip.schema';
 
 @Module({
   imports: [
     DatabaseModule,
     MongooseModule.forFeature([
-      { name: PayrollRun.name, schema: PayrollRunSchema },
-      { name: Payslip.name, schema: EmployeePayslipSchema },
+      { name: payrollRuns.name, schema: payrollRunsSchema },
+      { name: paySlip.name, schema: paySlipSchema },
     ]),
   ],
   controllers: [ExecutionController],

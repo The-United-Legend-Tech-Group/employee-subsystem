@@ -3,7 +3,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { AppraisalAssignmentStatus } from '../enums/performance.enums';
 import { Department } from '../../organization-structure/models/department.schema';
 import { Position } from '../../organization-structure/models/position.schema';
-import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
 import { AppraisalCycle } from './appraisal-cycle.schema';
 import { AppraisalTemplate } from './appraisal-template.schema';
 

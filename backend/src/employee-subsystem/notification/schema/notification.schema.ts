@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { Employee } from '../../employee/schema/employee.schema';
+import { Types } from 'mongoose';
+import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
 
 @Schema({
   timestamps: { createdAt: true, updatedAt: false },
@@ -8,11 +9,11 @@ import { Employee } from '../../employee/schema/employee.schema';
 })
 export class Notification {
   @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: [mongoose.Schema.Types.ObjectId],
+    ref: EmployeeProfile.name,
     required: true,
   })
-  recipientId: Employee[];
+  recipientId: Types.ObjectId[];
 
   @Prop({ required: true, enum: ['Alert', 'Info', 'Success', 'Warning'] }) //SUBJECT TO CHANGE
   type: string;

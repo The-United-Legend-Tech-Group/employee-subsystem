@@ -11,7 +11,7 @@ import { Position } from '../../organization-structure/models/position.schema';
 import { AppraisalCycle } from '../../performance/models/appraisal-cycle.schema';
 import { AppraisalRecord } from '../../performance/models/appraisal-record.schema';
 import { AppraisalTemplate } from '../../performance/models/appraisal-template.schema';
-import { payGrade } from '../../payroll-configuration/models/payGrades.schema';
+import { payGrade } from '../../../payroll/config_setup/models/payGrades.schema';
 import { UserProfileBase } from './user-schema';
 
 export type EmployeeProfileDocument = HydratedDocument<EmployeeProfile>;
@@ -37,7 +37,6 @@ export class EmployeeProfile extends UserProfileBase {
   @Prop({ type: Date })
   contractEndDate?: Date;
 
-  
   @Prop({
     type: String,
     enum: Object.values(ContractType),

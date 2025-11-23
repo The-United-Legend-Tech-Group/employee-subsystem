@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { AppraisalRecordStatus } from '../enums/performance.enums';
-import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
 import { AppraisalAssignment } from './appraisal-assignment.schema';
 import { AppraisalTemplate } from './appraisal-template.schema';
 import { AppraisalCycle } from './appraisal-cycle.schema';

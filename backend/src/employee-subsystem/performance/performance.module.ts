@@ -1,15 +1,29 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Performance, PerformanceSchema } from './schema/performance.schema';
-import { PerformanceCycle, PerformanceCycleSchema } from './schema/performance-cycle.schema';
-import { PerformanceTemplate, PerformanceTemplateSchema } from './schema/performance-template.schema';
+import {
+  AppraisalRecord,
+  AppraisalRecordSchema,
+} from './models/appraisal-record.schema';
+import {
+  AppraisalCycle,
+  AppraisalCycleSchema,
+} from './models/appraisal-cycle.schema';
+import {
+  AppraisalTemplate,
+  AppraisalTemplateSchema,
+} from './models/appraisal-template.schema';
+import {
+  AppraisalAssignment,
+  AppraisalAssignmentSchema,
+} from './models/appraisal-assignment.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Performance.name, schema: PerformanceSchema },
-      { name: PerformanceCycle.name, schema: PerformanceCycleSchema },
-      { name: PerformanceTemplate.name, schema: PerformanceTemplateSchema },
+      { name: AppraisalRecord.name, schema: AppraisalRecordSchema },
+      { name: AppraisalCycle.name, schema: AppraisalCycleSchema },
+      { name: AppraisalTemplate.name, schema: AppraisalTemplateSchema },
+      { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
     ]),
   ],
   exports: [MongooseModule],

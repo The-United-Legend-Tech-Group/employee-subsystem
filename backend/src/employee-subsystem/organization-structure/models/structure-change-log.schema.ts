@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { ChangeLogAction } from '../enums/organization-structure.enums';
-import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
 
 export type StructureChangeLogDocument = HydratedDocument<StructureChangeLog>;
 

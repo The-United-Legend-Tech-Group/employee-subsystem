@@ -5,13 +5,15 @@ import { DatabaseModule } from '../../database/database.module';
 import {
   AttendanceRecord,
   AttendanceRecordSchema,
-} from './schema/attendance-record.schema';
+} from './models/attendance-record.schema';
 import {
   ShiftAssignment,
   ShiftAssignmentSchema,
-} from './schema/shift-assignment.schema';
-import { ShiftType, ShiftTypeSchema } from './schema/shift-type.schema';
-import { TimeSlot, TimeSlotSchema } from './schema/time-slots.schema';
+} from './models/shift-assignment.schema';
+import { ShiftType, ShiftTypeSchema } from './models/shift-type.schema';
+import { Shift, ShiftSchema } from './models/shift.schema';
+import { TimeController } from './time.controller';
+import { TimeService } from './time.service';
 
 @Module({
   imports: [
@@ -21,9 +23,11 @@ import { TimeSlot, TimeSlotSchema } from './schema/time-slots.schema';
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },
       { name: ShiftAssignment.name, schema: ShiftAssignmentSchema },
       { name: ShiftType.name, schema: ShiftTypeSchema },
-      { name: TimeSlot.name, schema: TimeSlotSchema },
+      { name: Shift.name, schema: ShiftSchema },
     ]),
   ],
-  exports: [MongooseModule],
+  controllers: [TimeController],
+  providers: [TimeService],
+  exports: [MongooseModule, TimeService],
 })
 export class TimeMangementModule {}

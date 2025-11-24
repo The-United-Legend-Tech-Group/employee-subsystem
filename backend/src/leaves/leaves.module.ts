@@ -1,23 +1,26 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseModule } from '../../database/database.module';
-import { Approval, ApprovalSchema } from './schemas/approval.schema';
-import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
-import { Holiday, HolidaySchema } from './schemas/holiday.schema';
+import { Attachment, AttachmentSchema } from './models/attachment.schema';
 import {
-  LeaveBalance,
-  LeaveBalanceSchema,
-} from './schemas/leave-balance.schema';
+  LeaveAdjustment,
+  LeaveAdjustmentSchema,
+} from './models/leave-adjustment.schema';
+import { Calendar, CalendarSchema } from './models/calendar.schema';
 import {
   LeaveEntitlement,
   LeaveEntitlementSchema,
-} from './schemas/leave-entitlement.schema';
-import { LeavePolicy, LeavePolicySchema } from './schemas/leave-policy.schema';
+} from './models/leave-entitlement.schema';
+import { LeavePolicy, LeavePolicySchema } from './models/leave-policy.schema';
 import {
   LeaveRequest,
   LeaveRequestSchema,
-} from './schemas/leave-request.schema';
-import { LeaveType, LeaveTypeSchema } from './schemas/leave-type.schema';
+} from './models/leave-request.schema';
+import { LeaveType, LeaveTypeSchema } from './models/leave-type.schema';
+import {
+  LeaveCategory,
+  LeaveCategorySchema,
+} from './models/leave-category.schema';
 import { LeavesController } from './leaves.controller';
 import { LeavesService } from './leaves.service';
 
@@ -25,14 +28,14 @@ import { LeavesService } from './leaves.service';
   imports: [
     DatabaseModule,
     MongooseModule.forFeature([
-      { name: Approval.name, schema: ApprovalSchema },
-      { name: AuditLog.name, schema: AuditLogSchema },
-      { name: Holiday.name, schema: HolidaySchema },
-      { name: LeaveBalance.name, schema: LeaveBalanceSchema },
+      { name: Attachment.name, schema: AttachmentSchema },
+      { name: LeaveAdjustment.name, schema: LeaveAdjustmentSchema },
+      { name: Calendar.name, schema: CalendarSchema },
       { name: LeaveEntitlement.name, schema: LeaveEntitlementSchema },
       { name: LeavePolicy.name, schema: LeavePolicySchema },
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
       { name: LeaveType.name, schema: LeaveTypeSchema },
+      { name: LeaveCategory.name, schema: LeaveCategorySchema },
     ]),
   ],
   controllers: [LeavesController],

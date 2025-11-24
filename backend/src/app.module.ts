@@ -6,11 +6,10 @@ import { DatabaseModule } from '../database/database.module';
 import { TimeMangementModule } from './time-mangement/timemangment.module';
 import { LeavesModule } from './leaves/leaves.module';
 import { EmployeeSubsystemModule } from './employee-subsystem/employee-subsystem.module';
-import { ConfigSetupModule } from './config_setup/config_setup.module';
-import { TrackingModule } from './tracking/tracking.module';
-import { ExecutionModule } from './execution/execution.module';
-import {recruitmentModule } from './Recruitment/recruitment.module';
-
+import { ConfigSetupModule } from './payroll/config_setup/config_setup.module';
+import { TrackingModule } from './payroll/tracking/tracking.module';
+import { ExecutionModule } from './payroll/execution/execution.module';
+import { RecruitmentModule } from './Recruitment/recruitment.module';
 
 @Module({
   imports: [
@@ -31,7 +30,7 @@ import {recruitmentModule } from './Recruitment/recruitment.module';
     // Execution subsystem
     ExecutionModule,
     // Recruitment subsystem
-    recruitmentModule
+    RecruitmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

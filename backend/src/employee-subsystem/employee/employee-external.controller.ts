@@ -1,5 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { EmployeeExternalService } from './employee-external.service';
+import { Controller } from '@nestjs/common';
 
 
 @Controller('employee')

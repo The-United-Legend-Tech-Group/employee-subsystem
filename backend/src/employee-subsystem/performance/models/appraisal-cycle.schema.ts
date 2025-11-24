@@ -4,8 +4,6 @@ import {
   AppraisalCycleStatus,
   AppraisalTemplateType,
 } from '../enums/performance.enums';
-import { Department } from '../../organization-structure/models/department.schema';
-import { AppraisalTemplate } from './appraisal-template.schema';
 
 export type AppraisalCycleDocument = HydratedDocument<AppraisalCycle>;
 

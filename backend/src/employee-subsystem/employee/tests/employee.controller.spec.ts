@@ -4,8 +4,10 @@ import { EmployeeService } from '../employee.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateContactInfoDto } from '../dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from '../dto/update-employee-profile.dto';
-import { ConflictException } from '@nestjs/common';
+import { CreateProfileChangeRequestDto } from '../dto/create-profile-change-request.dto';
+import { ConflictException, BadRequestException } from '@nestjs/common';
 import { ApiKeyGuard } from '../../guards/api-key.guard';
+import { authorizationGuard } from '../../guards/authorization.guard';
 
 describe('EmployeeController', () => {
     let controller: EmployeeController;
@@ -15,6 +17,9 @@ describe('EmployeeController', () => {
         onboard: jest.fn(),
         updateContactInfo: jest.fn(),
         updateProfile: jest.fn(),
+        createProfileChangeRequest: jest.fn(),
+        getTeamSummary: jest.fn(),
+        assignRoles: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -28,6 +33,8 @@ describe('EmployeeController', () => {
             ],
         })
             .overrideGuard(ApiKeyGuard)
+            .useValue({ canActivate: jest.fn(() => true) })
+            .overrideGuard(authorizationGuard)
             .useValue({ canActivate: jest.fn(() => true) })
             .compile();
 
@@ -127,6 +134,110 @@ describe('EmployeeController', () => {
             mockEmployeeService.updateProfile.mockRejectedValue(new ConflictException('Employee not found'));
 
             await expect(controller.updateProfile(id, updateEmployeeProfileDto)).rejects.toThrow(ConflictException);
+        });
+    });
+
+    describe('requestProfileCorrection', () => {
+        it('should create a profile change request', async () => {
+            const id = '1';
+            const createProfileChangeRequestDto: CreateProfileChangeRequestDto = {
+                requestDescription: 'Please correct my name spelling',
+                reason: 'Typo in HR records',
+            } as any;
+
+            const result = { _id: 'req1', employeeId: id, ...createProfileChangeRequestDto };
+            mockEmployeeService.createProfileChangeRequest.mockResolvedValue(result);
+
+            expect(await controller.requestProfileCorrection(id, createProfileChangeRequestDto)).toBe(result);
+            expect(mockEmployeeService.createProfileChangeRequest).toHaveBeenCalledWith(id, createProfileChangeRequestDto);
+        });
+
+        it('should create a profile change request for legal name change', async () => {
+            const id = '1';
+            const createProfileChangeRequestDto: CreateProfileChangeRequestDto = {
+                requestDescription: 'Change legal name to reflect marriage',
+                reason: 'Marriage certificate provided',
+                requestedLegalName: {
+                    firstName: 'Jane',
+                    middleName: 'A.',
+                    lastName: 'Doe',
+                    fullName: 'Jane A. Doe',
+                },
+            } as any;
+
+            const result = { _id: 'req2', employeeId: id, ...createProfileChangeRequestDto };
+            mockEmployeeService.createProfileChangeRequest.mockResolvedValue(result);
+
+            expect(await controller.requestProfileCorrection(id, createProfileChangeRequestDto)).toBe(result);
+            expect(mockEmployeeService.createProfileChangeRequest).toHaveBeenCalledWith(id, createProfileChangeRequestDto);
+        });
+
+        it('should create a profile change request for marital status change', async () => {
+            const id = '1';
+            const createProfileChangeRequestDto: CreateProfileChangeRequestDto = {
+                requestDescription: 'Update marital status after marriage',
+                reason: 'Marriage certificate provided',
+                requestedMaritalStatus: 'MARRIED',
+            } as any;
+
+            const result = { _id: 'req3', employeeId: id, ...createProfileChangeRequestDto };
+            mockEmployeeService.createProfileChangeRequest.mockResolvedValue(result);
+
+            expect(await controller.requestProfileCorrection(id, createProfileChangeRequestDto)).toBe(result);
+            expect(mockEmployeeService.createProfileChangeRequest).toHaveBeenCalledWith(id, createProfileChangeRequestDto);
+        });
+
+        it('should throw ConflictException if creation fails', async () => {
+            const id = '1';
+            const createProfileChangeRequestDto: CreateProfileChangeRequestDto = {
+                requestDescription: 'Invalid request',
+            } as any;
+
+            mockEmployeeService.createProfileChangeRequest.mockRejectedValue(new ConflictException('Creation failed'));
+
+            await expect(controller.requestProfileCorrection(id, createProfileChangeRequestDto)).rejects.toThrow(ConflictException);
+        });
+    });
+
+    describe('getTeamSummary', () => {
+        it('should return team summary for manager', async () => {
+            const managerId = 'mgr1';
+            const result = {
+                managerId,
+                items: [
+                    { positionId: 'pos1', positionTitle: 'Engineer', departmentId: 'dept1', departmentName: 'Engineering', count: 3 },
+                ],
+            };
+
+            mockEmployeeService.getTeamSummary.mockResolvedValue(result);
+
+            expect(await controller.getTeamSummary(managerId)).toBe(result);
+            expect(mockEmployeeService.getTeamSummary).toHaveBeenCalledWith(managerId);
+        });
+    });
+
+    describe('assignRoles', () => {
+        it('should assign roles and permissions to an employee', async () => {
+            const id = 'emp1';
+            const assignRolesDto = {
+                roles: ['HR Admin'],
+                permissions: ['read_profiles', 'edit_profiles'],
+            } as any;
+
+            const result = { _id: 'r1', employeeProfileId: id, ...assignRolesDto };
+            mockEmployeeService.assignRoles.mockResolvedValue(result);
+
+            expect(await controller.assignRoles(id, assignRolesDto)).toBe(result);
+            expect(mockEmployeeService.assignRoles).toHaveBeenCalledWith(id, assignRolesDto);
+        });
+
+        it('should throw BadRequestException when assignment is invalid', async () => {
+            const id = 'emp1';
+            const assignRolesDto = { roles: ['INVALID_ROLE'] } as any;
+
+            mockEmployeeService.assignRoles.mockRejectedValue(new BadRequestException('Invalid role'));
+
+            await expect(controller.assignRoles(id, assignRolesDto)).rejects.toThrow(BadRequestException);
         });
     });
 });

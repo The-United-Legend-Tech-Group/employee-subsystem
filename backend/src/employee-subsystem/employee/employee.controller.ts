@@ -1,8 +1,12 @@
-import { Body, Controller, Patch, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Patch, Param, Post, UseGuards, Get, Query } from '@nestjs/common';
 import { ApiKeyGuard } from '../guards/api-key.guard';
+import { Roles, Role } from './decorators/roles.decorator';
+import { authorizationGuard } from '../guards/authorization.guard';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
+import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
+import { AssignRolesDto } from './dto/assign-roles.dto';
 import { EmployeeService } from './employee.service';
 
 
@@ -25,5 +29,27 @@ export class EmployeeController {
     @Patch(':id/profile')
     async updateProfile(@Param('id') id: string, @Body() updateEmployeeProfileDto: UpdateEmployeeProfileDto) {
         return this.employeeService.updateProfile(id, updateEmployeeProfileDto);
+    }
+
+    @Post(':id/correction-request')
+    async requestProfileCorrection(
+        @Param('id') id: string,
+        @Body() createProfileChangeRequestDto: CreateProfileChangeRequestDto,
+    ) {
+        return this.employeeService.createProfileChangeRequest(id, createProfileChangeRequestDto);
+    }
+
+    @Post(':id/roles')
+    @UseGuards(authorizationGuard)
+    @Roles(Role.HR_ADMIN)
+    async assignRoles(@Param('id') id: string, @Body() assignRolesDto: AssignRolesDto) {
+        return this.employeeService.assignRoles(id, assignRolesDto);
+    }
+
+    @Get('team/summary')
+    @UseGuards(authorizationGuard)
+    @Roles(Role.DEPARTMENT_HEAD)
+    async getTeamSummary(@Query('managerId') managerId: string) {
+        return this.employeeService.getTeamSummary(managerId);
     }
 }

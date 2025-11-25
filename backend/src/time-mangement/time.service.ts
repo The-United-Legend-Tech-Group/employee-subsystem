@@ -33,6 +33,86 @@ export class TimeService {
     return this.shiftAssignmentRepo.create(payload);
   }
 
+  /**
+   * Assign a shift scoped to employees, a department, or a position.
+   * - Provide `employeeIds: string[]` to assign individually to multiple employees
+   * - Or provide `departmentId` to assign to a department
+   * - Or provide `positionId` to assign to a position
+   * Returns array of created assignments.
+   */
+  async assignShiftScoped(dto: {
+    employeeIds?: string[];
+    departmentId?: string;
+    positionId?: string;
+    shiftId: string;
+    startDate: string | Date;
+    endDate?: string | Date;
+    status?: string;
+  }) {
+    const created: any[] = [];
+    const start = dto.startDate ? new Date(dto.startDate) : undefined;
+    const end = dto.endDate ? new Date(dto.endDate) : undefined;
+
+    if (dto.employeeIds && dto.employeeIds.length) {
+      for (const empId of dto.employeeIds) {
+        const payload: any = {
+          employeeId: empId,
+          shiftId: dto.shiftId,
+          startDate: start,
+          endDate: end,
+          status: dto.status,
+        };
+        const res = await this.shiftAssignmentRepo.create(payload);
+        created.push(res);
+      }
+      return created;
+    }
+
+    if (dto.departmentId) {
+      const payload: any = {
+        departmentId: dto.departmentId,
+        shiftId: dto.shiftId,
+        startDate: start,
+        endDate: end,
+        status: dto.status,
+      };
+      const res = await this.shiftAssignmentRepo.create(payload);
+      created.push(res);
+      return created;
+    }
+
+    if (dto.positionId) {
+      const payload: any = {
+        positionId: dto.positionId,
+        shiftId: dto.shiftId,
+        startDate: start,
+        endDate: end,
+        status: dto.status,
+      };
+      const res = await this.shiftAssignmentRepo.create(payload);
+      created.push(res);
+      return created;
+    }
+
+    throw new Error(
+      'No target specified for shift assignment (employeeIds, departmentId or positionId)',
+    );
+  }
+
+  /**
+   * Bulk update assignment statuses by id list.
+   */
+  async updateShiftAssignmentsStatus(ids: string[], status: string) {
+    const results: any[] = [];
+    for (const id of ids) {
+      const res = await this.shiftAssignmentRepo.updateById(id, {
+        status,
+      } as any);
+      results.push(res);
+    }
+    return results;
+  }
+
   async updateShiftAssignmentStatus(id: string, dto: UpdateShiftStatusDto) {
     return this.shiftAssignmentRepo.updateById(id, { status: dto.status });
   }
@@ -50,5 +130,8 @@ export class TimeService {
       startDate: { $lte: e },
       $or: [{ endDate: null }, { endDate: { $gte: s } }],
     } as any);
+  }
+  async getAllShifts() {
+    return this.shiftRepo.find({});
   }
 }

@@ -29,7 +29,7 @@ async function bootstrap() {
     .setVersion('0.1')
     .addTag('arcana')
     .build();
-
+// http://localhost:3000/api/docs
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 

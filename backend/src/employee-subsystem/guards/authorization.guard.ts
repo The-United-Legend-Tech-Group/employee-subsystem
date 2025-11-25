@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Role, ROLES_KEY } from '../decorators/roles.decorator';
+import { Role, ROLES_KEY } from '../../employee-subsystem/employee/decorators/roles.decorator';
 
 @Injectable()
 export class authorizationGuard implements CanActivate {
@@ -13,13 +13,13 @@ export class authorizationGuard implements CanActivate {
     if (!requiredRoles) {
       return true;
     }
-      const { user } = context.switchToHttp().getRequest();
-      if(!user)
-        throw new UnauthorizedException('no user attached');
-      const userRole = user.role
-      if (!requiredRoles.includes(userRole)) 
-        throw new UnauthorizedException('unauthorized access');
-       
+    const { user } = context.switchToHttp().getRequest();
+    if (!user)
+      throw new UnauthorizedException('no user attached');
+    const userRole = user.role
+    if (!requiredRoles.includes(userRole))
+      throw new UnauthorizedException('unauthorized access');
+
     return true;
   }
 }

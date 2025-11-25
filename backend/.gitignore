@@ -3,6 +3,7 @@
 /node_modules
 /build
 /tmp
+test_output.txt
 
 # Logs
 logs

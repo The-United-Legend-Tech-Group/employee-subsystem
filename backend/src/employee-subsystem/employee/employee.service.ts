@@ -5,6 +5,7 @@ import { EmployeeProfile } from './models/employee-profile.schema';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
+import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -28,6 +29,14 @@ export class EmployeeService {
 
     async updateContactInfo(id: string, updateContactInfoDto: UpdateContactInfoDto): Promise<EmployeeProfile> {
         const updatedEmployee = await this.employeeProfileRepository.updateById(id, updateContactInfoDto);
+        if (!updatedEmployee) {
+            throw new ConflictException('Employee not found');
+        }
+        return updatedEmployee;
+    }
+
+    async updateProfile(id: string, updateEmployeeProfileDto: UpdateEmployeeProfileDto): Promise<EmployeeProfile> {
+        const updatedEmployee = await this.employeeProfileRepository.updateById(id, updateEmployeeProfileDto);
         if (!updatedEmployee) {
             throw new ConflictException('Employee not found');
         }

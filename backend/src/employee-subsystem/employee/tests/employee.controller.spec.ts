@@ -3,6 +3,7 @@ import { EmployeeController } from '../employee.controller';
 import { EmployeeService } from '../employee.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateContactInfoDto } from '../dto/update-contact-info.dto';
+import { UpdateEmployeeProfileDto } from '../dto/update-employee-profile.dto';
 import { ConflictException } from '@nestjs/common';
 import { ApiKeyGuard } from '../../guards/api-key.guard';
 
@@ -13,6 +14,7 @@ describe('EmployeeController', () => {
     const mockEmployeeService = {
         onboard: jest.fn(),
         updateContactInfo: jest.fn(),
+        updateProfile: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -98,6 +100,33 @@ describe('EmployeeController', () => {
             mockEmployeeService.updateContactInfo.mockRejectedValue(new ConflictException('Employee not found'));
 
             await expect(controller.updateContactInfo(id, updateContactInfoDto)).rejects.toThrow(ConflictException);
+        });
+    });
+
+    describe('updateProfile', () => {
+        it('should update profile', async () => {
+            const id = '1';
+            const updateEmployeeProfileDto: UpdateEmployeeProfileDto = {
+                biography: 'Software Engineer',
+                profilePictureUrl: 'http://example.com/pic.jpg',
+            };
+
+            const result = { _id: id, ...updateEmployeeProfileDto };
+            mockEmployeeService.updateProfile.mockResolvedValue(result);
+
+            expect(await controller.updateProfile(id, updateEmployeeProfileDto)).toBe(result);
+            expect(mockEmployeeService.updateProfile).toHaveBeenCalledWith(id, updateEmployeeProfileDto);
+        });
+
+        it('should throw ConflictException if employee not found', async () => {
+            const id = '1';
+            const updateEmployeeProfileDto: UpdateEmployeeProfileDto = {
+                biography: 'Software Engineer',
+            };
+
+            mockEmployeeService.updateProfile.mockRejectedValue(new ConflictException('Employee not found'));
+
+            await expect(controller.updateProfile(id, updateEmployeeProfileDto)).rejects.toThrow(ConflictException);
         });
     });
 });

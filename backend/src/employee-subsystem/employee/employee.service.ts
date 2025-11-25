@@ -6,8 +6,9 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
+import { UpdateEmployeeStatusDto } from './dto/update-employee-status.dto';
 import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
-import { MaritalStatus, SystemRole } from './enums/employee-profile.enums';
+import { MaritalStatus, SystemRole, EmployeeStatus } from './enums/employee-profile.enums';
 import { EmployeeSystemRoleRepository } from './repository/employee-system-role.repository';
 import { EmployeeProfileChangeRequestRepository } from './repository/ep-change-request.repository';
 
@@ -17,8 +18,8 @@ export class EmployeeService {
         @InjectModel(EmployeeProfile.name)
         private employeeProfileModel: Model<EmployeeProfile>,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
-            private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
-            private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
+        private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
+        private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
     ) { }
 
     async onboard(createEmployeeDto: CreateEmployeeDto): Promise<EmployeeProfile> {
@@ -99,36 +100,68 @@ export class EmployeeService {
             requestedLegalName: undefined,
         } as any;
 
-            // ensure the request targets either a legal name change or marital status change
-            const { requestedLegalName, requestedMaritalStatus } = createProfileChangeRequestDto as any;
+        // ensure the request targets either a legal name change or marital status change
+        const { requestedLegalName, requestedMaritalStatus } = createProfileChangeRequestDto as any;
 
-            if (!requestedLegalName && !requestedMaritalStatus) {
-                throw new BadRequestException('At least one of requestedLegalName or requestedMaritalStatus must be provided');
+        if (!requestedLegalName && !requestedMaritalStatus) {
+            throw new BadRequestException('At least one of requestedLegalName or requestedMaritalStatus must be provided');
+        }
+
+        if (requestedMaritalStatus) {
+            // basic enum validation
+            const allowed = Object.values(MaritalStatus) as string[];
+            if (!allowed.includes(requestedMaritalStatus)) {
+                throw new BadRequestException('Invalid marital status');
             }
+            payload.requestedMaritalStatus = requestedMaritalStatus;
+        }
 
-            if (requestedMaritalStatus) {
-                // basic enum validation
-                const allowed = Object.values(MaritalStatus) as string[];
-                if (!allowed.includes(requestedMaritalStatus)) {
-                    throw new BadRequestException('Invalid marital status');
-                }
-                payload.requestedMaritalStatus = requestedMaritalStatus;
-            }
+        if (requestedLegalName) {
+            payload.requestedLegalName = {
+                firstName: requestedLegalName.firstName,
+                middleName: requestedLegalName.middleName,
+                lastName: requestedLegalName.lastName,
+                fullName: requestedLegalName.fullName,
+            };
+        }
 
-            if (requestedLegalName) {
-                payload.requestedLegalName = {
-                    firstName: requestedLegalName.firstName,
-                    middleName: requestedLegalName.middleName,
-                    lastName: requestedLegalName.lastName,
-                    fullName: requestedLegalName.fullName,
-                };
-            }
-
-            return this.employeeProfileChangeRequestRepository.create(payload);
+        return this.employeeProfileChangeRequestRepository.create(payload);
     }
 
     async getTeamSummary(managerId: string) {
         const items = await this.employeeProfileRepository.getTeamSummaryByManagerId(managerId);
         return { managerId, items };
+    }
+
+    async updateStatus(id: string, updateEmployeeStatusDto: UpdateEmployeeStatusDto): Promise<EmployeeProfile> {
+        const employee = await this.employeeProfileRepository.findById(id);
+        if (!employee) {
+            throw new ConflictException('Employee not found');
+        }
+
+        const { status } = updateEmployeeStatusDto;
+        const isActive = [
+            EmployeeStatus.ACTIVE,
+            EmployeeStatus.PROBATION,
+            EmployeeStatus.ON_LEAVE
+        ].includes(status);
+
+        // Update employee status
+        const updatedEmployee = await this.employeeProfileRepository.updateById(id, {
+            status,
+            statusEffectiveFrom: new Date(),
+        });
+
+        if (!updatedEmployee) {
+            throw new ConflictException('Employee not found during update');
+        }
+
+        // Update related system roles isActive flag
+        await this.employeeSystemRoleRepository.update(
+            { employeeProfileId: id },
+            { $set: { isActive } }
+        );
+
+        return updatedEmployee;
     }
 }

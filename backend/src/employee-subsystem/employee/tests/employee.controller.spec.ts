@@ -20,6 +20,7 @@ describe('EmployeeController', () => {
         createProfileChangeRequest: jest.fn(),
         getTeamSummary: jest.fn(),
         assignRoles: jest.fn(),
+        updateStatus: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -238,6 +239,28 @@ describe('EmployeeController', () => {
             mockEmployeeService.assignRoles.mockRejectedValue(new BadRequestException('Invalid role'));
 
             await expect(controller.assignRoles(id, assignRolesDto)).rejects.toThrow(BadRequestException);
+        });
+    });
+
+    describe('updateStatus', () => {
+        it('should update employee status', async () => {
+            const id = 'emp1';
+            const updateStatusDto = { status: 'ACTIVE' } as any;
+            const result = { _id: id, status: 'ACTIVE' };
+
+            mockEmployeeService.updateStatus.mockResolvedValue(result);
+
+            expect(await controller.updateStatus(id, updateStatusDto)).toBe(result);
+            expect(mockEmployeeService.updateStatus).toHaveBeenCalledWith(id, updateStatusDto);
+        });
+
+        it('should throw ConflictException if employee not found', async () => {
+            const id = 'emp1';
+            const updateStatusDto = { status: 'ACTIVE' } as any;
+
+            mockEmployeeService.updateStatus.mockRejectedValue(new ConflictException('Employee not found'));
+
+            await expect(controller.updateStatus(id, updateStatusDto)).rejects.toThrow(ConflictException);
         });
     });
 });

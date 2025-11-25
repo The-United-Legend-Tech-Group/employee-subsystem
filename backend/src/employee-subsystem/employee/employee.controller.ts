@@ -5,6 +5,7 @@ import { authorizationGuard } from '../guards/authorization.guard';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
+import { UpdateEmployeeStatusDto } from './dto/update-employee-status.dto';
 import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
 import { AssignRolesDto } from './dto/assign-roles.dto';
 import { EmployeeService } from './employee.service';
@@ -29,6 +30,12 @@ export class EmployeeController {
     @Patch(':id/profile')
     async updateProfile(@Param('id') id: string, @Body() updateEmployeeProfileDto: UpdateEmployeeProfileDto) {
         return this.employeeService.updateProfile(id, updateEmployeeProfileDto);
+    }
+
+    @Patch(':id/status')
+    @UseGuards(ApiKeyGuard)
+    async updateStatus(@Param('id') id: string, @Body() updateEmployeeStatusDto: UpdateEmployeeStatusDto) {
+        return this.employeeService.updateStatus(id, updateEmployeeStatusDto);
     }
 
     @Post(':id/correction-request')

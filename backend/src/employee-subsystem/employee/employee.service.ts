@@ -63,4 +63,9 @@ export class EmployeeService {
 
         return this.employeeProfileChangeRequestRepository.create(payload);
     }
+
+    async getTeamSummary(managerId: string) {
+        const items = await this.employeeProfileRepository.getTeamSummaryByManagerId(managerId);
+        return { managerId, items };
+    }
 }

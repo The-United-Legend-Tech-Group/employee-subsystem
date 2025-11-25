@@ -7,6 +7,7 @@ import { UpdateEmployeeProfileDto } from '../dto/update-employee-profile.dto';
 import { CreateProfileChangeRequestDto } from '../dto/create-profile-change-request.dto';
 import { ConflictException } from '@nestjs/common';
 import { ApiKeyGuard } from '../../guards/api-key.guard';
+import { authorizationGuard } from '../../guards/authorization.guard';
 
 describe('EmployeeController', () => {
     let controller: EmployeeController;
@@ -17,6 +18,7 @@ describe('EmployeeController', () => {
         updateContactInfo: jest.fn(),
         updateProfile: jest.fn(),
         createProfileChangeRequest: jest.fn(),
+        getTeamSummary: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -30,6 +32,8 @@ describe('EmployeeController', () => {
             ],
         })
             .overrideGuard(ApiKeyGuard)
+            .useValue({ canActivate: jest.fn(() => true) })
+            .overrideGuard(authorizationGuard)
             .useValue({ canActivate: jest.fn(() => true) })
             .compile();
 
@@ -156,6 +160,23 @@ describe('EmployeeController', () => {
             mockEmployeeService.createProfileChangeRequest.mockRejectedValue(new ConflictException('Creation failed'));
 
             await expect(controller.requestProfileCorrection(id, createProfileChangeRequestDto)).rejects.toThrow(ConflictException);
+        });
+    });
+
+    describe('getTeamSummary', () => {
+        it('should return team summary for manager', async () => {
+            const managerId = 'mgr1';
+            const result = {
+                managerId,
+                items: [
+                    { positionId: 'pos1', positionTitle: 'Engineer', departmentId: 'dept1', departmentName: 'Engineering', count: 3 },
+                ],
+            };
+
+            mockEmployeeService.getTeamSummary.mockResolvedValue(result);
+
+            expect(await controller.getTeamSummary(managerId)).toBe(result);
+            expect(mockEmployeeService.getTeamSummary).toHaveBeenCalledWith(managerId);
         });
     });
 });

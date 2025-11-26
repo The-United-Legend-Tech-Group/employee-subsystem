@@ -27,6 +27,23 @@ export class OrganizationStructureController {
         return this.organizationStructureService.getOpenPositions();
     }
 
+    @Get('hierarchy')
+    @UseGuards(ApiKeyGuard, authorizationGuard)
+    @Roles(
+        Role.DEPARTMENT_EMPLOYEE,
+        Role.DEPARTMENT_HEAD,
+        Role.HR_EMPLOYEE,
+        Role.HR_MANAGER,
+        Role.HR_ADMIN,
+        Role.SYSTEM_ADMIN,
+    )
+    @ApiSecurity('api-key')
+    @ApiOperation({ summary: 'Get organizational hierarchy (Employees)' })
+    @ApiResponse({ status: 200, description: 'Organizational hierarchy tree', type: [Object] })
+    async getHierarchy(): Promise<any[]> {
+        return this.organizationStructureService.getOrganizationHierarchy();
+    }
+
     @Get('requests/pending')
     @UseGuards(ApiKeyGuard, authorizationGuard)
     @Roles(Role.SYSTEM_ADMIN)

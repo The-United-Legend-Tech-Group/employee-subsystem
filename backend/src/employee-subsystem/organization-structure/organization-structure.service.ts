@@ -54,4 +54,34 @@ export class OrganizationStructureService {
         if (!updated) throw new NotFoundException('Change request not found');
         return updated;
     }
+
+    /**
+     * Build and return the organizational hierarchy as a tree of positions.
+     * Roots are positions that do not report to another position.
+     */
+    async getOrganizationHierarchy(): Promise<any[]> {
+        const positions = await this.positionRepository.find({ isActive: true });
+
+        const map = new Map<string, any>();
+
+        positions.forEach((p: any) => {
+            const obj = typeof p.toObject === 'function' ? p.toObject() : { ...p };
+            const id = obj._id?.toString() || obj.id || '';
+            map.set(id, { ...obj, id, children: [] });
+        });
+
+        const roots: any[] = [];
+
+        positions.forEach((p: any) => {
+            const id = (p._id && p._id.toString && p._id.toString()) || p.id || '';
+            const reportsTo = p.reportsToPositionId && p.reportsToPositionId.toString && p.reportsToPositionId.toString();
+            if (reportsTo && map.has(reportsTo)) {
+                map.get(reportsTo).children.push(map.get(id));
+            } else {
+                roots.push(map.get(id));
+            }
+        });
+
+        return roots;
+    }
 }

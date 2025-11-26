@@ -13,6 +13,7 @@ describe('OrganizationStructureController (unit)', () => {
 		getChangeRequestById: jest.fn(),
 		approveChangeRequest: jest.fn(),
 		rejectChangeRequest: jest.fn(),
+		getOrganizationHierarchy: jest.fn(),
 	};
 
 	beforeEach(() => {
@@ -57,5 +58,24 @@ describe('OrganizationStructureController (unit)', () => {
 
 		expect(mockService.rejectChangeRequest).toHaveBeenCalledWith('def456', 'Missing details');
 		expect(result).toBe(updated);
+	});
+
+	it('getHierarchy returns the org tree from service', async () => {
+		const tree = [
+			{
+				id: '1',
+				title: 'CEO',
+				children: [
+					{ id: '2', title: 'Manager', children: [{ id: '3', title: 'Staff', children: [] }] },
+				],
+			},
+		];
+
+		mockService.getOrganizationHierarchy = jest.fn().mockResolvedValue(tree);
+
+		const result = await controller.getHierarchy();
+
+		expect(mockService.getOrganizationHierarchy).toHaveBeenCalled();
+		expect(result).toBe(tree);
 	});
 });

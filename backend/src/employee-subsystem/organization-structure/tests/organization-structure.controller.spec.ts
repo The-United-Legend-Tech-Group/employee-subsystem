@@ -15,11 +15,33 @@ describe('OrganizationStructureController (unit)', () => {
 		rejectChangeRequest: jest.fn(),
 		submitChangeRequest: jest.fn(),
 		getOrganizationHierarchy: jest.fn(),
+		getManagerTeamStructure: jest.fn(),
 	};
 
 	beforeEach(() => {
 		controller = new OrganizationStructureController(mockService as any);
 		jest.clearAllMocks();
+	});
+
+	it('getManagerTeam returns manager team structure from service', async () => {
+		const sample = {
+			manager: { _id: 'mgr-1', employeeNumber: 'EMP-001', firstName: 'Jane', lastName: 'Doe', primaryPositionId: 'pos-1' },
+			team: {
+				id: 'pos-1',
+				title: 'Manager',
+				children: [
+					{ id: 'pos-2', title: 'Staff', children: [], employees: [{ employeeNumber: 'EMP-002', firstName: 'John' }] },
+				],
+				employees: [{ employeeNumber: 'EMP-001', firstName: 'Jane' }],
+			},
+		};
+
+		mockService.getManagerTeamStructure.mockResolvedValue(sample);
+
+		const result = await controller.getManagerTeam('mgr-1');
+
+		expect(mockService.getManagerTeamStructure).toHaveBeenCalledWith('mgr-1');
+		expect(result).toBe(sample);
 	});
 
 	it('returns pending change requests', async () => {

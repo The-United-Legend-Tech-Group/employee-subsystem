@@ -37,7 +37,7 @@ export class CreateHolidayDto {
   active?: boolean;
 
   // For weekly rest configuration (optional). Days are 0 (Sunday) .. 6 (Saturday)
-  @ApiProperty({ example: [0,6], required: false })
+  @ApiProperty({ example: [0, 6], required: false })
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()

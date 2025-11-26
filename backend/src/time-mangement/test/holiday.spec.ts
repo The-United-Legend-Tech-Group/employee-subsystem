@@ -22,30 +22,48 @@ describe('TimeService - Holiday flows', () => {
 
   beforeEach(() => {
     mockHolidayRepo = {
-      create: jest.fn().mockImplementation((dto) => Promise.resolve({ _id: 'h1', ...dto })),
+      create: jest
+        .fn()
+        .mockImplementation((dto) => Promise.resolve({ _id: 'h1', ...dto })),
       find: jest.fn().mockResolvedValue([]),
     };
 
     mockShiftAssignmentRepo = {} as any;
     mockShiftRepo = {} as any;
 
-    service = new TimeService(mockShiftRepo, mockShiftAssignmentRepo, undefined, mockHolidayRepo);
+    service = new TimeService(
+      mockShiftRepo,
+      mockShiftAssignmentRepo,
+      undefined,
+      mockHolidayRepo,
+    );
   });
 
   it('creates a single national holiday', async () => {
-    const dto = { type: HolidayType.NATIONAL, startDate: '2025-12-25', name: 'Xmas' } as any;
+    const dto = {
+      type: HolidayType.NATIONAL,
+      startDate: '2025-12-25',
+      name: 'Xmas',
+    } as any;
     const res = await service.createHoliday(dto);
 
-    expect(mockHolidayRepo.create).toHaveBeenCalledWith(expect.objectContaining({
-      type: HolidayType.NATIONAL,
-      name: 'Xmas',
-    }));
+    expect(mockHolidayRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: HolidayType.NATIONAL,
+        name: 'Xmas',
+      }),
+    );
     expect(res).toHaveProperty('_id', 'h1');
   });
 
   it('expands weekly rest into many holiday dates', async () => {
     // weekly rest on Saturdays (6) and Sundays (0) for two weeks
-    const dto = { weeklyDays: [0,6], weeklyFrom: '2025-11-01', weeklyTo: '2025-11-15', name: 'Weekend' } as any;
+    const dto = {
+      weeklyDays: [0, 6],
+      weeklyFrom: '2025-11-01',
+      weeklyTo: '2025-11-15',
+      name: 'Weekend',
+    } as any;
     const res = await service.createHoliday(dto);
 
     // Expect create called multiple times
@@ -55,7 +73,9 @@ describe('TimeService - Holiday flows', () => {
   });
 
   it('queries isHoliday by date', async () => {
-    mockHolidayRepo.find.mockResolvedValueOnce([{ _id: 'h1', name: 'X', startDate: new Date('2025-12-25') }]);
+    mockHolidayRepo.find.mockResolvedValueOnce([
+      { _id: 'h1', name: 'X', startDate: new Date('2025-12-25') },
+    ]);
     const results = await service.isHoliday('2025-12-25');
     expect(mockHolidayRepo.find).toHaveBeenCalled();
     expect(results).toHaveLength(1);

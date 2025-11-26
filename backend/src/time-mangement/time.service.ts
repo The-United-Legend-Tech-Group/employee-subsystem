@@ -186,15 +186,21 @@ export class TimeService {
       scheduleRuleId,
     } as any);
   }
-  
+
   // Holiday APIs
   async createHoliday(dto: CreateHolidayDto) {
     if (!this.holidayRepo) throw new Error('HolidayRepository not available');
 
     // If weeklyDays provided, expand into concrete holiday dates between weeklyFrom..weeklyTo
     if (dto.weeklyDays && dto.weeklyDays.length) {
-      const from = dto.weeklyFrom ? new Date(dto.weeklyFrom) : new Date(dto.startDate);
-      const to = dto.weeklyTo ? new Date(dto.weeklyTo) : (dto.endDate ? new Date(dto.endDate) : new Date(from.getTime() + 365 * 24 * 3600 * 1000));
+      const from = dto.weeklyFrom
+        ? new Date(dto.weeklyFrom)
+        : new Date(dto.startDate);
+      const to = dto.weeklyTo
+        ? new Date(dto.weeklyTo)
+        : dto.endDate
+          ? new Date(dto.endDate)
+          : new Date(from.getTime() + 365 * 24 * 3600 * 1000);
 
       const created: any[] = [];
       // iterate days from 'from' to 'to'

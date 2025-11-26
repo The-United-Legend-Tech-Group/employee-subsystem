@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { Types } from 'mongoose';
 import { EmployeeProfile } from '../../employee/models/employee-profile.schema';
-import { SystemRole } from 'src/employee-subsystem/employee/enums/employee-profile.enums';
+import { SystemRole } from '../../employee/enums/employee-profile.enums';
 @Schema({
   timestamps: { createdAt: true, updatedAt: false },
   collection: 'notifications',

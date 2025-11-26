@@ -23,6 +23,11 @@ import { AppraisalTemplateController } from './appraisal-template.controller';
 import { AppraisalTemplateService } from './appraisal-template.service';
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 
+import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
+import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
+import { PerformanceDashboardController } from './performance-dashboard.controller';
+import { PerformanceDashboardService } from './performance-dashboard.service';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -31,13 +36,20 @@ import { AppraisalTemplateRepository } from './repository/appraisal-template.rep
       { name: AppraisalTemplate.name, schema: AppraisalTemplateSchema },
       { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
     ]),
+    OrganizationStructureModule,
   ],
-  controllers: [AppraisalCycleController, AppraisalTemplateController],
+  controllers: [
+    AppraisalCycleController,
+    AppraisalTemplateController,
+    PerformanceDashboardController,
+  ],
   providers: [
     AppraisalCycleRepository,
     AppraisalCycleService,
     AppraisalTemplateRepository,
     AppraisalTemplateService,
+    AppraisalAssignmentRepository,
+    PerformanceDashboardService,
   ],
   exports: [MongooseModule],
 })

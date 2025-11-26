@@ -15,6 +15,7 @@ import { UpdateShiftStatusDto } from './dto/update-shift-status.dto';
 import { AssignShiftScopedDto } from './dto/assign-shift-scoped.dto';
 import { UpdateShiftAssignmentsStatusDto } from './dto/update-shift-assignments-status.dto';
 import { CreateScheduleRuleDto } from './dto/create-schedule-rule.dto';
+import { CreateHolidayDto } from './dto/create-holiday.dto';
 
 @ApiTags('time')
 @Controller('time')
@@ -100,5 +101,23 @@ export class TimeController {
     @Body() body: { scheduleRuleId: string },
   ) {
     return this.service.attachScheduleRuleToAssignment(id, body.scheduleRuleId);
+  }
+
+  @Post('holidays')
+  @ApiOperation({ summary: 'Create holiday(s) or weekly rest configuration' })
+  createHoliday(@Body() dto: CreateHolidayDto) {
+    return this.service.createHoliday(dto as any);
+  }
+
+  @Get('holidays')
+  @ApiOperation({ summary: 'List holidays' })
+  getHolidays() {
+    return this.service.getHolidays();
+  }
+
+  @Get('holidays/check')
+  @ApiOperation({ summary: 'Check if a date is a holiday / rest day' })
+  isHoliday(@Query('date') date: string) {
+    return this.service.isHoliday(date);
   }
 }

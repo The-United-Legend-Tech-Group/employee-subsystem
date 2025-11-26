@@ -13,6 +13,7 @@ describe('OrganizationStructureController (unit)', () => {
 		getChangeRequestById: jest.fn(),
 		approveChangeRequest: jest.fn(),
 		rejectChangeRequest: jest.fn(),
+		submitChangeRequest: jest.fn(),
 		getOrganizationHierarchy: jest.fn(),
 	};
 
@@ -77,5 +78,28 @@ describe('OrganizationStructureController (unit)', () => {
 
 		expect(mockService.getOrganizationHierarchy).toHaveBeenCalled();
 		expect(result).toBe(tree);
+	});
+
+	it('submitChangeRequest calls service with dto and returns saved request', async () => {
+		const dto = {
+			requestedByEmployeeId: 'emp-123',
+			requestType: StructureRequestType.NEW_POSITION,
+			targetPositionId: 'pos-456',
+			details: 'Request to add a new position',
+			reason: 'Project growth',
+		} as any;
+
+		const saved = {
+			requestNumber: 'SCR-999',
+			...dto,
+			status: StructureRequestStatus.SUBMITTED,
+		} as any;
+
+		mockService.submitChangeRequest.mockResolvedValue(saved);
+
+		const result = await controller.submitChangeRequest(dto);
+
+		expect(mockService.submitChangeRequest).toHaveBeenCalledWith(dto);
+		expect(result).toBe(saved);
 	});
 });

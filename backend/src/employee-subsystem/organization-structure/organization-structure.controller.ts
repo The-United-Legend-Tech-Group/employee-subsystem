@@ -5,6 +5,7 @@ import { ApiKeyGuard } from '../guards/api-key.guard';
 import { authorizationGuard } from '../guards/authorization.guard';
 import { Roles, Role } from '../employee/decorators/roles.decorator';
 import { StructureChangeRequest } from './models/structure-change-request.schema';
+import { CreateStructureChangeRequestDto } from './dto/create-structure-change-request.dto';
 import { Position } from './models/position.schema';
 
 @ApiTags('Organization Structure')
@@ -80,5 +81,15 @@ export class OrganizationStructureController {
     @ApiOperation({ summary: 'Reject a structure change request (System Admin)' })
     async rejectRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
         return this.organizationStructureService.rejectChangeRequest(id, body?.comment);
+    }
+
+    @Post('requests')
+    @UseGuards(ApiKeyGuard, authorizationGuard)
+    @Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
+    @ApiSecurity('api-key')
+    @ApiOperation({ summary: 'Submit a structure change request (Managers)' })
+    @ApiResponse({ status: 201, description: 'Submitted change request', type: StructureChangeRequest })
+    async submitChangeRequest(@Body() dto: CreateStructureChangeRequestDto): Promise<StructureChangeRequest> {
+        return this.organizationStructureService.submitChangeRequest(dto);
     }
 }

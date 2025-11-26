@@ -56,6 +56,29 @@ export class OrganizationStructureService {
     }
 
     /**
+     * Submit a new structure change request. Intended for managers to request
+     * changes to reporting lines or team assignments.
+     */
+    async submitChangeRequest(dto: any): Promise<StructureChangeRequest> {
+        const requestNumber = `SCR-${Date.now()}`;
+
+        const doc = new this.changeRequestModel({
+            requestNumber,
+            requestedByEmployeeId: dto.requestedByEmployeeId,
+            requestType: dto.requestType,
+            targetDepartmentId: dto.targetDepartmentId,
+            targetPositionId: dto.targetPositionId,
+            details: dto.details,
+            reason: dto.reason,
+            status: StructureRequestStatus.SUBMITTED,
+            submittedByEmployeeId: dto.submittedByEmployeeId || dto.requestedByEmployeeId,
+            submittedAt: new Date(),
+        });
+
+        return doc.save();
+    }
+
+    /**
      * Build and return the organizational hierarchy as a tree of positions.
      * Roots are positions that do not report to another position.
      */

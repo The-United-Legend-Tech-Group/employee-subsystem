@@ -6,6 +6,9 @@ import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
 import { CreateScheduleRuleDto } from './dto/create-schedule-rule.dto';
+import { HolidayRepository } from './repository/holiday.repository';
+import { CreateHolidayDto } from './dto/create-holiday.dto';
+import { HolidayType } from './models/enums/index';
 
 @Injectable()
 export class TimeService {
@@ -13,6 +16,7 @@ export class TimeService {
     private readonly shiftRepo: ShiftRepository,
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly scheduleRuleRepo?: ScheduleRuleRepository,
+    private readonly holidayRepo?: HolidayRepository,
   ) {}
 
   /* Existing simple time record creation kept for backwards compatibility */
@@ -180,6 +184,68 @@ export class TimeService {
   ) {
     return this.shiftAssignmentRepo.updateById(assignmentId, {
       scheduleRuleId,
+    } as any);
+  }
+
+  // Holiday APIs
+  async createHoliday(dto: CreateHolidayDto) {
+    if (!this.holidayRepo) throw new Error('HolidayRepository not available');
+
+    // If weeklyDays provided, expand into concrete holiday dates between weeklyFrom..weeklyTo
+    if (dto.weeklyDays && dto.weeklyDays.length) {
+      const from = dto.weeklyFrom
+        ? new Date(dto.weeklyFrom)
+        : new Date(dto.startDate);
+      const to = dto.weeklyTo
+        ? new Date(dto.weeklyTo)
+        : dto.endDate
+          ? new Date(dto.endDate)
+          : new Date(from.getTime() + 365 * 24 * 3600 * 1000);
+
+      const created: any[] = [];
+      // iterate days from 'from' to 'to'
+      for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+        const weekday = d.getDay();
+        if (dto.weeklyDays.includes(weekday)) {
+          const payload: any = {
+            type: HolidayType.WEEKLY_REST,
+            startDate: new Date(d),
+            endDate: undefined,
+            name: dto.name,
+            active: dto.active !== undefined ? dto.active : true,
+          };
+          const res = await this.holidayRepo.create(payload);
+          created.push(res);
+        }
+      }
+      return created;
+    }
+
+    // Otherwise create single/range holiday
+    const payload: any = {
+      type: dto.type,
+      startDate: new Date(dto.startDate),
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      name: dto.name,
+      active: dto.active !== undefined ? dto.active : true,
+    };
+
+    return this.holidayRepo.create(payload as any);
+  }
+
+  async getHolidays() {
+    if (!this.holidayRepo) throw new Error('HolidayRepository not available');
+    return this.holidayRepo.find({});
+  }
+
+  async isHoliday(date: string) {
+    if (!this.holidayRepo) throw new Error('HolidayRepository not available');
+    const d = new Date(date);
+    // find holidays where startDate <= d <= endDate or startDate == d
+    return this.holidayRepo.find({
+      startDate: { $lte: d } as any,
+      $or: [{ endDate: null }, { endDate: { $gte: d } }],
+      active: true,
     } as any);
   }
   async getAllShifts() {

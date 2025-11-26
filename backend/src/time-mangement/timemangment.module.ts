@@ -21,7 +21,9 @@ import { TimeService } from './time.service';
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
+import { HolidayRepository } from './repository/holiday.repository';
 
+import { Holiday, HolidaySchema } from './models/holiday.schema';
 @Module({
   imports: [
     DatabaseModule,
@@ -29,6 +31,7 @@ import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
     MongooseModule.forFeature([
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },
       { name: ShiftAssignment.name, schema: ShiftAssignmentSchema },
+      { name: Holiday.name, schema: HolidaySchema },
       { name: ShiftType.name, schema: ShiftTypeSchema },
       { name: Shift.name, schema: ShiftSchema },
       { name: ScheduleRule.name, schema: ScheduleRuleSchema },
@@ -39,8 +42,8 @@ import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
     TimeService,
     ShiftRepository,
     ShiftAssignmentRepository,
-    // Schedule rule repository
     ScheduleRuleRepository,
+    HolidayRepository,
   ],
   exports: [
     MongooseModule,
@@ -48,6 +51,7 @@ import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
+    HolidayRepository,
   ],
 })
 export class TimeMangementModule {}

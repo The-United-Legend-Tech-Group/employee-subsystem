@@ -27,6 +27,8 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
 import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
 import { PerformanceDashboardController } from './performance-dashboard.controller';
 import { PerformanceDashboardService } from './performance-dashboard.service';
+import { AppraisalAssignmentController } from './appraisal-assignment.controller';
+import { AppraisalAssignmentService } from './appraisal-assignment.service';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { PerformanceDashboardService } from './performance-dashboard.service';
     AppraisalCycleController,
     AppraisalTemplateController,
     PerformanceDashboardController,
+    AppraisalAssignmentController,
   ],
   providers: [
     AppraisalCycleRepository,
@@ -50,6 +53,7 @@ import { PerformanceDashboardService } from './performance-dashboard.service';
     AppraisalTemplateService,
     AppraisalAssignmentRepository,
     PerformanceDashboardService,
+    AppraisalAssignmentService,
   ],
   exports: [MongooseModule],
 })

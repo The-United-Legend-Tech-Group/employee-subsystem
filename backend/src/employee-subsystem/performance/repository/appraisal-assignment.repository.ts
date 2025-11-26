@@ -12,4 +12,11 @@ export class AppraisalAssignmentRepository extends BaseRepository<AppraisalAssig
     ) {
         super(model);
     }
+    async findByManager(filter: any): Promise<AppraisalAssignmentDocument[]> {
+        return this.model.find(filter)
+            .populate('employeeProfileId', 'firstName lastName email position')
+            .populate('templateId', 'name')
+            .populate('cycleId', 'name')
+            .exec();
+    }
 }

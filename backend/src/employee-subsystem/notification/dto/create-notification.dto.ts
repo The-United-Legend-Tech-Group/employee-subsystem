@@ -1,5 +1,6 @@
 import { IsArray, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString, IsBoolean, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SystemRole } from '../../employee/enums/employee-profile.enums';
 
 export class CreateNotificationDto {
     @IsArray()
@@ -11,9 +12,13 @@ export class CreateNotificationDto {
     @IsNotEmpty()
     type: string;
 
-    @IsEnum(['UNICAST', 'MULTICAST'])
+    @IsEnum(['UNICAST', 'MULTICAST', 'BROADCAST'])
     @IsNotEmpty()
     deliveryType: string;
+
+    @IsEnum(SystemRole)
+    @IsOptional()
+    deliverToRole?: SystemRole;
 
     @IsString()
     @IsNotEmpty()

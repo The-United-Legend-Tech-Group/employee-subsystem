@@ -9,6 +9,6 @@ import { NotificationRepository } from './repository/notification.repository';
   imports: [MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }])],
   providers: [NotificationService, NotificationRepository],
   controllers: [NotificationController],
-  exports: [MongooseModule],
+  exports: [MongooseModule, NotificationService],
 })
 export class NotificationModule { }

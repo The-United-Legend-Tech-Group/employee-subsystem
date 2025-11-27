@@ -5,10 +5,15 @@ import { CreateAppraisalCycleDto } from '../dto/create-appraisal-cycle.dto';
 import { UpdateAppraisalCycleDto } from '../dto/update-appraisal-cycle.dto';
 import { AppraisalTemplateType } from '../enums/performance.enums';
 import { NotFoundException } from '@nestjs/common';
+import { NotificationService } from '../../notification/notification.service';
+import { EmployeeProfileRepository } from '../../employee/repository/employee-profile.repository';
+import { EmployeeStatus, SystemRole } from '../../employee/enums/employee-profile.enums';
 
 describe('AppraisalCycleService', () => {
     let service: AppraisalCycleService;
     let repository: AppraisalCycleRepository;
+    let notificationService: NotificationService;
+    let employeeProfileRepository: EmployeeProfileRepository;
 
     const mockRepository = {
         create: jest.fn(),
@@ -16,6 +21,14 @@ describe('AppraisalCycleService', () => {
         findById: jest.fn(),
         updateById: jest.fn(),
         deleteById: jest.fn(),
+    };
+
+    const mockNotificationService = {
+        create: jest.fn(),
+    };
+
+    const mockEmployeeProfileRepository = {
+        find: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -26,11 +39,21 @@ describe('AppraisalCycleService', () => {
                     provide: AppraisalCycleRepository,
                     useValue: mockRepository,
                 },
+                {
+                    provide: NotificationService,
+                    useValue: mockNotificationService,
+                },
+                {
+                    provide: EmployeeProfileRepository,
+                    useValue: mockEmployeeProfileRepository,
+                },
             ],
         }).compile();
 
         service = module.get<AppraisalCycleService>(AppraisalCycleService);
         repository = module.get<AppraisalCycleRepository>(AppraisalCycleRepository);
+        notificationService = module.get<NotificationService>(NotificationService);
+        employeeProfileRepository = module.get<EmployeeProfileRepository>(EmployeeProfileRepository);
     });
 
     it('should be defined', () => {
@@ -45,10 +68,57 @@ describe('AppraisalCycleService', () => {
                 startDate: new Date(),
                 endDate: new Date(),
             };
-            mockRepository.create.mockResolvedValue(dto);
+            mockRepository.create.mockResolvedValue({ ...dto, _id: 'cycleId' });
+            mockEmployeeProfileRepository.find.mockResolvedValue([{ _id: 'empId' }]);
+            mockNotificationService.create.mockResolvedValue({});
 
-            expect(await service.create(dto)).toEqual(dto);
+            await service.create(dto);
+
             expect(mockRepository.create).toHaveBeenCalledWith(dto);
+            mockRepository.create.mockResolvedValue({ ...dto, _id: 'cycleId' });
+            mockEmployeeProfileRepository.find.mockResolvedValue([{ _id: 'empId' }]);
+            mockNotificationService.create.mockResolvedValue({});
+
+            await service.create(dto);
+
+            expect(mockRepository.create).toHaveBeenCalledWith(dto);
+            expect(mockEmployeeProfileRepository.find).toHaveBeenCalledWith({ status: EmployeeStatus.ACTIVE });
+            expect(mockNotificationService.create).toHaveBeenCalledWith(expect.objectContaining({
+                recipientId: ['empId'],
+                relatedEntityId: 'cycleId',
+                title: 'New Appraisal Cycle Started',
+            }));
+        });
+
+        it('should create an appraisal cycle and notify employees in specific departments', async () => {
+            const dto: CreateAppraisalCycleDto = {
+                name: 'Test Cycle',
+                cycleType: AppraisalTemplateType.ANNUAL,
+                startDate: new Date(),
+                endDate: new Date(),
+                templateAssignments: [
+                    {
+                        templateId: 'tempId',
+                        departmentIds: ['deptId1', 'deptId2']
+                    }
+                ]
+            };
+            mockRepository.create.mockResolvedValue({ ...dto, _id: 'cycleId' });
+            mockEmployeeProfileRepository.find.mockResolvedValue([{ _id: 'empId' }]);
+            mockNotificationService.create.mockResolvedValue({});
+
+            await service.create(dto);
+
+            expect(mockRepository.create).toHaveBeenCalledWith(dto);
+            expect(mockEmployeeProfileRepository.find).toHaveBeenCalledWith({
+                status: EmployeeStatus.ACTIVE,
+                primaryDepartmentId: { $in: ['deptId1', 'deptId2'] }
+            });
+            expect(mockNotificationService.create).toHaveBeenCalledWith(expect.objectContaining({
+                recipientId: ['empId'],
+                relatedEntityId: 'cycleId',
+                title: 'New Appraisal Cycle Started',
+            }));
         });
     });
 

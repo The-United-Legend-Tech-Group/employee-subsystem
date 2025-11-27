@@ -32,6 +32,8 @@ import { PerformanceDashboardController } from './performance-dashboard.controll
 import { PerformanceDashboardService } from './performance-dashboard.service';
 import { AppraisalAssignmentController } from './appraisal-assignment.controller';
 import { AppraisalAssignmentService } from './appraisal-assignment.service';
+import { NotificationModule } from '../notification/notification.module';
+import { EmployeeModule } from '../employee/employee.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { AppraisalAssignmentService } from './appraisal-assignment.service';
       { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
     ]),
     OrganizationStructureModule,
+    NotificationModule,
+    EmployeeModule,
   ],
   controllers: [
     AppraisalCycleController,

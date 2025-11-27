@@ -57,7 +57,16 @@ export class AttendanceService {
       startOfDay,
     );
 
-    const punch = { type: dto.type, time: ts } as any;
+    // Tag clock-in with location, terminal ID, and device metadata
+    const punch = {
+      type: dto.type,
+      time: ts,
+      __deviceInfo: {
+        location: (dto as any).location || 'Unknown',
+        terminalId: (dto as any).terminalId || 'Unknown',
+        device: (dto as any).device || 'Unknown',
+      },
+    } as any;
 
     if (!existing) {
       const payload: any = {
@@ -82,6 +91,7 @@ export class AttendanceService {
     let totalMinutes = 0;
     let missed = false;
     let finalPunches: any[] = punches;
+    let isRepeatedLate = false;
 
     if (policy === PunchPolicy.MULTIPLE) {
       for (let i = 0; i < punches.length; ) {
@@ -137,10 +147,56 @@ export class AttendanceService {
       missed = true;
     }
 
+    // Detect repeated lateness: check if clock-in is after shift start (9:00 AM)
+    if (dto.type === PunchType.IN) {
+      const clockInTime = new Date(ts);
+      const SHIFT_START_HOUR = 9;
+
+      if (clockInTime.getHours() >= SHIFT_START_HOUR) {
+        // This is a late clock-in
+        const allRecords = await this.attendanceRepo.find({
+          employeeId: dto.employeeId,
+        } as any);
+
+        let lateCount = 0;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Count late clock-ins in the past 30 days
+        (allRecords || []).forEach((record: any) => {
+          const recordDate = new Date(record.createdAt || record._id);
+          if (recordDate >= thirtyDaysAgo) {
+            const recordPunches = record.punches || [];
+            recordPunches.forEach((p: any) => {
+              if (p.type === PunchType.IN) {
+                const punchTime = new Date(p.time);
+                if (punchTime.getHours() >= SHIFT_START_HOUR) {
+                  lateCount++;
+                }
+              }
+            });
+          }
+        });
+
+        // Flag as repeated lateness if 3 or more late instances in 30 days
+        if (lateCount >= 3) {
+          isRepeatedLate = true;
+          // Log flagged employee for disciplinary tracking
+          console.info('REPEATED LATENESS FLAGGED FOR DISCIPLINARY TRACKING', {
+            employeeId: dto.employeeId,
+            lateCount,
+            lastLateClockIn: ts,
+            deviceInfo: punch.__deviceInfo,
+          });
+        }
+      }
+    }
+
     const update: any = {
       punches: finalPunches,
       totalWorkMinutes: totalMinutes,
       hasMissedPunch: missed,
+      __repeatedLate: isRepeatedLate,
     };
 
     return this.attendanceRepo.updateById((existing as any)._id, update as any);

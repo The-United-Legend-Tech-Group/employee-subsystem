@@ -471,8 +471,6 @@ export class TimeService {
       status: 'SUBMITTED',
     };
 
-    if (dto.punches) payload.punches = dto.punches;
-    if (dto.source) payload.source = dto.source;
 
     const created = await this.attendanceCorrectionRepo.create(payload as any);
 

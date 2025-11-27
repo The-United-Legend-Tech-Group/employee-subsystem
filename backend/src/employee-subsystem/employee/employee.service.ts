@@ -2,6 +2,7 @@ import { ConflictException, Injectable, BadRequestException, NotFoundException }
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { EmployeeProfile } from './models/employee-profile.schema';
+import { AppraisalRecord } from '../performance/models/appraisal-record.schema';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
@@ -17,6 +18,8 @@ export class EmployeeService {
     constructor(
         @InjectModel(EmployeeProfile.name)
         private employeeProfileModel: Model<EmployeeProfile>,
+        @InjectModel(AppraisalRecord.name)
+        private appraisalRecordModel: Model<AppraisalRecord>,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
         private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
         private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
@@ -264,9 +267,25 @@ export class EmployeeService {
         const profileObj: any = employee.toObject ? employee.toObject() : employee;
         if (profileObj.password) delete profileObj.password;
 
+        // Fetch appraisal records for performance history (most recent first)
+        const records: any[] = await this.appraisalRecordModel
+            .find({ employeeProfileId: employeeId })
+            .populate({ path: 'cycleId', select: 'cycleType name' })
+            .sort({ managerSubmittedAt: -1, createdAt: -1 })
+            .lean();
+
+        const appraisalHistory = records.map(r => ({
+            date: r.hrPublishedAt || r.managerSubmittedAt || r.createdAt || null,
+            type: r.cycleId ? (r.cycleId.cycleType || r.cycleId.name) : null,
+            score: typeof r.totalScore === 'number' ? r.totalScore : null,
+        }));
+
         return {
             profile: profileObj,
             systemRole: systemRole || null,
+            performance: {
+                appraisalHistory,
+            },
         };
     }
 }

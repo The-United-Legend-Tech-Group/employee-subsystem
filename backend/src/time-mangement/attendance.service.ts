@@ -4,8 +4,14 @@ import { PunchType, PunchPolicy, HolidayType } from './models/enums/index';
 import { PunchDto } from './dto/punch.dto';
 import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
-// CorrectionAuditRepository removed — audits are now ephemeral (logged)
 import { HolidayRepository } from './repository/holiday.repository';
+
+interface PenaltyInfo {
+  isLate: boolean;
+  minutesLate: number;
+  gracePeriodApplied: boolean;
+  deductedMinutes: number;
+}
 
 @Injectable()
 export class AttendanceService {
@@ -15,11 +21,39 @@ export class AttendanceService {
     private readonly holidayRepo?: HolidayRepository,
   ) {}
 
+  private calculatePenalty(
+    checkInTime: Date,
+    expectedCheckInTime: Date,
+    gracePeriodMinutes: number = 0,
+    latenessThresholdMinutes: number = 0,
+    automaticDeductionMinutes: number = 0,
+  ): PenaltyInfo {
+    const checkInMs = checkInTime.getTime();
+    const expectedMs = expectedCheckInTime.getTime();
+    const minutesLate = Math.max(0, Math.round((checkInMs - expectedMs) / 60000));
+
+    const gracePeriodApplied = minutesLate <= gracePeriodMinutes;
+    const isLate = minutesLate > gracePeriodMinutes;
+    const deductedMinutes =
+      isLate && minutesLate > latenessThresholdMinutes
+        ? automaticDeductionMinutes
+        : 0;
+
+    return {
+      isLate,
+      minutesLate,
+      gracePeriodApplied,
+      deductedMinutes,
+    };
+  }
+
   async punch(dto: PunchDto) {
     if (!this.attendanceRepo)
       throw new Error('AttendanceRepository not available');
 
     let ts = dto.time ? new Date(dto.time) : new Date();
+
+    // Apply rounding if specified
     if (dto.roundMode && dto.intervalMinutes && dto.intervalMinutes > 0) {
       const roundToInterval = (
         d: Date,
@@ -47,6 +81,7 @@ export class AttendanceService {
 
       ts = roundToInterval(ts, dto.intervalMinutes, dto.roundMode as any);
     }
+
     const startOfDay = new Date(ts);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(ts);
@@ -57,13 +92,30 @@ export class AttendanceService {
       startOfDay,
     );
 
+    // Calculate penalty if check-in and expected time provided
+    let penaltyInfo: PenaltyInfo | null = null;
+    if (
+      dto.type === PunchType.IN &&
+      dto.expectedCheckInTime &&
+      dto.gracePeriodMinutes !== undefined
+    ) {
+      const expectedTime = new Date(dto.expectedCheckInTime);
+      penaltyInfo = this.calculatePenalty(
+        ts,
+        expectedTime,
+        dto.gracePeriodMinutes || 0,
+        dto.latenessThresholdMinutes || 0,
+        dto.automaticDeductionMinutes || 0,
+      );
+    }
+
     const punch = { type: dto.type, time: ts } as any;
 
     if (!existing) {
       const payload: any = {
         employeeId: dto.employeeId,
         punches: [punch],
-        totalWorkMinutes: 0,
+        totalWorkMinutes: penaltyInfo ? -penaltyInfo.deductedMinutes : 0,
         hasMissedPunch: false,
         exceptionIds: [],
         finalisedForPayroll: false,
@@ -82,6 +134,7 @@ export class AttendanceService {
     let totalMinutes = 0;
     let missed = false;
     let finalPunches: any[] = punches;
+    let totalDeductions = penaltyInfo ? penaltyInfo.deductedMinutes : 0;
 
     if (policy === PunchPolicy.MULTIPLE) {
       for (let i = 0; i < punches.length; ) {
@@ -137,9 +190,12 @@ export class AttendanceService {
       missed = true;
     }
 
+    // Apply deductions to total work minutes
+    const finalTotalMinutes = Math.max(0, totalMinutes - totalDeductions);
+
     const update: any = {
       punches: finalPunches,
-      totalWorkMinutes: totalMinutes,
+      totalWorkMinutes: finalTotalMinutes,
       hasMissedPunch: missed,
     };
 
@@ -247,9 +303,6 @@ export class AttendanceService {
     const created = await this.attendanceCorrectionRepo.create(payload as any);
 
     // Ephemeral audit: log the submission instead of persisting
-    /* Auditing (ephemeral):
-       correctionRequestId, performedBy (employee), action, details
-       Persistence intentionally removed; log for debugging/ops instead. */
     // eslint-disable-next-line no-console
     console.info('Audit: attendance-correction SUBMITTED', {
       correctionRequestId: created._id,

@@ -22,4 +22,15 @@ export class AttendanceRepository extends BaseRepository<AttendanceRecordDocumen
       date,
     } as any);
   }
+
+  findByEmployeeIdAndDateRange(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return this.find({
+      employeeId,
+      date: { $gte: startDate, $lte: endDate },
+    } as any);
+  }
 }

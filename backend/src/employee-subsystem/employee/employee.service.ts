@@ -20,7 +20,7 @@ export class EmployeeService {
         @InjectModel(EmployeeProfile.name)
         private employeeProfileModel: Model<EmployeeProfile>,
         @InjectModel(AppraisalRecord.name)
-        private appraisalRecordModel: Model<AppraisalRecord>,
+        private readonly appraisalRecordModel: Model<AppraisalRecord>,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
         private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
         private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,

@@ -8,7 +8,7 @@ import { RegisterCandidateDto } from './dto/register-candidate.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-    constructor(private authService: AuthService) { }
+    constructor(private readonly authService: AuthService) { }
 
     @HttpCode(HttpStatus.OK)
     @Post('login')

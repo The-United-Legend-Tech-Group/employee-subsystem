@@ -91,4 +91,41 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
             .lean()
             .exec();
     }
+
+    /**
+     * Search employees by a free-text query. Matches against name, email, employeeNumber,
+     * nationalId and mobilePhone. Returns lean results and excludes sensitive fields.
+     */
+    async searchEmployees(q: string) {
+        // Escape regex special chars
+        const escaped = q.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&');
+        const regex = new RegExp(escaped, 'i');
+
+        const filter = {
+            $or: [
+                { firstName: regex },
+                { lastName: regex },
+                { fullName: regex },
+                { personalEmail: regex },
+                { workEmail: regex },
+                { employeeNumber: regex },
+                { nationalId: regex },
+                { mobilePhone: regex },
+            ],
+        } as any;
+
+        const projection: any = {
+            password: 0,
+        };
+
+        const items = await this.model
+            .find(filter)
+            .select(projection)
+            .lean()
+            .exec();
+
+        const total = await this.model.countDocuments(filter).exec();
+
+        return { total, items };
+    }
 }

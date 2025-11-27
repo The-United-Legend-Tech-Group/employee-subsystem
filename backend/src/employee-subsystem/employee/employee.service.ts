@@ -158,6 +158,15 @@ export class EmployeeService {
         return { managerId, items };
     }
 
+    async searchEmployees(q: string) {
+        if (!q || String(q).trim().length === 0) {
+            throw new BadRequestException('Query parameter `q` is required');
+        }
+
+        const result = await this.employeeProfileRepository.searchEmployees(String(q));
+        return { query: q, total: result.total, items: result.items };
+    }
+
     async updateStatus(id: string, updateEmployeeStatusDto: UpdateEmployeeStatusDto): Promise<EmployeeProfile> {
         const employee = await this.employeeProfileRepository.findById(id);
         if (!employee) {

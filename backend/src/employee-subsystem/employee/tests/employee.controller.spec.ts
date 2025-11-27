@@ -22,6 +22,7 @@ describe('EmployeeController', () => {
         getTeamSummary: jest.fn(),
         getTeamProfiles: jest.fn(),
         getProfile: jest.fn(),
+        searchEmployees: jest.fn(),
         assignRoles: jest.fn(),
         updateStatus: jest.fn(),
         listProfileChangeRequests: jest.fn(),
@@ -284,6 +285,24 @@ describe('EmployeeController', () => {
             mockEmployeeService.getProfile.mockRejectedValue(new NotFoundException('Employee not found'));
 
             await expect(controller.getProfile(id)).rejects.toThrow(NotFoundException);
+        });
+    });
+
+    describe('searchEmployees', () => {
+        it('should return search results when query provided', async () => {
+            const q = 'john';
+            const result = { query: q, total: 1, items: [{ _id: 'e1', firstName: 'John', lastName: 'Doe' }] };
+
+            mockEmployeeService.searchEmployees.mockResolvedValue(result);
+
+            expect(await controller.searchEmployees(q as any)).toBe(result);
+            expect(mockEmployeeService.searchEmployees).toHaveBeenCalledWith(q);
+        });
+
+        it('should throw when query missing', async () => {
+            mockEmployeeService.searchEmployees.mockRejectedValue(new BadRequestException('Query parameter `q` is required'));
+
+            await expect(controller.searchEmployees(undefined as any)).rejects.toThrow(BadRequestException);
         });
     });
 

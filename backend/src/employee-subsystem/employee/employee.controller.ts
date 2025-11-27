@@ -74,6 +74,12 @@ export class EmployeeController {
         return this.employeeService.getTeamProfiles(managerId);
     }
 
+    // HR Admin: search employees by query
+    @Get('search')
+    async searchEmployees(@Query('q') q: string) {
+        return this.employeeService.searchEmployees(q);
+    }
+
     // Employee: fetch own (or specific) full profile
     @Get(':id')
     async getProfile(@Param('id') id: string) {

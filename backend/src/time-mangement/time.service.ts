@@ -228,9 +228,7 @@ export class TimeService {
     // check weeklyRestDays in parsed pattern or on dto-like fields
     const weeklyRest: number[] | undefined =
       parsed?.weeklyRestDays ||
-      (rule as any).weeklyRestDays ||
-      parsed?.weeklyDays ||
-      (rule as any).weeklyDays;
+      (rule as any).weeklyRestDays;
     if (weeklyRest && Array.isArray(weeklyRest)) {
       if (weeklyRest.includes(d.getDay())) return true;
     }

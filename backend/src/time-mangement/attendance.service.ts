@@ -5,6 +5,8 @@ import { PunchDto } from './dto/punch.dto';
 import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
 import { HolidayRepository } from './repository/holiday.repository';
+import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
+import { ShiftRepository } from './repository/shift.repository';
 
 interface PenaltyInfo {
   isLate: boolean;
@@ -19,6 +21,8 @@ export class AttendanceService {
     private readonly attendanceRepo?: AttendanceRepository,
     private readonly attendanceCorrectionRepo?: AttendanceCorrectionRepository,
     private readonly holidayRepo?: HolidayRepository,
+    private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
+    private readonly shiftRepo?: ShiftRepository,
   ) {}
 
   private calculatePenalty(
@@ -75,7 +79,7 @@ export class AttendanceService {
         } else if (mode === 'floor') {
           targetMins = mins - remainder;
         }
-        const targetMs = targetMins * 60000;
+        const targetMs = targetMins * 60000; //@Youssef-Ashraf2099 validate this
         return new Date(targetMs);
       };
 
@@ -86,6 +90,103 @@ export class AttendanceService {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(ts);
     endOfDay.setHours(23, 59, 59, 999);
+
+    // Enforce shift boundaries / pre-approval rules when possible
+    try {
+      if (this.shiftAssignmentRepo && this.shiftRepo) {
+        const assignments: any =
+          await this.shiftAssignmentRepo.findByEmployeeAndTerm(
+            dto.employeeId,
+            startOfDay,
+            endOfDay,
+          );
+
+        const assignment = Array.isArray(assignments)
+          ? assignments[0]
+          : assignments;
+        if (assignment && (assignment as any).shiftId) {
+          const shift: any = await this.shiftRepo.findById(
+            (assignment as any).shiftId,
+          );
+          if (shift) {
+            const [shH, shM] = (shift.startTime || '00:00')
+              .split(':')
+              .map((v: any) => Number(v));
+            const [enH, enM] = (shift.endTime || '00:00')
+              .split(':')
+              .map((v: any) => Number(v));
+            // Build shift start/end using UTC components to avoid timezone skew when comparing
+            const year = ts.getUTCFullYear();
+            const month = ts.getUTCMonth();
+            const day = ts.getUTCDate();
+            const shiftStart = new Date(
+              Date.UTC(year, month, day, shH, shM, 0, 0),
+            );
+            let shiftEnd = new Date(Date.UTC(year, month, day, enH, enM, 0, 0));
+            // handle overnight shifts (end <= start => next day)
+            if (shiftEnd.getTime() <= shiftStart.getTime()) {
+              shiftEnd = new Date(shiftEnd.getTime() + 24 * 3600 * 1000);
+            }
+
+            const graceIn = shift.graceInMinutes || 0;
+            const graceOut = shift.graceOutMinutes || 0;
+
+            // check if this day is a holiday/rest day
+            let isHoliday = false;
+            if (this.holidayRepo) {
+              const holidays = await this.holidayRepo.find({
+                startDate: { $lte: ts } as any,
+                $or: [{ endDate: null }, { endDate: { $gte: ts } }],
+                active: true,
+              } as any);
+              isHoliday = Array.isArray(holidays)
+                ? holidays.length > 0
+                : !!holidays;
+            }
+
+            // Enforce IN rules
+            if (dto.type === PunchType.IN) {
+              // Late beyond grace
+              if (ts.getTime() > shiftStart.getTime() + graceIn * 60000) {
+                throw new Error('Late punch beyond allowed grace period');
+              }
+              // Early before shift start: require pre-approval if shift demands it
+              if (
+                ts.getTime() < shiftStart.getTime() &&
+                shift.requiresApprovalForOvertime
+              ) {
+                throw new Error('Early clock-in requires pre-approval');
+              }
+              // Punch on holiday/rest day may require approval
+              if (isHoliday && shift.requiresApprovalForOvertime) {
+                throw new Error('Punch on holiday requires pre-approval');
+              }
+            }
+
+            // Enforce OUT rules
+            if (dto.type === PunchType.OUT) {
+              // Leaving early
+              if (
+                ts.getTime() < shiftEnd.getTime() &&
+                shift.requiresApprovalForOvertime
+              ) {
+                throw new Error('Early leaving requires pre-approval');
+              }
+              // Overtime beyond grace out
+              if (
+                ts.getTime() > shiftEnd.getTime() + graceOut * 60000 &&
+                shift.requiresApprovalForOvertime
+              ) {
+                throw new Error('Overtime requires pre-approval');
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // Rethrow to prevent creating/updating attendance when rule violation occurs
+      throw err;
+    }
 
     const existing = await this.attendanceRepo.findForDay(
       dto.employeeId,

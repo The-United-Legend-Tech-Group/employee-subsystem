@@ -89,9 +89,9 @@ export class OrganizationStructureController {
     }
 
     @Post('requests')
-    @UseGuards(ApiKeyGuard, authorizationGuard)
-    @Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
-    @ApiSecurity('api-key')
+    //@UseGuards(ApiKeyGuard, authorizationGuard)
+    //@Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
+    //@ApiSecurity('api-key')
     @ApiOperation({ summary: 'Submit a structure change request (Managers)' })
     @ApiResponse({ status: 201, description: 'Submitted change request', type: StructureChangeRequest })
     async submitChangeRequest(@Body() dto: CreateStructureChangeRequestDto): Promise<StructureChangeRequest> {
@@ -99,9 +99,9 @@ export class OrganizationStructureController {
     }
 
     @Get('managers/:managerId/team')
-    @UseGuards(ApiKeyGuard, authorizationGuard)
-    @Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
-    @ApiSecurity('api-key')
+    //@UseGuards(ApiKeyGuard, authorizationGuard)
+    //@Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
+    //@ApiSecurity('api-key')
     @ApiOperation({ summary: "Get a manager's team structure and reporting lines (Managers)" })
     @ApiResponse({ status: 200, description: "Manager's team structure", type: Object })
     async getManagerTeam(@Param('managerId') managerId: string): Promise<any> {

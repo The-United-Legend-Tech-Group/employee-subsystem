@@ -289,4 +289,182 @@ describe('AttendanceService - Punch flows', () => {
       new Date('2025-11-27T08:00:00.000Z').toISOString(),
     );
   });
+
+  it('rejects late IN beyond grace period', async () => {
+    // prepare repos
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    mockShiftAssignmentRepo.findByEmployeeAndTerm = jest
+      .fn()
+      .mockResolvedValue([{ shiftId: 's1' }]);
+
+    mockShiftRepo.findById = jest.fn().mockResolvedValue({
+      startTime: '08:00',
+      endTime: '17:00',
+      graceInMinutes: 10,
+      graceOutMinutes: 15,
+      requiresApprovalForOvertime: false,
+    });
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 08:15 is 15 minutes late, beyond 10 minute grace
+    await expect(
+      svc.punch({
+        employeeId: 'emp1',
+        type: PunchType.IN,
+        time: '2025-11-27T08:15:00.000Z',
+      } as any),
+    ).rejects.toThrow('Late punch beyond allowed grace period');
+  });
+
+  it('rejects early IN when shift requires pre-approval', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    mockShiftAssignmentRepo.findByEmployeeAndTerm = jest
+      .fn()
+      .mockResolvedValue([{ shiftId: 's2' }]);
+
+    mockShiftRepo.findById = jest.fn().mockResolvedValue({
+      startTime: '09:00',
+      endTime: '17:00',
+      graceInMinutes: 5,
+      graceOutMinutes: 10,
+      requiresApprovalForOvertime: true,
+    });
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 08:50 is before 09:00 start and requires approval
+    await expect(
+      svc.punch({
+        employeeId: 'emp1',
+        type: PunchType.IN,
+        time: '2025-11-27T08:50:00.000Z',
+      } as any),
+    ).rejects.toThrow('Early clock-in requires pre-approval');
+  });
+
+  it('rejects punch on holiday when shift requires pre-approval', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    const mockHolidayRepo: any = {
+      find: jest.fn().mockResolvedValue([{ _id: 'h1' }]),
+    };
+
+    mockShiftAssignmentRepo.findByEmployeeAndTerm = jest
+      .fn()
+      .mockResolvedValue([{ shiftId: 's3' }]);
+
+    mockShiftRepo.findById = jest.fn().mockResolvedValue({
+      startTime: '08:00',
+      endTime: '17:00',
+      graceInMinutes: 5,
+      graceOutMinutes: 10,
+      requiresApprovalForOvertime: true,
+    });
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      mockHolidayRepo,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    await expect(
+      svc.punch({
+        employeeId: 'emp1',
+        type: PunchType.IN,
+        time: '2025-12-25T08:00:00.000Z',
+      } as any),
+    ).rejects.toThrow('Punch on holiday requires pre-approval');
+  });
+
+  it('rejects OUT overtime when shift requires pre-approval', async () => {
+    // existing record with IN at 08:00
+    const baseDate = new Date('2025-11-27T08:00:00.000Z');
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'rOver',
+      punches: [{ type: PunchType.IN, time: baseDate }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
+
+    mockShiftAssignmentRepo.findByEmployeeAndTerm = jest
+      .fn()
+      .mockResolvedValue([{ shiftId: 's4' }]);
+
+    mockShiftRepo.findById = jest.fn().mockResolvedValue({
+      startTime: '08:00',
+      endTime: '17:00',
+      graceInMinutes: 5,
+      graceOutMinutes: 15,
+      requiresApprovalForOvertime: true,
+    });
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 18:00 is 60 minutes overtime, beyond 15 minute graceOut
+    await expect(
+      svc.punch({
+        employeeId: 'emp1',
+        type: PunchType.OUT,
+        time: '2025-11-27T18:00:00.000Z',
+      } as any),
+    ).rejects.toThrow('Overtime requires pre-approval');
+  });
+
+  it('handles overnight shift start/end correctly and enforces early clock-in', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    mockShiftAssignmentRepo.findByEmployeeAndTerm = jest
+      .fn()
+      .mockResolvedValue([{ shiftId: 's5' }]);
+
+    // overnight shift 22:00 -> 06:00 (next day)
+    mockShiftRepo.findById = jest.fn().mockResolvedValue({
+      startTime: '22:00',
+      endTime: '06:00',
+      graceInMinutes: 10,
+      graceOutMinutes: 10,
+      requiresApprovalForOvertime: true,
+    });
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 21:45 on the same calendar day is before 22:00 and requires approval
+    await expect(
+      svc.punch({
+        employeeId: 'emp1',
+        type: PunchType.IN,
+        time: '2025-11-27T21:45:00.000Z',
+      } as any),
+    ).rejects.toThrow('Early clock-in requires pre-approval');
+  });
 });

@@ -82,9 +82,9 @@ describe('TimeService - Attendance Correction flows', () => {
   it('approve rejects when correction request not found', async () => {
     mockCorrectionRepo.findById.mockResolvedValueOnce(null);
 
-    await expect(service.approveAndApplyCorrection('missing', 'mgr1')).rejects.toThrow(
-      'Correction request not found',
-    );
+    await expect(
+      service.approveAndApplyCorrection('missing', 'mgr1'),
+    ).rejects.toThrow('Correction request not found');
     expect(mockCorrectionRepo.findById).toHaveBeenCalledWith('missing');
   });
 
@@ -95,7 +95,9 @@ describe('TimeService - Attendance Correction flows', () => {
       attendanceRecord: null,
     });
 
-    await expect(service.approveAndApplyCorrection('c3', 'mgr1')).rejects.toThrow(
+    await expect(
+      service.approveAndApplyCorrection('c3', 'mgr1'),
+    ).rejects.toThrow(
       'AttendanceRecord reference missing on correction request',
     );
     expect(mockCorrectionRepo.findById).toHaveBeenCalledWith('c3');
@@ -107,29 +109,53 @@ describe('TimeService - Attendance Correction flows', () => {
       punches: [{ type: 'IN', time: new Date() }],
       attendanceRecord: 'a4',
     });
-    mockAttendanceRepo.updateById = jest.fn().mockRejectedValue(new Error('DB failure'));
+    mockAttendanceRepo.updateById = jest
+      .fn()
+      .mockRejectedValue(new Error('DB failure'));
 
-    await expect(service.approveAndApplyCorrection('c4', 'mgr1')).rejects.toThrow('DB failure');
+    await expect(
+      service.approveAndApplyCorrection('c4', 'mgr1'),
+    ).rejects.toThrow('DB failure');
     expect(mockAttendanceRepo.updateById).toHaveBeenCalledWith('a4', {
       punches: [{ type: 'IN', time: expect.any(Date) }],
     });
-    expect(mockCorrectionRepo.updateById).not.toHaveBeenCalledWith('c4', { status: 'APPROVED' });
+    expect(mockCorrectionRepo.updateById).not.toHaveBeenCalledWith('c4', {
+      status: 'APPROVED',
+    });
   });
 
   it('approve applies even when punches array is empty', async () => {
-    mockCorrectionRepo.findById.mockResolvedValueOnce({ _id: 'c5', punches: [], attendanceRecord: 'a5' });
-    mockAttendanceRepo.updateById = jest.fn().mockResolvedValue({ _id: 'a5', punches: [] });
+    mockCorrectionRepo.findById.mockResolvedValueOnce({
+      _id: 'c5',
+      punches: [],
+      attendanceRecord: 'a5',
+    });
+    mockAttendanceRepo.updateById = jest
+      .fn()
+      .mockResolvedValue({ _id: 'a5', punches: [] });
 
     const res = await service.approveAndApplyCorrection('c5', 'mgr1');
-    expect(mockAttendanceRepo.updateById).toHaveBeenCalledWith('a5', { punches: [] });
-    expect(mockCorrectionRepo.updateById).toHaveBeenCalledWith('c5', { status: 'APPROVED' });
+    expect(mockAttendanceRepo.updateById).toHaveBeenCalledWith('a5', {
+      punches: [],
+    });
+    expect(mockCorrectionRepo.updateById).toHaveBeenCalledWith('c5', {
+      status: 'APPROVED',
+    });
     expect(res).toHaveProperty('updatedAttendance');
   });
 
   it('approving twice still attempts apply (idempotence not enforced)', async () => {
-    mockCorrectionRepo.findById.mockResolvedValue({ _id: 'c6', punches: [{ type: 'IN', time: new Date() }], attendanceRecord: 'a6' });
-    mockAttendanceRepo.updateById = jest.fn().mockResolvedValue({ _id: 'a6', punches: [] });
-    mockCorrectionRepo.updateById = jest.fn().mockResolvedValue({ _id: 'c6', status: 'APPROVED' });
+    mockCorrectionRepo.findById.mockResolvedValue({
+      _id: 'c6',
+      punches: [{ type: 'IN', time: new Date() }],
+      attendanceRecord: 'a6',
+    });
+    mockAttendanceRepo.updateById = jest
+      .fn()
+      .mockResolvedValue({ _id: 'a6', punches: [] });
+    mockCorrectionRepo.updateById = jest
+      .fn()
+      .mockResolvedValue({ _id: 'c6', status: 'APPROVED' });
 
     const first = await service.approveAndApplyCorrection('c6', 'mgr1');
     const second = await service.approveAndApplyCorrection('c6', 'mgr1');

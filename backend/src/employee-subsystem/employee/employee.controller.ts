@@ -120,11 +120,6 @@ export class EmployeeController {
         return this.employeeService.searchEmployees(q);
     }
 
-    // Employee: fetch own (or specific) full profile
-    @Get(':id')
-    async getProfile(@Param('id') id: string) {
-        return this.employeeService.getProfile(id);
-    }
     // HR Admin: review profile change requests
     @Get('profile-change-requests')
     //@UseGuards(authorizationGuard)

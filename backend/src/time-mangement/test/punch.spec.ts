@@ -10,7 +10,7 @@ jest.mock('../repository/attendance.repository', () => ({
   AttendanceRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-import { PunchType } from '../models/enums/index';
+import { PunchType, PunchPolicy } from '../models/enums/index';
 import { TimeService } from '../time.service';
 
 describe('TimeService - Punch flows', () => {
@@ -87,10 +87,19 @@ describe('TimeService - Punch flows', () => {
     const in1 = new Date('2025-11-27T08:00:00.000Z');
     const in2 = new Date('2025-11-27T09:00:00.000Z');
 
-    mockAttendanceRepo.findForDay.mockResolvedValueOnce({ _id: 'r3', punches: [{ type: PunchType.IN, time: in1 }] });
-    mockAttendanceRepo.updateById.mockImplementation((id, update) => Promise.resolve({ _id: id, ...update }));
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r3',
+      punches: [{ type: PunchType.IN, time: in1 }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
 
-    const res: any = await service.punch({ employeeId: 'emp1', type: PunchType.IN, time: in2.toISOString() } as any);
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.IN,
+      time: in2.toISOString(),
+    } as any);
 
     expect(mockAttendanceRepo.updateById).toHaveBeenCalled();
     expect(res.punches).toHaveLength(2);
@@ -103,10 +112,19 @@ describe('TimeService - Punch flows', () => {
     const out1 = new Date('2025-11-27T07:00:00.000Z');
     const in1 = new Date('2025-11-27T08:00:00.000Z');
 
-    mockAttendanceRepo.findForDay.mockResolvedValueOnce({ _id: 'r4', punches: [{ type: PunchType.OUT, time: out1 }] });
-    mockAttendanceRepo.updateById.mockImplementation((id, update) => Promise.resolve({ _id: id, ...update }));
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r4',
+      punches: [{ type: PunchType.OUT, time: out1 }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
 
-    const res: any = await service.punch({ employeeId: 'emp1', type: PunchType.IN, time: in1.toISOString() } as any);
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.IN,
+      time: in1.toISOString(),
+    } as any);
 
     expect(mockAttendanceRepo.updateById).toHaveBeenCalled();
     expect(res.punches).toHaveLength(2);
@@ -121,16 +139,25 @@ describe('TimeService - Punch flows', () => {
     const outA = new Date('2025-11-27T12:00:00.000Z');
     const inB = new Date('2025-11-27T13:00:00.000Z');
 
-    mockAttendanceRepo.findForDay.mockResolvedValueOnce({ _id: 'r5', punches: [
-      { type: PunchType.IN, time: inA },
-      { type: PunchType.OUT, time: outA },
-      { type: PunchType.IN, time: inB },
-    ]});
-    mockAttendanceRepo.updateById.mockImplementation((id, update) => Promise.resolve({ _id: id, ...update }));
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r5',
+      punches: [
+        { type: PunchType.IN, time: inA },
+        { type: PunchType.OUT, time: outA },
+        { type: PunchType.IN, time: inB },
+      ],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
 
     const outB = new Date('2025-11-27T17:00:00.000Z').toISOString();
 
-    const res: any = await service.punch({ employeeId: 'emp1', type: PunchType.OUT, time: outB } as any);
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.OUT,
+      time: outB,
+    } as any);
 
     expect(mockAttendanceRepo.updateById).toHaveBeenCalled();
     expect(res.punches).toHaveLength(4);
@@ -141,14 +168,129 @@ describe('TimeService - Punch flows', () => {
 
   it('handles same-timestamp IN and OUT (zero minutes)', async () => {
     const t = new Date('2025-11-27T09:00:00.000Z');
-    mockAttendanceRepo.findForDay.mockResolvedValueOnce({ _id: 'r6', punches: [{ type: PunchType.IN, time: t }] });
-    mockAttendanceRepo.updateById.mockImplementation((id, update) => Promise.resolve({ _id: id, ...update }));
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r6',
+      punches: [{ type: PunchType.IN, time: t }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
 
-    const res: any = await service.punch({ employeeId: 'emp1', type: PunchType.OUT, time: t.toISOString() } as any);
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.OUT,
+      time: t.toISOString(),
+    } as any);
 
     expect(mockAttendanceRepo.updateById).toHaveBeenCalled();
     expect(res.punches).toHaveLength(2);
     expect(res.totalWorkMinutes).toBe(0);
     expect(res.hasMissedPunch).toBe(false);
+  });
+
+  it('FIRST_LAST policy computes earliest IN -> latest OUT', async () => {
+    const in1 = new Date('2025-11-27T08:01:00.000Z');
+    const out1 = new Date('2025-11-27T10:00:00.000Z');
+    const in2 = new Date('2025-11-27T11:00:00.000Z');
+    const out2 = new Date('2025-11-27T15:00:00.000Z');
+
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r7',
+      punches: [
+        { type: PunchType.IN, time: in1 },
+        { type: PunchType.OUT, time: out1 },
+        { type: PunchType.IN, time: in2 },
+        { type: PunchType.OUT, time: out2 },
+      ],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
+
+    // append a later OUT and request FIRST_LAST policy
+    const latestOut = new Date('2025-11-27T17:30:00.000Z').toISOString();
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.OUT,
+      time: latestOut,
+      policy: PunchPolicy.FIRST_LAST,
+    } as any);
+
+    expect(res.totalWorkMinutes).toBe(569); // 08:01 -> 17:30 = 569 minutes
+    expect(res.hasMissedPunch).toBe(false);
+    expect(res.punches).toHaveLength(2);
+  });
+
+  it('ONLY_FIRST policy keeps earliest punch only', async () => {
+    const in1 = new Date('2025-11-27T08:00:00.000Z');
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'r8',
+      punches: [{ type: PunchType.IN, time: in1 }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
+
+    const res: any = await service.punch({
+      employeeId: 'emp1',
+      type: PunchType.IN,
+      time: new Date('2025-11-27T09:00:00.000Z').toISOString(),
+      policy: PunchPolicy.ONLY_FIRST,
+    } as any);
+
+    expect(res.punches).toHaveLength(1);
+    expect(res.totalWorkMinutes).toBe(0);
+    expect(res.hasMissedPunch).toBe(true);
+  });
+
+  it('rounding: nearest/ceil/floor to 15 minutes', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'r9', ...dto }),
+    );
+
+    // nearest: 08:07 -> 08:00
+    const resNearest: any = await service.punch({
+      employeeId: 'empX',
+      type: PunchType.IN,
+      time: new Date('2025-11-27T08:07:00.000Z').toISOString(),
+      roundMode: 'nearest',
+      intervalMinutes: 15,
+    } as any);
+    expect(new Date(resNearest.punches[0].time).toISOString()).toBe(
+      new Date('2025-11-27T08:00:00.000Z').toISOString(),
+    );
+
+    // ceil: 08:07 -> 08:15
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'r10', ...dto }),
+    );
+    const resCeil: any = await service.punch({
+      employeeId: 'empY',
+      type: PunchType.IN,
+      time: new Date('2025-11-27T08:07:00.000Z').toISOString(),
+      roundMode: 'ceil',
+      intervalMinutes: 15,
+    } as any);
+    expect(new Date(resCeil.punches[0].time).toISOString()).toBe(
+      new Date('2025-11-27T08:15:00.000Z').toISOString(),
+    );
+
+    // floor: 08:07 -> 08:00
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'r11', ...dto }),
+    );
+    const resFloor: any = await service.punch({
+      employeeId: 'empZ',
+      type: PunchType.IN,
+      time: new Date('2025-11-27T08:07:00.000Z').toISOString(),
+      roundMode: 'floor',
+      intervalMinutes: 15,
+    } as any);
+    expect(new Date(resFloor.punches[0].time).toISOString()).toBe(
+      new Date('2025-11-27T08:00:00.000Z').toISOString(),
+    );
   });
 });

@@ -10,7 +10,7 @@ import { HolidayRepository } from './repository/holiday.repository';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { HolidayType } from './models/enums/index';
 import { AttendanceRepository } from './repository/attendance.repository';
-import { PunchType } from './models/enums/index';
+import { PunchType, PunchPolicy } from './models/enums/index';
 import { PunchDto } from './dto/punch.dto';
 
 @Injectable()
@@ -298,7 +298,35 @@ export class TimeService {
     if (!this.attendanceRepo)
       throw new Error('AttendanceRepository not available');
 
-    const ts = dto.time ? new Date(dto.time) : new Date();
+    // determine timestamp and apply optional rounding
+    let ts = dto.time ? new Date(dto.time) : new Date();
+    if (dto.roundMode && dto.intervalMinutes && dto.intervalMinutes > 0) {
+      const roundToInterval = (
+        d: Date,
+        intervalMinutes: number,
+        mode: 'nearest' | 'ceil' | 'floor',
+      ) => {
+        const ms = d.getTime();
+        const mins = Math.floor(ms / 60000);
+        const remainder = mins % intervalMinutes;
+        let targetMins = mins;
+        if (mode === 'nearest') {
+          targetMins =
+            mins -
+            remainder +
+            (remainder >= intervalMinutes / 2 ? intervalMinutes : 0);
+        } else if (mode === 'ceil') {
+          targetMins =
+            remainder === 0 ? mins : mins - remainder + intervalMinutes;
+        } else if (mode === 'floor') {
+          targetMins = mins - remainder;
+        }
+        const targetMs = targetMins * 60000 + (ms % 60000);
+        return new Date(targetMs);
+      };
+
+      ts = roundToInterval(ts, dto.intervalMinutes, dto.roundMode as any);
+    }
     const startOfDay = new Date(ts);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(ts);
@@ -330,34 +358,96 @@ export class TimeService {
       (a: any, b: any) =>
         new Date(a.time).getTime() - new Date(b.time).getTime(),
     );
+    // determine policy
+    const policy = dto.policy || PunchPolicy.MULTIPLE;
 
-    // compute total minutes by pairing IN -> OUT
     let totalMinutes = 0;
     let missed = false;
-    for (let i = 0; i < punches.length; ) {
-      const current = punches[i];
-      if (current.type === PunchType.IN) {
-        // look for next OUT
-        if (i + 1 < punches.length && punches[i + 1].type === PunchType.OUT) {
-          const inT = new Date(punches[i].time).getTime();
-          const outT = new Date(punches[i + 1].time).getTime();
-          const diffMin = Math.max(0, Math.round((outT - inT) / 60000));
-          totalMinutes += diffMin;
-          i += 2;
+    let finalPunches: any[] = punches;
+
+    if (policy === PunchPolicy.MULTIPLE) {
+      // compute total minutes by pairing IN -> OUT sequentially
+      for (let i = 0; i < punches.length; ) {
+        const current = punches[i];
+        if (current.type === PunchType.IN) {
+          // look for next OUT
+          if (i + 1 < punches.length && punches[i + 1].type === PunchType.OUT) {
+            const inT = new Date(punches[i].time).getTime();
+            const outT = new Date(punches[i + 1].time).getTime();
+            const diffMin = Math.max(0, Math.round((outT - inT) / 60000));
+            totalMinutes += diffMin;
+            i += 2;
+          } else {
+            // unmatched IN
+            missed = true;
+            i += 1;
+          }
         } else {
-          // unmatched IN
+          // OUT without preceding IN
           missed = true;
           i += 1;
         }
+      }
+    } else if (policy === PunchPolicy.FIRST_LAST) {
+      // pick earliest IN and latest OUT
+      const ins = punches
+        .filter((p) => p.type === PunchType.IN)
+        .map((p) => p.time);
+      const outs = punches
+        .filter((p) => p.type === PunchType.OUT)
+        .map((p) => p.time);
+      if (ins.length && outs.length) {
+        const earliestIn = new Date(
+          Math.min(...ins.map((d: any) => new Date(d).getTime())),
+        );
+        const latestOut = new Date(
+          Math.max(...outs.map((d: any) => new Date(d).getTime())),
+        );
+        totalMinutes = Math.max(
+          0,
+          Math.round((latestOut.getTime() - earliestIn.getTime()) / 60000),
+        );
+        finalPunches = [
+          { type: PunchType.IN, time: earliestIn },
+          { type: PunchType.OUT, time: latestOut },
+        ];
+        missed = false;
       } else {
-        // OUT without preceding IN
+        // missing either IN or OUT
         missed = true;
-        i += 1;
+        totalMinutes = 0;
+        finalPunches = punches.slice();
+      }
+    } else if (policy === PunchPolicy.ONLY_FIRST) {
+      // keep only the first (earliest) punch and mark missed
+      const first = punches[0];
+      finalPunches = first ? [first] : [];
+      totalMinutes = 0;
+      missed = true;
+    } else {
+      // default fallback to MULTIPLE behavior
+      for (let i = 0; i < punches.length; ) {
+        const current = punches[i];
+        if (current.type === PunchType.IN) {
+          if (i + 1 < punches.length && punches[i + 1].type === PunchType.OUT) {
+            const inT = new Date(punches[i].time).getTime();
+            const outT = new Date(punches[i + 1].time).getTime();
+            const diffMin = Math.max(0, Math.round((outT - inT) / 60000));
+            totalMinutes += diffMin;
+            i += 2;
+          } else {
+            missed = true;
+            i += 1;
+          }
+        } else {
+          missed = true;
+          i += 1;
+        }
       }
     }
 
     const update: any = {
-      punches,
+      punches: finalPunches,
       totalWorkMinutes: totalMinutes,
       hasMissedPunch: missed,
     };

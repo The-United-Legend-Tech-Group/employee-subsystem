@@ -1,21 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-  AppraisalRecord,
-  AppraisalRecordSchema,
-} from './models/appraisal-record.schema';
-import {
-  AppraisalCycle,
-  AppraisalCycleSchema,
-} from './models/appraisal-cycle.schema';
-import {
-  AppraisalTemplate,
-  AppraisalTemplateSchema,
-} from './models/appraisal-template.schema';
-import {
-  AppraisalAssignment,
-  AppraisalAssignmentSchema,
-} from './models/appraisal-assignment.schema';
+import {AppraisalRecord,AppraisalRecordSchema,} from './models/appraisal-record.schema';
+import {AppraisalCycle,AppraisalCycleSchema,} from './models/appraisal-cycle.schema';
+import {AppraisalTemplate,AppraisalTemplateSchema,} from './models/appraisal-template.schema';
+import {AppraisalAssignment,AppraisalAssignmentSchema,} from './models/appraisal-assignment.schema';
+import {AppraisalDispute,AppraisalDisputeSchema,} from './models/appraisal-dispute.schema';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
 import { AppraisalCycleService } from './appraisal-cycle.service';
 import { AppraisalCycleController } from './appraisal-cycle.controller';
@@ -25,6 +14,9 @@ import { AppraisalTemplateRepository } from './repository/appraisal-template.rep
 import { AppraisalRecordRepository } from './repository/appraisal-record.repository';
 import { AppraisalRecordService } from './appraisal-record.service';
 import { AppraisalRecordController } from './appraisal-record.controller';
+import { AppraisalDisputeController } from './appraisal-dispute.controller';
+import { AppraisalDisputeService } from './appraisal-dispute.service';
+import { AppraisalDisputeRepository } from './repository/appraisal-dispute.repository';
 
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
 import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
@@ -42,6 +34,7 @@ import { EmployeeModule } from '../employee/employee.module';
       { name: AppraisalCycle.name, schema: AppraisalCycleSchema },
       { name: AppraisalTemplate.name, schema: AppraisalTemplateSchema },
       { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
+      { name: AppraisalDispute.name, schema: AppraisalDisputeSchema },
     ]),
     OrganizationStructureModule,
     NotificationModule,
@@ -53,6 +46,7 @@ import { EmployeeModule } from '../employee/employee.module';
     PerformanceDashboardController,
     AppraisalAssignmentController,
     AppraisalRecordController,
+    AppraisalDisputeController,
   ],
   providers: [
     AppraisalCycleRepository,
@@ -64,6 +58,8 @@ import { EmployeeModule } from '../employee/employee.module';
     AppraisalAssignmentService,
     AppraisalRecordRepository,
     AppraisalRecordService,
+    AppraisalDisputeRepository,
+    AppraisalDisputeService,
   ],
   exports: [MongooseModule],
 })

@@ -13,4 +13,19 @@ export class CandidateRepository extends BaseRepository<CandidateDocument> {
     async findByCandidateNumber(number: string) {
         return this.model.findOne({ candidateNumber: number }).exec();
     }
+
+    async findByEmail(email: string) {
+        return this.model.findOne({ personalEmail: email }).select('+password').exec();
+    }
+
+    async findByNationalId(nationalId: string) {
+        return this.model.findOne({ nationalId }).exec();
+    }
+
+    async findLastCandidateNumberForPrefix(prefix: string) {
+        return this.model
+            .findOne({ candidateNumber: new RegExp(`^${prefix}`) })
+            .sort({ candidateNumber: -1 })
+            .exec();
+    }
 }

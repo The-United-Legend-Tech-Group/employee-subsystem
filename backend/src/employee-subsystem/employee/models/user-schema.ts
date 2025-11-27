@@ -45,7 +45,7 @@ export class UserProfileBase {
   dateOfBirth?: Date;
 
   // Contact
-  @Prop({ type: String })
+  @Prop({ type: String, unique: true })
   personalEmail?: string;
 
   @Prop({ type: String })
@@ -59,6 +59,9 @@ export class UserProfileBase {
 
   @Prop({ type: String })
   profilePictureUrl?: string;
+
+  @Prop({ type: String, select: false })
+  password?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'EmployeeSystemRole' })
   accessProfileId?: Types.ObjectId;

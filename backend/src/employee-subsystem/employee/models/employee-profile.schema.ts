@@ -16,11 +16,8 @@ export class EmployeeProfile extends UserProfileBase {
   @Prop({ type: Date, required: true })
   dateOfHire: Date;
 
-  @Prop({ type: String })
+  @Prop({ type: String, unique: true })
   workEmail?: string;
-
-  @Prop({ type: String, select: false })
-  password?: string;
 
   @Prop({ type: String })
   biography?: string;

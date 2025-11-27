@@ -34,7 +34,10 @@ export class AttendanceService {
   ): PenaltyInfo {
     const checkInMs = checkInTime.getTime();
     const expectedMs = expectedCheckInTime.getTime();
-    const minutesLate = Math.max(0, Math.round((checkInMs - expectedMs) / 60000));
+    const minutesLate = Math.max(
+      0,
+      Math.round((checkInMs - expectedMs) / 60000),
+    );
 
     const gracePeriodApplied = minutesLate <= gracePeriodMinutes;
     const isLate = minutesLate > gracePeriodMinutes;
@@ -57,7 +60,13 @@ export class AttendanceService {
    * @Comprehensive-Wall28,@Youssef-Amrr
    */
   public buildPerformanceEvent(
-    eventType: 'LATE_CHECKIN' | 'REPEATED_LATENESS' | 'ON_TIME_CHECKIN' | 'EARLY_LEAVE' | 'OVERTIME' | string,
+    eventType:
+      | 'LATE_CHECKIN'
+      | 'REPEATED_LATENESS'
+      | 'ON_TIME_CHECKIN'
+      | 'EARLY_LEAVE'
+      | 'OVERTIME'
+      | string,
     employeeId: string,
     ts: Date,
     opts?: {
@@ -85,7 +94,9 @@ export class AttendanceService {
       minutesLate: o.minutesLate,
       penaltyMinutes: o.penaltyMinutes,
       repeatedCount: o.repeatedCount,
-      periodStart: o.repeatedCount ? new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString() : undefined,
+      periodStart: o.repeatedCount
+        ? new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+        : undefined,
       metadata: {
         deviceId: o.deviceId,
         terminalId: o.terminalId,
@@ -349,7 +360,9 @@ export class AttendanceService {
     if (dto.type === PunchType.IN) {
       // Simple lateness detection: compare against expected/check-in thresholds when available
       // We will reuse any earlier penaltyInfo calculation where provided, otherwise fallback to 9:00 check
-      const isLateSimple = penaltyInfo ? penaltyInfo.isLate : ts.getUTCHours() >= 9;
+      const isLateSimple = penaltyInfo
+        ? penaltyInfo.isLate
+        : ts.getUTCHours() >= 9;
       if (isLateSimple) {
         // count previous late instances in the last 30 days
         const allRecords = await this.attendanceRepo.find({
@@ -375,20 +388,30 @@ export class AttendanceService {
         });
 
         // Build a performance event payload
-        const lateMinutes = penaltyInfo ? penaltyInfo.minutesLate : Math.max(0, ts.getUTCHours() - 9) * 60;
-        performanceEvent = this.buildPerformanceEvent('REPEATED_LATENESS', dto.employeeId, ts, {
-          minutesLate: lateMinutes,
-          repeatedCount: lateCount,
-          deviceId: (dto as any).deviceId,
-          terminalId: (dto as any).terminalId,
-          location: (dto as any).location,
-          raw: { reason: '30-day-late-count' },
-        });
+        const lateMinutes = penaltyInfo
+          ? penaltyInfo.minutesLate
+          : Math.max(0, ts.getUTCHours() - 9) * 60;
+        performanceEvent = this.buildPerformanceEvent(
+          'REPEATED_LATENESS',
+          dto.employeeId,
+          ts,
+          {
+            minutesLate: lateMinutes,
+            repeatedCount: lateCount,
+            deviceId: (dto as any).deviceId,
+            terminalId: (dto as any).terminalId,
+            location: (dto as any).location,
+            raw: { reason: '30-day-late-count' },
+          },
+        );
 
         if (lateCount >= 3) {
           isRepeatedLate = true;
           // log as well for ops
-          console.info('REPEATED LATENESS FLAGGED FOR DISCIPLINARY TRACKING', performanceEvent);
+          console.info(
+            'REPEATED LATENESS FLAGGED FOR DISCIPLINARY TRACKING',
+            performanceEvent,
+          );
         }
       }
     }
@@ -402,7 +425,10 @@ export class AttendanceService {
       __repeatedLate: isRepeatedLate,
     };
 
-    const updated = await this.attendanceRepo.updateById((existing as any)._id, update as any);
+    const updated = await this.attendanceRepo.updateById(
+      (existing as any)._id,
+      update as any,
+    );
     if (performanceEvent) {
       (updated as any).performanceEvent = performanceEvent;
     }

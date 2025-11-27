@@ -293,7 +293,9 @@ describe('AttendanceService - Punch flows', () => {
 
   it('attaches device/location metadata to created punch', async () => {
     mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
-    mockAttendanceRepo.create.mockImplementation((dto) => Promise.resolve({ _id: 'rMeta', ...dto }));
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'rMeta', ...dto }),
+    );
 
     const svc = new AttendanceService(mockAttendanceRepo);
 
@@ -315,12 +317,23 @@ describe('AttendanceService - Punch flows', () => {
   it('flags repeated lateness and returns performanceEvent', async () => {
     // Prepare: existing record to update
     const baseDate = new Date('2025-11-27T09:10:00.000Z');
-    mockAttendanceRepo.findForDay.mockResolvedValueOnce({ _id: 'rLate', punches: [{ type: PunchType.IN, time: baseDate }] });
-    mockAttendanceRepo.updateById.mockImplementation((id, update) => Promise.resolve({ _id: id, ...update }));
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce({
+      _id: 'rLate',
+      punches: [{ type: PunchType.IN, time: baseDate }],
+    });
+    mockAttendanceRepo.updateById.mockImplementation((id, update) =>
+      Promise.resolve({ _id: id, ...update }),
+    );
 
     // mock find to return 3 prior late records in 30 days
-    const priorLate = { punches: [{ type: PunchType.IN, time: new Date('2025-11-10T09:05:00.000Z') }] };
-    mockAttendanceRepo.find = jest.fn().mockResolvedValue([priorLate, priorLate, priorLate]);
+    const priorLate = {
+      punches: [
+        { type: PunchType.IN, time: new Date('2025-11-10T09:05:00.000Z') },
+      ],
+    };
+    mockAttendanceRepo.find = jest
+      .fn()
+      .mockResolvedValue([priorLate, priorLate, priorLate]);
 
     const svc = new AttendanceService(mockAttendanceRepo);
 

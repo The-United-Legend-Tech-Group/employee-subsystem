@@ -84,7 +84,10 @@ export class PunchDto {
   @IsNumber()
   automaticDeductionMinutes?: number;
 
-  @ApiProperty({ description: 'Optional location name or GPS', required: false })
+  @ApiProperty({
+    description: 'Optional location name or GPS',
+    required: false,
+  })
   @IsOptional()
   location?: string;
 
@@ -92,7 +95,10 @@ export class PunchDto {
   @IsOptional()
   terminalId?: string;
 
-  @ApiProperty({ description: 'Optional device id (mobile/device uuid)', required: false })
+  @ApiProperty({
+    description: 'Optional device id (mobile/device uuid)',
+    required: false,
+  })
   @IsOptional()
   deviceId?: string;
 }

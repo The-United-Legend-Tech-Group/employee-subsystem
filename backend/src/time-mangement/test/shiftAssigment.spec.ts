@@ -9,13 +9,15 @@ jest.mock('../repository/shift-assignment.repository', () => ({
 }));
 
 import { ShiftAssignmentStatus } from '../models/enums/index';
+import { ShiftService } from '../shift.service';
+import { ShiftAssignmentService } from '../shift-assignment.service';
 
-import { TimeService } from '../time.service';
-
-describe('TimeService - Shift flows', () => {
+describe('ShiftService / ShiftAssignmentService - Shift flows', () => {
   let mockShiftRepo: any;
   let mockShiftAssignmentRepo: any;
-  let service: TimeService;
+  let shiftService: ShiftService;
+  let shiftAssignmentService: ShiftAssignmentService;
+  let service: any;
 
   beforeEach(() => {
     mockShiftRepo = {
@@ -41,7 +43,28 @@ describe('TimeService - Shift flows', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
-    service = new TimeService(mockShiftRepo, mockShiftAssignmentRepo);
+    shiftAssignmentService = new ShiftAssignmentService(
+      mockShiftAssignmentRepo as any,
+    );
+    shiftService = new ShiftService(
+      mockShiftRepo as any,
+      shiftAssignmentService as any,
+    );
+
+    // Provide a compatible façade used by old tests
+    service = {
+      createShift: shiftService.createShift.bind(shiftService),
+      assignShiftToEmployee:
+        shiftService.assignShiftToEmployee.bind(shiftService),
+      updateShiftAssignmentStatus:
+        shiftAssignmentService.updateShiftAssignmentStatus.bind(
+          shiftAssignmentService,
+        ),
+      getShiftsForEmployeeTerm:
+        shiftAssignmentService.getShiftsForEmployeeTerm.bind(
+          shiftAssignmentService,
+        ),
+    };
   });
 
   it('creates a shift via repository', async () => {

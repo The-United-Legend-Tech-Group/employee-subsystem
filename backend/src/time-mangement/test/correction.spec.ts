@@ -10,16 +10,23 @@ jest.mock('../repository/correction-audit.repository', () => ({
   CorrectionAuditRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-import { TimeService } from '../time.service';
+import { AttendanceService } from '../attendance.service';
 
 describe('TimeService - Attendance Correction flows', () => {
   let mockAttendanceRepo: any;
   let mockCorrectionRepo: any;
   let mockAuditRepo: any;
-  let service: TimeService;
+  let service: any;
+  let attendanceService: any;
 
   beforeEach(() => {
-    mockAttendanceRepo = {};
+    mockAttendanceRepo = {
+      findById: jest
+        .fn()
+        .mockImplementation((id: string) =>
+          Promise.resolve({ _id: id, punches: [], employeeId: 'emp1' }),
+        ),
+    } as any;
     mockCorrectionRepo = {
       create: jest
         .fn()
@@ -33,15 +40,12 @@ describe('TimeService - Attendance Correction flows', () => {
     };
     mockAuditRepo = { create: jest.fn() };
 
-    service = new TimeService(
-      {},
-      {},
-      undefined,
-      undefined,
+    attendanceService = new AttendanceService(
       mockAttendanceRepo,
       mockCorrectionRepo,
       mockAuditRepo,
     );
+    service = attendanceService;
   });
 
   it('submits a correction request and creates an audit entry', async () => {

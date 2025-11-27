@@ -21,7 +21,7 @@ export class CorrectionAudit {
   @Prop({ default: Date.now })
   timestamp: Date;
 
-  @Prop()
+  @Prop({ type: Object })
   details?: any;
 }
 

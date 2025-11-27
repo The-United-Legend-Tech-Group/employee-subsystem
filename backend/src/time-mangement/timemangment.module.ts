@@ -17,7 +17,9 @@ import {
   ScheduleRuleSchema,
 } from './models/schedule-rule.schema';
 import { TimeController } from './time.controller';
-import { TimeService } from './time.service';
+import { ShiftService } from './shift.service';
+import { AttendanceService } from './attendance.service';
+import { ShiftAssignmentService } from './shift-assignment.service';
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
@@ -55,7 +57,9 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
   ],
   controllers: [TimeController],
   providers: [
-    TimeService,
+    ShiftService,
+    ShiftAssignmentService,
+    AttendanceService,
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
@@ -66,7 +70,9 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
   ],
   exports: [
     MongooseModule,
-    TimeService,
+    ShiftService,
+    ShiftAssignmentService,
+    AttendanceService,
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,

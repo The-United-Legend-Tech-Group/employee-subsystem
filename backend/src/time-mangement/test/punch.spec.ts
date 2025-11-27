@@ -11,13 +11,14 @@ jest.mock('../repository/attendance.repository', () => ({
 }));
 
 import { PunchType, PunchPolicy } from '../models/enums/index';
-import { TimeService } from '../time.service';
+import { AttendanceService } from '../attendance.service';
 
-describe('TimeService - Punch flows', () => {
+describe('AttendanceService - Punch flows', () => {
   let mockShiftRepo: any;
   let mockShiftAssignmentRepo: any;
   let mockAttendanceRepo: any;
-  let service: TimeService;
+  let attendanceService: any;
+  let service: any;
 
   beforeEach(() => {
     mockShiftRepo = {};
@@ -29,13 +30,8 @@ describe('TimeService - Punch flows', () => {
       updateById: jest.fn(),
     };
 
-    service = new TimeService(
-      mockShiftRepo,
-      mockShiftAssignmentRepo,
-      undefined,
-      undefined,
-      mockAttendanceRepo,
-    );
+    attendanceService = new AttendanceService(mockAttendanceRepo);
+    service = attendanceService;
   });
 
   it('creates attendance record when none exists', async () => {

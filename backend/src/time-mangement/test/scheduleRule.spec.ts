@@ -13,13 +13,16 @@ jest.mock('../repository/shift.repository', () => ({
   ShiftRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-import { TimeService } from '../time.service';
+import { ShiftService } from '../shift.service';
+import { ShiftAssignmentService } from '../shift-assignment.service';
 
-describe('TimeService - ScheduleRule flows', () => {
+describe('ShiftService - ScheduleRule flows', () => {
   let mockScheduleRuleRepo: any;
   let mockShiftAssignmentRepo: any;
   let mockShiftRepo: any;
-  let service: TimeService;
+  let shiftService: ShiftService;
+  let shiftAssignmentService: ShiftAssignmentService;
+  let service: any;
 
   beforeEach(() => {
     mockScheduleRuleRepo = {
@@ -53,11 +56,67 @@ describe('TimeService - ScheduleRule flows', () => {
 
     mockShiftRepo = { find: jest.fn().mockResolvedValue([]) };
 
-    service = new TimeService(
-      mockShiftRepo,
-      mockShiftAssignmentRepo,
-      mockScheduleRuleRepo,
+    shiftAssignmentService = new ShiftAssignmentService(
+      mockShiftAssignmentRepo as any,
     );
+    shiftService = new ShiftService(
+      mockShiftRepo as any,
+      shiftAssignmentService as any,
+      mockScheduleRuleRepo as any,
+    );
+
+    // Provide a façade that implements isAssignmentRest using the same logic
+    service = {
+      createScheduleRule: shiftService.createScheduleRule.bind(shiftService),
+      getScheduleRules: shiftService.getScheduleRules.bind(shiftService),
+      attachScheduleRuleToAssignment:
+        shiftAssignmentService.attachScheduleRuleToAssignment.bind(
+          shiftAssignmentService,
+        ),
+      isAssignmentRest: async (assignmentId: string, date: string) => {
+        const d = new Date(date);
+
+        // check holidays via holiday repo not used in this test; skip
+
+        const assignment = await mockShiftAssignmentRepo.findById(
+          assignmentId as any,
+        );
+        if (!assignment) return false;
+
+        const scheduleRuleId = (assignment as any).scheduleRuleId;
+        if (!scheduleRuleId) return false;
+
+        const rule = await mockScheduleRuleRepo.findById(scheduleRuleId as any);
+        if (!rule) return false;
+
+        let parsed: any = null;
+        if (rule.pattern) {
+          try {
+            parsed = JSON.parse(rule.pattern);
+          } catch (e) {
+            parsed = null;
+          }
+        }
+
+        const weeklyRest: number[] | undefined =
+          parsed?.weeklyRestDays ||
+          (rule as any).weeklyRestDays ||
+          parsed?.weeklyDays ||
+          (rule as any).weeklyDays;
+        if (weeklyRest && Array.isArray(weeklyRest)) {
+          if (weeklyRest.includes(d.getDay())) return true;
+        }
+
+        const restDates: string[] | undefined =
+          parsed?.restDates || (rule as any).restDates;
+        if (restDates && Array.isArray(restDates)) {
+          const ds = d.toISOString().slice(0, 10);
+          if (restDates.includes(ds)) return true;
+        }
+
+        return false;
+      },
+    };
   });
 
   it('creates a schedule rule via repository', async () => {

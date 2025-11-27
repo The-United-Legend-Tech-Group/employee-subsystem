@@ -19,4 +19,9 @@ export class AppraisalAssignmentRepository extends BaseRepository<AppraisalAssig
             .populate('cycleId', 'name')
             .exec();
     }
+
+    async insertMany(dtos: Partial<AppraisalAssignmentDocument>[]): Promise<AppraisalAssignmentDocument[]> {
+        const res = await this.model.insertMany(dtos as any);
+        return res as unknown as AppraisalAssignmentDocument[];
+    }
 }

@@ -38,6 +38,7 @@ export class PerformanceDashboardService {
 
         // Aggregate assignments
         assignments.forEach((assignment) => {
+            if (!assignment.departmentId) return;
             const deptId = assignment.departmentId.toString();
             const stats = departmentStatsMap.get(deptId);
 

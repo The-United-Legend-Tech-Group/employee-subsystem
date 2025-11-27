@@ -45,7 +45,7 @@ export class AttendanceService {
         } else if (mode === 'floor') {
           targetMins = mins - remainder;
         }
-        const targetMs = targetMins * 60000;
+        const targetMs = targetMins * 60000; //@Youssef-Ashraf2099 validate this
         return new Date(targetMs);
       };
 

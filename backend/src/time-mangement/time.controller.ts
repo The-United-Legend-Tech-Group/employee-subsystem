@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TimeService } from './time.service';
+import { PunchDto } from './dto/punch.dto';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { AssignShiftDto } from './dto/assign-shift.dto';
 import { UpdateShiftStatusDto } from './dto/update-shift-status.dto';
@@ -119,5 +120,11 @@ export class TimeController {
   @ApiOperation({ summary: 'Check if a date is a holiday / rest day' })
   isHoliday(@Query('date') date: string) {
     return this.service.isHoliday(date);
+  }
+
+  @Post('attendance/punch')
+  @ApiOperation({ summary: 'Record a clock in/out punch for an employee' })
+  recordPunch(@Body() dto: PunchDto) {
+    return this.service.punch(dto as any);
   }
 }

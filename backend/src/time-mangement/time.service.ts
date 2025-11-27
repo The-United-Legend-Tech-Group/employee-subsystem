@@ -9,6 +9,9 @@ import { CreateScheduleRuleDto } from './dto/create-schedule-rule.dto';
 import { HolidayRepository } from './repository/holiday.repository';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { HolidayType } from './models/enums/index';
+import { AttendanceRepository } from './repository/attendance.repository';
+import { PunchType } from './models/enums/index';
+import { PunchDto } from './dto/punch.dto';
 
 @Injectable()
 export class TimeService {
@@ -17,6 +20,7 @@ export class TimeService {
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly scheduleRuleRepo?: ScheduleRuleRepository,
     private readonly holidayRepo?: HolidayRepository,
+    private readonly attendanceRepo?: AttendanceRepository,
   ) {}
 
   /* Existing simple time record creation kept for backwards compatibility */
@@ -283,5 +287,81 @@ export class TimeService {
   }
   async getAllShifts() {
     return this.shiftRepo.find({});
+  }
+
+  /**
+   * Record a punch (clock-in / clock-out) for an employee.
+   * If there is an attendance record for the same day, append punch; otherwise create a new record.
+   * Computes `totalWorkMinutes` by pairing IN and OUT punches sequentially.
+   */
+  async punch(dto: PunchDto) {
+    if (!this.attendanceRepo)
+      throw new Error('AttendanceRepository not available');
+
+    const ts = dto.time ? new Date(dto.time) : new Date();
+    const startOfDay = new Date(ts);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(ts);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existing = await this.attendanceRepo.findForDay(
+      dto.employeeId,
+      startOfDay,
+      endOfDay,
+    );
+
+    const punch = { type: dto.type, time: ts } as any;
+
+    if (!existing) {
+      const payload: any = {
+        employeeId: dto.employeeId,
+        punches: [punch],
+        totalWorkMinutes: 0,
+        hasMissedPunch: false,
+        exceptionIds: [],
+        finalisedForPayroll: false,
+      };
+      return this.attendanceRepo.create(payload as any);
+    }
+
+    const punches = (existing.punches || []).slice();
+    punches.push(punch);
+    punches.sort(
+      (a: any, b: any) =>
+        new Date(a.time).getTime() - new Date(b.time).getTime(),
+    );
+
+    // compute total minutes by pairing IN -> OUT
+    let totalMinutes = 0;
+    let missed = false;
+    for (let i = 0; i < punches.length; ) {
+      const current = punches[i];
+      if (current.type === PunchType.IN) {
+        // look for next OUT
+        if (i + 1 < punches.length && punches[i + 1].type === PunchType.OUT) {
+          const inT = new Date(punches[i].time).getTime();
+          const outT = new Date(punches[i + 1].time).getTime();
+          const diffMin = Math.max(0, Math.round((outT - inT) / 60000));
+          totalMinutes += diffMin;
+          i += 2;
+        } else {
+          // unmatched IN
+          missed = true;
+          i += 1;
+        }
+      } else {
+        // OUT without preceding IN
+        missed = true;
+        i += 1;
+      }
+    }
+
+    const update: any = {
+      punches,
+      totalWorkMinutes: totalMinutes,
+      hasMissedPunch: missed,
+    };
+
+    return this.attendanceRepo.updateById((existing as any)._id, update as any);
   }
 }

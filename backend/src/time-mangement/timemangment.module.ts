@@ -22,6 +22,7 @@ import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
 import { HolidayRepository } from './repository/holiday.repository';
+import { AttendanceRepository } from './repository/attendance.repository';
 
 import { Holiday, HolidaySchema } from './models/holiday.schema';
 @Module({
@@ -44,6 +45,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,
+    AttendanceRepository,
   ],
   exports: [
     MongooseModule,
@@ -52,6 +54,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,
+    AttendanceRepository,
   ],
 })
 export class TimeMangementModule {}

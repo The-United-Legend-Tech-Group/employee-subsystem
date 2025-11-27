@@ -8,6 +8,7 @@ import { EmployeeProfileRepository } from './repository/employee-profile.reposit
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
 import { UpdateEmployeeStatusDto } from './dto/update-employee-status.dto';
+import { AdminUpdateEmployeeProfileDto } from './dto/admin-update-employee-profile.dto';
 import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
 import { MaritalStatus, SystemRole, EmployeeStatus, ProfileChangeStatus } from './enums/employee-profile.enums';
 import { EmployeeSystemRoleRepository } from './repository/employee-system-role.repository';
@@ -19,7 +20,7 @@ export class EmployeeService {
         @InjectModel(EmployeeProfile.name)
         private employeeProfileModel: Model<EmployeeProfile>,
         @InjectModel(AppraisalRecord.name)
-        private appraisalRecordModel: Model<AppraisalRecord>,
+        private readonly appraisalRecordModel: Model<AppraisalRecord>,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
         private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
         private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
@@ -87,7 +88,7 @@ export class EmployeeService {
     }
 
     // HR admin: update any part of an employee's profile
-    async adminUpdateProfile(id: string, updateEmployeeProfileDto: UpdateEmployeeProfileDto): Promise<EmployeeProfile> {
+    async adminUpdateProfile(id: string, updateEmployeeProfileDto: AdminUpdateEmployeeProfileDto): Promise<EmployeeProfile> {
         const employee = await this.employeeProfileRepository.findById(id);
         if (!employee) {
             throw new NotFoundException('Employee not found');

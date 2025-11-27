@@ -9,9 +9,9 @@ import { CandidateRepository } from './repository/candidate.repository';
 @Injectable()
 export class AuthService {
     constructor(
-        private employeeProfileRepository: EmployeeProfileRepository,
-        private candidateRepository: CandidateRepository,
-        private jwtService: JwtService,
+        private readonly employeeProfileRepository: EmployeeProfileRepository,
+        private readonly candidateRepository: CandidateRepository,
+        private readonly jwtService: JwtService,
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {

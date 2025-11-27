@@ -4,6 +4,7 @@ import { EmployeeService } from '../employee.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateContactInfoDto } from '../dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from '../dto/update-employee-profile.dto';
+import { AdminUpdateEmployeeProfileDto } from '../dto/admin-update-employee-profile.dto';
 import { CreateProfileChangeRequestDto } from '../dto/create-profile-change-request.dto';
 import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ApiKeyGuard } from '../../guards/api-key.guard';
@@ -149,10 +150,11 @@ describe('EmployeeController', () => {
     describe('adminUpdateProfile (HR Admin)', () => {
         it('should update any part of an employee profile as HR admin', async () => {
             const id = '1';
-            const updateEmployeeProfileDto: UpdateEmployeeProfileDto = {
+            const updateEmployeeProfileDto: AdminUpdateEmployeeProfileDto = {
                 biography: 'Updated by HR',
                 profilePictureUrl: 'http://example.com/hr-pic.jpg',
-            } as any;
+                firstName: 'New Name',
+            };
 
             const result = { _id: id, ...updateEmployeeProfileDto };
             mockEmployeeService.adminUpdateProfile.mockResolvedValue(result);
@@ -163,9 +165,9 @@ describe('EmployeeController', () => {
 
         it('should throw ConflictException if admin update fails', async () => {
             const id = '1';
-            const updateEmployeeProfileDto: UpdateEmployeeProfileDto = {
+            const updateEmployeeProfileDto: AdminUpdateEmployeeProfileDto = {
                 biography: 'Attempt by HR',
-            } as any;
+            };
 
             mockEmployeeService.adminUpdateProfile.mockRejectedValue(new ConflictException('Update failed'));
 

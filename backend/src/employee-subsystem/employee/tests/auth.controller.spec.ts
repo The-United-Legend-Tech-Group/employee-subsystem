@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Response } from 'express';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import { LoginDto } from '../dto/login.dto';
@@ -40,8 +41,13 @@ describe('AuthController', () => {
             const result = { access_token: 'jwt_token' };
             mockAuthService.login.mockResolvedValue(result);
 
-            expect(await controller.login(loginDto)).toBe(result);
+            const mockResponse = {
+                cookie: jest.fn(),
+            } as unknown as Response;
+
+            expect(await controller.login(loginDto, mockResponse)).toBe(result);
             expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+            expect(mockResponse.cookie).toHaveBeenCalledWith('access_token', 'jwt_token', expect.any(Object));
         });
 
         it('should throw UnauthorizedException on invalid credentials', async () => {
@@ -51,7 +57,11 @@ describe('AuthController', () => {
             };
             mockAuthService.login.mockRejectedValue(new UnauthorizedException());
 
-            await expect(controller.login(loginDto)).rejects.toThrow(UnauthorizedException);
+            const mockResponse = {
+                cookie: jest.fn(),
+            } as unknown as Response;
+
+            await expect(controller.login(loginDto, mockResponse)).rejects.toThrow(UnauthorizedException);
         });
     });
 });

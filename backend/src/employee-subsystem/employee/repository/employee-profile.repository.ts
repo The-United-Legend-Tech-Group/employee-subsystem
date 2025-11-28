@@ -40,12 +40,15 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
         const managerPositionId = manager.primaryPositionId;
         console.log(`[getTeamSummaryByManagerId] Manager position: ${managerPositionId}`);
 
-        // Find all employees whose supervisorPositionId matches the manager's position
+        // NOTE: supervisorPositionId may be stored as string in the database
+        // even though schema defines it as ObjectId, so we need to match both types
         const pipeline = [
             {
                 $match: {
-                    supervisorPositionId: { $exists: true },
-                    $expr: { $eq: ['$supervisorPositionId', managerPositionId] }
+                    $or: [
+                        { supervisorPositionId: managerPositionId },
+                        { supervisorPositionId: managerPositionId.toString() }
+                    ]
                 }
             },
             {
@@ -123,11 +126,14 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
             accessProfileId: 0,
         };
 
-        // Find all employees whose supervisorPositionId matches the manager's position
+        // NOTE: supervisorPositionId may be stored as string in the database
+        // even though schema defines it as ObjectId, so we need to match both types
         const teamMembers = await this.model
             .find({
-                supervisorPositionId: { $exists: true },
-                $expr: { $eq: ['$supervisorPositionId', managerPositionId] }
+                $or: [
+                    { supervisorPositionId: managerPositionId },
+                    { supervisorPositionId: managerPositionId.toString() }
+                ]
             })
             .select(projection)
             .lean()

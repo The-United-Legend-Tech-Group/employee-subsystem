@@ -83,4 +83,22 @@ export class PunchDto {
   @IsOptional()
   @IsNumber()
   automaticDeductionMinutes?: number;
+
+  @ApiProperty({
+    description: 'Optional location name or GPS',
+    required: false,
+  })
+  @IsOptional()
+  location?: string;
+
+  @ApiProperty({ description: 'Optional terminal identifier', required: false })
+  @IsOptional()
+  terminalId?: string;
+
+  @ApiProperty({
+    description: 'Optional device id (mobile/device uuid)',
+    required: false,
+  })
+  @IsOptional()
+  deviceId?: string;
 }

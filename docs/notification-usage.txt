@@ -1,0 +1,77 @@
+HOW TO USE THE NOTIFICATION SERVICE
+
+This document outlines how to import and use the notification creation function anywhere in the project.
+
+1. IMPORT THE MODULE
+
+   First, you need to import the `NotificationModule` into the module where you want to use the notification service.
+
+   // In your consumer module (e.g., your-feature.module.ts)
+   import { Module } from '@nestjs/common';
+   import { NotificationModule } from '../notification/notification.module'; // Adjust path as needed
+
+   @Module({
+     imports: [
+       // ... other imports
+       NotificationModule, 
+     ],
+     // ...
+   })
+   export class YourFeatureModule {}
+
+2. INJECT THE SERVICE
+
+   Next, inject the `NotificationService` into your service or controller.
+
+   // In your consumer service (e.g., your-feature.service.ts)
+   import { Injectable } from '@nestjs/common';
+   import { NotificationService } from '../notification/notification.service'; // Adjust path as needed
+
+   @Injectable()
+   export class YourFeatureService {
+     constructor(
+       private readonly notificationService: NotificationService,
+       // ... other dependencies
+     ) {}
+
+     // ...
+   }
+
+3. USE THE CREATE FUNCTION
+
+   Use the `create` method to send a notification. You need to construct a `CreateNotificationDto` object.
+
+   // In your method
+   import { CreateNotificationDto } from '../notification/dto/create-notification.dto'; // Adjust path as needed
+
+   async someAction() {
+     // ... logic ...
+
+     const notificationDto: CreateNotificationDto = {
+       recipientId: ['64f8a...'], // Array of recipient User/Employee ObjectIds as strings
+       type: 'Info', // 'Alert' | 'Info' | 'Success' | 'Warning'
+       deliveryType: 'UNICAST', // 'UNICAST' | 'MULTICAST' | 'BROADCAST'
+       title: 'Action Completed',
+       message: 'The action was successfully completed.',
+       // Optional fields:
+       // relatedEntityId: '64f8b...',
+       // relatedModule: 'YourModule',
+       // isRead: false,
+       // deliverToRole: SystemRole.Manager, 
+     };
+
+     await this.notificationService.create(notificationDto);
+   }
+
+DTO REFERENCE (CreateNotificationDto)
+
+   - recipientId: string[] (Required) - Array of MongoIDs for recipients.
+   - type: 'Alert' | 'Info' | 'Success' | 'Warning' (Required)
+   - deliveryType: 'UNICAST' | 'MULTICAST' | 'BROADCAST' (Required)
+   - title: string (Required)
+   - message: string (Required)
+   - relatedEntityId: string (Optional) - MongoID of related entity.
+   - relatedModule: string (Optional) - Name of the related module.
+   - isRead: boolean (Optional)
+   - deliverToRole: SystemRole (Optional)
+   - readAt: Date (Optional)

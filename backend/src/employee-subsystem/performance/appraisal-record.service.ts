@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { AppraisalRecordRepository } from './repository/appraisal-record.repository';
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
+import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
 import { AppraisalRecordDocument } from './models/appraisal-record.schema';
 import { AppraisalRecordStatus } from './enums/performance.enums';
 import { AttendanceService } from '../../time-mangement/attendance.service';
@@ -149,5 +150,82 @@ export class AppraisalRecordService {
             hrPublishedAt: r.hrPublishedAt,
             employeeViewedAt: r.employeeViewedAt,
         }));
+    }
+
+    async createRecord(createDto: CreateAppraisalRecordDto): Promise<AppraisalRecordDocument> {
+        // Fetch the template to validate ratings
+        const template = await this.appraisalTemplateRepository.findOne({
+            _id: createDto.templateId,
+        });
+        if (!template) {
+            throw new NotFoundException('Associated appraisal template not found');
+        }
+
+        // Validate and calculate ratings
+        const validatedRatings: any[] = [];
+        let totalScore = 0;
+
+        for (const ratingDto of createDto.ratings) {
+            const criterion = template.criteria.find((c) => c.key === ratingDto.key);
+            if (!criterion) {
+                throw new BadRequestException(
+                    `Invalid rating key: ${ratingDto.key}. Not found in template.`,
+                );
+            }
+
+            if (
+                ratingDto.ratingValue < template.ratingScale.min ||
+                ratingDto.ratingValue > template.ratingScale.max
+            ) {
+                throw new BadRequestException(
+                    `Rating value for ${ratingDto.key} must be between ${template.ratingScale.min} and ${template.ratingScale.max}`,
+                );
+            }
+
+            let weightedScore = ratingDto.ratingValue;
+            if (criterion.weight) {
+                weightedScore = (ratingDto.ratingValue * criterion.weight) / 100;
+            }
+
+            validatedRatings.push({
+                key: ratingDto.key,
+                title: criterion.title,
+                ratingValue: ratingDto.ratingValue,
+                comments: ratingDto.comments,
+                weightedScore,
+            });
+
+            totalScore += weightedScore;
+        }
+
+        // Check required criteria
+        const requiredCriteria = template.criteria.filter((c) => c.required);
+        for (const required of requiredCriteria) {
+            const isRated = validatedRatings.some((r) => r.key === required.key);
+            if (!isRated) {
+                throw new BadRequestException(
+                    `Missing rating for required criterion: ${required.title}`,
+                );
+            }
+        }
+
+        // Build record
+        const recordPayload: Partial<AppraisalRecordDocument> = {
+            assignmentId: createDto.assignmentId as any,
+            cycleId: createDto.cycleId as any,
+            templateId: createDto.templateId as any,
+            employeeProfileId: createDto.employeeProfileId as any,
+            managerProfileId: createDto.managerProfileId as any,
+            ratings: validatedRatings,
+            totalScore,
+            managerSummary: createDto.managerSummary,
+            strengths: createDto.strengths,
+            improvementAreas: createDto.improvementAreas,
+            status: AppraisalRecordStatus.MANAGER_SUBMITTED,
+            managerSubmittedAt: new Date(),
+        } as Partial<AppraisalRecordDocument>;
+
+        const created = await this.appraisalRecordRepository.create(recordPayload as any);
+        return created as AppraisalRecordDocument;
     }
 }

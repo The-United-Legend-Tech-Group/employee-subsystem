@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppraisalRecordService } from './appraisal-record.service';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
+import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
 import { AppraisalRecord } from './models/appraisal-record.schema';
 
 @ApiTags('Performance - Appraisal Records')
@@ -34,6 +35,17 @@ export class AppraisalRecordController {
         @Body() updateDto: UpdateAppraisalRecordDto,
     ): Promise<AppraisalRecord> {
         return this.appraisalRecordService.updateRecord(id, updateDto);
+    }
+
+    @Post()
+    @ApiOperation({ summary: 'Create a new appraisal record (manager submission)' })
+    @ApiResponse({
+        status: 201,
+        description: 'The created appraisal record',
+        type: AppraisalRecord,
+    })
+    async createRecord(@Body() createDto: CreateAppraisalRecordDto): Promise<AppraisalRecord> {
+        return this.appraisalRecordService.createRecord(createDto);
     }
 
     @Get('employee/:employeeProfileId/final')

@@ -105,25 +105,42 @@ export class EmployeeService {
         console.log('=== UPDATE POSITION DEBUG ===');
         console.log('Employee ID:', id);
         console.log('Position ID from DTO:', updateEmployeePositionDto.positionId);
-        console.log('Position ID type:', typeof updateEmployeePositionDto.positionId);
 
         const position = await this.positionRepository.findById(updateEmployeePositionDto.positionId);
-        console.log('Position found:', position);
+        console.log('Position found (full object):', JSON.stringify(position, null, 2));
 
         if (!position) {
             console.log('ERROR: Position not found for ID:', updateEmployeePositionDto.positionId);
             throw new NotFoundException('Position not found');
         }
 
-        const updatePayload: any = {
-            primaryPositionId: new Types.ObjectId(updateEmployeePositionDto.positionId),
-        };
+        let supervisorPositionId = position.reportsToPositionId;
 
-        if (position.reportsToPositionId) {
-            updatePayload.supervisorPositionId = position.reportsToPositionId;
+        // If reportsToPositionId is not set on the position, manually resolve it from the department
+        if (!supervisorPositionId && position.departmentId) {
+            const Department = this.employeeProfileModel.db.model('Department');
+            const department = await Department.findById(position.departmentId).select('headPositionId').lean<{ headPositionId?: Types.ObjectId }>().exec();
+
+            console.log('Department found:', department);
+
+            // Set supervisor to department head, unless this position IS the department head
+            if (department?.headPositionId &&
+                department.headPositionId.toString() !== position._id.toString()) {
+                supervisorPositionId = department.headPositionId;
+                console.log('Resolved supervisor from department head:', supervisorPositionId);
+            }
         }
 
+        const updatePayload: any = {
+            primaryPositionId: new Types.ObjectId(updateEmployeePositionDto.positionId),
+            supervisorPositionId: supervisorPositionId || undefined,
+        };
+
+        console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
+
         const updatedEmployee = await this.employeeProfileRepository.updateById(id, updatePayload);
+        console.log('Updated employee supervisorPositionId:', updatedEmployee?.supervisorPositionId);
+
         if (!updatedEmployee) {
             throw new ConflictException('Employee not found');
         }

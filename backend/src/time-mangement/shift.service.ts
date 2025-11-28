@@ -90,13 +90,34 @@ export class ShiftService {
 
   async attachScheduleRuleToAssignment(
     assignmentId: string,
-    scheduleRuleId: string,
+    scheduleRuleId?: string,
   ) {
+    // If caller did not provide a scheduleRuleId, resolve a default one.
+    let ruleId = scheduleRuleId as any;
+    if (!ruleId) {
+      if (!this.scheduleRuleRepo) {
+        throw new Error('ScheduleRuleRepository not available');
+      }
+      // Prefer active schedule rules; fall back to any rule if none active.
+      const active = await this.scheduleRuleRepo.find({ active: true } as any);
+      if (active && active.length) {
+        ruleId = (active[0] as any)._id || active[0];
+      } else {
+        const all = await this.scheduleRuleRepo.find({} as any);
+        if (!all || !all.length) {
+          throw new Error('No schedule rules available to attach');
+        }
+        ruleId = (all[0] as any)._id || all[0];
+      }
+    }
+
     return this.shiftAssignmentService.attachScheduleRuleToAssignment(
       assignmentId,
-      scheduleRuleId,
+      ruleId,
     );
   }
+
+  // (No reverse-link helper; ScheduleRule is not modified to store assignmentIds)
 
   async getAllShifts() {
     return this.shiftRepo.find({});

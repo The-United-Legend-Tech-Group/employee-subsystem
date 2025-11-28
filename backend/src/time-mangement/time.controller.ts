@@ -7,7 +7,7 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { PunchDto } from './dto/punch.dto';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { AssignShiftDto } from './dto/assign-shift.dto';
@@ -109,13 +109,20 @@ export class TimeController {
 
   @Patch('shifts/assignments/:id/schedule-rule')
   @ApiOperation({ summary: 'Attach a schedule rule to a shift assignment' })
+  @ApiQuery({
+    name: 'ruleId',
+    required: false,
+    description: 'Optional schedule rule id to attach',
+  })
   attachScheduleRule(
     @Param('id') id: string,
-    @Body() body: { scheduleRuleId: string },
+    @Query('ruleId') ruleId?: string,
   ) {
-    return this.shiftAssignmentService.attachScheduleRuleToAssignment(
-      id,
-      body.scheduleRuleId,
+    // If client provides ?ruleId=... we'll attach that specific rule,
+    // otherwise the service resolves an active/default rule.
+    return this.shiftService.attachScheduleRuleToAssignment(
+      id as any,
+      ruleId as any,
     );
   }
 

@@ -11,14 +11,15 @@ jest.mock('../repository/shift.repository', () => ({
   ShiftRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-import { TimeService } from '../time.service';
+import { AttendanceService } from '../attendance.service';
 import { HolidayType } from '../models/enums/index';
 
 describe('TimeService - Holiday flows', () => {
   let mockHolidayRepo: any;
   let mockShiftAssignmentRepo: any;
   let mockShiftRepo: any;
-  let service: TimeService;
+  let service: any;
+  let attendanceService: any;
 
   beforeEach(() => {
     mockHolidayRepo = {
@@ -31,12 +32,13 @@ describe('TimeService - Holiday flows', () => {
     mockShiftAssignmentRepo = {} as any;
     mockShiftRepo = {} as any;
 
-    service = new TimeService(
-      mockShiftRepo,
-      mockShiftAssignmentRepo,
+    attendanceService = new AttendanceService(
+      undefined,
       undefined,
       mockHolidayRepo,
     );
+
+    service = attendanceService;
   });
 
   it('creates a single national holiday', async () => {

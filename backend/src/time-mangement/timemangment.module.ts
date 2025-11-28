@@ -17,11 +17,20 @@ import {
   ScheduleRuleSchema,
 } from './models/schedule-rule.schema';
 import { TimeController } from './time.controller';
-import { TimeService } from './time.service';
+import { ShiftService } from './shift.service';
+import { AttendanceService } from './attendance.service';
+import { ShiftAssignmentService } from './shift-assignment.service';
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
 import { HolidayRepository } from './repository/holiday.repository';
+import { AttendanceRepository } from './repository/attendance.repository';
+import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
+// CorrectionAuditRepository removed — audits are now ephemeral (logged)
+import {
+  AttendanceCorrectionRequest,
+  AttendanceCorrectionRequestSchema,
+} from './models/attendance-correction-request.schema';
 
 import { Holiday, HolidaySchema } from './models/holiday.schema';
 @Module({
@@ -30,6 +39,10 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     // Register feature schemas local to the time-management subsystem
     MongooseModule.forFeature([
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },
+      {
+        name: AttendanceCorrectionRequest.name,
+        schema: AttendanceCorrectionRequestSchema,
+      },
       { name: ShiftAssignment.name, schema: ShiftAssignmentSchema },
       { name: Holiday.name, schema: HolidaySchema },
       { name: ShiftType.name, schema: ShiftTypeSchema },
@@ -39,19 +52,27 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
   ],
   controllers: [TimeController],
   providers: [
-    TimeService,
+    ShiftService,
+    ShiftAssignmentService,
+    AttendanceService,
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,
+    AttendanceRepository,
+    AttendanceCorrectionRepository,
   ],
   exports: [
     MongooseModule,
-    TimeService,
+    ShiftService,
+    ShiftAssignmentService,
+    AttendanceService,
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,
+    AttendanceRepository,
+    AttendanceCorrectionRepository,
   ],
 })
 export class TimeMangementModule {}

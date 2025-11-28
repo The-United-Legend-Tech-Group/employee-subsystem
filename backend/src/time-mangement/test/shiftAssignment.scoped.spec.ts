@@ -7,12 +7,13 @@ jest.mock('../repository/shift-assignment.repository', () => ({
   ShiftAssignmentRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-import { TimeService } from '../time.service';
+import { ShiftAssignmentService } from '../shift-assignment.service';
 
-describe('TimeService - scoped shift assignments (unit)', () => {
+describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
   let mockShiftRepo: any;
   let mockShiftAssignmentRepo: any;
-  let service: TimeService;
+  let shiftAssignmentService: ShiftAssignmentService;
+  let service: any;
 
   beforeEach(() => {
     mockShiftRepo = {
@@ -23,14 +24,12 @@ describe('TimeService - scoped shift assignments (unit)', () => {
     };
 
     mockShiftAssignmentRepo = {
-      create: jest
-        .fn()
-        .mockImplementation((dto) =>
-          Promise.resolve({
-            _id: `assign-${Math.random().toString(36).slice(2, 6)}`,
-            ...dto,
-          }),
-        ),
+      create: jest.fn().mockImplementation((dto) =>
+        Promise.resolve({
+          _id: `assign-${Math.random().toString(36).slice(2, 6)}`,
+          ...dto,
+        }),
+      ),
       updateById: jest
         .fn()
         .mockImplementation((id, update) =>
@@ -39,7 +38,10 @@ describe('TimeService - scoped shift assignments (unit)', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
-    service = new TimeService(mockShiftRepo, mockShiftAssignmentRepo);
+    shiftAssignmentService = new ShiftAssignmentService(
+      mockShiftAssignmentRepo as any,
+    );
+    service = shiftAssignmentService;
   });
 
   it('assigns to multiple employees', async () => {

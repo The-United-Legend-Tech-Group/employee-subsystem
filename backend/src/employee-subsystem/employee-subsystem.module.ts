@@ -6,6 +6,7 @@ import { OrganizationStructureModule } from './organization-structure/organizati
 import { NotificationModule } from './notification/notification.module';
 import { AuthModule } from './employee/auth.module';
 import { DatabaseModule } from '../../database/database.module';
+import { PerformanceModule } from './performance/performance.module';
 
 @Module({
   imports: [
@@ -14,9 +15,9 @@ import { DatabaseModule } from '../../database/database.module';
     OrganizationStructureModule,
     NotificationModule,
     AuthModule,
-
+    PerformanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class EmployeeSubsystemModule {}
+export class EmployeeSubsystemModule { }

@@ -34,6 +34,9 @@ export class UserProfileBase {
   @Prop({ type: String, required: true, unique: true })
   nationalId: string;
 
+  @Prop({ type: String })
+  password?: string;
+
   // Demographics
   @Prop({ type: String, enum: Object.values(Gender) })
   gender?: Gender;

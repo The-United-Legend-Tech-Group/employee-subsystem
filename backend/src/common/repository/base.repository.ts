@@ -4,6 +4,7 @@ import {
   FilterQuery,
   UpdateQuery,
   QueryOptions,
+  Types,
 } from 'mongoose';
 
 export interface IRepository<T> {
@@ -33,8 +34,17 @@ export class BaseRepository<T extends Document> implements IRepository<T> {
   }
 
   async create(dto: Partial<T>): Promise<T> {
-    const created = new this.model(dto as any);
-    return created.save();
+    // Create a plain object from dto (handles class instances from NestJS DTOs)
+    const plainDto = JSON.parse(JSON.stringify(dto));
+    
+    // Ensure _id is present for Mongoose
+    if (!plainDto._id) {
+      plainDto._id = new Types.ObjectId();
+    }
+    
+    // Create document instance and save
+    const doc = new this.model(plainDto);
+    return await doc.save();
   }
 
   async findOne(filter: FilterQuery<T>): Promise<T | null> {

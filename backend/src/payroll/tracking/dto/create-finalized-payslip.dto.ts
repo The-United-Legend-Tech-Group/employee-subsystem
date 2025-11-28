@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsEnum, IsDate, IsOptional, Min, IsMongoId } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDate,
+  IsOptional,
+  Min,
+  IsMongoId,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateFinalizedPayslipDto {
@@ -31,4 +39,3 @@ export class CreateFinalizedPayslipDto {
   @Type(() => Date)
   effective_date: Date;
 }
-

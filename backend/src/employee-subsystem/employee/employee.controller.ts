@@ -12,13 +12,13 @@ import { AssignRolesDto } from './dto/assign-roles.dto';
 import { UpdateEmployeeDepartmentDto } from './dto/update-employee-department.dto';
 import { UpdateEmployeePositionDto } from './dto/update-employee-position.dto';
 import { EmployeeService } from './employee.service';
-import { ProfileChangeStatus, SystemRole } from './enums/employee-profile.enums';
-
+import { ProfileChangeStatus } from './enums/employee-profile.enums';
+import { ApiKeyGuard } from '../guards/api-key.guard';
 
 @ApiTags('Employee')
 @Controller('employee')
 export class EmployeeController {
-    constructor(private readonly employeeService: EmployeeService) { }
+  constructor(private readonly employeeService: EmployeeService) {}
 
     @Post('onboard')
     @ApiOperation({ summary: 'Onboard a new employee (M2M)' })
@@ -37,14 +37,17 @@ export class EmployeeController {
         return this.employeeService.updateContactInfo(id, updateContactInfoDto);
     }
 
-    @Patch(':id/profile')
-    @ApiOperation({ summary: 'Update employee profile' })
-    @ApiParam({ name: 'id', description: 'Employee ID' })
-    @ApiBody({ type: UpdateEmployeeProfileDto })
-    @ApiResponse({ status: 200, description: 'Profile updated' })
-    async updateProfile(@Param('id') id: string, @Body() updateEmployeeProfileDto: UpdateEmployeeProfileDto) {
-        return this.employeeService.updateProfile(id, updateEmployeeProfileDto);
-    }
+  @Patch(':id/profile')
+  @ApiOperation({ summary: 'Update employee profile' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiBody({ type: UpdateEmployeeProfileDto })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
+  async updateProfile(
+    @Param('id') id: string,
+    @Body() updateEmployeeProfileDto: UpdateEmployeeProfileDto,
+  ) {
+    return this.employeeService.updateProfile(id, updateEmployeeProfileDto);
+  }
 
     @Patch(':id/profile/admin')
     @ApiOperation({ summary: 'Admin update employee profile' })
@@ -81,17 +84,20 @@ export class EmployeeController {
         return this.employeeService.updatePosition(id, updateEmployeePositionDto);
     }
 
-    @Post(':id/correction-request')
-    @ApiOperation({ summary: 'Request profile correction' })
-    @ApiParam({ name: 'id', description: 'Employee ID' })
-    @ApiBody({ type: CreateProfileChangeRequestDto })
-    @ApiResponse({ status: 201, description: 'Correction request created' })
-    async requestProfileCorrection(
-        @Param('id') id: string,
-        @Body() createProfileChangeRequestDto: CreateProfileChangeRequestDto,
-    ) {
-        return this.employeeService.createProfileChangeRequest(id, createProfileChangeRequestDto);
-    }
+  @Post(':id/correction-request')
+  @ApiOperation({ summary: 'Request profile correction' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiBody({ type: CreateProfileChangeRequestDto })
+  @ApiResponse({ status: 201, description: 'Correction request created' })
+  async requestProfileCorrection(
+    @Param('id') id: string,
+    @Body() createProfileChangeRequestDto: CreateProfileChangeRequestDto,
+  ) {
+    return this.employeeService.createProfileChangeRequest(
+      id,
+      createProfileChangeRequestDto,
+    );
+  }
 
     @Post(':id/roles')
     @ApiOperation({ summary: 'Assign roles to employee' })
@@ -152,12 +158,12 @@ export class EmployeeController {
         return this.employeeService.rejectProfileChangeRequest(requestId, body?.reason);
     }
 
-    // Employee: fetch own (or specific) full profile
-    @Get(':id')
-    @ApiOperation({ summary: 'Get employee profile' })
-    @ApiParam({ name: 'id', description: 'Employee ID' })
-    @ApiResponse({ status: 200, description: 'Profile retrieved' })
-    async getProfile(@Param('id') id: string) {
-        return this.employeeService.getProfile(id);
-    }
+  // Employee: fetch own (or specific) full profile
+  @Get(':id')
+  @ApiOperation({ summary: 'Get employee profile' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved' })
+  async getProfile(@Param('id') id: string) {
+    return this.employeeService.getProfile(id);
+  }
 }

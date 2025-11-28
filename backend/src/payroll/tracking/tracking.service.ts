@@ -4,7 +4,7 @@ import { UpdateTrackingDto } from './dto/update-tracking.dto';
 
 @Injectable()
 export class TrackingService {
-  create(createTrackingDto: CreateTrackingDto) {
+  create(_createTrackingDto: CreateTrackingDto) {
     return 'This action adds a new tracking';
   }
 
@@ -16,7 +16,7 @@ export class TrackingService {
     return `This action returns a #${id} tracking`;
   }
 
-  update(id: number, updateTrackingDto: UpdateTrackingDto) {
+  update(id: number, _updateTrackingDto: UpdateTrackingDto) {
     return `This action updates a #${id} tracking`;
   }
 

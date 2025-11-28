@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ConfigSetupService } from './config_setup.service';
 import { CreateConfigSetupDto } from './dto/create-config_setup.dto';
 import { UpdateConfigSetupDto } from './dto/update-config_setup.dto';
@@ -23,7 +31,10 @@ export class ConfigSetupController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateConfigSetupDto: UpdateConfigSetupDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateConfigSetupDto: UpdateConfigSetupDto,
+  ) {
     return this.configSetupService.update(+id, updateConfigSetupDto);
   }
 

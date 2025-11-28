@@ -14,9 +14,7 @@ async function bootstrap() {
   // Swagger for the full application — aggregates all modules/controllers
   const config = new DocumentBuilder()
     .setTitle('Employee Subsystem API')
-    .setDescription(
-      'All Employee Subsystem APIs',
-    )
+    .setDescription('All Employee Subsystem APIs')
     .setVersion('0.1')
     .addTag('employee-subsystem')
     .build();
@@ -24,9 +22,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-
   await app.listen(process.env.PORT ?? 3000);
-  console.log(`Employee Subsystem listening on port ${process.env.PORT ?? 3000}`);
+  console.log(
+    `Employee Subsystem listening on port ${process.env.PORT ?? 3000}`,
+  );
 }
 
 bootstrap();

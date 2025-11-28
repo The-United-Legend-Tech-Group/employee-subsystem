@@ -8,9 +8,9 @@ export type NotificationDocument = HydratedDocument<Notification>;
 
 @Injectable()
 export class NotificationRepository extends BaseRepository<NotificationDocument> {
-    constructor(
-        @InjectModel(Notification.name) model: Model<NotificationDocument>,
-    ) {
-        super(model);
-    }
+  constructor(
+    @InjectModel(Notification.name) model: Model<NotificationDocument>,
+  ) {
+    super(model);
+  }
 }

@@ -32,4 +32,4 @@ import { DepartmentRepository } from './repository/department.repository';
   providers: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository],
   exports: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository],
 })
-export class OrganizationStructureModule { }
+export class OrganizationStructureModule {}

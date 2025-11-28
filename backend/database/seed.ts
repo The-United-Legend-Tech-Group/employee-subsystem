@@ -91,7 +91,7 @@ function generateValueForPath(pathType: any, modelName: string, idx: number) {
 function generateEmployeeProfile(
   idx: number,
   schemaPaths: any,
-  createdIds: Record<string, any[]>,
+  _createdIds: Record<string, any[]>,
 ) {
   const firstNames = [
     'John',
@@ -175,7 +175,7 @@ function generateEmployeeProfile(
 function generateDepartment(
   idx: number,
   schemaPaths: any,
-  createdIds: Record<string, any[]>,
+  _createdIds: Record<string, any[]>,
 ) {
   const names = [
     'Engineering',
@@ -515,7 +515,7 @@ function generateDocumentForModel(
 function applyEnumHints(
   modelName: string,
   doc: any,
-  schemaPaths: any,
+  _schemaPaths: any,
   idx: number,
 ) {
   // ShiftAssignment status

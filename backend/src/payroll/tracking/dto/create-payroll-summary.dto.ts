@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsEnum, IsDate, Min, IsOptional, IsMongoId } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDate,
+  Min,
+  IsOptional,
+  IsMongoId,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePayrollSummaryDto {
@@ -53,4 +61,3 @@ export class CreatePayrollSummaryDto {
   @IsOptional()
   currency?: string;
 }
-

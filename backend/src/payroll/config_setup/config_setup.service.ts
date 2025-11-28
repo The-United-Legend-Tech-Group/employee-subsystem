@@ -4,7 +4,7 @@ import { UpdateConfigSetupDto } from './dto/update-config_setup.dto';
 
 @Injectable()
 export class ConfigSetupService {
-  create(createConfigSetupDto: CreateConfigSetupDto) {
+  create(_createConfigSetupDto: CreateConfigSetupDto) {
     return 'This action adds a new configSetup';
   }
 
@@ -16,7 +16,7 @@ export class ConfigSetupService {
     return `This action returns a #${id} configSetup`;
   }
 
-  update(id: number, updateConfigSetupDto: UpdateConfigSetupDto) {
+  update(id: number, _updateConfigSetupDto: UpdateConfigSetupDto) {
     return `This action updates a #${id} configSetup`;
   }
 

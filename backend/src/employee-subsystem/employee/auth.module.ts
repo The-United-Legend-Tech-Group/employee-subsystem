@@ -18,4 +18,4 @@ dotenv.config();
   ],
   exports: [JwtModule],
 })
-export class AuthModule { }
+export class AuthModule {}

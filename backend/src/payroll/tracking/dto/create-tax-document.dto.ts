@@ -1,4 +1,15 @@
-import { IsString, IsNumber, IsEnum, IsDate, IsObject, ValidateNested, Min, IsOptional, IsArray, IsMongoId } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDate,
+  IsObject,
+  ValidateNested,
+  Min,
+  IsOptional,
+  IsArray,
+  IsMongoId,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class TaxComponentDto {
@@ -51,8 +62,15 @@ export class CreateTaxDocumentDto {
   @IsMongoId()
   employee_id: string;
 
-  @IsEnum(['Annual Tax Statement', 'Monthly Tax Summary', 'Quarterly Tax Report'])
-  document_type: 'Annual Tax Statement' | 'Monthly Tax Summary' | 'Quarterly Tax Report';
+  @IsEnum([
+    'Annual Tax Statement',
+    'Monthly Tax Summary',
+    'Quarterly Tax Report',
+  ])
+  document_type:
+    | 'Annual Tax Statement'
+    | 'Monthly Tax Summary'
+    | 'Quarterly Tax Report';
 
   @IsNumber()
   year: number;
@@ -82,4 +100,3 @@ export class CreateTaxDocumentDto {
   @IsOptional()
   taxBreakdown?: TaxBreakdownDto;
 }
-

@@ -7,9 +7,12 @@ export class ApiKeyGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const apiKeyHeader = request.headers['x-api-key'] || request.headers['X-API-KEY'];
+    const apiKeyHeader =
+      request.headers['x-api-key'] || request.headers['X-API-KEY'];
 
-    const configured = this.configService.get<string>('EMPLOYEE_API_KEY') || process.env.EMPLOYEE_API_KEY;
+    const configured =
+      this.configService.get<string>('EMPLOYEE_API_KEY') ||
+      process.env.EMPLOYEE_API_KEY;
 
     if (!configured) {
       // If no API key configured, deny to be safe.
@@ -20,7 +23,9 @@ export class ApiKeyGuard implements CanActivate {
       return false;
     }
 
-    const provided = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
+    const provided = Array.isArray(apiKeyHeader)
+      ? apiKeyHeader[0]
+      : apiKeyHeader;
 
     return provided === configured;
   }

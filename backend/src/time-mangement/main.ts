@@ -21,7 +21,7 @@ export async function createTimeManagementApp() {
 export async function bootstrapTimeManagement(port = 3001) {
   const app = await createTimeManagementApp();
   await app.listen(port);
-  // eslint-disable-next-line no-console
+
   console.log(`Time Management subsystem listening on ${port}`);
 }
 

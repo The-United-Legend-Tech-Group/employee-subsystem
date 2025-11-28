@@ -5,14 +5,14 @@ import { BaseRepository } from '../../../common/repository/base.repository';
 import { EmployeeProfileChangeRequest } from '../models/ep-change-request.schema';
 
 export type EmployeeProfileChangeRequestDocument =
-    HydratedDocument<EmployeeProfileChangeRequest>;
+  HydratedDocument<EmployeeProfileChangeRequest>;
 
 @Injectable()
 export class EmployeeProfileChangeRequestRepository extends BaseRepository<EmployeeProfileChangeRequestDocument> {
-    constructor(
-        @InjectModel(EmployeeProfileChangeRequest.name)
-        model: Model<EmployeeProfileChangeRequestDocument>,
-    ) {
-        super(model);
-    }
+  constructor(
+    @InjectModel(EmployeeProfileChangeRequest.name)
+    model: Model<EmployeeProfileChangeRequestDocument>,
+  ) {
+    super(model);
+  }
 }

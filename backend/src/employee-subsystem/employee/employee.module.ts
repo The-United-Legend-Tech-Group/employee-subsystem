@@ -4,7 +4,10 @@ import {
   EmployeeProfile,
   EmployeeProfileSchema,
 } from './models/employee-profile.schema';
-import { AppraisalRecord, AppraisalRecordSchema } from '../performance/models/appraisal-record.schema';
+import {
+  AppraisalRecord,
+  AppraisalRecordSchema,
+} from '../performance/models/appraisal-record.schema';
 import {
   EmployeeProfileChangeRequest,
   EmployeeProfileChangeRequestSchema,
@@ -28,7 +31,10 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
     MongooseModule.forFeature([
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: AppraisalRecord.name, schema: AppraisalRecordSchema },
-      { name: EmployeeProfileChangeRequest.name, schema: EmployeeProfileChangeRequestSchema },
+      {
+        name: EmployeeProfileChangeRequest.name,
+        schema: EmployeeProfileChangeRequestSchema,
+      },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
       { name: Candidate.name, schema: CandidateSchema },
     ]),
@@ -48,4 +54,4 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
     EmployeeProfileChangeRequestRepository,
   ],
 })
-export class EmployeeModule { }
+export class EmployeeModule {}

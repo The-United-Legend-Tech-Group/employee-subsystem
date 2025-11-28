@@ -29,8 +29,7 @@ describe('TimeService - Holiday flows', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
-    mockShiftAssignmentRepo = {} as any;
-    mockShiftRepo = {} as any;
+    // shift repo mocks not required for these unit tests
 
     attendanceService = new AttendanceService(
       undefined,

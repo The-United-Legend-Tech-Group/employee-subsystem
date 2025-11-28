@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../../employee-subsystem/employee/decorators/roles.decorator';
 import { SystemRole } from '../employee/enums/employee-profile.enums';
@@ -7,17 +12,16 @@ import { SystemRole } from '../employee/enums/employee-profile.enums';
 export class authorizationGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) { }
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (!requiredRoles) {
       return true;
     }
     const { user } = context.switchToHttp().getRequest();
-    if (!user)
-      throw new UnauthorizedException('no user attached');
-    const userRole = user.role
+    if (!user) throw new UnauthorizedException('no user attached');
+    const userRole = user.role;
     if (!requiredRoles.includes(userRole))
       throw new UnauthorizedException('unauthorized access');
 

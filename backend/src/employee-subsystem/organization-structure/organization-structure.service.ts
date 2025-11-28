@@ -94,6 +94,15 @@ export class OrganizationStructureService {
             )
             .exec();
         if (!updated) throw new NotFoundException('Change request not found');
+
+        // notify stakeholders that the change request was rejected
+        try {
+            await this.notifyStakeholders(updated, 'rejected');
+        } catch (err) {
+            console.error('[OrganizationStructure] rejectChangeRequest - failed to notify stakeholders:', err);
+            // don't fail rejection if notification fails
+        }
+
         return updated;
     }
 
@@ -127,7 +136,7 @@ export class OrganizationStructureService {
         return saved;
     }
 
-    private async notifyStakeholders(request: StructureChangeRequestDocument, action: 'submitted' | 'approved') {
+    private async notifyStakeholders(request: StructureChangeRequestDocument, action: 'submitted' | 'approved' | 'rejected') {
         const recipientIds = new Set<string>();
 
         // If a target position is specified, notify its supervisor(s)
@@ -157,13 +166,18 @@ export class OrganizationStructureService {
         const recipients = Array.from(recipientIds);
         if (!recipients.length) return;
 
-        const title = action === 'submitted'
-            ? `Structure Change Request Submitted: ${request.requestNumber}`
-            : `Structure Change Request Approved: ${request.requestNumber}`;
-
-        const message = action === 'submitted'
-            ? `A structure change request (${request.requestNumber}) has been submitted. Details: ${request.details || request.reason || ''}`
-            : `A structure change request (${request.requestNumber}) has been approved.`;
+        let title: string;
+        let message: string;
+        if (action === 'submitted') {
+            title = `Structure Change Request Submitted: ${request.requestNumber}`;
+            message = `A structure change request (${request.requestNumber}) has been submitted. Details: ${request.details || request.reason || ''}`;
+        } else if (action === 'approved') {
+            title = `Structure Change Request Approved: ${request.requestNumber}`;
+            message = `A structure change request (${request.requestNumber}) has been approved.`;
+        } else {
+            title = `Structure Change Request Rejected: ${request.requestNumber}`;
+            message = `A structure change request (${request.requestNumber}) has been rejected. ${request.details || request.reason || ''}`;
+        }
 
         const payload: CreateNotificationDto = {
             recipientId: recipients,

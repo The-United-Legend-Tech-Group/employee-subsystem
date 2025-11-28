@@ -5,7 +5,8 @@ import { Position } from './models/position.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {StructureChangeRequest,StructureChangeRequestDocument,} from './models/structure-change-request.schema';
-import { StructureRequestStatus } from './enums/organization-structure.enums';
+import { StructureApproval, StructureApprovalDocument } from './models/structure-approval.schema';
+import { StructureRequestStatus, ApprovalDecision } from './enums/organization-structure.enums';
 import { EmployeeProfile, EmployeeProfileDocument } from '../employee/models/employee-profile.schema';
 import { PositionAssignment, PositionAssignmentDocument } from './models/position-assignment.schema';
 import { NotificationService } from '../notification/notification.service';
@@ -18,6 +19,8 @@ export class OrganizationStructureService {
             private readonly departmentRepository: DepartmentRepository,
         @InjectModel(StructureChangeRequest.name)
         private readonly changeRequestModel: Model<StructureChangeRequestDocument>,
+        @InjectModel(StructureApproval.name)
+        private readonly structureApprovalModel: Model<StructureApprovalDocument>,
         @InjectModel(EmployeeProfile.name)
         private readonly employeeModel: Model<EmployeeProfileDocument>,
         @InjectModel(PositionAssignment.name)
@@ -42,7 +45,7 @@ export class OrganizationStructureService {
         return req;
     }
 
-    async approveChangeRequest(id: string, comment?: string): Promise<StructureChangeRequest> {
+    async approveChangeRequest(id: string, comment?: string, approverEmployeeId?: string): Promise<StructureChangeRequest> {
         const updated = await this.changeRequestModel
             .findByIdAndUpdate(
                 id,
@@ -51,10 +54,28 @@ export class OrganizationStructureService {
             )
             .exec();
         if (!updated) throw new NotFoundException('Change request not found');
+        
+        // Create structure approval record
+        try {
+            const approvalRecord = new this.structureApprovalModel({
+                changeRequestId: updated._id,
+                approverEmployeeId: approverEmployeeId || updated.submittedByEmployeeId,
+                decision: ApprovalDecision.APPROVED,
+                decidedAt: new Date(),
+                comments: comment,
+            });
+            await approvalRecord.save();
+            console.log('[OrganizationStructure] approveChangeRequest - created structure approval record:', approvalRecord._id.toString());
+        } catch (err) {
+            console.error('[OrganizationStructure] approveChangeRequest - failed to create structure approval record:', err);
+            // don't fail approval if structure approval record creation fails
+        }
+        
         // notify stakeholders that the change request was approved
         try {
             await this.notifyStakeholders(updated, 'approved');
         } catch (err) {
+            console.error('[OrganizationStructure] approveChangeRequest - failed to notify stakeholders:', err);
             // don't fail approval if notification fails
         }
         return updated;
@@ -151,7 +172,15 @@ export class OrganizationStructureService {
         } as any;
 
         if (this.notificationService && typeof this.notificationService.create === 'function') {
-            await this.notificationService.create(payload);
+            try {
+                console.log('[OrganizationStructure] notifyStakeholders - creating notification payload:', JSON.stringify(payload));
+                const res = await this.notificationService.create(payload);
+                console.log('[OrganizationStructure] notifyStakeholders - notificationService.create result:', res);
+            } catch (err) {
+                console.log('[OrganizationStructure] notifyStakeholders - notificationService.create failed:', err);
+            }
+        } else {
+            console.log('[OrganizationStructure] notifyStakeholders - no notificationService available; payload would be:', JSON.stringify(payload));
         }
     }
 

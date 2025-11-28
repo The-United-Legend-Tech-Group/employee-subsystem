@@ -1,6 +1,5 @@
 import { Body, Controller, Patch, Param, Post, UseGuards, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
-import { ApiKeyGuard } from '../guards/api-key.guard';
 import { Roles } from './decorators/roles.decorator';
 import { authorizationGuard } from '../guards/authorization.guard';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -22,7 +21,6 @@ export class EmployeeController {
     constructor(private readonly employeeService: EmployeeService) { }
 
     @Post('onboard')
-    //@UseGuards(ApiKeyGuard)
     @ApiOperation({ summary: 'Onboard a new employee (M2M)' })
     @ApiResponse({ status: 201, description: 'Employee successfully onboarded' })
     @ApiBody({ type: CreateEmployeeDto })
@@ -31,7 +29,6 @@ export class EmployeeController {
     }
 
     @Patch(':id/contact-info')
-    //@UseGuards(ApiKeyGuard)
     @ApiOperation({ summary: 'Update employee contact info' })
     @ApiParam({ name: 'id', description: 'Employee ID' })
     @ApiBody({ type: UpdateContactInfoDto })
@@ -50,9 +47,6 @@ export class EmployeeController {
     }
 
     @Patch(':id/profile/admin')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Admin update employee profile' })
     @ApiParam({ name: 'id', description: 'Employee ID' })
     @ApiBody({ type: AdminUpdateEmployeeProfileDto })
@@ -61,7 +55,6 @@ export class EmployeeController {
         return this.employeeService.adminUpdateProfile(id, updateEmployeeProfileDto);
     }
     @Patch(':id/status')
-    //@UseGuards(ApiKeyGuard)
     @ApiOperation({ summary: 'Update employee status' })
     @ApiParam({ name: 'id', description: 'Employee ID' })
     @ApiBody({ type: UpdateEmployeeStatusDto })
@@ -101,9 +94,6 @@ export class EmployeeController {
     }
 
     @Post(':id/roles')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Assign roles to employee' })
     @ApiParam({ name: 'id', description: 'Employee ID' })
     @ApiBody({ type: AssignRolesDto })
@@ -113,9 +103,6 @@ export class EmployeeController {
     }
 
     @Get('team/summary')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.DEPARTMENT_HEAD)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Get team summary' })
     @ApiQuery({ name: 'managerId', required: true })
     @ApiResponse({ status: 200, description: 'Team summary retrieved' })
@@ -124,9 +111,6 @@ export class EmployeeController {
     }
 
     @Get('team/profiles')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.DEPARTMENT_HEAD)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Get team profiles' })
     @ApiQuery({ name: 'managerId', required: true })
     @ApiResponse({ status: 200, description: 'Team profiles retrieved' })
@@ -136,9 +120,6 @@ export class EmployeeController {
 
     // HR Admin: review profile change requests
     @Get('profile-change-requests')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'List profile change requests' })
     @ApiQuery({ name: 'status', enum: ProfileChangeStatus, required: false })
     @ApiResponse({ status: 200, description: 'List of change requests' })
@@ -147,9 +128,6 @@ export class EmployeeController {
     }
 
     @Get('profile-change-requests/:requestId')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Get profile change request details' })
     @ApiParam({ name: 'requestId', description: 'Request ID' })
     @ApiResponse({ status: 200, description: 'Change request details' })
@@ -158,9 +136,6 @@ export class EmployeeController {
     }
 
     @Patch('profile-change-requests/:requestId/approve')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Approve profile change request' })
     @ApiParam({ name: 'requestId', description: 'Request ID' })
     @ApiResponse({ status: 200, description: 'Request approved' })
@@ -169,9 +144,6 @@ export class EmployeeController {
     }
 
     @Patch('profile-change-requests/:requestId/reject')
-    //@UseGuards(authorizationGuard)
-    //@Roles(SystemRole.HR_ADMIN)
-    //@ApiBearerAuth()
     @ApiOperation({ summary: 'Reject profile change request' })
     @ApiParam({ name: 'requestId', description: 'Request ID' })
     @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })

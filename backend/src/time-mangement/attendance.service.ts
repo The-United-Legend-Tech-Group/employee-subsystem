@@ -8,8 +8,16 @@ import { PunchType, PunchPolicy, HolidayType } from './models/enums/index';
 import { PunchDto } from './dto/punch.dto';
 import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
-// CorrectionAuditRepository removed — audits are now ephemeral (logged)
 import { HolidayRepository } from './repository/holiday.repository';
+import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
+import { ShiftRepository } from './repository/shift.repository';
+
+interface PenaltyInfo {
+  isLate: boolean;
+  minutesLate: number;
+  gracePeriodApplied: boolean;
+  deductedMinutes: number;
+}
 
 @Injectable()
 export class AttendanceService {
@@ -17,7 +25,35 @@ export class AttendanceService {
     private readonly attendanceRepo?: AttendanceRepository,
     private readonly attendanceCorrectionRepo?: AttendanceCorrectionRepository,
     private readonly holidayRepo?: HolidayRepository,
+    private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
+    private readonly shiftRepo?: ShiftRepository,
   ) {}
+
+  private calculatePenalty(
+    checkInTime: Date,
+    expectedCheckInTime: Date,
+    gracePeriodMinutes: number = 0,
+    latenessThresholdMinutes: number = 0,
+    automaticDeductionMinutes: number = 0,
+  ): PenaltyInfo {
+    const checkInMs = checkInTime.getTime();
+    const expectedMs = expectedCheckInTime.getTime();
+    const minutesLate = Math.max(0, Math.round((checkInMs - expectedMs) / 60000));
+
+    const gracePeriodApplied = minutesLate <= gracePeriodMinutes;
+    const isLate = minutesLate > gracePeriodMinutes;
+    const deductedMinutes =
+      isLate && minutesLate > latenessThresholdMinutes
+        ? automaticDeductionMinutes
+        : 0;
+
+    return {
+      isLate,
+      minutesLate,
+      gracePeriodApplied,
+      deductedMinutes,
+    };
+  }
 
   async punch(dto: PunchDto) {
     if (!this.attendanceRepo)
@@ -32,6 +68,8 @@ export class AttendanceService {
     }
 
     let ts = dto.time ? new Date(dto.time) : new Date();
+
+    // Apply rounding if specified
     if (dto.roundMode && dto.intervalMinutes && dto.intervalMinutes > 0) {
       const roundToInterval = (
         d: Date,
@@ -59,15 +97,34 @@ export class AttendanceService {
 
       ts = roundToInterval(ts, dto.intervalMinutes, dto.roundMode as any);
     }
+
     const startOfDay = new Date(ts);
     startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(ts);
-    endOfDay.setHours(23, 59, 59, 999);
 
     const existing = await this.attendanceRepo.findForDay(
       dto.employeeId,
       startOfDay,
     );
+
+    // Calculate penalty if check-in and expected time provided
+    let penaltyInfo: PenaltyInfo | null = null;
+    let penaltyDeduction = 0;
+
+    if (
+      dto.type === PunchType.IN &&
+      dto.expectedCheckInTime &&
+      dto.gracePeriodMinutes !== undefined
+    ) {
+      const expectedTime = new Date(dto.expectedCheckInTime);
+      penaltyInfo = this.calculatePenalty(
+        ts,
+        expectedTime,
+        dto.gracePeriodMinutes || 0,
+        dto.latenessThresholdMinutes || 0,
+        dto.automaticDeductionMinutes || 0,
+      );
+      penaltyDeduction = penaltyInfo.deductedMinutes;
+    }
 
     const punch = { type: dto.type, time: ts } as any;
 
@@ -75,7 +132,7 @@ export class AttendanceService {
       const payload: any = {
         employeeId: dto.employeeId,
         punches: [punch],
-        totalWorkMinutes: 0,
+        totalWorkMinutes: penaltyDeduction > 0 ? -penaltyDeduction : 0,
         hasMissedPunch: false,
         exceptionIds: [],
         finalisedForPayroll: false,
@@ -149,9 +206,18 @@ export class AttendanceService {
       missed = true;
     }
 
+    // Get existing penalty from previous punch on same day
+    const existingPenalty = (existing as any).totalWorkMinutes < 0 
+      ? Math.abs((existing as any).totalWorkMinutes) 
+      : 0;
+
+    // Apply deductions to total work minutes
+    const totalDeductions = penaltyDeduction > 0 ? penaltyDeduction : existingPenalty;
+    const finalTotalMinutes = Math.max(0, totalMinutes - totalDeductions);
+
     const update: any = {
       punches: finalPunches,
-      totalWorkMinutes: totalMinutes,
+      totalWorkMinutes: finalTotalMinutes,
       hasMissedPunch: missed,
     };
 
@@ -282,9 +348,6 @@ export class AttendanceService {
     const created = await this.attendanceCorrectionRepo.create(payload as any);
 
     // Ephemeral audit: log the submission instead of persisting
-    /* Auditing (ephemeral):
-       correctionRequestId, performedBy (employee), action, details
-       Persistence intentionally removed; log for debugging/ops instead. */
     // eslint-disable-next-line no-console
     console.info('Audit: attendance-correction SUBMITTED', {
       correctionRequestId: created._id,

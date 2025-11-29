@@ -13,10 +13,42 @@ export class AttendanceRepository extends BaseRepository<AttendanceRecordDocumen
   }
 
   findForDay(employeeId: string, date: Date) {
-    // Assumes AttendanceRecord schema has a `date` field set to midnight for the day
+    // Calculate start and end of day
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Search for records where at least one punch falls within this day
     return this.findOne({
       employeeId,
-      date,
+      punches: {
+        $elemMatch: {
+          time: {
+            $gte: startOfDay,
+            $lte: endOfDay,
+          },
+        },
+      },
+    } as any);
+  }
+
+  findByEmployeeIdAndDateRange(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return this.find({
+      employeeId,
+      punches: {
+        $elemMatch: {
+          time: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
     } as any);
   }
 }

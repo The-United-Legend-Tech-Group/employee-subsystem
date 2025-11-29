@@ -7,8 +7,11 @@ import { AttendanceRepository } from './repository/attendance.repository';
 import { PunchType, PunchPolicy, HolidayType } from './models/enums/index';
 import { PunchDto } from './dto/punch.dto';
 import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
+import { SubmitCorrectionEssDto } from './dto/submit-correction-ess.dto';
+import { ApproveRejectCorrectionDto } from './dto/approve-reject-correction.dto';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
 import { HolidayRepository } from './repository/holiday.repository';
+import { ApprovalWorkflowService } from './services/approval-workflow.service';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ShiftRepository } from './repository/shift.repository';
 // note: no cross-repo injections needed here; keep attendance service focused
@@ -26,8 +29,7 @@ export class AttendanceService {
     private readonly attendanceRepo?: AttendanceRepository,
     private readonly attendanceCorrectionRepo?: AttendanceCorrectionRepository,
     private readonly holidayRepo?: HolidayRepository,
-    private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
-    private readonly shiftRepo?: ShiftRepository,
+    private readonly approvalWorkflowService?: ApprovalWorkflowService,
   ) {}
 
   private calculatePenalty(
@@ -516,6 +518,60 @@ export class AttendanceService {
     } as any);
   }
 
+  /**
+   * Submit an attendance correction via ESS with approval workflow
+   */
+  async submitCorrectionFromESS(dto: SubmitCorrectionEssDto) {
+    if (!this.attendanceCorrectionRepo)
+      throw new Error('AttendanceCorrectionRepository not available');
+    if (!this.approvalWorkflowService)
+      throw new Error('ApprovalWorkflowService not available');
+
+    // Validate attendance record exists
+    if (dto.attendanceRecord) {
+      if (!this.attendanceRepo) {
+        throw new NotFoundException('AttendanceRepository not available');
+      }
+      const att = await this.attendanceRepo.findById(
+        dto.attendanceRecord as any,
+      );
+      if (!att) {
+        throw new NotFoundException(
+          `AttendanceRecord with id ${dto.attendanceRecord} not found`,
+        );
+      }
+    }
+
+    // Create base correction request
+    let correctionRequest: any = {
+      employeeId: dto.employeeId,
+      attendanceRecord: dto.attendanceRecord,
+      reason: dto.reason,
+    };
+
+    // Use approval workflow service to enhance and validate
+    correctionRequest = await this.approvalWorkflowService.submitCorrectionFromESS(
+      dto,
+      correctionRequest,
+    );
+
+    // Persist to database
+    const created = await this.attendanceCorrectionRepo.create(
+      correctionRequest as any,
+    );
+
+    // Log submission with approval routing
+    console.info('Audit: Correction submitted via ESS and routed to manager', {
+      correctionRequestId: created._id,
+      employeeId: created.employeeId,
+      lineManagerId: (created as any).lineManagerId,
+      durationMinutes: (created as any).durationMinutes,
+      action: 'SUBMITTED_TO_MANAGER',
+    });
+
+    return created;
+  }
+
   async submitAttendanceCorrection(dto: CreateAttendanceCorrectionDto) {
     if (!this.attendanceCorrectionRepo)
       throw new Error('AttendanceCorrectionRepository not available');
@@ -605,5 +661,78 @@ export class AttendanceService {
     });
 
     return { updatedAttendance: updated, correction: updatedReq };
+  }
+
+  /**
+   * Process manager approval/rejection of a correction via workflow
+   */
+  async reviewCorrectionRequest(
+    correctionId: string,
+    dto: ApproveRejectCorrectionDto,
+  ) {
+    if (!this.approvalWorkflowService)
+      throw new Error('ApprovalWorkflowService not available');
+
+    // Process the decision via approval workflow
+    const result = await this.approvalWorkflowService.processApprovalDecision(
+      correctionId,
+      dto,
+    );
+
+    // If approved and applies to payroll, update finalisedForPayroll flag
+    if (dto.decision === 'APPROVED' && dto.applyToPayroll !== false) {
+      const correction = (await this.attendanceCorrectionRepo?.findById(
+        correctionId,
+      )) as any;
+
+      if (correction?.attendanceRecord) {
+        await this.attendanceRepo?.updateById(
+          correction.attendanceRecord,
+          { finalisedForPayroll: true } as any,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get pending corrections for a manager
+   */
+  async getPendingCorrectionsForManager(lineManagerId: string) {
+    if (!this.approvalWorkflowService)
+      throw new Error('ApprovalWorkflowService not available');
+
+    return this.approvalWorkflowService.getPendingCorrectionsForManager(
+      lineManagerId,
+    );
+  }
+
+  /**
+   * Get employee's correction history
+   */
+  async getEmployeeCorrectionHistory(
+    employeeId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    if (!this.approvalWorkflowService)
+      throw new Error('ApprovalWorkflowService not available');
+
+    return this.approvalWorkflowService.getSubmissionHistoryForEmployee(
+      employeeId,
+      startDate,
+      endDate,
+    );
+  }
+
+  /**
+   * Get all approved corrections ready for payroll processing
+   */
+  async getAppprovedCorrectionsForPayroll() {
+    if (!this.approvalWorkflowService)
+      throw new Error('ApprovalWorkflowService not available');
+
+    return this.approvalWorkflowService.getApprovedForPayroll();
   }
 }

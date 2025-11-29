@@ -148,7 +148,6 @@ export class AttendanceService {
     // Tests set up `shiftAssignmentRepo.findByEmployeeAndTerm` and `shiftRepo.findById`.
     // We'll also detect lateness from shift definition when expectedCheckInTime isn't provided
     let isLateByShift = false;
-    let minutesLateByShift = 0;
     if (this.shiftAssignmentRepo && this.shiftRepo) {
       try {
         const assignments =
@@ -235,7 +234,6 @@ export class AttendanceService {
               );
               if (minsLate > (shift.graceInMinutes || 0)) {
                 isLateByShift = true;
-                minutesLateByShift = minsLate;
               }
             }
           }

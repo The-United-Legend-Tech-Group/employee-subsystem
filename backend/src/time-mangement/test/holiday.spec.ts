@@ -16,8 +16,7 @@ import { HolidayType } from '../models/enums/index';
 
 describe('TimeService - Holiday flows', () => {
   let mockHolidayRepo: any;
-  let mockShiftAssignmentRepo: any;
-  let mockShiftRepo: any;
+
   let service: any;
   let attendanceService: any;
 

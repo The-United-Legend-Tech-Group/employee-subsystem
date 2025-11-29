@@ -404,6 +404,89 @@ describe('AttendanceService - Punch flows', () => {
     ).rejects.toThrow('Early clock-in requires pre-approval');
   });
 
+  it('Late Check-In (Grace NOT exceeded) does not mark missed/late', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'rLateOk', ...dto }),
+    );
+
+    const mockShiftAssignmentRepo: any = {
+      findByEmployeeAndTerm: jest.fn().mockResolvedValue([{ shiftId: 's10' }]),
+    };
+
+    const mockShiftRepo: any = {
+      findById: jest.fn().mockResolvedValue({
+        startTime: '09:00',
+        endTime: '17:00',
+        graceInMinutes: 15,
+        graceOutMinutes: 10,
+        requiresApprovalForOvertime: false,
+      }),
+    };
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 09:10 is within 15-minute grace -> should NOT be marked missed
+    const res: any = await svc.punch({
+      employeeId: 'emp1',
+      type: PunchType.IN,
+      time: '2025-11-27T09:10:00.000Z',
+    } as any);
+
+    expect(mockAttendanceRepo.create).toHaveBeenCalled();
+    expect(res.punches).toHaveLength(1);
+    expect(res.hasMissedPunch).toBe(false);
+  });
+
+  it('Late Check-In (Grace exceeded → LATE) marks missed/late', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'rLateBad', ...dto }),
+    );
+
+    const mockShiftAssignmentRepo: any = {
+      findByEmployeeAndTerm: jest.fn().mockResolvedValue([{ shiftId: 's11' }]),
+    };
+
+    const mockShiftRepo: any = {
+      findById: jest.fn().mockResolvedValue({
+        startTime: '09:00',
+        endTime: '17:00',
+        graceInMinutes: 10,
+        graceOutMinutes: 10,
+        requiresApprovalForOvertime: false,
+      }),
+    };
+
+    const svc = new AttendanceService(
+      mockAttendanceRepo,
+      undefined,
+      undefined,
+      mockShiftAssignmentRepo,
+      mockShiftRepo,
+    );
+
+    // 09:25 exceeds 10-minute grace -> should be flagged as missed/late
+    const res: any = await svc.punch({
+      employeeId: 'emp1',
+      type: PunchType.IN,
+      time: '2025-11-27T09:25:00.000Z',
+    } as any);
+
+    expect(mockAttendanceRepo.create).toHaveBeenCalled();
+    expect(res.punches).toHaveLength(1);
+    // service should mark this as missed/late
+    expect(res.hasMissedPunch).toBe(true);
+  });
+
   it('rejects punch on holiday when shift requires pre-approval', async () => {
     mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
 

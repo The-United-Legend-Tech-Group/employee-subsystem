@@ -132,6 +132,9 @@ export class AttendanceService {
 
     // Pre-approval logic: if shift requires pre-approval for early/OT, enforce it.
     // Tests set up `shiftAssignmentRepo.findByEmployeeAndTerm` and `shiftRepo.findById`.
+    // We'll also detect lateness from shift definition when expectedCheckInTime isn't provided
+    let isLateByShift = false;
+    let minutesLateByShift = 0;
     if (this.shiftAssignmentRepo && this.shiftRepo) {
       try {
         const assignments =
@@ -200,11 +203,35 @@ export class AttendanceService {
                 throw new BadRequestException('Overtime requires pre-approval');
               }
             }
+
+            // If expectedCheckInTime wasn't provided, compute lateness from shift start
+            if (dto.type === PunchType.IN && !dto.expectedCheckInTime) {
+              const minsLate = Math.max(
+                0,
+                Math.round((ts.getTime() - shiftStart.getTime()) / 60000),
+              );
+              if (minsLate > (shift.graceInMinutes || 0)) {
+                isLateByShift = true;
+                minutesLateByShift = minsLate;
+              }
+            }
           }
         }
       } catch (err) {
         // rethrow as-is if it's a BadRequestException
         if (err instanceof BadRequestException) throw err;
+      }
+    }
+
+    // If holiday repository is available, reject punches on holidays regardless
+    if (this.holidayRepo) {
+      const holidays = await this.holidayRepo.find({
+        startDate: { $lte: ts } as any,
+        $or: [{ endDate: null }, { endDate: { $gte: ts } }],
+        active: true,
+      } as any);
+      if (holidays && holidays.length) {
+        throw new BadRequestException('Punch on holiday requires pre-approval');
       }
     }
 
@@ -219,7 +246,8 @@ export class AttendanceService {
         employeeId: dto.employeeId,
         punches: [punch],
         totalWorkMinutes: penaltyDeduction > 0 ? -penaltyDeduction : 0,
-        hasMissedPunch: false,
+        hasMissedPunch:
+          (penaltyInfo && penaltyInfo.isLate) || isLateByShift || false,
         exceptionIds: [],
         finalisedForPayroll: false,
       };

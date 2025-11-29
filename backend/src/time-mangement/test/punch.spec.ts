@@ -53,6 +53,25 @@ describe('AttendanceService - Punch flows', () => {
     expect(res.punches[0].type).toBe(PunchType.IN);
   });
 
+  it('creating a record with initial OUT should mark missed punch', async () => {
+    mockAttendanceRepo.findForDay.mockResolvedValueOnce(null);
+    mockAttendanceRepo.create.mockImplementation((dto) =>
+      Promise.resolve({ _id: 'rOut1', ...dto }),
+    );
+
+    const svc = new AttendanceService(mockAttendanceRepo);
+
+    const res: any = await svc.punch({
+      employeeId: 'empX',
+      type: PunchType.OUT,
+      time: '2025-11-27T17:00:00.000Z',
+    } as any);
+
+    expect(mockAttendanceRepo.create).toHaveBeenCalled();
+    expect(res.punches).toHaveLength(1);
+    expect(res.hasMissedPunch).toBe(true);
+  });
+
   it('appends OUT and computes total minutes', async () => {
     const baseDate = new Date('2025-11-27T08:00:00.000Z');
     // existing record with a single IN at 08:00

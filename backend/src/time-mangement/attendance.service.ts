@@ -29,6 +29,8 @@ export class AttendanceService {
     private readonly attendanceRepo?: AttendanceRepository,
     private readonly attendanceCorrectionRepo?: AttendanceCorrectionRepository,
     private readonly holidayRepo?: HolidayRepository,
+    private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
+    private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
   ) {}
 
@@ -74,6 +76,16 @@ export class AttendanceService {
     }
 
     let ts = dto.time ? new Date(dto.time) : new Date();
+
+    // DEBUG: show incoming punch and available repos
+    // eslint-disable-next-line no-console
+    console.log('PUNCH-DEBUG', {
+      type: dto.type,
+      time: ts.toISOString(),
+      hasShiftAssignmentRepo: !!this.shiftAssignmentRepo,
+      hasShiftRepo: !!this.shiftRepo,
+      hasHolidayRepo: !!this.holidayRepo,
+    });
 
     // Apply rounding if specified
     if (dto.roundMode && dto.intervalMinutes && dto.intervalMinutes > 0) {
@@ -169,6 +181,15 @@ export class AttendanceService {
               overnight,
             );
 
+            // DEBUG: log shift and timestamp for pre-approval checks
+            // eslint-disable-next-line no-console
+            console.log('SHIFT-CHECK', {
+              shiftId: a.shiftId,
+              requiresApproval: shift.requiresApprovalForOvertime,
+              shiftStart: shiftStart.toISOString(),
+              ts: ts.toISOString(),
+            });
+
             // punch IN before allowed (early clock-in)
             if (
               dto.type === PunchType.IN &&
@@ -244,12 +265,85 @@ export class AttendanceService {
     if ((dto as any).deviceId) punch.deviceId = (dto as any).deviceId;
 
     if (!existing) {
+      // Ensure pre-approval rules are enforced even if earlier shift block didn't run
+      if (this.shiftAssignmentRepo && this.shiftRepo) {
+        try {
+          const assignments =
+            (this.shiftAssignmentRepo as any).findByEmployeeAndTerm &&
+            (await (this.shiftAssignmentRepo as any).findByEmployeeAndTerm(
+              dto.employeeId,
+              startOfDay,
+            ));
+          if (assignments && assignments.length) {
+            for (const a of assignments) {
+              const shift = await (this.shiftRepo as any).findById(
+                a.shiftId as any,
+              );
+              if (!shift) continue;
+              const startHH = parseInt(
+                (shift.startTime || '00:00').split(':')[0],
+                10,
+              );
+              const endHH = parseInt(
+                (shift.endTime || '00:00').split(':')[0],
+                10,
+              );
+              const overnight = startHH > endHH;
+              const shiftStart = this.makeDateForShiftTime(shift.startTime, ts);
+              const shiftEnd = this.makeDateForShiftTime(
+                shift.endTime,
+                ts,
+                overnight,
+              );
+              if (
+                dto.type === PunchType.IN &&
+                shift.requiresApprovalForOvertime
+              ) {
+                const allowedEarly = (shift.graceInMinutes || 0) * 60000;
+                if (ts.getTime() < shiftStart.getTime() - allowedEarly) {
+                  throw new BadRequestException(
+                    'Early clock-in requires pre-approval',
+                  );
+                }
+                if (this.holidayRepo) {
+                  const holidays = await this.holidayRepo.find({
+                    startDate: { $lte: ts } as any,
+                    $or: [{ endDate: null }, { endDate: { $gte: ts } }],
+                    active: true,
+                  } as any);
+                  if (holidays && holidays.length) {
+                    throw new BadRequestException(
+                      'Punch on holiday requires pre-approval',
+                    );
+                  }
+                }
+              }
+              if (
+                dto.type === PunchType.OUT &&
+                shift.requiresApprovalForOvertime
+              ) {
+                const allowedLateMs = (shift.graceOutMinutes || 0) * 60000;
+                if (ts.getTime() > shiftEnd.getTime() + allowedLateMs) {
+                  throw new BadRequestException(
+                    'Overtime requires pre-approval',
+                  );
+                }
+              }
+            }
+          }
+        } catch (err) {
+          if (err instanceof BadRequestException) throw err;
+        }
+      }
       const payload: any = {
         employeeId: dto.employeeId,
         punches: [punch],
         totalWorkMinutes: penaltyDeduction > 0 ? -penaltyDeduction : 0,
         hasMissedPunch:
-          (penaltyInfo && penaltyInfo.isLate) || isLateByShift || false,
+          punch.type === PunchType.OUT ||
+          (penaltyInfo && penaltyInfo.isLate) ||
+          isLateByShift ||
+          false,
         exceptionIds: [],
         finalisedForPayroll: false,
       };
@@ -550,10 +644,11 @@ export class AttendanceService {
     };
 
     // Use approval workflow service to enhance and validate
-    correctionRequest = await this.approvalWorkflowService.submitCorrectionFromESS(
-      dto,
-      correctionRequest,
-    );
+    correctionRequest =
+      await this.approvalWorkflowService.submitCorrectionFromESS(
+        dto,
+        correctionRequest,
+      );
 
     // Persist to database
     const created = await this.attendanceCorrectionRepo.create(
@@ -686,10 +781,9 @@ export class AttendanceService {
       )) as any;
 
       if (correction?.attendanceRecord) {
-        await this.attendanceRepo?.updateById(
-          correction.attendanceRecord,
-          { finalisedForPayroll: true } as any,
-        );
+        await this.attendanceRepo?.updateById(correction.attendanceRecord, {
+          finalisedForPayroll: true,
+        } as any);
       }
     }
 

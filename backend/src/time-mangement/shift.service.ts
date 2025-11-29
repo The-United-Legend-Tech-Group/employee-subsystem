@@ -140,4 +140,35 @@ export class ShiftService {
   async getAllShifts() {
     return this.shiftRepo.find({});
   }
+
+  /**
+   * Ensure a set of common shift names exist. Caller must provide a valid shiftType id.
+   * This creates simple default shifts which can be customized later.
+   */
+  async seedDefaultShiftNames(shiftTypeId: string) {
+    const defaultNames = [
+      'Fixed Core Hours',
+      'Flex-Time',
+      'Rotational',
+      'Split',
+      'Custom Weekly Patterns',
+      'Overtime',
+    ];
+    const created: any[] = [];
+    for (const name of defaultNames) {
+      const existing = await this.shiftRepo.findOne({ name } as any);
+      if (!existing) {
+        const payload: any = {
+          name,
+          shiftType: shiftTypeId,
+          startTime: '09:00',
+          endTime: '17:00',
+          active: true,
+        };
+        const res = await this.shiftRepo.create(payload);
+        created.push(res);
+      }
+    }
+    return created;
+  }
 }

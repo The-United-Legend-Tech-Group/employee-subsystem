@@ -6,7 +6,6 @@ import {
   IsBoolean,
   IsArray,
   ArrayNotEmpty,
-  Matches,
 } from 'class-validator';
 
 export class CreateScheduleRuleDto {
@@ -42,25 +41,25 @@ export class CreateScheduleRuleDto {
   @IsBoolean()
   active?: boolean;
 
-  @ApiProperty({
-    example: [0, 6],
-    description: 'Weekly rest days 0=Sunday..6=Saturday',
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @ArrayNotEmpty()
-  weeklyRestDays?: number[];
+  // @ApiProperty({
+  //   example: [0, 6],
+  //   description: 'Weekly rest days 0=Sunday..6=Saturday',
+  //   required: false,
+  // })
+  // @IsOptional()
+  // @IsArray()
+  // @ArrayNotEmpty()
+  // weeklyRestDays?: number[];
 
-  @ApiProperty({
-    example: ['2025-12-25', '2025-12-31'],
-    description: 'Specific rest dates (YYYY-MM-DD)',
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsString({ each: true })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { each: true })
-  restDates?: string[];
+  // @ApiProperty({
+  //   example: ['2025-12-25', '2025-12-31'],
+  //   description: 'Specific rest dates (YYYY-MM-DD)',
+  //   required: false,
+  // })
+  // @IsOptional()
+  // @IsArray()
+  // @ArrayNotEmpty()
+  // @IsString({ each: true })
+  // @Matches(/^\d{4}-\d{2}-\d{2}$/, { each: true })
+  // restDates?: string[];
 }

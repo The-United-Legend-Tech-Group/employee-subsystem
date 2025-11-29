@@ -7,7 +7,7 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { PunchDto } from './dto/punch.dto';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { AssignShiftDto } from './dto/assign-shift.dto';
@@ -18,6 +18,8 @@ import { CreateScheduleRuleDto } from './dto/create-schedule-rule.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
 import { ApproveAttendanceCorrectionDto } from './dto/approve-attendance-correction.dto';
+import { SubmitCorrectionEssDto } from './dto/submit-correction-ess.dto';
+import { ApproveRejectCorrectionDto } from './dto/approve-reject-correction.dto';
 import { ShiftService } from './shift.service';
 import { ShiftAssignmentService } from './shift-assignment.service';
 import { AttendanceService } from './attendance.service';
@@ -109,13 +111,20 @@ export class TimeController {
 
   @Patch('shifts/assignments/:id/schedule-rule')
   @ApiOperation({ summary: 'Attach a schedule rule to a shift assignment' })
+  @ApiQuery({
+    name: 'ruleId',
+    required: false,
+    description: 'Optional schedule rule id to attach',
+  })
   attachScheduleRule(
     @Param('id') id: string,
-    @Body() body: { scheduleRuleId: string },
+    @Query('ruleId') ruleId?: string,
   ) {
-    return this.shiftAssignmentService.attachScheduleRuleToAssignment(
-      id,
-      body.scheduleRuleId,
+    // If client provides ?ruleId=... we'll attach that specific rule,
+    // otherwise the service resolves an active/default rule.
+    return this.shiftService.attachScheduleRuleToAssignment(
+      id as any,
+      ruleId as any,
     );
   }
 
@@ -147,6 +156,69 @@ export class TimeController {
   @ApiOperation({ summary: 'Submit an attendance correction request' })
   submitCorrection(@Body() dto: CreateAttendanceCorrectionDto) {
     return this.attendanceService.submitAttendanceCorrection(dto as any);
+  }
+
+  @Post('corrections/submit-ess')
+  @ApiOperation({
+    summary: 'Submit correction request via ESS with manager routing',
+  })
+  submitCorrectionFromESS(@Body() dto: SubmitCorrectionEssDto) {
+    return this.attendanceService.submitCorrectionFromESS(dto as any);
+  }
+
+  @Get('corrections/pending/:lineManagerId')
+  @ApiOperation({
+    summary: 'Get pending corrections for a line manager to review',
+  })
+  getPendingCorrectionsForManager(@Param('lineManagerId') lineManagerId: string) {
+    return this.attendanceService.getPendingCorrectionsForManager(
+      lineManagerId,
+    );
+  }
+
+  @Patch('corrections/:id/review')
+  @ApiOperation({
+    summary: 'Manager reviews and approves/rejects a correction request',
+  })
+  reviewCorrection(
+    @Param('id') id: string,
+    @Body() dto: ApproveRejectCorrectionDto,
+  ) {
+    return this.attendanceService.reviewCorrectionRequest(id, dto);
+  }
+
+  @Get('corrections/history/:employeeId')
+  @ApiOperation({
+    summary: 'Get correction request history for an employee',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start date for filter (ISO string)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End date for filter (ISO string)',
+  })
+  getEmployeeCorrectionHistory(
+    @Param('employeeId') employeeId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.attendanceService.getEmployeeCorrectionHistory(
+      employeeId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('corrections/approved/payroll')
+  @ApiOperation({
+    summary: 'Get approved corrections ready for payroll processing',
+  })
+  getApprovedCorrectionsForPayroll() {
+    return this.attendanceService.getAppprovedCorrectionsForPayroll();
   }
 
   @Patch('attendance/corrections/:id/approve')

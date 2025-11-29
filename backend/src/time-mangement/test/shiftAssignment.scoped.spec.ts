@@ -16,8 +16,12 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
   let service: any;
 
   beforeEach(() => {
-    // shift repo not required for this unit test
-
+    // provide a minimal shift repo used by the service's defensive checks
+    mockShiftRepo = {
+      findById: jest
+        .fn()
+        .mockImplementation((id) => Promise.resolve({ _id: id })),
+    };
     mockShiftAssignmentRepo = {
       create: jest.fn().mockImplementation((dto) =>
         Promise.resolve({
@@ -31,10 +35,14 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
           Promise.resolve({ _id: id, ...update }),
         ),
       find: jest.fn().mockResolvedValue([]),
+      findById: jest
+        .fn()
+        .mockImplementation((id) => Promise.resolve({ _id: id })),
     };
 
     shiftAssignmentService = new ShiftAssignmentService(
       mockShiftAssignmentRepo as any,
+      mockShiftRepo as any,
     );
     service = shiftAssignmentService;
   });

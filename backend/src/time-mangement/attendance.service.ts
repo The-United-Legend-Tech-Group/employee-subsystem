@@ -10,12 +10,8 @@ import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correctio
 import { SubmitCorrectionEssDto } from './dto/submit-correction-ess.dto';
 import { ApproveRejectCorrectionDto } from './dto/approve-reject-correction.dto';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
-import { ApprovalWorkflowRepository } from './repository/approval-workflow.repository';
 import { HolidayRepository } from './repository/holiday.repository';
-import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
-import { ShiftRepository } from './repository/shift.repository';
 import { ApprovalWorkflowService } from './services/approval-workflow.service';
-import { PermissionDurationConfigService } from './services/permission-duration-config.service';
 
 interface PenaltyInfo {
   isLate: boolean;
@@ -29,12 +25,8 @@ export class AttendanceService {
   constructor(
     private readonly attendanceRepo?: AttendanceRepository,
     private readonly attendanceCorrectionRepo?: AttendanceCorrectionRepository,
-    private readonly approvalWorkflowRepo?: ApprovalWorkflowRepository,
     private readonly holidayRepo?: HolidayRepository,
-    private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
-    private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
-    private readonly permissionConfigService?: PermissionDurationConfigService,
   ) {}
 
   private calculatePenalty(
@@ -374,8 +366,8 @@ export class AttendanceService {
     console.info('Audit: Correction submitted via ESS and routed to manager', {
       correctionRequestId: created._id,
       employeeId: created.employeeId,
-      lineManagerId: created.lineManagerId,
-      durationMinutes: created.durationMinutes,
+      lineManagerId: (created as any).lineManagerId,
+      durationMinutes: (created as any).durationMinutes,
       action: 'SUBMITTED_TO_MANAGER',
     });
 

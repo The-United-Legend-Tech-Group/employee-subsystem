@@ -13,9 +13,9 @@ import { BaseRepository } from '../../common/repository/base.repository';
 export class ApprovalWorkflowRepository extends BaseRepository<any> {
   constructor(
     @InjectModel('AttendanceCorrectionRequest')
-    private correctionModel: Model<any>,
+    model: Model<any>,
   ) {
-    super(correctionModel);
+    super(model);
   }
 
   /**

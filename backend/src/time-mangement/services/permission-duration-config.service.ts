@@ -126,6 +126,7 @@ export class PermissionDurationConfigService {
    */
   async shouldAffectPayroll(leaveTypeId?: string): Promise<boolean> {
     try {
+      if (!leaveTypeId) return true; // Default: affect payroll
       const config = await this.getPermissionLimits(leaveTypeId);
       return config?.eligibility?.affectsPayroll !== false;
     } catch {
@@ -149,6 +150,9 @@ export class PermissionDurationConfigService {
     correctionRepository?: any,
   ): Promise<{ valid: boolean; message: string; count?: number }> {
     try {
+      if (!leaveTypeId) {
+        return { valid: true, message: 'Validation skipped' };
+      }
       const config = await this.getPermissionLimits(leaveTypeId);
       const maxRequestsPerMonth = config?.eligibility?.maxRequestsPerMonth || 12;
 

@@ -15,9 +15,9 @@ import { BaseRepository } from '../../common/repository/base.repository';
 @Injectable()
 export class PermissionDurationConfigRepository extends BaseRepository<any> {
   constructor(
-    @InjectModel('LeavePolicy') private leavePolicyModel: Model<any>,
+    @InjectModel('LeavePolicy') model: Model<any>,
   ) {
-    super(leavePolicyModel);
+    super(model);
   }
 
   /**

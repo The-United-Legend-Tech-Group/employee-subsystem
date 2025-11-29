@@ -15,6 +15,10 @@ export class ShiftService {
   ) {}
 
   async createShift(dto: CreateShiftDto) {
+    const existing = await this.shiftRepo.findOne({ name: dto.name } as any);
+    if (existing) {
+      throw new Error(`Shift with name ${dto.name} already exists`);
+    }
     return this.shiftRepo.create(dto as any);
   }
 
@@ -23,10 +27,18 @@ export class ShiftService {
   }
 
   async assignShiftScoped(dto: any) {
+    const existing = await this.shiftRepo.findOne({ name: dto.name } as any);
+    if (existing) {
+      throw new Error(`Shift with name ${dto.name} already exists`);
+    }
     return this.shiftAssignmentService.assignShiftScoped(dto as any);
   }
 
   async updateShiftAssignmentsStatus(ids: string[], status: string) {
+    const existing = await this.shiftRepo.findOne({ name: status } as any);
+    if (!existing) {
+      throw new Error(`Shift with name ${status} does not exist`);
+    }
     return this.shiftAssignmentService.updateShiftAssignmentsStatus(
       ids,
       status,
@@ -34,6 +46,12 @@ export class ShiftService {
   }
 
   async updateShiftAssignmentStatus(id: string, statusDto: any) {
+    const existing = await this.shiftRepo.findOne({
+      name: statusDto.status,
+    } as any);
+    if (!existing) {
+      throw new Error(`Shift with name ${statusDto.status} does not exist`);
+    }
     return this.shiftAssignmentService.updateShiftAssignmentStatus(
       id,
       statusDto,

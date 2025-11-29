@@ -1,13 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
+import { ShiftRepository } from './repository/shift.repository';
+import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
 
 @Injectable()
 export class ShiftAssignmentService {
   constructor(
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
+    private readonly shiftRepo: ShiftRepository,
+    private readonly scheduleRuleRepo?: ScheduleRuleRepository,
   ) {}
 
   async assignShiftToEmployee(dto: any) {
+    // defensive: ensure the referenced shift exists
+    const shift = await this.shiftRepo.findById(dto.shiftId as any);
+    if (!shift) {
+      throw new NotFoundException(`Shift with id ${dto.shiftId} not found`);
+    }
     const payload = {
       employeeId: dto.employeeId,
       shiftId: dto.shiftId,
@@ -23,6 +32,12 @@ export class ShiftAssignmentService {
     const created: any[] = [];
     const start = dto.startDate ? new Date(dto.startDate) : undefined;
     const end = dto.endDate ? new Date(dto.endDate) : undefined;
+
+    // defensive: ensure the referenced shift exists
+    const shift = await this.shiftRepo.findById(dto.shiftId as any);
+    if (!shift) {
+      throw new NotFoundException(`Shift with id ${dto.shiftId} not found`);
+    }
 
     if (dto.employeeIds && dto.employeeIds.length) {
       for (const empId of dto.employeeIds) {
@@ -73,6 +88,10 @@ export class ShiftAssignmentService {
   async updateShiftAssignmentsStatus(ids: string[], status: string) {
     const results: any[] = [];
     for (const id of ids) {
+      const existing = await this.shiftAssignmentRepo.findById(id as any);
+      if (!existing) {
+        throw new NotFoundException(`ShiftAssignment with id ${id} not found`);
+      }
       const res = await this.shiftAssignmentRepo.updateById(id, {
         status,
       } as any);
@@ -82,6 +101,11 @@ export class ShiftAssignmentService {
   }
 
   async updateShiftAssignmentStatus(id: string, statusDto: any) {
+    const existing = await this.shiftAssignmentRepo.findById(id as any);
+    if (!existing) {
+      throw new NotFoundException(`ShiftAssignment with id ${id} not found`);
+    }
+
     return this.shiftAssignmentRepo.updateById(id, {
       status: statusDto.status,
     });
@@ -106,6 +130,27 @@ export class ShiftAssignmentService {
     assignmentId: string,
     scheduleRuleId: string,
   ) {
+    // defensive: ensure the assignment exists
+    const assignment = await this.shiftAssignmentRepo.findById(
+      assignmentId as any,
+    );
+    if (!assignment) {
+      throw new NotFoundException(
+        `ShiftAssignment with id ${assignmentId} not found`,
+      );
+    }
+
+    // defensive: ensure the referenced schedule rule exists
+    if (!this.scheduleRuleRepo) {
+      throw new NotFoundException(`ScheduleRule repository not available`);
+    }
+    const rule = await this.scheduleRuleRepo.findById(scheduleRuleId as any);
+    if (!rule) {
+      throw new NotFoundException(
+        `ScheduleRule with id ${scheduleRuleId} not found`,
+      );
+    }
+
     return this.shiftAssignmentRepo.updateById(assignmentId, {
       scheduleRuleId,
     } as any);

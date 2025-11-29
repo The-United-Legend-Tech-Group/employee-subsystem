@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AttendanceRepository } from './repository/attendance.repository';
 import { PunchType, PunchPolicy, HolidayType } from './models/enums/index';
 import { PunchDto } from './dto/punch.dto';
@@ -18,6 +22,14 @@ export class AttendanceService {
   async punch(dto: PunchDto) {
     if (!this.attendanceRepo)
       throw new Error('AttendanceRepository not available');
+
+    // defensive: ensure required fields
+    if (!dto || !dto.employeeId) {
+      throw new BadRequestException('employeeId is required for punch');
+    }
+    if (!dto.type || !Object.values(PunchType).includes(dto.type)) {
+      throw new BadRequestException('Invalid or missing punch type');
+    }
 
     let ts = dto.time ? new Date(dto.time) : new Date();
     if (dto.roundMode && dto.intervalMinutes && dto.intervalMinutes > 0) {
@@ -148,6 +160,15 @@ export class AttendanceService {
 
   async createHoliday(dto: any) {
     if (!this.holidayRepo) throw new Error('HolidayRepository not available');
+    // defensive: require startDate for single holiday creation
+    if (!(dto.weeklyDays && dto.weeklyDays.length)) {
+      if (!dto.startDate) {
+        throw new BadRequestException(
+          'startDate is required when weeklyDays not provided',
+        );
+      }
+    }
+
     const permContractStart = dto.contractStart
       ? new Date(dto.contractStart)
       : undefined;
@@ -236,6 +257,20 @@ export class AttendanceService {
   async submitAttendanceCorrection(dto: CreateAttendanceCorrectionDto) {
     if (!this.attendanceCorrectionRepo)
       throw new Error('AttendanceCorrectionRepository not available');
+    // defensive: if an attendanceRecord id is provided, ensure it exists
+    if (dto.attendanceRecord) {
+      if (!this.attendanceRepo) {
+        throw new NotFoundException('AttendanceRepository not available');
+      }
+      const att = await this.attendanceRepo.findById(
+        dto.attendanceRecord as any,
+      );
+      if (!att) {
+        throw new NotFoundException(
+          `AttendanceRecord with id ${dto.attendanceRecord} not found`,
+        );
+      }
+    }
 
     const payload: any = {
       employeeId: dto.employeeId,

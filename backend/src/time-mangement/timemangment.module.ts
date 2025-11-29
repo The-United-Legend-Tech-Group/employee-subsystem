@@ -25,6 +25,7 @@ import { ApprovalWorkflowRepository } from './repository/approval-workflow.repos
 import { PermissionDurationConfigRepository } from './repository/permission-duration-config.repository';
 import { PermissionDurationConfigService } from './services/permission-duration-config.service';
 import { LeavesModule } from '../leaves/leaves.module';
+import { NotificationModule } from '../employee-subsystem/notification/notification.module';
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
@@ -42,6 +43,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
   imports: [
     DatabaseModule,
     LeavesModule,
+    NotificationModule,
     // Register feature schemas local to the time-management subsystem
     MongooseModule.forFeature([
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },

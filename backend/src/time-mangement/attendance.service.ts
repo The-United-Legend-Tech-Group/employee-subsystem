@@ -14,6 +14,8 @@ import { HolidayRepository } from './repository/holiday.repository';
 import { ApprovalWorkflowService } from './services/approval-workflow.service';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ShiftRepository } from './repository/shift.repository';
+import { NotificationService } from '../employee-subsystem/notification/notification.service';
+import { CreateNotificationDto } from '../employee-subsystem/notification/dto/create-notification.dto';
 // note: no cross-repo injections needed here; keep attendance service focused
 
 interface PenaltyInfo {
@@ -32,6 +34,7 @@ export class AttendanceService {
     private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
     private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
+    private readonly notificationService?: NotificationService,
   ) {}
 
   private calculatePenalty(
@@ -345,7 +348,31 @@ export class AttendanceService {
         exceptionIds: [],
         finalisedForPayroll: false,
       };
-      return this.attendanceRepo.create(payload as any);
+      const created = await this.attendanceRepo.create(payload as any);
+      // send missed-punch notification if detected
+      try {
+        if (created && created.hasMissedPunch && this.notificationService) {
+          const notif: CreateNotificationDto = {
+            recipientId: [dto.employeeId],
+            type: 'Alert',
+            deliveryType: 'UNICAST',
+            title: 'Missed Punch Detected',
+            message: `A missed punch was detected for ${new Date(
+              (created as any).punches?.[0]?.time || Date.now(),
+            ).toDateString()}. Please submit a correction if needed.`,
+            relatedEntityId: (created as any)._id?.toString?.(),
+            relatedModule: 'Time',
+          } as any;
+          // fire-and-forget (don't block the response)
+          void this.notificationService.create(notif);
+        }
+      } catch (e) {
+        // don't let notification failures block attendance flow
+        // eslint-disable-next-line no-console
+        console.warn('Notification send failed', e && e.message ? e.message : e);
+      }
+
+      return created;
     }
 
     const punches = (existing.punches || []).slice();
@@ -465,6 +492,27 @@ export class AttendanceService {
       } catch (e) {
         // ignore — test environments may not care
       }
+    }
+
+    // if the updated record now has a missed punch, notify employee
+    try {
+      if ((update as any).hasMissedPunch && this.notificationService) {
+        const notif2: CreateNotificationDto = {
+          recipientId: [dto.employeeId],
+          type: 'Alert',
+          deliveryType: 'UNICAST',
+          title: 'Missed Punch Detected',
+          message: `A missed punch was recorded for ${new Date(
+            (result as any).punches?.[0]?.time || Date.now(),
+          ).toDateString()}. Please submit a correction if needed.`,
+          relatedEntityId: (result as any)._id?.toString?.(),
+          relatedModule: 'Time',
+        } as any;
+        void this.notificationService.create(notif2);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Notification send failed', e && e.message ? e.message : e);
     }
 
     return result;

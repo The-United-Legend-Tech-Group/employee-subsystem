@@ -18,6 +18,6 @@ dotenv.config();
   ],
   providers: [NotificationService, NotificationRepository],
   controllers: [NotificationController],
-  exports: [MongooseModule],
+  exports: [MongooseModule, NotificationService, NotificationRepository],
 })
 export class NotificationModule {}

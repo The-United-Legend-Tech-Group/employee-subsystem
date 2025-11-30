@@ -8,7 +8,10 @@ export class CreateStructureChangeRequestDto {
   requestedByEmployeeId: string;
 
   @IsEnum(StructureRequestType)
-  @ApiProperty({ description: 'Type of structure change request', enum: StructureRequestType })
+  @ApiProperty({
+    description: 'Type of structure change request',
+    enum: StructureRequestType,
+  })
   requestType: StructureRequestType;
 
   @IsOptional()
@@ -34,6 +37,9 @@ export class CreateStructureChangeRequestDto {
   // optional field in case submitter differs from requester
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ description: 'Employee id who submitted the request (may differ from requester)' })
+  @ApiPropertyOptional({
+    description:
+      'Employee id who submitted the request (may differ from requester)',
+  })
   submittedByEmployeeId?: string;
 }

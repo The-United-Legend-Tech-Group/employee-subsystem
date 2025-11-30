@@ -8,7 +8,7 @@ export class UpdateApplicationDto {
     description: 'Update application stage',
     enum: ApplicationStage,
     example: ApplicationStage.DEPARTMENT_INTERVIEW,
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsEnum(ApplicationStage)
@@ -18,7 +18,7 @@ export class UpdateApplicationDto {
     description: 'Update application status',
     enum: ApplicationStatus,
     example: ApplicationStatus.IN_PROCESS,
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsEnum(ApplicationStatus)
@@ -27,7 +27,7 @@ export class UpdateApplicationDto {
   @ApiProperty({
     description: 'Update assigned HR person',
     example: '507f1f77bcf86cd799439013',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsMongoId()

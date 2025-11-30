@@ -20,6 +20,11 @@ import { TimeController } from './time.controller';
 import { ShiftService } from './shift.service';
 import { AttendanceService } from './attendance.service';
 import { ShiftAssignmentService } from './shift-assignment.service';
+import { ApprovalWorkflowService } from './services/approval-workflow.service';
+import { ApprovalWorkflowRepository } from './repository/approval-workflow.repository';
+import { PermissionDurationConfigRepository } from './repository/permission-duration-config.repository';
+import { PermissionDurationConfigService } from './services/permission-duration-config.service';
+import { LeavesModule } from '../leaves/leaves.module';
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
@@ -36,6 +41,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
 @Module({
   imports: [
     DatabaseModule,
+    LeavesModule,
     // Register feature schemas local to the time-management subsystem
     MongooseModule.forFeature([
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },
@@ -55,6 +61,10 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     ShiftService,
     ShiftAssignmentService,
     AttendanceService,
+    ApprovalWorkflowService,
+    ApprovalWorkflowRepository,
+    PermissionDurationConfigRepository,
+    PermissionDurationConfigService,
     ShiftRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
@@ -73,6 +83,10 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     HolidayRepository,
     AttendanceRepository,
     AttendanceCorrectionRepository,
+    ApprovalWorkflowService,
+    PermissionDurationConfigService,
+    ApprovalWorkflowRepository,
+    PermissionDurationConfigRepository,
   ],
 })
 export class TimeMangementModule {}

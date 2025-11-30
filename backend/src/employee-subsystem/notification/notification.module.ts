@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
 import { Notification, NotificationSchema } from './models/notification.schema';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
@@ -12,11 +11,13 @@ dotenv.config();
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]),
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+    ]),
     AuthModule,
   ],
   providers: [NotificationService, NotificationRepository],
   controllers: [NotificationController],
   exports: [MongooseModule, NotificationService],
 })
-export class NotificationModule { }
+export class NotificationModule {}

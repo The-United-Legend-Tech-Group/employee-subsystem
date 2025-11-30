@@ -36,9 +36,7 @@ describe('ShiftService - ScheduleRule flows', () => {
       find: jest.fn().mockResolvedValue([]),
       findById: jest
         .fn()
-        .mockImplementation((id) =>
-          Promise.resolve({ _id: id, pattern: '{}', active: true }),
-        ),
+        .mockImplementation((id) => Promise.resolve({ _id: id })),
     };
 
     mockShiftAssignmentRepo = {
@@ -58,6 +56,8 @@ describe('ShiftService - ScheduleRule flows', () => {
 
     shiftAssignmentService = new ShiftAssignmentService(
       mockShiftAssignmentRepo as any,
+      mockShiftRepo as any,
+      mockScheduleRuleRepo as any,
     );
     shiftService = new ShiftService(
       mockShiftRepo as any,

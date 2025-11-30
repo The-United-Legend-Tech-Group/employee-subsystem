@@ -14,11 +14,16 @@ export class UpdateDepartmentDto {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ description: 'Head position id for the department (ObjectId as string)' })
+  @ApiPropertyOptional({
+    description: 'Head position id for the department (ObjectId as string)',
+  })
   headPositionId?: string;
 
   @IsOptional()
   @IsBoolean()
-  @ApiPropertyOptional({ description: 'Whether the department is active', type: Boolean })
+  @ApiPropertyOptional({
+    description: 'Whether the department is active',
+    type: Boolean,
+  })
   isActive?: boolean;
 }

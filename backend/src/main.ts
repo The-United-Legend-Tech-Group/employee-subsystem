@@ -17,6 +17,11 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Allow cross-origin requests from the browser (Swagger UI uses fetch())
+  // Enabling CORS here ensures the Swagger UI and other browser clients
+  // can successfully call endpoints during local testing.
+  app.enableCors();
+
   // Global validation pipe for DTO validation (useful for Swagger testing)
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
@@ -29,7 +34,7 @@ async function bootstrap() {
     .setVersion('0.1')
     .addTag('arcana')
     .build();
-// http://localhost:3000/api/docs
+  // http://localhost:3000/api/docs
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 

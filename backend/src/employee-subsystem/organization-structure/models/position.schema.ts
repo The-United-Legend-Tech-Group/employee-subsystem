@@ -46,7 +46,10 @@ async function resolveDepartmentHead(
     return undefined;
   }
 
-  if (positionId && department.headPositionId.toString() === positionId.toString()) {
+  if (
+    positionId &&
+    department.headPositionId.toString() === positionId.toString()
+  ) {
     return undefined;
   }
 

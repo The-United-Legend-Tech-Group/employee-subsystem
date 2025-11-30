@@ -16,13 +16,12 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
   let service: any;
 
   beforeEach(() => {
+    // provide a minimal shift repo used by the service's defensive checks
     mockShiftRepo = {
-      create: jest
+      findById: jest
         .fn()
-        .mockImplementation((dto) => Promise.resolve({ _id: 's1', ...dto })),
-      find: jest.fn().mockResolvedValue([]),
+        .mockImplementation((id) => Promise.resolve({ _id: id })),
     };
-
     mockShiftAssignmentRepo = {
       create: jest.fn().mockImplementation((dto) =>
         Promise.resolve({
@@ -36,10 +35,14 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
           Promise.resolve({ _id: id, ...update }),
         ),
       find: jest.fn().mockResolvedValue([]),
+      findById: jest
+        .fn()
+        .mockImplementation((id) => Promise.resolve({ _id: id })),
     };
 
     shiftAssignmentService = new ShiftAssignmentService(
       mockShiftAssignmentRepo as any,
+      mockShiftRepo as any,
     );
     service = shiftAssignmentService;
   });
@@ -57,12 +60,12 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
 
     expect(mockShiftAssignmentRepo.create).toHaveBeenCalledTimes(3);
     expect(res).toHaveLength(3);
-    expect(
-      (mockShiftAssignmentRepo.create as any).mock.calls[0][0].employeeId,
-    ).toBe('e1');
-    expect(
-      (mockShiftAssignmentRepo.create as any).mock.calls[1][0].employeeId,
-    ).toBe('e2');
+    expect(mockShiftAssignmentRepo.create.mock.calls[0][0].employeeId).toBe(
+      'e1',
+    );
+    expect(mockShiftAssignmentRepo.create.mock.calls[1][0].employeeId).toBe(
+      'e2',
+    );
   });
 
   it('assigns to a department', async () => {
@@ -76,7 +79,7 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
     const res = await service.assignShiftScoped(dto);
 
     expect(mockShiftAssignmentRepo.create).toHaveBeenCalledTimes(1);
-    const called = (mockShiftAssignmentRepo.create as any).mock.calls[0][0];
+    const called = mockShiftAssignmentRepo.create.mock.calls[0][0];
     expect(called.departmentId).toBe('d1');
     expect(res).toHaveLength(1);
   });
@@ -92,7 +95,7 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
     const res = await service.assignShiftScoped(dto);
 
     expect(mockShiftAssignmentRepo.create).toHaveBeenCalledTimes(1);
-    const called = (mockShiftAssignmentRepo.create as any).mock.calls[0][0];
+    const called = mockShiftAssignmentRepo.create.mock.calls[0][0];
     expect(called.positionId).toBe('p1');
     expect(res).toHaveLength(1);
   });
@@ -102,9 +105,7 @@ describe('ShiftAssignmentService - scoped shift assignments (unit)', () => {
     const res = await service.updateShiftAssignmentsStatus(ids, 'APPROVED');
 
     expect(mockShiftAssignmentRepo.updateById).toHaveBeenCalledTimes(3);
-    expect((mockShiftAssignmentRepo.updateById as any).mock.calls[0][0]).toBe(
-      'a1',
-    );
+    expect(mockShiftAssignmentRepo.updateById.mock.calls[0][0]).toBe('a1');
     expect(res).toHaveLength(3);
     expect(res[0]).toHaveProperty('status', 'APPROVED');
   });

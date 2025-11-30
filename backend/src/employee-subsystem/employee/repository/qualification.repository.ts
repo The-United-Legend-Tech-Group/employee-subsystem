@@ -5,14 +5,14 @@ import { BaseRepository } from '../../../common/repository/base.repository';
 import { EmployeeQualification } from '../models/qualification.schema';
 
 export type EmployeeQualificationDocument =
-    HydratedDocument<EmployeeQualification>;
+  HydratedDocument<EmployeeQualification>;
 
 @Injectable()
 export class EmployeeQualificationRepository extends BaseRepository<EmployeeQualificationDocument> {
-    constructor(
-        @InjectModel(EmployeeQualification.name)
-        model: Model<EmployeeQualificationDocument>,
-    ) {
-        super(model);
-    }
+  constructor(
+    @InjectModel(EmployeeQualification.name)
+    model: Model<EmployeeQualificationDocument>,
+  ) {
+    super(model);
+  }
 }

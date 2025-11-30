@@ -16,8 +16,7 @@ import { HolidayType } from '../models/enums/index';
 
 describe('TimeService - Holiday flows', () => {
   let mockHolidayRepo: any;
-  let mockShiftAssignmentRepo: any;
-  let mockShiftRepo: any;
+
   let service: any;
   let attendanceService: any;
 
@@ -29,8 +28,7 @@ describe('TimeService - Holiday flows', () => {
       find: jest.fn().mockResolvedValue([]),
     };
 
-    mockShiftAssignmentRepo = {} as any;
-    mockShiftRepo = {} as any;
+    // shift repo mocks not required for these unit tests
 
     attendanceService = new AttendanceService(
       undefined,

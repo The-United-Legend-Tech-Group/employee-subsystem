@@ -16,16 +16,23 @@ export class CreatePositionDto {
   description?: string;
 
   @IsString()
-  @ApiProperty({ description: 'Department id this position belongs to (ObjectId as string)' })
+  @ApiProperty({
+    description: 'Department id this position belongs to (ObjectId as string)',
+  })
   departmentId: string;
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ description: 'Reports to position id (ObjectId as string)' })
+  @ApiPropertyOptional({
+    description: 'Reports to position id (ObjectId as string)',
+  })
   reportsToPositionId?: string;
 
   @IsOptional()
   @IsBoolean()
-  @ApiPropertyOptional({ description: 'Whether the position is active', type: Boolean })
+  @ApiPropertyOptional({
+    description: 'Whether the position is active',
+    type: Boolean,
+  })
   isActive?: boolean;
 }

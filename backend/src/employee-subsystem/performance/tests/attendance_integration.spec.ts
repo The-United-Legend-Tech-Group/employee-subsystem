@@ -8,6 +8,10 @@ import { AttendanceRepository } from '../../../time-mangement/repository/attenda
 import { AttendanceCorrectionRepository } from '../../../time-mangement/repository/attendance-correction.repository';
 import { HolidayRepository } from '../../../time-mangement/repository/holiday.repository';
 
+import { ShiftAssignmentRepository } from '../../../time-mangement/repository/shift-assignment.repository';
+import { ShiftRepository } from '../../../time-mangement/repository/shift.repository';
+import { ApprovalWorkflowService } from '../../../time-mangement/services/approval-workflow.service';
+
 describe('Attendance Integration', () => {
     let appraisalRecordService: AppraisalRecordService;
     let attendanceService: AttendanceService;
@@ -30,6 +34,9 @@ describe('Attendance Integration', () => {
                 { provide: AttendanceRepository, useValue: mockAttendanceRepo },
                 { provide: AttendanceCorrectionRepository, useValue: {} },
                 { provide: HolidayRepository, useValue: {} },
+                { provide: ShiftAssignmentRepository, useValue: {} },
+                { provide: ShiftRepository, useValue: {} },
+                { provide: ApprovalWorkflowService, useValue: {} },
             ],
         }).compile();
 

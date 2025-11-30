@@ -1,6 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import { ProfileChangeStatus, MaritalStatus } from '../enums/employee-profile.enums';
+import {
+  ProfileChangeStatus,
+  MaritalStatus,
+} from '../enums/employee-profile.enums';
 
 @Schema({ collection: 'employee_profile_change_requests', timestamps: true })
 export class EmployeeProfileChangeRequest {

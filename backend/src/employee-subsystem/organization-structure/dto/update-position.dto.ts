@@ -19,16 +19,23 @@ export class UpdatePositionDto {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ description: 'Reports to position id (ObjectId as string)' })
+  @ApiPropertyOptional({
+    description: 'Reports to position id (ObjectId as string)',
+  })
   reportsToPositionId?: string;
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ description: 'Department id this position belongs to (ObjectId as string)' })
+  @ApiPropertyOptional({
+    description: 'Department id this position belongs to (ObjectId as string)',
+  })
   departmentId?: string;
 
   @IsOptional()
   @IsBoolean()
-  @ApiPropertyOptional({ description: 'Whether the position is active', type: Boolean })
+  @ApiPropertyOptional({
+    description: 'Whether the position is active',
+    type: Boolean,
+  })
   isActive?: boolean;
 }

@@ -1,26 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { CreateConfigSetupDto } from './dto/create-config_setup.dto';
-import { UpdateConfigSetupDto } from './dto/update-config_setup.dto';
+import {
+  AllowanceService,
+  CompanySettingsService,
+  InsuranceBracketService,
+  PayGradeService,
+  PayrollPolicyService,
+  PayTypeService,
+  SigningBonusService,
+  TaxRuleService,
+  TerminationBenefitService,
+} from './services';
 
 @Injectable()
 export class ConfigSetupService {
-  create(_createConfigSetupDto: CreateConfigSetupDto) {
-    return 'This action adds a new configSetup';
-  }
-
-  findAll() {
-    return `This action returns all configSetup`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} configSetup`;
-  }
-
-  update(id: number, _updateConfigSetupDto: UpdateConfigSetupDto) {
-    return `This action updates a #${id} configSetup`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} configSetup`;
-  }
+  constructor(
+    public readonly allowance: AllowanceService,
+    public readonly companySettings: CompanySettingsService,
+    public readonly insuranceBracket: InsuranceBracketService,
+    public readonly payGrade: PayGradeService,
+    public readonly payrollPolicy: PayrollPolicyService,
+    public readonly payType: PayTypeService,
+    public readonly signingBonus: SigningBonusService,
+    public readonly taxRule: TaxRuleService,
+    public readonly terminationBenefit: TerminationBenefitService,
+  ) {}
 }

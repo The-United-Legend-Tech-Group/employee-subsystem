@@ -1,15 +1,4 @@
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsBoolean,
-  IsDate,
-  IsArray,
-  ValidateNested,
-  Min,
-  IsOptional,
-  IsMongoId,
-} from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsBoolean, IsDate, IsArray, ValidateNested, Min, IsOptional, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RequestedAdjustmentDto {
@@ -59,3 +48,4 @@ export class CreatePayslipDisputeDto {
   @IsOptional()
   refund_payment_date?: Date;
 }
+

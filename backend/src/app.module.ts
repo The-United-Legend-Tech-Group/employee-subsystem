@@ -1,38 +1,45 @@
+// Core NestJS modules
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+
+// Configuration
+import configuration from './config/configuration';
+import { AppConfigService } from './config/app-config.service';
+
+// Database
+import { DatabaseModule } from './database/database.module';
+
+// App-specific
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { DatabaseModule } from '../database/database.module';
-import { TimeMangementModule } from './time-mangement/timemangment.module';
-import { LeavesModule } from './leaves/leaves.module';
+
+// Feature modules (alphabetically organized)
 import { EmployeeSubsystemModule } from './employee-subsystem/employee-subsystem.module';
-import { ConfigSetupModule } from './payroll/config_setup/config_setup.module';
-import { TrackingModule } from './payroll/tracking/tracking.module';
-import { ExecutionModule } from './payroll/execution/execution.module';
+import { LeavesModule } from './leaves/leaves.module';
+import { PayrollModule } from './payroll/payroll.module';
 import { RecruitmentModule } from './Recruitment/recruitment.module';
+import { TimeMangementModule } from './time-mangement/timemangment.module';
 
 @Module({
   imports: [
-    // Load .env into process.env and make ConfigService global
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Load configuration with structured config
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+    }),
+
     // Central database connection and shared schemas
     DatabaseModule,
-    // Time management subsystem module
-    TimeMangementModule,
-    // Leaves subsystem
-    LeavesModule,
-    // Employee management subsystem
+
+    // Feature modules (alphabetically organized)
     EmployeeSubsystemModule,
-    // Configuration setup subsystem
-    ConfigSetupModule,
-    // Tracking subsystem
-    TrackingModule,
-    // Execution subsystem
-    ExecutionModule,
-    // Recruitment subsystem
+    LeavesModule,
+    PayrollModule,
     RecruitmentModule,
+    TimeMangementModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AppConfigService],
+  exports: [AppConfigService],
 })
 export class AppModule {}

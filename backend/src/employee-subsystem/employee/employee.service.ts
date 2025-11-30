@@ -131,9 +131,9 @@ export class EmployeeService {
     const position = await this.positionRepository.findById(updateEmployeePositionDto.positionId);
     console.log('Position found (full object):', JSON.stringify(position, null, 2));
 
-    if (!position) {
+    if (!position || position.isActive) {
       console.log('ERROR: Position not found for ID:', updateEmployeePositionDto.positionId);
-      throw new NotFoundException('Position not found');
+      throw new NotFoundException('Position not found or is active.');
     }
 
     let supervisorPositionId = position.reportsToPositionId;

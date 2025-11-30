@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { DatabaseModule } from '../../database/database.module';
+import { DatabaseModule } from '../database/database.module';
 import { Attachment, AttachmentSchema } from './models/attachment.schema';
-import { ScheduleModule } from '@nestjs/schedule';
-
+// Schedule will be initialized at the application root (AppModule)
 
 import {
   LeaveAdjustment,
@@ -37,7 +36,7 @@ import { OrganizationStructureModule } from '../employee-subsystem/organization-
 @Module({
   imports: [
     DatabaseModule,
-    ScheduleModule.forRoot(),
+    // ScheduleModule.forRoot() moved to AppModule
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },
       { name: LeaveAdjustment.name, schema: LeaveAdjustmentSchema },
@@ -50,10 +49,14 @@ import { OrganizationStructureModule } from '../employee-subsystem/organization-
     ]),
     EmployeeModule,
     NotificationModule,
-    OrganizationStructureModule
+    OrganizationStructureModule,
   ],
-  controllers: [LeavesPolicyController,LeavesRequestController,LeavesReportController],
-  providers: [LeavesPolicyService,LeavesRequestService,LeavesReportService],
+  controllers: [
+    LeavesPolicyController,
+    LeavesRequestController,
+    LeavesReportController,
+  ],
+  providers: [LeavesPolicyService, LeavesRequestService, LeavesReportService],
   exports: [MongooseModule],
 })
 export class LeavesModule {}

@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsNumber, IsBoolean, IsString, IsArray } from 'class-validator';
+import { IsEnum, IsOptional, IsNumber, IsBoolean, IsString } from 'class-validator';
 import { AccrualMethod } from '../enums/accrual-method.enum';
 import { RoundingRule } from '../enums/rounding-rule.enum';
 

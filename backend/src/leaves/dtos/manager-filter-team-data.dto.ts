@@ -1,4 +1,4 @@
-import {  IsBoolean ,IsOptional, IsEnum, IsMongoId, IsDateString, IsString } from 'class-validator';
+import { IsOptional, IsEnum, IsMongoId, IsDateString, IsString } from 'class-validator';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { AdjustmentType } from '../enums/adjustment-type.enum';
 

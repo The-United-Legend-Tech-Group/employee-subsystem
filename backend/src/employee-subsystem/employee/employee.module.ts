@@ -52,6 +52,7 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
     CandidateRepository,
     EmployeeSystemRoleRepository,
     EmployeeProfileChangeRequestRepository,
+    EmployeeService,
   ],
 })
 export class EmployeeModule {}

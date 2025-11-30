@@ -15,6 +15,10 @@ export class ShiftService {
   ) {}
 
   async createShift(dto: CreateShiftDto) {
+    const existing = await this.shiftRepo.findOne({ name: dto.name } as any);
+    if (existing) {
+      throw new Error(`Shift with name ${dto.name} already exists`);
+    }
     return this.shiftRepo.create(dto as any);
   }
 
@@ -23,14 +27,18 @@ export class ShiftService {
   }
 
   async assignShiftScoped(dto: any) {
-    const created: any[] = [];
-    const start = dto.startDate ? new Date(dto.startDate) : undefined;
-    const end = dto.endDate ? new Date(dto.endDate) : undefined;
-
+    const existing = await this.shiftRepo.findOne({ name: dto.name } as any);
+    if (existing) {
+      throw new Error(`Shift with name ${dto.name} already exists`);
+    }
     return this.shiftAssignmentService.assignShiftScoped(dto as any);
   }
 
   async updateShiftAssignmentsStatus(ids: string[], status: string) {
+    const existing = await this.shiftRepo.findOne({ name: status } as any);
+    if (!existing) {
+      throw new Error(`Shift with name ${status} does not exist`);
+    }
     return this.shiftAssignmentService.updateShiftAssignmentsStatus(
       ids,
       status,
@@ -38,6 +46,12 @@ export class ShiftService {
   }
 
   async updateShiftAssignmentStatus(id: string, statusDto: any) {
+    const existing = await this.shiftRepo.findOne({
+      name: statusDto.status,
+    } as any);
+    if (!existing) {
+      throw new Error(`Shift with name ${statusDto.status} does not exist`);
+    }
     return this.shiftAssignmentService.updateShiftAssignmentStatus(
       id,
       statusDto,
@@ -94,13 +108,34 @@ export class ShiftService {
 
   async attachScheduleRuleToAssignment(
     assignmentId: string,
-    scheduleRuleId: string,
+    scheduleRuleId?: string,
   ) {
+    // If caller did not provide a scheduleRuleId, resolve a default one.
+    let ruleId = scheduleRuleId as any;
+    if (!ruleId) {
+      if (!this.scheduleRuleRepo) {
+        throw new Error('ScheduleRuleRepository not available');
+      }
+      // Prefer active schedule rules; fall back to any rule if none active.
+      const active = await this.scheduleRuleRepo.find({ active: true } as any);
+      if (active && active.length) {
+        ruleId = (active[0] as any)._id || active[0];
+      } else {
+        const all = await this.scheduleRuleRepo.find({} as any);
+        if (!all || !all.length) {
+          throw new Error('No schedule rules available to attach');
+        }
+        ruleId = (all[0] as any)._id || all[0];
+      }
+    }
+
     return this.shiftAssignmentService.attachScheduleRuleToAssignment(
       assignmentId,
-      scheduleRuleId,
+      ruleId,
     );
   }
+
+  // (No reverse-link helper; ScheduleRule is not modified to store assignmentIds)
 
   async getAllShifts() {
     return this.shiftRepo.find({});

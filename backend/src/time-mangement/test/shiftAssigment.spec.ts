@@ -27,6 +27,12 @@ describe('ShiftService / ShiftAssignmentService - Shift flows', () => {
           Promise.resolve({ _id: 'shift1', ...dto }),
         ),
       find: jest.fn().mockResolvedValue([]),
+      findById: jest
+        .fn()
+        .mockImplementation((id) =>
+          Promise.resolve({ _id: id, name: 'Mock Shift' }),
+        ),
+      findOne: jest.fn().mockResolvedValue(null),
     };
 
     mockShiftAssignmentRepo = {
@@ -41,10 +47,16 @@ describe('ShiftService / ShiftAssignmentService - Shift flows', () => {
           Promise.resolve({ _id: id, ...update }),
         ),
       find: jest.fn().mockResolvedValue([]),
+      findById: jest
+        .fn()
+        .mockImplementation((id) =>
+          Promise.resolve({ _id: id, name: 'Mock Assignment' }),
+        ),
     };
 
     shiftAssignmentService = new ShiftAssignmentService(
       mockShiftAssignmentRepo as any,
+      mockShiftRepo as any,
     );
     shiftService = new ShiftService(
       mockShiftRepo as any,

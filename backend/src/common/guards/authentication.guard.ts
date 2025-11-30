@@ -16,7 +16,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
     private reflector: Reflector,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -43,7 +43,9 @@ export class AuthGuard implements CanActivate {
   }
   private extractTokenFromHeader(request: Request): string | undefined {
     const token =
-      request.cookies?.token || request.headers['authorization']?.split(' ')[1];
+      request.cookies?.access_token ||
+      request.cookies?.token ||
+      request.headers['authorization']?.split(' ')[1];
 
     return token;
   }

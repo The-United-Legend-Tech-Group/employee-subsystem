@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
 import { GetAssignmentsQueryDto, BulkAssignDto, AppraisalProgressQueryDto, SendReminderDto } from './dto/appraisal-assignment.dto';
 import { AppraisalAssignmentStatus } from './enums/performance.enums';
@@ -7,10 +7,12 @@ import { Types } from 'mongoose';
 import { NotificationService } from '../notification/notification.service';
 import { CreateNotificationDto } from '../notification/dto/create-notification.dto';
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class AppraisalAssignmentService {
+    private readonly logger = new Logger(AppraisalAssignmentService.name);
+
     constructor(
         private readonly appraisalAssignmentRepository: AppraisalAssignmentRepository,
         private readonly notificationService: NotificationService,
@@ -87,11 +89,9 @@ export class AppraisalAssignmentService {
                     relatedModule: 'Performance',
                 };
 
-                // fire-and-forget
-                /* eslint-disable no-await-in-loop */
                 await this.notificationService.create(payload as any);
-                /* eslint-enable no-await-in-loop */
             } catch (e) {
+                this.logger.error(`Failed to send notification for assignment ${c._id}`, e);
                 // swallow notification errors - assignments still created
             }
         }
@@ -112,7 +112,7 @@ export class AppraisalAssignmentService {
     }
 
     async sendReminders(dto: SendReminderDto): Promise<void> {
-        console.log('[sendReminders] Starting with DTO:', dto);
+        this.logger.log(`[sendReminders] Starting with DTO: ${JSON.stringify(dto)}`);
         const filter: any = {
             cycleId: new Types.ObjectId(dto.cycleId),
         };
@@ -129,17 +129,17 @@ export class AppraisalAssignmentService {
         }
 
         const assignments = await this.appraisalAssignmentRepository.findAssignments(filter);
-        console.log('[sendReminders] Found assignments:', assignments.length);
-        console.log('[sendReminders] Filter used:', JSON.stringify(filter));
+        this.logger.log(`[sendReminders] Found assignments: ${assignments.length}`);
+        this.logger.debug(`[sendReminders] Filter used: ${JSON.stringify(filter)}`);
 
         for (const assignment of assignments) {
             try {
                 // Reminder goes to the manager
                 const recipientId = assignment.managerProfileId?._id?.toString() || assignment.managerProfileId?.toString();
-                console.log('[sendReminders] Processing assignment:', assignment._id, 'recipientId:', recipientId);
+                this.logger.debug(`[sendReminders] Processing assignment: ${assignment._id}, recipientId: ${recipientId}`);
 
                 if (!recipientId) {
-                    console.log('[sendReminders] Skipping - no recipientId');
+                    this.logger.warn('[sendReminders] Skipping - no recipientId');
                     continue;
                 }
 
@@ -157,11 +157,11 @@ export class AppraisalAssignmentService {
                     relatedModule: 'Performance',
                 };
 
-                console.log('[sendReminders] Creating notification with payload:', payload);
+                this.logger.debug(`[sendReminders] Creating notification with payload: ${JSON.stringify(payload)}`);
                 await this.notificationService.create(payload);
-                console.log('[sendReminders] Notification created successfully');
+                this.logger.log('[sendReminders] Notification created successfully');
             } catch (e) {
-                console.error('[sendReminders] Failed to send reminder:', e);
+                this.logger.error('[sendReminders] Failed to send reminder:', e);
             }
         }
     }

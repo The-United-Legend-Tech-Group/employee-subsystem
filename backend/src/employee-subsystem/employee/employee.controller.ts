@@ -1,7 +1,5 @@
-import { Body, Controller, Patch, Param, Post, UseGuards, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
-import { Roles } from './decorators/roles.decorator';
-import { authorizationGuard } from '../guards/authorization.guard';
+import { Body, Controller, Patch, Param, Post, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
@@ -13,7 +11,6 @@ import { UpdateEmployeeDepartmentDto } from './dto/update-employee-department.dt
 import { UpdateEmployeePositionDto } from './dto/update-employee-position.dto';
 import { EmployeeService } from './employee.service';
 import { ProfileChangeStatus } from './enums/employee-profile.enums';
-import { ApiKeyGuard } from '../guards/api-key.guard';
 
 @ApiTags('Employee')
 @Controller('employee')

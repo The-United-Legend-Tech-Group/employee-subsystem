@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
 import { Notification, NotificationSchema } from './models/notification.schema';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';

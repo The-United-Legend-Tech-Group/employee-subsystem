@@ -119,7 +119,7 @@ export class OrganizationStructureService {
         return updated;
     }
 
-    async rejectChangeRequest(id: string, comment?: string, approverEmployeeId?: string): Promise<StructureChangeRequest> {
+    async rejectChangeRequest(id: string, approverEmployeeId?: string): Promise<StructureChangeRequest> {
         const existing = await this.changeRequestModel.findById(id).lean().exec();
         if (!existing) throw new NotFoundException('Change request not found');
 

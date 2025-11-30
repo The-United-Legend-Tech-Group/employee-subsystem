@@ -12,6 +12,8 @@ import { ShiftAssignmentRepository } from '../../../time-mangement/repository/sh
 import { ShiftRepository } from '../../../time-mangement/repository/shift.repository';
 import { ApprovalWorkflowService } from '../../../time-mangement/services/approval-workflow.service';
 
+import { NotificationService } from '../../notification/notification.service';
+
 describe('Attendance Integration', () => {
     let appraisalRecordService: AppraisalRecordService;
     let attendanceService: AttendanceService;
@@ -37,6 +39,7 @@ describe('Attendance Integration', () => {
                 { provide: ShiftAssignmentRepository, useValue: {} },
                 { provide: ShiftRepository, useValue: {} },
                 { provide: ApprovalWorkflowService, useValue: {} },
+                { provide: NotificationService, useValue: { create: jest.fn() } },
             ],
         }).compile();
 

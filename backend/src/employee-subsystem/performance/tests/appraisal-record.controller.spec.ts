@@ -8,6 +8,8 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AttendanceService } from '../../../time-mangement/attendance.service';
 import { AppraisalCycleRepository } from '../repository/appraisal-cycle.repository';
 
+import { NotificationService } from '../../notification/notification.service';
+
 describe('AppraisalRecordController', () => {
     let controller: AppraisalRecordController;
     let service: AppraisalRecordService;
@@ -60,6 +62,10 @@ describe('AppraisalRecordController', () => {
                 {
                     provide: AppraisalCycleRepository,
                     useValue: { findOne: jest.fn() },
+                },
+                {
+                    provide: NotificationService,
+                    useValue: { create: jest.fn() },
                 },
             ],
         }).compile();

@@ -7,6 +7,8 @@ import { AppraisalRecordDocument } from './models/appraisal-record.schema';
 import { AppraisalRecordStatus } from './enums/performance.enums';
 import { AttendanceService } from '../../time-mangement/attendance.service';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
+import { NotificationService } from '../notification/notification.service';
+import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @Injectable()
 export class AppraisalRecordService {
@@ -15,6 +17,7 @@ export class AppraisalRecordService {
         private readonly appraisalTemplateRepository: AppraisalTemplateRepository,
         private readonly attendanceService: AttendanceService,
         private readonly appraisalCycleRepository: AppraisalCycleRepository,
+        private readonly notificationService: NotificationService,
     ) { }
 
     async getRecordById(id: string): Promise<any> {
@@ -174,7 +177,7 @@ export class AppraisalRecordService {
             }
 
             if (
-                ratingDto.ratingValue < template.ratingScale.min ||
+                ratingDto.ratingValue < template.ratingScale.min || //Is minimum value valid?
                 ratingDto.ratingValue > template.ratingScale.max
             ) {
                 throw new BadRequestException(
@@ -226,6 +229,36 @@ export class AppraisalRecordService {
         } as Partial<AppraisalRecordDocument>;
 
         const created = await this.appraisalRecordRepository.create(recordPayload as any);
+
+        // Calculate minimum possible score for this template
+        let minTotalScore = 0;
+        for (const criterion of template.criteria) {
+            if (criterion.weight) {
+                minTotalScore += (template.ratingScale.min * criterion.weight) / 100;
+            } else {
+                minTotalScore += template.ratingScale.min;
+            }
+        }
+
+        // Check for minimum performance records
+        const minScoreRecords = await this.appraisalRecordRepository.find({
+            employeeProfileId: createDto.employeeProfileId,
+            totalScore: minTotalScore,
+        });
+
+        if (minScoreRecords.length >= 3) {
+            await this.notificationService.create({
+                recipientId: [],
+                type: 'Alert',
+                deliveryType: 'MULTICAST',
+                deliverToRole: SystemRole.HR_EMPLOYEE,
+                title: 'Performance Alert',
+                message: 'This employee exceeded minumum performance.',
+                relatedEntityId: created._id.toString(),
+                relatedModule: 'Performance',
+            });
+        }
+
         return created as AppraisalRecordDocument;
     }
 }

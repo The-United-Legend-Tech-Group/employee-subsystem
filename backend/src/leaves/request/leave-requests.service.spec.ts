@@ -4,6 +4,9 @@ import { Types } from 'mongoose';
 import { LeavesRequestService } from './leave-requests.service';
 import { LeaveRequest } from '../models/leave-request.schema';
 import { Attachment } from '../models/attachment.schema';
+import { LeaveType } from '../models/leave-type.schema';
+import { LeaveEntitlement } from '../models/leave-entitlement.schema';
+import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { ManagerApprovalDto } from '../dtos/manager-approve.dto';
 
@@ -54,6 +57,25 @@ describe('LeavesRequestService', () => {
         LeavesRequestService,
         { provide: getModelToken(Attachment.name), useValue: mockAttachmentConstructor },
         { provide: getModelToken(LeaveRequest.name), useValue: mockLeaveRequestConstructor },
+        {
+          provide: getModelToken(LeaveType.name),
+          useValue: {
+            findById: jest.fn().mockResolvedValue({ minTenureMonths: 0 }),
+          },
+        },
+        { provide: getModelToken(LeaveEntitlement.name), useValue: {} },
+        { provide: getModelToken(LeaveEntitlement.name), useValue: {} },
+        {
+          provide: EmployeeService,
+          useValue: {
+            getProfile: jest.fn().mockResolvedValue({
+              profile: {
+                _id: 'emp123',
+                dateOfHire: new Date('2020-01-01'),
+              },
+            }),
+          },
+        },
       ],
     }).compile();
 

@@ -11,6 +11,7 @@ describe('AuthController', () => {
 
   const mockAuthService = {
     login: jest.fn(),
+    employeeLogin: jest.fn(),
     register: jest.fn(),
   };
 
@@ -73,6 +74,52 @@ describe('AuthController', () => {
       } as unknown as Response;
 
       await expect(controller.login(loginDto, mockResponse)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('employeeLogin', () => {
+    it('should set cookies and return success message on successful employee login', async () => {
+      const loginDto: LoginCandidateDto = {
+        email: 'employee@example.com',
+        password: 'password',
+      };
+      const authResult = { access_token: 'jwt_token', employeeId: 'empId' };
+      mockAuthService.employeeLogin.mockResolvedValue(authResult);
+
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response;
+
+      const result = await controller.employeeLogin(loginDto, mockResponse);
+
+      expect(result).toEqual({ message: 'Login successful' });
+      expect(mockAuthService.employeeLogin).toHaveBeenCalledWith(loginDto);
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'jwt_token',
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'employeeid',
+        'empId',
+        expect.any(Object),
+      );
+    });
+
+    it('should throw UnauthorizedException on invalid credentials for employee', async () => {
+      const loginDto: LoginCandidateDto = {
+        email: 'employee@example.com',
+        password: 'wrong_password',
+      };
+      mockAuthService.employeeLogin.mockRejectedValue(new UnauthorizedException());
+
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response;
+
+      await expect(controller.employeeLogin(loginDto, mockResponse)).rejects.toThrow(
         UnauthorizedException,
       );
     });

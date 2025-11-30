@@ -9,11 +9,13 @@ import { LoginCandidateDto } from './dto/login-candidate.dto';
 import { RegisterCandidateDto } from './dto/register-candidate.dto';
 import { Candidate } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
+import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly candidateRepository: CandidateRepository,
+    private readonly employeeProfileRepository: EmployeeProfileRepository,
     private readonly jwtService: JwtService,
   ) { }
 
@@ -68,6 +70,26 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
       candidateId: candidate._id.toString(),
+    };
+  }
+
+  async employeeLogin(loginDto: LoginCandidateDto): Promise<{ access_token: string; employeeId: string }> {
+    const { email, password } = loginDto;
+
+    const employee = await this.employeeProfileRepository.findByEmail(email);
+    if (!employee) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, employee.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const payload = { sub: employee._id, email: employee.personalEmail };
+    return {
+      access_token: this.jwtService.sign(payload),
+      employeeId: employee._id.toString(),
     };
   }
 

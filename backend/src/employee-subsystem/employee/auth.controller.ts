@@ -48,4 +48,32 @@ export class AuthController {
 
     return { message: 'Login successful' };
   }
+
+  @Post('/employee/login')
+  @ApiOperation({ summary: 'Login as an employee' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully logged in.',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  async employeeLogin(
+    @Body() loginDto: LoginCandidateDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { access_token, employeeId } = await this.authService.employeeLogin(loginDto);
+
+    response.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+    });
+
+    response.cookie('employeeid', employeeId, {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    return { message: 'Login successful' };
+  }
 }

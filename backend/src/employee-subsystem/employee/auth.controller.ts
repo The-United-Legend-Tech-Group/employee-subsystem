@@ -15,7 +15,7 @@ import { RegisterCandidateDto } from './dto/register-candidate.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -64,4 +64,23 @@ export class AuthController {
   register(@Body() registerDto: RegisterCandidateDto) {
     return this.authService.register(registerDto);
   }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout from the system' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  logout(@Res({ passthrough: true }) res: Response) {
+    // Clear the authentication cookie
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+    return { message: 'Logout successful' };
+  }
 }
+
+// Example usage:
+// curl -i -X POST http://localhost:3000/auth/login \
+//   -H "Content-Type: application/json" \
+//   -d '{"username":"alice@example.com","password":"password123"}'

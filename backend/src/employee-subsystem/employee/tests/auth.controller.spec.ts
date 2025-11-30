@@ -2,14 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
-import { LoginDto } from '../dto/login.dto';
-import { UnauthorizedException } from '@nestjs/common';
+import { LoginCandidateDto } from '../dto/login-candidate.dto';
+import { RegisterCandidateDto } from '../dto/register-candidate.dto';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 
 describe('AuthController', () => {
   let controller: AuthController;
 
   const mockAuthService = {
     login: jest.fn(),
+    register: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,29 +33,36 @@ describe('AuthController', () => {
   });
 
   describe('login', () => {
-    it('should return access token on successful login', async () => {
-      const loginDto: LoginDto = {
+    it('should set cookies and return success message on successful login', async () => {
+      const loginDto: LoginCandidateDto = {
         email: 'test@example.com',
         password: 'password',
       };
-      const result = { access_token: 'jwt_token' };
-      mockAuthService.login.mockResolvedValue(result);
+      const authResult = { access_token: 'jwt_token', candidateId: 'someId' };
+      mockAuthService.login.mockResolvedValue(authResult);
 
       const mockResponse = {
         cookie: jest.fn(),
       } as unknown as Response;
 
-      expect(await controller.login(loginDto, mockResponse)).toBe(result);
+      const result = await controller.login(loginDto, mockResponse);
+
+      expect(result).toEqual({ message: 'Login successful' });
       expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'access_token',
         'jwt_token',
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'candidateId',
+        'someId',
         expect.any(Object),
       );
     });
 
     it('should throw UnauthorizedException on invalid credentials', async () => {
-      const loginDto: LoginDto = {
+      const loginDto: LoginCandidateDto = {
         email: 'test@example.com',
         password: 'wrong_password',
       };
@@ -65,6 +74,45 @@ describe('AuthController', () => {
 
       await expect(controller.login(loginDto, mockResponse)).rejects.toThrow(
         UnauthorizedException,
+      );
+    });
+  });
+
+  describe('register', () => {
+    it('should register a new candidate', async () => {
+      const registerDto: RegisterCandidateDto = {
+        firstName: 'John',
+        lastName: 'Doe',
+        nationalId: '1234567890123',
+        personalEmail: 'john@example.com',
+        password: 'Password123',
+      };
+
+      // Mock result should not have password
+      const { password, ...expectedResult } = {
+        ...registerDto,
+        _id: 'someId',
+        candidateNumber: 'CAN-20231201-0001'
+      };
+
+      mockAuthService.register.mockResolvedValue(expectedResult);
+
+      expect(await controller.register(registerDto)).toBe(expectedResult);
+      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
+    });
+
+    it('should throw ConflictException if email or national ID exists', async () => {
+      const registerDto: RegisterCandidateDto = {
+        firstName: 'John',
+        lastName: 'Doe',
+        nationalId: '1234567890123',
+        personalEmail: 'john@example.com',
+        password: 'Password123',
+      };
+      mockAuthService.register.mockRejectedValue(new ConflictException());
+
+      await expect(controller.register(registerDto)).rejects.toThrow(
+        ConflictException,
       );
     });
   });

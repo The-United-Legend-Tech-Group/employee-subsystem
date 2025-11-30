@@ -1,13 +1,4 @@
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsBoolean,
-  IsDate,
-  IsOptional,
-  Min,
-  IsMongoId,
-} from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsBoolean, IsDate, IsOptional, Min, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateExpenseClaimDto {
@@ -50,3 +41,4 @@ export class CreateExpenseClaimDto {
   @IsOptional()
   refund_payment_date?: Date;
 }
+

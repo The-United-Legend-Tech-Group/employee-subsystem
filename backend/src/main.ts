@@ -1,21 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { bootstrapTimeManagement } from './time-mangement/main';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { AppConfigService } from './config/app-config.service';
 
 async function bootstrap() {
-  // If you want to start only the time-management subsystem for local testing,
-  // set environment variable `START_SUBSYSTEM=time` (and optionally `TIME_PORT`).
-  if (process.env.START_SUBSYSTEM === 'time') {
-    const port = process.env.TIME_PORT
-      ? parseInt(process.env.TIME_PORT, 10)
-      : 3001;
-    await bootstrapTimeManagement(port);
-    return;
-  }
-
   const app = await NestFactory.create(AppModule);
+  const configService = app.get<AppConfigService>(AppConfigService);
+
+  // Global validation pipe for DTO validation
 
   // Allow cross-origin requests from the browser (Swagger UI uses fetch())
   // Enabling CORS here ensures the Swagger UI and other browser clients
@@ -34,11 +27,14 @@ async function bootstrap() {
     .setVersion('0.1')
     .addTag('arcana')
     .build();
-  // http://localhost:3000/api/docs
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(configService.port);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('Application failed to start:', error);
+  process.exit(1);
+});

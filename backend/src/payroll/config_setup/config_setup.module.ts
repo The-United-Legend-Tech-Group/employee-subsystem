@@ -1,10 +1,35 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigSetupService } from './config_setup.service';
 import { ConfigSetupController } from './config_setup.controller';
-import { DatabaseModule } from '../../../database/database.module';
+import { ConfigSetupService } from './config_setup.service';
 
-// Schema imports
+// Import individual services
+import {
+  AllowanceService,
+  CompanySettingsService,
+  InsuranceBracketService,
+  PayGradeService,
+  PayrollPolicyService,
+  PayTypeService,
+  SigningBonusService,
+  TaxRuleService,
+  TerminationBenefitService,
+} from './services';
+
+// Import all repositories
+import {
+  AllowanceRepository,
+  CompanyWideSettingsRepository,
+  InsuranceBracketsRepository,
+  PayGradeRepository,
+  PayrollPoliciesRepository,
+  PayTypeRepository,
+  SigningBonusRepository,
+  TaxRulesRepository,
+  TerminationBenefitsRepository,
+} from './repositories';
+
+// Import all schemas
 import { allowance, allowanceSchema } from './models/allowance.schema';
 import {
   CompanyWideSettings,
@@ -15,38 +40,60 @@ import {
   insuranceBracketsSchema,
 } from './models/insuranceBrackets.schema';
 import { payGrade, payGradeSchema } from './models/payGrades.schema';
-import { payType, payTypeSchema } from './models/payType.schema';
 import {
   payrollPolicies,
   payrollPoliciesSchema,
 } from './models/payrollPolicies.schema';
+import { payType, payTypeSchema } from './models/payType.schema';
+import { signingBonus, signingBonusSchema } from './models/signingBonus.schema';
+import { taxRules, taxRulesSchema } from './models/taxRules.schema';
 import {
   terminationAndResignationBenefits,
   terminationAndResignationBenefitsSchema,
 } from './models/terminationAndResignationBenefits';
-import { signingBonus, signingBonusSchema } from './models/signingBonus.schema';
-import { taxRules, taxRulesSchema } from './models/taxRules.schema';
 
 @Module({
   imports: [
-    DatabaseModule,
     MongooseModule.forFeature([
       { name: allowance.name, schema: allowanceSchema },
       { name: CompanyWideSettings.name, schema: CompanyWideSettingsSchema },
       { name: insuranceBrackets.name, schema: insuranceBracketsSchema },
       { name: payGrade.name, schema: payGradeSchema },
-      { name: payType.name, schema: payTypeSchema },
       { name: payrollPolicies.name, schema: payrollPoliciesSchema },
+      { name: payType.name, schema: payTypeSchema },
+      { name: signingBonus.name, schema: signingBonusSchema },
+      { name: taxRules.name, schema: taxRulesSchema },
       {
         name: terminationAndResignationBenefits.name,
         schema: terminationAndResignationBenefitsSchema,
       },
-      { name: signingBonus.name, schema: signingBonusSchema },
-      { name: taxRules.name, schema: taxRulesSchema },
     ]),
   ],
   controllers: [ConfigSetupController],
-  providers: [ConfigSetupService],
-  exports: [MongooseModule], // Export MongooseModule so other modules can use these schemas
+  providers: [
+    // Main service (encapsulates all individual services)
+    ConfigSetupService,
+    // Individual services (internal only)
+    AllowanceService,
+    CompanySettingsService,
+    InsuranceBracketService,
+    PayGradeService,
+    PayrollPolicyService,
+    PayTypeService,
+    SigningBonusService,
+    TaxRuleService,
+    TerminationBenefitService,
+    // Repositories (internal only)
+    AllowanceRepository,
+    CompanyWideSettingsRepository,
+    InsuranceBracketsRepository,
+    PayGradeRepository,
+    PayrollPoliciesRepository,
+    PayTypeRepository,
+    SigningBonusRepository,
+    TaxRulesRepository,
+    TerminationBenefitsRepository,
+  ],
+  exports: [ConfigSetupService], // export the facade service
 })
 export class ConfigSetupModule {}

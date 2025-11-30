@@ -1,0 +1,95 @@
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { PayTypeRepository } from '../repositories';
+import { payTypeDocument } from '../models/payType.schema';
+import { CreatePayTypeDto } from '../dto/createPayTypeDto';
+import { UpdatePayTypeDto } from '../dto/updatePayTypeDto';
+import { UpdateStatusDto } from '../dto/update-status.dto';
+import { ConfigStatus } from '../enums/payroll-configuration-enums';
+
+@Injectable()
+export class PayTypeService {
+  constructor(private readonly repository: PayTypeRepository) {}
+
+  async create(dto: CreatePayTypeDto): Promise<payTypeDocument> {
+    return this.repository.create(dto as any);
+  }
+
+  async createWithUser(
+    dto: CreatePayTypeDto,
+    userId: string,
+  ): Promise<payTypeDocument> {
+    const data = { ...dto, createdBy: userId };
+    return this.repository.create(data as any);
+  }
+
+  async findAll(): Promise<payTypeDocument[]> {
+    return this.repository.findAll();
+  }
+
+  async findById(id: string): Promise<payTypeDocument | null> {
+    return this.repository.findById(id);
+  }
+
+  async findOne(filter: any): Promise<payTypeDocument | null> {
+    return this.repository.findOne(filter);
+  }
+
+  async findMany(filter: any): Promise<payTypeDocument[]> {
+    return this.repository.findMany(filter);
+  }
+
+  async update(id: string, dto: UpdatePayTypeDto): Promise<payTypeDocument> {
+    const updated = await this.repository.updateById(id, dto as any);
+    if (!updated) {
+      throw new NotFoundException(`Pay Type with ID ${id} not found`);
+    }
+    return updated;
+  }
+
+  async updateWithoutStatus(
+    id: string,
+    dto: UpdatePayTypeDto,
+  ): Promise<payTypeDocument> {
+    const { status, approvedBy, approvedAt, ...updateData } = dto as any;
+    const updated = await this.repository.updateById(id, updateData);
+    if (!updated) {
+      throw new NotFoundException(`Pay Type with ID ${id} not found`);
+    }
+    return updated;
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusDto: UpdateStatusDto,
+    approverId: string,
+  ): Promise<payTypeDocument> {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
+      throw new NotFoundException(`Pay Type with ID ${id} not found`);
+    }
+    if (entity.createdBy?.toString() === approverId) {
+      throw new ForbiddenException('Cannot approve your own configuration');
+    }
+    const updateData: any = { status: updateStatusDto.status };
+    if (updateStatusDto.status === ConfigStatus.APPROVED) {
+      updateData.approvedBy = approverId;
+      updateData.approvedAt = new Date();
+    }
+    const updated = await this.repository.updateById(id, updateData);
+    if (!updated) {
+      throw new NotFoundException(`Pay Type with ID ${id} not found`);
+    }
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    const deleted = await this.repository.deleteById(id);
+    if (!deleted) {
+      throw new NotFoundException(`Pay Type with ID ${id} not found`);
+    }
+  }
+}

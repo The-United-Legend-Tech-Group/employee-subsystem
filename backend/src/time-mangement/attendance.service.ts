@@ -340,11 +340,9 @@ export class AttendanceService {
         employeeId: dto.employeeId,
         punches: [punch],
         totalWorkMinutes: penaltyDeduction > 0 ? -penaltyDeduction : 0,
-        hasMissedPunch:
-          punch.type === PunchType.OUT ||
-          (penaltyInfo && penaltyInfo.isLate) ||
-          isLateByShift ||
-          false,
+          // Only treat initial OUT as a missed punch on record creation.
+          // Lateness (penalties/isLateByShift) does not indicate a missing IN/OUT pair.
+          hasMissedPunch: punch.type === PunchType.OUT,
         exceptionIds: [],
         finalisedForPayroll: false,
       };
@@ -508,8 +506,10 @@ export class AttendanceService {
           message: `A missed punch was recorded for ${new Date(
             (result as any).punches?.[0]?.time || Date.now(),
           ).toDateString()}. Please submit a correction if needed.`,
-          relatedEntityId: (result as any)._id?.toString?.(),
-          relatedModule: 'Time',
+              // Do not treat lateness as a missed punch when creating a new record.
+              // A missed punch means an unmatched IN/OUT pair (e.g. starting the day
+              // with an OUT). Lateness should be handled separately (penalties/events).
+              hasMissedPunch: punch.type === PunchType.OUT,
         } as any;
         void this.notificationService.create(notif2);
       }

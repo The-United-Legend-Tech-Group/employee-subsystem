@@ -502,8 +502,8 @@ describe('AttendanceService - Punch flows', () => {
 
     expect(mockAttendanceRepo.create).toHaveBeenCalled();
     expect(res.punches).toHaveLength(1);
-    // service should mark this as missed/late
-    expect(res.hasMissedPunch).toBe(true);
+    // lateness should NOT be considered a missed punch anymore
+    expect(res.hasMissedPunch).toBe(false);
   });
 
   it('rejects punch on holiday when shift requires pre-approval', async () => {

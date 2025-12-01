@@ -1,13 +1,35 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsDateString,
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
-  MinLength,
   Matches,
+  MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { Types } from 'mongoose';
+import { Gender, MaritalStatus } from '../enums/employee-profile.enums';
+
+class AddressDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  streetAddress?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  country?: string;
+}
 
 export class RegisterCandidateDto {
   @ApiProperty({
@@ -71,6 +93,27 @@ export class RegisterCandidateDto {
   @IsOptional()
   @IsString()
   mobilePhone?: string;
+
+  @ApiPropertyOptional({ enum: Gender, description: 'Gender of the candidate' })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @ApiPropertyOptional({ enum: MaritalStatus, description: 'Marital status of the candidate' })
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus?: MaritalStatus;
+
+  @ApiPropertyOptional({ description: 'Date of birth of the candidate' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: Date;
+
+  @ApiPropertyOptional({ type: AddressDto, description: 'Address of the candidate' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDto)
+  address?: AddressDto;
 
   @ApiPropertyOptional({
     description: 'Department ID the candidate is applying to',

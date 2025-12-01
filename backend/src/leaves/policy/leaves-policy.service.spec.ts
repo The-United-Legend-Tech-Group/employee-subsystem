@@ -4,6 +4,8 @@ import { getModelToken } from '@nestjs/mongoose';
 import { LeavePolicy } from '../models/leave-policy.schema';
 import { LeaveEntitlement } from '../models/leave-entitlement.schema';
 import { LeaveType } from '../models/leave-type.schema';
+import { LeaveAdjustment } from '../models/leave-adjustment.schema';
+import { Calendar } from '../models/calendar.schema';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { UpdateEntitlementDto } from '../dtos/update-entitlement.dto';
 import { CreateLeaveTypeDto } from '../dtos/create-leave-type.dto';
@@ -63,6 +65,22 @@ describe('LeavesPolicyService', () => {
               create: jest.fn().mockResolvedValue(mockLeaveType),
             },
           ),
+        },
+        {
+          provide: getModelToken(LeaveAdjustment.name),
+          useValue: {
+            create: jest.fn(),
+            find: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+          },
+        },
+        {
+          provide: getModelToken(Calendar.name),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
         },
       ],
     }).compile();

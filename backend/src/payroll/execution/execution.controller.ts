@@ -125,4 +125,31 @@ export class ExecutionController {
     const yearNum = year ? parseInt(year, 10) : undefined;
     return this.executionService.processAttendanceForPayroll(monthNum, yearNum);
   }
+
+  @Get('compliance/summary')
+  @ApiOperation({
+    summary: 'Get payroll compliance summary with overtime and exceptions',
+    description:
+      'Provides a high-level compliance summary for payroll verification. For detailed reports, use Analytics endpoints.',
+  })
+  @ApiQuery({
+    name: 'month',
+    required: false,
+    description: 'Target month (0-11, default: current month)',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    description: 'Target year (default: current year)',
+    type: Number,
+  })
+  async getComplianceSummary(
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    const monthNum = month ? parseInt(month, 10) : undefined;
+    const yearNum = year ? parseInt(year, 10) : undefined;
+    return this.executionService.getPayrollComplianceSummary(monthNum, yearNum);
+  }
 }

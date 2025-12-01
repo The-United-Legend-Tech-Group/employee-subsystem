@@ -1,127 +1,96 @@
 import {
+  ConflictException,
   Injectable,
   UnauthorizedException,
-  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/login.dto';
+import { LoginCandidateDto } from './dto/login-candidate.dto';
 import { RegisterCandidateDto } from './dto/register-candidate.dto';
-import { EmployeeProfileRepository } from './repository/employee-profile.repository';
+import { Candidate } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
+import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        private readonly employeeProfileRepository: EmployeeProfileRepository,
-        private readonly candidateRepository: CandidateRepository,
-        private readonly jwtService: JwtService,
-    ) { }
+  constructor(
+    private readonly candidateRepository: CandidateRepository,
+    private readonly employeeProfileRepository: EmployeeProfileRepository,
+    private readonly jwtService: JwtService,
+  ) { }
 
-  async validateUser(email: string, pass: string): Promise<any> {
-    // First, try to find in employee profiles
-    const employee = await this.employeeProfileRepository.findByEmail(email);
-    if (
-      employee &&
-      employee.password &&
-      (await bcrypt.compare(pass, employee.password))
-    ) {
-      const { password, ...result } = employee.toObject();
-      return { ...result, userType: 'employee' };
-    }
+  async register(registerDto: RegisterCandidateDto): Promise<Candidate> {
+    const { personalEmail, nationalId, password, ...rest } = registerDto;
 
-    // If not found or password doesn't match, try candidates
-    const candidate = await this.candidateRepository.findByEmail(email);
-    if (
-      candidate &&
-      candidate.password &&
-      (await bcrypt.compare(pass, candidate.password))
-    ) {
-      const { password, ...result } = candidate.toObject();
-      return { ...result, userType: 'candidate' };
-    }
-
-    return null;
-  }
-
-  async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    const payload = {
-      email: user.personalEmail,
-      sub: user._id,
-      userType: user.userType,
-    };
-    return {
-      access_token: this.jwtService.sign(payload),
-      userType: user.userType,
-      user: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: user.fullName,
-        personalEmail: user.personalEmail,
-        ...(user.userType === 'employee' && {
-          employeeNumber: user.employeeNumber,
-          workEmail: user.workEmail,
-        }),
-        ...(user.userType === 'candidate' && {
-          candidateNumber: user.candidateNumber,
-          status: user.status,
-        }),
-      },
-    };
-  }
-
-  async register(registerDto: RegisterCandidateDto) {
-    // Check if email already exists in candidates
-    const existingCandidate = await this.candidateRepository.findByEmail(
-      registerDto.personalEmail,
-    );
-    if (existingCandidate) {
+    // Check if candidate already exists
+    const existingEmail = await this.candidateRepository.findByEmail(personalEmail);
+    if (existingEmail) {
       throw new ConflictException('Email already registered');
     }
 
-    // Check if email already exists in employee profiles
-    const existingEmployee = await this.employeeProfileRepository.findByEmail(
-      registerDto.personalEmail,
-    );
-    if (existingEmployee) {
-      throw new ConflictException('Email already registered');
-    }
-
-    // Check if national ID already exists
-    const existingNationalId = await this.candidateRepository.findByNationalId(
-      registerDto.nationalId,
-    );
+    const existingNationalId = await this.candidateRepository.findByNationalId(nationalId);
     if (existingNationalId) {
       throw new ConflictException('National ID already registered');
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(registerDto.password, saltRounds);
-
-    // Generate unique candidate number
+    // Generate candidate number
     const candidateNumber = await this.generateCandidateNumber();
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Create candidate
-    const candidateData = {
-      ...registerDto,
+    const newCandidate = await this.candidateRepository.create({
+      ...rest,
+      personalEmail,
+      nationalId,
       password: hashedPassword,
       candidateNumber,
-      fullName:
-        `${registerDto.firstName} ${registerDto.middleName || ''} ${registerDto.lastName}`.trim(),
-      applicationDate: new Date(),
+    });
+
+    const candidateObject = newCandidate.toObject();
+    delete candidateObject.password;
+    return candidateObject;
+  }
+
+  async login(loginDto: LoginCandidateDto): Promise<{ access_token: string; candidateId: string }> {
+    const { email, password } = loginDto;
+
+    const candidate = await this.candidateRepository.findByEmail(email);
+    if (!candidate) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, candidate.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const payload = { sub: candidate._id, email: candidate.personalEmail };
+    return {
+      access_token: this.jwtService.sign(payload),
+      candidateId: candidate._id.toString(),
     };
+  }
 
-    const candidate = await this.candidateRepository.create(candidateData);
+  async employeeLogin(loginDto: LoginCandidateDto): Promise<{ access_token: string; employeeId: string }> {
+    const { email, password } = loginDto;
 
-    // Return candidate without password
-    const { password, ...result } = candidate.toObject();
-    return result;
+    const employee = await this.employeeProfileRepository.findByEmail(email);
+    if (!employee) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, employee.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const payload = { sub: employee._id, email: employee.personalEmail };
+    return {
+      access_token: this.jwtService.sign(payload),
+      employeeId: employee._id.toString(),
+    };
   }
 
   private async generateCandidateNumber(): Promise<string> {

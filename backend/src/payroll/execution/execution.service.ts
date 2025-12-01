@@ -251,4 +251,85 @@ export class ExecutionService {
       message: 'Payroll cutoff set and escalation check triggered',
     };
   }
+
+  /**
+   * Get payroll compliance summary including overtime and exceptions
+   * This integrates with analytics for comprehensive payroll verification
+   *
+   * NOTE: For detailed reports, use the Analytics module endpoints:
+   * - GET /analytics/overtime-report
+   * - GET /analytics/exception-report
+   * - GET /analytics/compliance-summary
+   */
+  async getPayrollComplianceSummary(month?: number, year?: number) {
+    const now = new Date();
+    const targetMonth = month !== undefined ? month : now.getMonth();
+    const targetYear = year !== undefined ? year : now.getFullYear();
+
+    // Get attendance data
+    const attendanceData = await this.getAttendanceDataForPayroll(
+      targetMonth,
+      targetYear,
+    );
+
+    // Get escalation/correction status
+    const unreviewed = await this.getUnreviewedCorrectionsForPayroll();
+
+    // Calculate summary statistics
+    const totalEmployees = attendanceData.length;
+    const employeesWithExceptions = attendanceData.filter(
+      (emp) => emp.requiresReview,
+    ).length;
+
+    const totalMissedPunches = attendanceData.reduce(
+      (sum, emp) => sum + emp.attendance.daysWithMissedPunch,
+      0,
+    );
+
+    // Calculate potential overtime (hours beyond standard)
+    const standardMonthlyHours = 160;
+    const overtimeEmployees = attendanceData.filter(
+      (emp) => emp.attendance.totalWorkedHours > standardMonthlyHours,
+    );
+
+    const totalOvertimeHours = overtimeEmployees.reduce(
+      (sum, emp) =>
+        sum + (emp.attendance.totalWorkedHours - standardMonthlyHours),
+      0,
+    );
+
+    return {
+      period: {
+        month: targetMonth + 1,
+        year: targetYear,
+      },
+      generatedAt: new Date(),
+      summary: {
+        totalEmployees,
+        employeesWithExceptions,
+        employeesWithOvertimePotential: overtimeEmployees.length,
+        totalOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
+        totalMissedPunches,
+        unreviewedCorrectionRequests: unreviewed.unreviewedRequests.length,
+      },
+      complianceStatus: {
+        readyForPayroll: unreviewed.unreviewedRequests.length === 0,
+        warnings:
+          unreviewed.unreviewedRequests.length > 0
+            ? [
+                `${unreviewed.unreviewedRequests.length} unreviewed correction requests`,
+              ]
+            : [],
+        recommendations: [
+          employeesWithExceptions > 0
+            ? `Review ${employeesWithExceptions} employees with attendance exceptions`
+            : null,
+          overtimeEmployees.length > 0
+            ? `Verify ${overtimeEmployees.length} employees with potential overtime`
+            : null,
+        ].filter(Boolean),
+      },
+      note: 'For detailed overtime and exception reports, use Analytics endpoints: GET /analytics/overtime-report, GET /analytics/exception-report',
+    };
+  }
 }

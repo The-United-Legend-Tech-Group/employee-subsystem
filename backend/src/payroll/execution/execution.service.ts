@@ -1,19 +1,41 @@
-import { Injectable } from '@nestjs/common';
-import { CreateExecutionDto } from './dto/create-execution.dto';
-import { UpdateExecutionDto } from './dto/update-execution.dto';
-import { AttendanceService } from '../../time-mangement/services/attendance.service';
-import { EscalationService } from '../../time-mangement/services/escalation.service';
-import { NotificationService } from '../../employee-subsystem/notification/notification.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { PublishPayrollDto } from './dto/publish-payroll.dto';
+import { ApprovePayrollManagerDto } from './dto/approve-payroll-manager.dto';
+import { RejectPayrollDto } from './dto/reject-payroll.dto';
+import { ApprovePayrollFinanceDto } from './dto/approve-payroll-finance.dto';
+import { FreezePayrollDto } from './dto/freeze-payroll.dto';
+import { UnfreezePayrollDto } from './dto/unfreeze-payroll.dto';
+import { GeneratePayslipsDto } from './dto/generate-payslips.dto';
+import { payrollRuns } from './models/payrollRuns.schema';
+import { paySlip } from './models/payslip.schema';
+import {
+  PayRollStatus,
+  PayRollPaymentStatus,
+  PaySlipPaymentStatus,
+} from './enums/payroll-execution-enum';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class ExecutionService {
+  private readonly logger = new Logger(ExecutionService.name);
+
   constructor(
-    private readonly attendanceService: AttendanceService,
-    private readonly escalationService: EscalationService,
-    private readonly notificationService: NotificationService,
+    @InjectModel(payrollRuns.name)
+    private readonly payrollRunsModel: Model<payrollRuns>,
+    @InjectModel(paySlip.name)
+    private readonly paySlipModel: Model<paySlip>,
+    private readonly emailService: EmailService,
   ) {}
 
-  create(_createExecutionDto: CreateExecutionDto) {
+  // Placeholder methods - to be implemented for other phases
+  create() {
     return 'This action adds a new execution';
   }
 
@@ -25,7 +47,7 @@ export class ExecutionService {
     return `This action returns a #${id} execution`;
   }
 
-  update(id: number, _updateExecutionDto: UpdateExecutionDto) {
+  update(id: number) {
     return `This action updates a #${id} execution`;
   }
 
@@ -33,303 +55,344 @@ export class ExecutionService {
     return `This action removes a #${id} execution`;
   }
 
+  // ==================== PHASE 3: REVIEW & APPROVAL ====================
+
   /**
-   * Get attendance data from Time Management for payroll processing
-   * This method receives worked hours data to apply deductions or bonuses
+   * REQ-PY-6: Payroll Specialist reviews payroll in preview dashboard
+   * Gets all payroll runs with UNDER_REVIEW status for preview
    */
-  async getAttendanceDataForPayroll(month?: number, year?: number) {
-    // Get attendance data from Time Management subsystem
-    const attendanceData =
-      await this.attendanceService.syncAttendanceToPayrollForCurrentMonth(
-        month,
-        year,
-      );
-
-    // Process the attendance data for payroll
-    // attendanceData contains:
-    // - employeeId
-    // - period: { month, year, startDate, endDate }
-    // - attendance: { totalWorkedMinutes, totalWorkedHours, daysPresent, daysWithMissedPunch, averageMinutesPerDay }
-    // - requiresReview: boolean
-    // - records: array of daily records
-
-    console.log(
-      `Payroll: Received attendance data for ${attendanceData.length} employees`,
-    );
-
-    return attendanceData;
+  async getPayrollsForReview(): Promise<payrollRuns[]> {
+    return await this.payrollRunsModel
+      .find({ status: PayRollStatus.UNDER_REVIEW })
+      .populate('payrollSpecialistId payrollManagerId financeStaffId')
+      .exec();
   }
 
   /**
-   * Get attendance data for a specific employee for payroll processing
+   * REQ-PY-6: Get detailed preview of a specific payroll run
    */
-  async getEmployeeAttendanceForPayroll(
-    employeeId: string,
-    month?: number,
-    year?: number,
-  ) {
-    // Get employee-specific attendance data from Time Management
-    const employeeData =
-      await this.attendanceService.syncEmployeeAttendanceToPayroll(
-        employeeId,
-        month,
-        year,
-      );
+  async getPayrollPreview(payrollRunId: string): Promise<any> {
+    const payrollRun = await this.payrollRunsModel
+      .findById(payrollRunId)
+      .populate('payrollSpecialistId payrollManagerId financeStaffId')
+      .exec();
 
-    if (!employeeData) {
-      console.log(
-        `Payroll: No attendance data found for employee ${employeeId}`,
-      );
-      return null;
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
     }
 
-    console.log(
-      `Payroll: Received attendance data for employee ${employeeId}: ${employeeData.attendance.totalWorkedHours} hours`,
-    );
+    // Get all payslips for this payroll run
+    const payslips = await this.paySlipModel
+      .find({ payrollRunId })
+      .populate('employeeId')
+      .exec();
 
-    return employeeData;
+    return {
+      payrollRun,
+      payslips,
+      summary: {
+        totalEmployees: payrollRun.employees,
+        totalExceptions: payrollRun.exceptions,
+        totalNetPay: payrollRun.totalnetpay,
+        status: payrollRun.status,
+        paymentStatus: payrollRun.paymentStatus,
+      },
+    };
   }
 
   /**
-   * Process attendance data to calculate deductions or bonuses
-   * This is where payroll applies business logic based on worked hours
+   * REQ-PY-12: Payroll Specialist publishes payroll for Manager and Finance approval
+   * Changes status from UNDER_REVIEW to UNDER_REVIEW (waiting for manager approval)
    */
-  async processAttendanceForPayroll(
-    month?: number,
-    year?: number,
-  ): Promise<
-    Array<{
-      employeeId: string;
-      workedHours: number;
-      deduction: number;
-      bonus: number;
-      notes: string[];
-    }>
-  > {
-    const attendanceData = await this.getAttendanceDataForPayroll(month, year);
+  async publishPayrollForApproval(
+    publishPayrollDto: PublishPayrollDto,
+  ): Promise<payrollRuns> {
+    const { payrollRunId } = publishPayrollDto;
 
-    // Example processing logic - customize based on your business rules
-    const processedData = attendanceData.map((empData) => {
-      const { employeeId, attendance, requiresReview } = empData;
-      const { totalWorkedHours, daysWithMissedPunch } = attendance;
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
 
-      let deduction = 0;
-      let bonus = 0;
-      const notes: string[] = [];
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
 
-      // Example: Apply deduction for missed punches
-      if (daysWithMissedPunch > 0) {
-        deduction += daysWithMissedPunch * 50; // $50 per missed punch
-        notes.push(`${daysWithMissedPunch} missed punch(es)`);
-      }
+    if (payrollRun.status !== PayRollStatus.UNDER_REVIEW) {
+      throw new BadRequestException(
+        `Payroll run must be in UNDER_REVIEW status to publish. Current status: ${payrollRun.status}`,
+      );
+    }
 
-      // Example: Apply bonus for overtime (assuming standard 160 hours/month)
-      const standardMonthlyHours = 160;
-      if (totalWorkedHours > standardMonthlyHours) {
-        const overtimeHours = totalWorkedHours - standardMonthlyHours;
-        bonus += overtimeHours * 1.5; // 1.5x rate for overtime
-        notes.push(`${overtimeHours.toFixed(2)} overtime hours`);
-      }
+    // Keep status as UNDER_REVIEW, indicating it's ready for manager review
+    // No status change needed, just confirms it's published for approval
+    return payrollRun;
+  }
 
-      if (requiresReview) {
-        notes.push('Requires manual review');
-      }
+  /**
+   * REQ-PY-20 & REQ-PY-22: Payroll Manager reviews and approves payroll
+   * Changes status from UNDER_REVIEW to PENDING_FINANCE_APPROVAL
+   */
+  async approvePayrollByManager(
+    approveDto: ApprovePayrollManagerDto,
+  ): Promise<payrollRuns> {
+    const { payrollRunId, managerId } = approveDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    if (payrollRun.status !== PayRollStatus.UNDER_REVIEW) {
+      throw new BadRequestException(
+        `Payroll run must be in UNDER_REVIEW status. Current status: ${payrollRun.status}`,
+      );
+    }
+
+    // Update to waiting for finance approval
+    payrollRun.status = PayRollStatus.PENDING_FINANCE_APPROVAL;
+    payrollRun.payrollManagerId =
+      managerId as unknown as typeof payrollRun.payrollManagerId;
+    payrollRun.managerApprovalDate = new Date();
+
+    return await payrollRun.save();
+  }
+
+  /**
+   * REQ-PY-20: Payroll Manager or Finance Staff rejects payroll
+   * Changes status to REJECTED and stores rejection reason
+   */
+  async rejectPayroll(rejectDto: RejectPayrollDto): Promise<payrollRuns> {
+    const { payrollRunId, rejectionReason } = rejectDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    if (
+      payrollRun.status !== PayRollStatus.UNDER_REVIEW &&
+      payrollRun.status !== PayRollStatus.PENDING_FINANCE_APPROVAL
+    ) {
+      throw new BadRequestException(
+        `Payroll run cannot be rejected in current status: ${payrollRun.status}`,
+      );
+    }
+
+    payrollRun.status = PayRollStatus.REJECTED;
+    payrollRun.rejectionReason = rejectionReason;
+    payrollRun.paymentStatus = PayRollPaymentStatus.PENDING;
+
+    return await payrollRun.save();
+  }
+
+  /**
+   * REQ-PY-15: Finance Staff approves payroll for disbursement
+   * Changes status to APPROVED and payment status to PAID
+   */
+  async approvePayrollByFinance(
+    approveDto: ApprovePayrollFinanceDto,
+  ): Promise<payrollRuns> {
+    const { payrollRunId, financeStaffId } = approveDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    if (payrollRun.status !== PayRollStatus.PENDING_FINANCE_APPROVAL) {
+      throw new BadRequestException(
+        `Payroll run must be in PENDING_FINANCE_APPROVAL status. Current status: ${payrollRun.status}`,
+      );
+    }
+
+    // Finance approval means payments are approved
+    payrollRun.status = PayRollStatus.APPROVED;
+    payrollRun.financeStaffId =
+      financeStaffId as unknown as typeof payrollRun.financeStaffId;
+    payrollRun.financeApprovalDate = new Date();
+    payrollRun.paymentStatus = PayRollPaymentStatus.PAID;
+
+    return await payrollRun.save();
+  }
+
+  /**
+   * REQ-PY-7: Payroll Manager locks/freezes finalized payroll
+   * Changes status to LOCKED
+   */
+  async freezePayroll(freezeDto: FreezePayrollDto): Promise<payrollRuns> {
+    const { payrollRunId } = freezeDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    if (payrollRun.status !== PayRollStatus.APPROVED) {
+      throw new BadRequestException(
+        `Only approved payroll runs can be locked. Current status: ${payrollRun.status}`,
+      );
+    }
+
+    if (payrollRun.paymentStatus !== PayRollPaymentStatus.PAID) {
+      throw new BadRequestException(
+        'Payroll must be paid before it can be locked',
+      );
+    }
+
+    payrollRun.status = PayRollStatus.LOCKED;
+
+    return await payrollRun.save();
+  }
+
+  /**
+   * REQ-PY-19: Payroll Manager unfreezes payroll with justification
+   * Changes status from LOCKED to UNLOCKED
+   */
+  async unfreezePayroll(unfreezeDto: UnfreezePayrollDto): Promise<payrollRuns> {
+    const { payrollRunId, unlockReason } = unfreezeDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    if (payrollRun.status !== PayRollStatus.LOCKED) {
+      throw new BadRequestException(
+        `Only locked payroll runs can be unlocked. Current status: ${payrollRun.status}`,
+      );
+    }
+
+    payrollRun.status = PayRollStatus.UNLOCKED;
+    payrollRun.unlockReason = unlockReason;
+
+    return await payrollRun.save();
+  }
+
+  // ==================== PHASE 4: PAYSLIP GENERATION ====================
+
+  /**
+   * REQ-PY-8: Automatically generate and distribute payslips
+   * This runs after finance approval and manager lock
+   */
+  async generateAndDistributePayslips(
+    generateDto: GeneratePayslipsDto,
+  ): Promise<any> {
+    const { payrollRunId } = generateDto;
+
+    const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
+
+    if (!payrollRun) {
+      throw new NotFoundException('Payroll run not found');
+    }
+
+    // Can only generate payslips after finance approval (status = PAID)
+    if (payrollRun.paymentStatus !== PayRollPaymentStatus.PAID) {
+      throw new BadRequestException(
+        'Payslips can only be generated after finance approval and payment status is PAID',
+      );
+    }
+
+    // Get all payslips for this payroll run
+    const payslips = await this.paySlipModel
+      .find({ payrollRunId })
+      .populate('employeeId')
+      .exec();
+
+    if (payslips.length === 0) {
+      throw new NotFoundException(
+        'No payslips found for this payroll run. Draft generation may have failed.',
+      );
+    }
+
+    // Update all payslips to PAID status since payment is approved
+    const updatePromises = payslips.map(async (payslip) => {
+      payslip.paymentStatus = PaySlipPaymentStatus.PAID;
+      return await payslip.save();
+    });
+
+    await Promise.all(updatePromises);
+
+    // Send payslip emails to all employees
+    this.logger.log(`Sending payslip emails for payroll run ${payrollRunId}`);
+
+    const emailDataList = payslips.map((ps) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const employee = ps.employeeId as unknown as any;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      const employeeId = String(employee._id?.toString() || '');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const employeeName = employee.firstName
+        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          `${String(employee.firstName)} ${String(employee.lastName)}`
+        : 'Employee';
+      const employeeEmail =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        String(employee.workEmail || employee.personalEmail || '');
 
       return {
         employeeId,
-        workedHours: totalWorkedHours,
-        deduction,
-        bonus,
-        notes,
+        employeeName,
+        employeeEmail,
+        payrollRunId: payrollRunId,
+        netPay: ps.netPay,
+        payPeriod: payrollRun.payrollPeriod,
+        payslipData: ps,
       };
     });
 
-    console.log(
-      `Payroll: Processed attendance data for ${processedData.length} employees`,
-    );
+    // Send emails in batch
+    const emailResults =
+      await this.emailService.sendBatchPayslipEmails(emailDataList);
 
-    return processedData;
-  }
-
-  /**
-   * Get unreviewed attendance corrections before payroll cutoff
-   * Receives escalation data from Time Management to alert HR
-   */
-  async getUnreviewedCorrectionsForPayroll() {
-    // Get escalation statistics from Time Management
-    const escalationStats = await this.escalationService.getEscalationStats();
-
-    // Get list of requests needing escalation
-    const needsEscalation =
-      await this.escalationService.getRequestsNeedingEscalation();
-
-    console.log(
-      `Payroll: Found ${needsEscalation.length} unreviewed correction requests`,
+    this.logger.log(
+      `Email distribution complete: ${emailResults.successful} successful, ${emailResults.failed} failed`,
     );
 
     return {
-      stats: escalationStats,
-      unreviewedRequests: needsEscalation,
-      warning:
-        needsEscalation.length > 0
-          ? 'Unreviewed correction requests may impact payroll accuracy'
-          : null,
+      message: 'Payslips generated and distributed',
+      payrollRunId,
+      totalPayslips: payslips.length,
+      emailDistribution: {
+        successful: emailResults.successful,
+        failed: emailResults.failed,
+      },
+      payslips: payslips.map((ps) => ({
+        employeeId: ps.employeeId,
+        netPay: ps.netPay,
+        paymentStatus: ps.paymentStatus,
+      })),
     };
   }
 
   /**
-   * Check escalations before processing payroll
-   * Called by payroll to ensure all corrections are reviewed
+   * Get payslip for a specific employee in a payroll run
    */
-  async checkEscalationsBeforePayroll(month: number, year: number) {
-    // Trigger escalation check
-    const escalationResult = await this.escalationService.checkForEscalations();
+  async getEmployeePayslip(
+    payrollRunId: string,
+    employeeId: string,
+  ): Promise<paySlip> {
+    const payslip = await this.paySlipModel
+      .findOne({ payrollRunId, employeeId })
+      .populate('employeeId')
+      .exec();
 
-    // Get remaining unreviewed
-    const unreviewed = await this.getUnreviewedCorrectionsForPayroll();
-
-    console.log(
-      `Payroll: Pre-payroll escalation check for ${month + 1}/${year}`,
-    );
-    console.log(`- Checked: ${escalationResult?.checked || 0} requests`);
-    console.log(`- Escalated: ${escalationResult?.escalated || 0} requests`);
-    console.log(`- Still pending: ${unreviewed.stats.pending} requests`);
-
-    // Send notification if there are unreviewed requests blocking payroll
-    if (unreviewed.unreviewedRequests.length > 0) {
-      try {
-        // Notify HR/Payroll managers about pending corrections
-        await this.notificationService.create({
-          recipientId: [], // Empty array means broadcast or add specific HR role
-          type: 'Warning',
-          deliveryType: 'BROADCAST',
-          title: 'Unreviewed Corrections Before Payroll',
-          message: `${unreviewed.unreviewedRequests.length} attendance correction requests are pending review before payroll processing for ${month + 1}/${year}. Please review immediately.`,
-          relatedModule: 'Payroll',
-        } as any);
-
-        console.log('[Payroll] Notification sent about unreviewed corrections');
-      } catch (notifError) {
-        console.error('[Payroll] Failed to send notification:', notifError);
-      }
+    if (!payslip) {
+      throw new NotFoundException('Payslip not found for this employee');
     }
 
-    return {
-      period: { month: month + 1, year },
-      escalationCheck: escalationResult,
-      unreviewed,
-      canProcessPayroll: unreviewed.unreviewedRequests.length === 0,
-      recommendation:
-        unreviewed.unreviewedRequests.length > 0
-          ? 'Review pending corrections before processing payroll'
-          : 'All corrections reviewed - safe to process payroll',
-    };
+    return payslip;
   }
 
   /**
-   * Set payroll cutoff date and trigger advance escalations
+   * Get all payslips for a payroll run (for manager/specialist review)
    */
-  async setPayrollCutoff(month: number, year: number, cutoffDate: Date) {
-    // Set cutoff in Time Management
-    const result = await this.escalationService.setPayrollCutoffForPeriod(
-      year,
-      month,
-      cutoffDate,
-    );
-
-    // Immediately check for escalations
-    await this.escalationService.checkForEscalations();
-
-    console.log(
-      `Payroll: Cutoff set for ${month + 1}/${year} at ${cutoffDate.toISOString()}`,
-    );
-
-    return {
-      period: { month: month + 1, year },
-      cutoffDate,
-      requestsAffected: result.updated,
-      message: 'Payroll cutoff set and escalation check triggered',
-    };
-  }
-
-  /**
-   * Get payroll compliance summary including overtime and exceptions
-   * This integrates with analytics for comprehensive payroll verification
-   *
-   * NOTE: For detailed reports, use the Analytics module endpoints:
-   * - GET /analytics/overtime-report
-   * - GET /analytics/exception-report
-   * - GET /analytics/compliance-summary
-   */
-  async getPayrollComplianceSummary(month?: number, year?: number) {
-    const now = new Date();
-    const targetMonth = month !== undefined ? month : now.getMonth();
-    const targetYear = year !== undefined ? year : now.getFullYear();
-
-    // Get attendance data
-    const attendanceData = await this.getAttendanceDataForPayroll(
-      targetMonth,
-      targetYear,
-    );
-
-    // Get escalation/correction status
-    const unreviewed = await this.getUnreviewedCorrectionsForPayroll();
-
-    // Calculate summary statistics
-    const totalEmployees = attendanceData.length;
-    const employeesWithExceptions = attendanceData.filter(
-      (emp) => emp.requiresReview,
-    ).length;
-
-    const totalMissedPunches = attendanceData.reduce(
-      (sum, emp) => sum + emp.attendance.daysWithMissedPunch,
-      0,
-    );
-
-    // Calculate potential overtime (hours beyond standard)
-    const standardMonthlyHours = 160;
-    const overtimeEmployees = attendanceData.filter(
-      (emp) => emp.attendance.totalWorkedHours > standardMonthlyHours,
-    );
-
-    const totalOvertimeHours = overtimeEmployees.reduce(
-      (sum, emp) =>
-        sum + (emp.attendance.totalWorkedHours - standardMonthlyHours),
-      0,
-    );
-
-    return {
-      period: {
-        month: targetMonth + 1,
-        year: targetYear,
-      },
-      generatedAt: new Date(),
-      summary: {
-        totalEmployees,
-        employeesWithExceptions,
-        employeesWithOvertimePotential: overtimeEmployees.length,
-        totalOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
-        totalMissedPunches,
-        unreviewedCorrectionRequests: unreviewed.unreviewedRequests.length,
-      },
-      complianceStatus: {
-        readyForPayroll: unreviewed.unreviewedRequests.length === 0,
-        warnings:
-          unreviewed.unreviewedRequests.length > 0
-            ? [
-                `${unreviewed.unreviewedRequests.length} unreviewed correction requests`,
-              ]
-            : [],
-        recommendations: [
-          employeesWithExceptions > 0
-            ? `Review ${employeesWithExceptions} employees with attendance exceptions`
-            : null,
-          overtimeEmployees.length > 0
-            ? `Verify ${overtimeEmployees.length} employees with potential overtime`
-            : null,
-        ].filter(Boolean),
-      },
-      note: 'For detailed overtime and exception reports, use Analytics endpoints: GET /analytics/overtime-report, GET /analytics/exception-report',
-    };
+  async getAllPayslipsForRun(payrollRunId: string): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({ payrollRunId })
+      .populate('employeeId')
+      .exec();
   }
 }

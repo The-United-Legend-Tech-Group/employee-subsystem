@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import { JobRequisitionDocument, JobRequisition } from '../../models/job-requisition.schema';
 import { IJobRequisitionRepository } from '../interfaces/job-requisition.repository.interface';
@@ -14,7 +14,7 @@ export class JobRequisitionRepository extends BaseRepository<JobRequisitionDocum
   }
 
   async findByJobTemplateId(jobTemplateId: string): Promise<JobRequisitionDocument[]> {
-    return this.jobRequisitionModel.find({ jobTemplateId }).exec();
+    return this.jobRequisitionModel.find({ jobTemplateId: new Types.ObjectId(jobTemplateId) }).exec();
   }
 
   async findByStatus(status: string): Promise<JobRequisitionDocument[]> {
@@ -22,7 +22,7 @@ export class JobRequisitionRepository extends BaseRepository<JobRequisitionDocum
   }
 
   async findByHiringManager(hiringManagerId: string): Promise<JobRequisitionDocument[]> {
-    return this.jobRequisitionModel.find({ hiringManagerId }).exec();
+    return this.jobRequisitionModel.find({ hiringManagerId: new Types.ObjectId(hiringManagerId) }).exec();
   }
 
   async findActive(): Promise<JobRequisitionDocument[]> {

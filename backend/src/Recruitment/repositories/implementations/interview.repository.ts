@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ApplicationStage } from '../../enums/application-stage.enum';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import { InterviewDocument, Interview } from '../../models/interview.schema';
@@ -15,11 +15,11 @@ export class InterviewRepository extends BaseRepository<InterviewDocument> imple
   }
 
   async findByApplicationId(applicationId: string): Promise<InterviewDocument[]> {
-    return this.interviewModel.find({ applicationId }).exec();
+    return this.interviewModel.find({ applicationId: new Types.ObjectId(applicationId) }).exec();
   }
 
   async findByInterviewerId(interviewerId: string): Promise<InterviewDocument[]> {
-    return this.interviewModel.find({ interviewerId }).exec();
+    return this.interviewModel.find({ interviewerId: new Types.ObjectId(interviewerId) }).exec();
   }
 
   async findByStatus(status: string): Promise<InterviewDocument[]> {
@@ -34,7 +34,7 @@ export class InterviewRepository extends BaseRepository<InterviewDocument> imple
 
   async findByApplicationAndStage(applicationId: string, stage: ApplicationStage): Promise<InterviewDocument | null> {
     return this.interviewModel.findOne({
-      applicationId: applicationId,
+      applicationId: new Types.ObjectId(applicationId),
       stage: stage
     }).exec();
   }

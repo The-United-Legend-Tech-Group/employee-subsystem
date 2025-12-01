@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import { ReferralDocument, Referral } from '../../models/referral.schema';
 import { IReferralRepository } from '../interfaces/referral.repository.interface';
@@ -14,11 +14,11 @@ export class ReferralRepository extends BaseRepository<ReferralDocument> impleme
   }
 
   async findByReferrerId(referrerId: string): Promise<ReferralDocument[]> {
-    return this.referralModel.find({ referrerId }).exec();
+    return this.referralModel.find({ referrerId: new Types.ObjectId(referrerId) }).exec();
   }
 
   async findByApplicationId(applicationId: string): Promise<ReferralDocument[]> {
-    return this.referralModel.find({ applicationId }).exec();
+    return this.referralModel.find({ applicationId: new Types.ObjectId(applicationId) }).exec();
   }
 
   async findByStatus(status: string): Promise<ReferralDocument[]> {
@@ -26,10 +26,10 @@ export class ReferralRepository extends BaseRepository<ReferralDocument> impleme
   }
 
   async findByCandidateId(candidateId: string): Promise<ReferralDocument[]> {
-    return this.referralModel.find({ candidateId }).exec();
+    return this.referralModel.find({ candidateId: new Types.ObjectId(candidateId) }).exec();
   }
 
   async findByReferringEmployee(employeeId: string): Promise<ReferralDocument[]> {
-    return this.referralModel.find({ referringEmployeeId: employeeId }).exec();
+    return this.referralModel.find({ referringEmployeeId: new Types.ObjectId(employeeId) }).exec();
   }
 }

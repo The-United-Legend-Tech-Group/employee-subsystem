@@ -3,17 +3,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { InterviewMethod } from '../enums/interview-method.enum';
 import { InterviewStatus } from '../enums/interview-status.enum';
-import { ApplicationStage } from '../enums/application-stage.enum';
 
 export class UpdateInterviewDto {
-  @ApiPropertyOptional({
-    description: 'Application MongoDB ObjectId for which the interview is being updated. Must be a valid existing application.',
-    example: '507f1f77bcf86cd799439011',
-    type: 'string'
-  })
-  @IsOptional()
-  @IsMongoId()
-  applicationId?: string;
+
 
   @ApiPropertyOptional({
     description: 'HR ID of the person updating the interview',
@@ -24,15 +16,7 @@ export class UpdateInterviewDto {
   @IsMongoId()
   hrId?: string;
 
-  @ApiPropertyOptional({
-    enum: ApplicationStage,
-    description: 'Interview stage (hr_interview, department_interview)',
-    example: ApplicationStage.HR_INTERVIEW,
-    enumName: 'ApplicationStage'
-  })
-  @IsOptional()
-  @IsEnum(ApplicationStage)
-  stage?: ApplicationStage;
+
 
   @ApiPropertyOptional({
     description: 'Scheduled date and time for the interview',

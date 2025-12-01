@@ -16,7 +16,7 @@ import { NotificationService } from '../../notification/notification.service';
 
 describe('Attendance Integration', () => {
     let appraisalRecordService: AppraisalRecordService;
-    let attendanceService: AttendanceService;
+
     let mockAppraisalRecordRepo: any;
     let mockAppraisalCycleRepo: any;
     let mockAttendanceRepo: any;
@@ -44,7 +44,7 @@ describe('Attendance Integration', () => {
         }).compile();
 
         appraisalRecordService = module.get<AppraisalRecordService>(AppraisalRecordService);
-        attendanceService = module.get<AttendanceService>(AttendanceService);
+
     });
 
     it('should fetch attendance summary when getting appraisal record', async () => {

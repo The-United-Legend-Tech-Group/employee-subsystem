@@ -22,6 +22,9 @@ import { MaritalStatus, SystemRole, EmployeeStatus, ProfileChangeStatus } from '
 import { EmployeeSystemRoleRepository } from './repository/employee-system-role.repository';
 import { EmployeeProfileChangeRequestRepository } from './repository/ep-change-request.repository';
 import { PositionAssignmentRepository } from '../organization-structure/repository/position-assignment.repository';
+import { Candidate } from './models/candidate.schema';
+import { CandidateRepository } from './repository/candidate.repository';
+import { UpdateCandidateStatusDto } from './dto/update-candidate-status.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -35,6 +38,7 @@ export class EmployeeService {
     private readonly employeeProfileChangeRequestRepository: EmployeeProfileChangeRequestRepository,
     private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
     private readonly positionAssignmentRepository: PositionAssignmentRepository,
+    private readonly candidateRepository: CandidateRepository,
   ) { }
 
   async onboard(
@@ -428,5 +432,22 @@ export class EmployeeService {
         appraisalHistory,
       },
     };
+  }
+
+  async updateCandidateStatus(candidateId: string, updateCandidateStatusDto: UpdateCandidateStatusDto): Promise<Candidate> {
+    const candidate = await this.candidateRepository.findById(candidateId);
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${candidateId} not found`);
+    }
+
+    const { status } = updateCandidateStatusDto;
+
+    const updatedCandidate = await this.candidateRepository.updateById(candidateId, { status });
+
+    if (!updatedCandidate) {
+      throw new NotFoundException(`Candidate with ID ${candidateId} not found during update`);
+    }
+
+    return updatedCandidate;
   }
 }

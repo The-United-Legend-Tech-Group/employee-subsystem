@@ -7,6 +7,8 @@ import {
     AppraisalTemplateType,
     AppraisalRatingScaleType,
 } from '../enums/performance.enums';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalTemplateController', () => {
     let controller: AppraisalTemplateController;
@@ -29,7 +31,12 @@ describe('AppraisalTemplateController', () => {
                     useValue: mockService,
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .overrideGuard(authorizationGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<AppraisalTemplateController>(
             AppraisalTemplateController,

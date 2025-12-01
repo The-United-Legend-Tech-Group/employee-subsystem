@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { Department, DepartmentSchema } from './models/department.schema';
 import { Position, PositionSchema } from './models/position.schema';
 import { StructureChangeRequest, StructureChangeRequestSchema, } from './models/structure-change-request.schema';
@@ -7,6 +9,7 @@ import { StructureApproval, StructureApprovalSchema } from './models/structure-a
 import { StructureChangeLog, StructureChangeLogSchema } from './models/structure-change-log.schema';
 import { PositionAssignment, PositionAssignmentSchema } from './models/position-assignment.schema';
 import { EmployeeProfile, EmployeeProfileSchema } from '../employee/models/employee-profile.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee/models/employee-system-role.schema';
 import { Notification, NotificationSchema } from '../notification/models/notification.schema';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationRepository } from '../notification/repository/notification.repository';
@@ -27,7 +30,17 @@ import { PositionAssignmentRepository } from './repository/position-assignment.r
       { name: PositionAssignment.name, schema: PositionAssignmentSchema },
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: Notification.name, schema: NotificationSchema },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
     ]),
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [OrganizationStructureController],
   providers: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository, PositionAssignmentRepository],

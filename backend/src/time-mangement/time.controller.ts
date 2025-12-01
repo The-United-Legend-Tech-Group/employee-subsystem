@@ -20,9 +20,9 @@ import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correctio
 import { ApproveAttendanceCorrectionDto } from './dto/approve-attendance-correction.dto';
 import { SubmitCorrectionEssDto } from './dto/submit-correction-ess.dto';
 import { ApproveRejectCorrectionDto } from './dto/approve-reject-correction.dto';
-import { ShiftService } from './shift.service';
-import { ShiftAssignmentService } from './shift-assignment.service';
-import { AttendanceService } from './attendance.service';
+import { ShiftService } from './services/shift.service';
+import { ShiftAssignmentService } from './services/shift-assignment.service';
+import { AttendanceService } from './services/attendance.service';
 
 @ApiTags('time')
 @Controller('time')
@@ -170,7 +170,9 @@ export class TimeController {
   @ApiOperation({
     summary: 'Get pending corrections for a line manager to review',
   })
-  getPendingCorrectionsForManager(@Param('lineManagerId') lineManagerId: string) {
+  getPendingCorrectionsForManager(
+    @Param('lineManagerId') lineManagerId: string,
+  ) {
     return this.attendanceService.getPendingCorrectionsForManager(
       lineManagerId,
     );

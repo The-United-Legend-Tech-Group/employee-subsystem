@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { AppraisalRecord, AppraisalRecordSchema, } from './models/appraisal-record.schema';
 import { AppraisalCycle, AppraisalCycleSchema, } from './models/appraisal-cycle.schema';
 import { AppraisalTemplate, AppraisalTemplateSchema, } from './models/appraisal-template.schema';
 import { AppraisalAssignment, AppraisalAssignmentSchema, } from './models/appraisal-assignment.schema';
 import { AppraisalDispute, AppraisalDisputeSchema, } from './models/appraisal-dispute.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee/models/employee-system-role.schema';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
 import { AppraisalCycleService } from './appraisal-cycle.service';
 import { AppraisalCycleController } from './appraisal-cycle.controller';
@@ -36,11 +39,21 @@ import { TimeMangementModule } from '../../time-mangement/timemangment.module';
       { name: AppraisalTemplate.name, schema: AppraisalTemplateSchema },
       { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
       { name: AppraisalDispute.name, schema: AppraisalDisputeSchema },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
     ]),
     OrganizationStructureModule,
     NotificationModule,
     EmployeeModule,
     TimeMangementModule,
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [
     AppraisalCycleController,

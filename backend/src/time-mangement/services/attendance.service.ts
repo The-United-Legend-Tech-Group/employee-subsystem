@@ -3,17 +3,17 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { AttendanceRepository } from './repository/attendance.repository';
-import { PunchType, PunchPolicy, HolidayType } from './models/enums/index';
-import { PunchDto } from './dto/punch.dto';
-import { CreateAttendanceCorrectionDto } from './dto/create-attendance-correction.dto';
-import { SubmitCorrectionEssDto } from './dto/submit-correction-ess.dto';
-import { ApproveRejectCorrectionDto } from './dto/approve-reject-correction.dto';
-import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
-import { HolidayRepository } from './repository/holiday.repository';
-import { ApprovalWorkflowService } from './services/approval-workflow.service';
-import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
-import { ShiftRepository } from './repository/shift.repository';
+import { AttendanceRepository } from '../repository/attendance.repository';
+import { PunchType, PunchPolicy, HolidayType } from '../models/enums/index';
+import { PunchDto } from '../dto/punch.dto';
+import { CreateAttendanceCorrectionDto } from '../dto/create-attendance-correction.dto';
+import { SubmitCorrectionEssDto } from '../dto/submit-correction-ess.dto';
+import { ApproveRejectCorrectionDto } from '../dto/approve-reject-correction.dto';
+import { AttendanceCorrectionRepository } from '../repository/attendance-correction.repository';
+import { HolidayRepository } from '../repository/holiday.repository';
+import { ApprovalWorkflowService } from '../services/approval-workflow.service';
+import { ShiftAssignmentRepository } from '../repository/shift-assignment.repository';
+import { ShiftRepository } from '../repository/shift.repository';
 // note: no cross-repo injections needed here; keep attendance service focused
 
 interface PenaltyInfo {
@@ -32,7 +32,7 @@ export class AttendanceService {
     private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
     private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
-  ) { }
+  ) {}
 
   private calculatePenalty(
     checkInTime: Date,
@@ -362,7 +362,7 @@ export class AttendanceService {
     let finalPunches: any[] = punches;
 
     if (policy === PunchPolicy.MULTIPLE) {
-      for (let i = 0; i < punches.length;) {
+      for (let i = 0; i < punches.length; ) {
         const current = punches[i];
         if (current.type === PunchType.IN) {
           if (i + 1 < punches.length && punches[i + 1].type === PunchType.OUT) {
@@ -515,7 +515,8 @@ export class AttendanceService {
     return d;
   }
 
-  async getAttendanceSummary( //Performance Integration
+  async getAttendanceSummary(
+    //Performance Integration
     employeeId: string,
     startDate: Date,
     endDate: Date,
@@ -864,5 +865,219 @@ export class AttendanceService {
       throw new Error('ApprovalWorkflowService not available');
 
     return this.approvalWorkflowService.getApprovedForPayroll();
+  }
+
+  /**
+   * Sync attendance data to payroll for current month
+   * Calculates total worked hours per employee for payroll processing
+   * Returns data ready for payroll system to apply deductions/bonuses
+   *
+   * INTEGRATION NOTE:
+   * This method is called directly by PayrollModule's ExecutionService.
+   * The output feeds into payroll's getAttendanceDataForPayroll() method.
+   * No API routes needed - this is a direct module-to-module integration.
+   */
+  async syncAttendanceToPayrollForCurrentMonth(month?: number, year?: number) {
+    if (!this.attendanceRepo)
+      throw new Error('AttendanceRepository not available');
+
+    // Use provided month/year or default to current
+    const now = new Date();
+    const targetMonth = month !== undefined ? month : now.getMonth();
+    const targetYear = year !== undefined ? year : now.getFullYear();
+
+    // Calculate start and end of month
+    const startDate = new Date(targetYear, targetMonth, 1);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(targetYear, targetMonth + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Query all finalised attendance records for the month
+    const records = await this.attendanceRepo.find({
+      date: { $gte: startDate, $lte: endDate },
+      finalisedForPayroll: true,
+    } as any);
+
+    if (!records || !Array.isArray(records)) {
+      return [];
+    }
+
+    // Group records by employee and calculate totals
+    const employeeMap = new Map<
+      string,
+      {
+        employeeId: string;
+        totalWorkedMinutes: number;
+        totalWorkedHours: number;
+        daysPresent: number;
+        daysWithMissedPunch: number;
+        records: any[];
+      }
+    >();
+
+    for (const record of records) {
+      const empId = (record as any).employeeId.toString();
+
+      if (!employeeMap.has(empId)) {
+        employeeMap.set(empId, {
+          employeeId: empId,
+          totalWorkedMinutes: 0,
+          totalWorkedHours: 0,
+          daysPresent: 0,
+          daysWithMissedPunch: 0,
+          records: [],
+        });
+      }
+
+      const empData = employeeMap.get(empId)!;
+      const workMinutes = (record as any).totalWorkMinutes || 0;
+
+      empData.totalWorkedMinutes += workMinutes;
+      empData.daysPresent += 1;
+
+      if ((record as any).hasMissedPunch) {
+        empData.daysWithMissedPunch += 1;
+      }
+
+      empData.records.push({
+        date: (record as any).date,
+        workMinutes,
+        hasMissedPunch: (record as any).hasMissedPunch,
+        punchCount: ((record as any).punches || []).length,
+      });
+    }
+
+    // Convert to payroll-ready format
+    const payrollData = Array.from(employeeMap.values()).map((empData) => {
+      // Convert minutes to hours (rounded to 2 decimals)
+      empData.totalWorkedHours =
+        Math.round((empData.totalWorkedMinutes / 60) * 100) / 100;
+
+      return {
+        employeeId: empData.employeeId,
+        period: {
+          month: targetMonth + 1, // 1-based month for clarity
+          year: targetYear,
+          startDate,
+          endDate,
+        },
+        attendance: {
+          totalWorkedMinutes: empData.totalWorkedMinutes,
+          totalWorkedHours: empData.totalWorkedHours,
+          daysPresent: empData.daysPresent,
+          daysWithMissedPunch: empData.daysWithMissedPunch,
+          averageMinutesPerDay:
+            empData.daysPresent > 0
+              ? Math.round(empData.totalWorkedMinutes / empData.daysPresent)
+              : 0,
+        },
+        // Flag for payroll to determine deductions/bonuses
+        requiresReview: empData.daysWithMissedPunch > 0,
+        records: empData.records,
+      };
+    });
+
+    // Log sync operation
+    console.info('Audit: Attendance synced to payroll', {
+      month: targetMonth + 1,
+      year: targetYear,
+      employeeCount: payrollData.length,
+      totalRecords: records.length,
+      action: 'ATTENDANCE_PAYROLL_SYNC',
+    });
+
+    return payrollData;
+  }
+
+  /**
+   * Sync attendance for a specific employee for current month
+   * Used when payroll needs data for individual employee processing
+   */
+  async syncEmployeeAttendanceToPayroll(
+    employeeId: string,
+    month?: number,
+    year?: number,
+  ) {
+    if (!this.attendanceRepo)
+      throw new Error('AttendanceRepository not available');
+
+    // Use provided month/year or default to current
+    const now = new Date();
+    const targetMonth = month !== undefined ? month : now.getMonth();
+    const targetYear = year !== undefined ? year : now.getFullYear();
+
+    // Calculate start and end of month
+    const startDate = new Date(targetYear, targetMonth, 1);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(targetYear, targetMonth + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Query finalised attendance records for the employee
+    const records = await this.attendanceRepo.find({
+      employeeId,
+      date: { $gte: startDate, $lte: endDate },
+      finalisedForPayroll: true,
+    } as any);
+
+    if (!records || !Array.isArray(records)) {
+      return null;
+    }
+
+    let totalWorkedMinutes = 0;
+    let daysPresent = 0;
+    let daysWithMissedPunch = 0;
+    const recordDetails: any[] = [];
+
+    for (const record of records) {
+      const workMinutes = (record as any).totalWorkMinutes || 0;
+      totalWorkedMinutes += workMinutes;
+      daysPresent += 1;
+
+      if ((record as any).hasMissedPunch) {
+        daysWithMissedPunch += 1;
+      }
+
+      recordDetails.push({
+        date: (record as any).date,
+        workMinutes,
+        hasMissedPunch: (record as any).hasMissedPunch,
+        punchCount: ((record as any).punches || []).length,
+      });
+    }
+
+    // Convert minutes to hours
+    const totalWorkedHours = Math.round((totalWorkedMinutes / 60) * 100) / 100;
+
+    // Log individual sync
+    console.info('Audit: Employee attendance synced to payroll', {
+      employeeId,
+      month: targetMonth + 1,
+      year: targetYear,
+      totalWorkedHours,
+      daysPresent,
+      action: 'EMPLOYEE_ATTENDANCE_SYNC',
+    });
+
+    return {
+      employeeId,
+      period: {
+        month: targetMonth + 1,
+        year: targetYear,
+        startDate,
+        endDate,
+      },
+      attendance: {
+        totalWorkedMinutes,
+        totalWorkedHours,
+        daysPresent,
+        daysWithMissedPunch,
+        averageMinutesPerDay:
+          daysPresent > 0 ? Math.round(totalWorkedMinutes / daysPresent) : 0,
+      },
+      requiresReview: daysWithMissedPunch > 0,
+      records: recordDetails,
+    };
   }
 }

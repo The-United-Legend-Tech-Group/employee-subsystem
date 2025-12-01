@@ -7,10 +7,12 @@ import { UpdateAppraisalRecordDto } from '../dto/update-appraisal-record.dto';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AttendanceService } from '../../../time-mangement/attendance.service';
 import { AppraisalCycleRepository } from '../repository/appraisal-cycle.repository';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalRecordController', () => {
     let controller: AppraisalRecordController;
-    let service: AppraisalRecordService;
+
 
     const mockRecord = {
         _id: 'recordId',
@@ -62,10 +64,15 @@ describe('AppraisalRecordController', () => {
                     useValue: { findOne: jest.fn() },
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .overrideGuard(authorizationGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<AppraisalRecordController>(AppraisalRecordController);
-        service = module.get<AppraisalRecordService>(AppraisalRecordService);
+
     });
 
     it('should be defined', () => {

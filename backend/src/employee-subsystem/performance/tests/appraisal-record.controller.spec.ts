@@ -10,7 +10,7 @@ import { AppraisalCycleRepository } from '../repository/appraisal-cycle.reposito
 
 describe('AppraisalRecordController', () => {
     let controller: AppraisalRecordController;
-    let service: AppraisalRecordService;
+
 
     const mockRecord = {
         _id: 'recordId',
@@ -65,7 +65,7 @@ describe('AppraisalRecordController', () => {
         }).compile();
 
         controller = module.get<AppraisalRecordController>(AppraisalRecordController);
-        service = module.get<AppraisalRecordService>(AppraisalRecordService);
+
     });
 
     it('should be defined', () => {

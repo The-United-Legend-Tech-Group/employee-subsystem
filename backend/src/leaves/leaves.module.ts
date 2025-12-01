@@ -32,6 +32,15 @@ import { LeavesReportService } from './reports/leave-reports.service';
 import { EmployeeModule } from '../employee-subsystem/employee/employee.module';
 import { NotificationModule } from '../employee-subsystem/notification/notification.module';
 import { OrganizationStructureModule } from '../employee-subsystem/organization-structure/organization-structure.module';
+import {
+  LeavePolicyRepository,
+  LeaveEntitlementRepository,
+  LeaveTypeRepository,
+  LeaveAdjustmentRepository,
+  LeaveRequestRepository,
+  CalendarRepository,
+  AttachmentRepository,
+} from './repository';
 
 @Module({
   imports: [
@@ -56,7 +65,18 @@ import { OrganizationStructureModule } from '../employee-subsystem/organization-
     LeavesRequestController,
     LeavesReportController,
   ],
-  providers: [LeavesPolicyService, LeavesRequestService, LeavesReportService],
+  providers: [
+    LeavesPolicyService,
+    LeavesRequestService,
+    LeavesReportService,
+    LeavePolicyRepository,
+    LeaveEntitlementRepository,
+    LeaveTypeRepository,
+    LeaveAdjustmentRepository,
+    LeaveRequestRepository,
+    AttachmentRepository,
+    CalendarRepository,
+  ],
   exports: [MongooseModule],
 })
 export class LeavesModule {}

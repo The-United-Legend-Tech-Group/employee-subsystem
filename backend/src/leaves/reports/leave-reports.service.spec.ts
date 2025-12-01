@@ -5,7 +5,6 @@ import { LeavesReportService } from './leave-reports.service';
 import { LeaveEntitlement } from '../models/leave-entitlement.schema';
 import { LeaveRequest } from '../models/leave-request.schema';
 import { LeaveAdjustment } from '../models/leave-adjustment.schema';
-import { LeavePolicy } from '../models/leave-policy.schema';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { AdjustmentType } from '../enums/adjustment-type.enum';
 import { FilterLeaveHistoryDto } from '../dtos/filter-leave-history.dto';
@@ -48,7 +47,6 @@ describe('LeavesReportService', () => {
         { provide: getModelToken(LeaveEntitlement.name), useValue: leaveEntitlementModel },
         { provide: getModelToken(LeaveRequest.name), useValue: leaveRequestModel },
         { provide: getModelToken(LeaveAdjustment.name), useValue: leaveAdjustmentModel },
-        { provide: getModelToken(LeavePolicy.name), useValue: {} },
       ],
     }).compile();
 

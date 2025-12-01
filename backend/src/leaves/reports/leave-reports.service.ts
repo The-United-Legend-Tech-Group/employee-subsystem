@@ -3,44 +3,27 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import {
-  LeaveEntitlement,
-  LeaveEntitlementDocument,
-} from '../models/leave-entitlement.schema';
-import {
-  LeaveRequest,
-  LeaveRequestDocument,
-} from '../models/leave-request.schema';
-import {
-  LeaveAdjustment,
-  LeaveAdjustmentDocument,
-} from '../models/leave-adjustment.schema';
+import { Types } from 'mongoose';
 import { FilterLeaveHistoryDto } from '../dtos/filter-leave-history.dto';
 import { ManagerFilterTeamDataDto } from '../dtos/manager-filter-team-data.dto';
 import { SubmitPostLeaveDto } from '../dtos/submit-post-leave.dto';
-import {
-  LeavePolicy,
-  LeavePolicyDocument,
-} from '../models/leave-policy.schema';
 import { AccrualMethod } from '../enums/accrual-method.enum';
 import { RoundingRule } from '../enums/rounding-rule.enum';
+import { LeaveStatus } from '../enums/leave-status.enum';
+import {
+  LeaveEntitlementRepository,
+  LeaveRequestRepository,
+  LeaveAdjustmentRepository,
+  LeavePolicyRepository,
+} from '../repository';
 
 @Injectable()
 export class LeavesReportService {
   constructor(
-    @InjectModel(LeaveEntitlement.name)
-    private leaveEntitlementModel: Model<LeaveEntitlementDocument>,
-
-    @InjectModel(LeaveRequest.name)
-    private leaveRequestModel: Model<LeaveRequestDocument>, // ⬅ Required for REQ-032
-
-    @InjectModel(LeaveAdjustment.name)
-    private leaveAdjustmentModel: Model<LeaveAdjustmentDocument>,
-
-    @InjectModel(LeavePolicy.name)
-    private leavePolicyModel: Model<LeavePolicyDocument>,
+    private readonly leaveEntitlementRepository: LeaveEntitlementRepository,
+    private readonly leaveRequestRepository: LeaveRequestRepository,
+    private readonly leaveAdjustmentRepository: LeaveAdjustmentRepository,
+    private readonly leavePolicyRepository: LeavePolicyRepository,
   ) {}
 
   // =============================
@@ -48,9 +31,7 @@ export class LeavesReportService {
   // =============================
 
   async getEmployeeLeaveBalances(employeeId: string) {
-    const entitlements = await this.leaveEntitlementModel.find({
-      employeeId: new Types.ObjectId(employeeId),
-    });
+    const entitlements = await this.leaveEntitlementRepository.findByEmployeeId(employeeId);
 
     return entitlements.map((entitlement) => ({
       leaveTypeId: entitlement.leaveTypeId,
@@ -73,10 +54,7 @@ export class LeavesReportService {
     employeeId: string,
     leaveTypeId: string,
   ) {
-    const entitlement = await this.leaveEntitlementModel.findOne({
-      employeeId: new Types.ObjectId(employeeId),
-      leaveTypeId: new Types.ObjectId(leaveTypeId),
-    });
+    const entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(employeeId, leaveTypeId);
 
     if (!entitlement) {
       throw new NotFoundException('Leave entitlement not found for this type');
@@ -136,10 +114,7 @@ export class LeavesReportService {
     // ============================
     // DB Request
     // ============================
-    const history = await this.leaveRequestModel
-      .find(query)
-      .populate('leaveTypeId')
-      .sort({ createdAt: -1 });
+    const history = await this.leaveRequestRepository.findWithFilters(query);
 
     // ============================
     // Format Response
@@ -202,15 +177,15 @@ export class LeavesReportService {
     // -------------------------
     // FETCH FROM DB
     // -------------------------
-    const requests = await this.leaveRequestModel
-      .find(requestQuery)
-      .populate('leaveTypeId employeeId')
-      .lean();
+    const requests = await this.leaveRequestRepository.findWithFiltersAndPopulate(
+      requestQuery,
+      ['leaveTypeId', 'employeeId']
+    );
 
-    const adjustments = await this.leaveAdjustmentModel
-      .find(adjustmentQuery)
-      .populate('leaveTypeId employeeId hrUserId')
-      .lean();
+    const adjustments = await this.leaveAdjustmentRepository.findWithFiltersAndPopulate(
+      adjustmentQuery,
+      ['leaveTypeId', 'employeeId', 'hrUserId']
+    );
 
     // -------------------------
     // Format unified result
@@ -259,7 +234,7 @@ export class LeavesReportService {
   // REQ-039 — Flag Irregular Patterns
   // =============================
   async flagIrregularLeave(leaveRequestId: string, flag: boolean) {
-    const leaveRequest = await this.leaveRequestModel.findById(leaveRequestId);
+    const leaveRequest = await this.leaveRequestRepository.findById(leaveRequestId);
 
     if (!leaveRequest) {
       throw new NotFoundException('Leave request not found');
@@ -280,89 +255,6 @@ export class LeavesReportService {
   // REQ-034 —  Manager View Team Balances
   // =============================
 
-  async getManagerTeamBalances(managerId: string) {
-    // =============================
-    // 1. Get Team Members
-    // =============================
-    const teamMembers = await this.leaveEntitlementModel.db
-      .collection('employees')
-      .find({ managerId: new Types.ObjectId(managerId) })
-      .toArray();
-
-    if (teamMembers.length === 0) {
-      return [];
-    }
-
-    const teamEmployeeIds = teamMembers.map((e) => e._id);
-
-    // =============================
-    // 2. Fetch All Entitlements For Team
-    // =============================
-    const entitlements = await this.leaveEntitlementModel
-      .find({ employeeId: { $in: teamEmployeeIds } })
-      .populate('leaveTypeId')
-      .lean();
-
-    // Group entitlements by employee
-    const entMap = {};
-    entitlements.forEach((ent) => {
-      const empId = ent.employeeId.toString();
-      if (!entMap[empId]) entMap[empId] = [];
-      entMap[empId].push({
-        leaveType: ent.leaveTypeId,
-        yearlyEntitlement: ent.yearlyEntitlement,
-        accruedActual: ent.accruedActual,
-        accruedRounded: ent.accruedRounded,
-        carryForward: ent.carryForward,
-        taken: ent.taken,
-        pending: ent.pending,
-        remaining: ent.remaining,
-        balance:
-          (ent.accruedRounded ?? 0) +
-          (ent.carryForward ?? 0) -
-          (ent.taken ?? 0) -
-          (ent.pending ?? 0),
-      });
-    });
-
-    // =============================
-    // 3. Get Upcoming Leave Requests
-    // =============================
-    const today = new Date();
-
-    const upcomingLeaves = await this.leaveRequestModel
-      .find({
-        employeeId: { $in: teamEmployeeIds },
-        status: { $in: ['APPROVED', 'PENDING'] },
-        'dates.from': { $gte: today },
-      })
-      .populate('leaveTypeId employeeId')
-      .lean();
-
-    // Group upcoming by employee
-    const upcomingMap = {};
-    upcomingLeaves.forEach((req) => {
-      const empId = req.employeeId._id.toString();
-      if (!upcomingMap[empId]) upcomingMap[empId] = [];
-      upcomingMap[empId].push({
-        requestId: req._id,
-        leaveType: req.leaveTypeId,
-        startDate: req.dates.from,
-        endDate: req.dates.to,
-        durationDays: req.durationDays,
-        status: req.status,
-      });
-    });
-
-    // =============================
-    // 4. Build Final Response
-    // =============================
-    return teamMembers.map((emp) => ({
-      employee: emp,
-      leaveBalances: entMap[emp._id.toString()] || [],
-      upcomingLeaves: upcomingMap[emp._id.toString()] || [],
-    }));
-  }
 
   // =============================
   // REQ-031 — Submit Post-Leave Request As an employee
@@ -391,25 +283,21 @@ export class LeavesReportService {
     }
 
     // 3. Check overlapping existing requests
-    const overlapping = await this.leaveRequestModel.findOne({
-      employeeId: new Types.ObjectId(employeeId),
-      $or: [{ 'dates.from': { $lte: to }, 'dates.to': { $gte: from } }],
-    });
+    const overlapping = await this.leaveRequestRepository.findOverlappingRequests(employeeId, from, to);
 
     if (overlapping) {
       throw new BadRequestException('Leave overlaps with an existing request.');
     }
 
     // 4. Create the request (normal request, no schema change)
-    return await this.leaveRequestModel.create({
+    return await this.leaveRequestRepository.create({
       employeeId: new Types.ObjectId(employeeId),
       leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
       dates: { from, to },
       durationDays:
         Math.ceil((to.getTime() - from.getTime()) / (1000 * 3600 * 24)) + 1,
       justification: dto.justification,
-      status: 'PENDING',
-      createdAt: today,
+      status: LeaveStatus.PENDING,
     });
   }
 
@@ -420,7 +308,7 @@ export class LeavesReportService {
 
   // Runs every year on December 31st at midnight
   async carryForwardLeaves() {
-    const entitlements = await this.leaveEntitlementModel.find({});
+    const entitlements = await this.leaveEntitlementRepository.find();
 
     const results: {
       employeeId: Types.ObjectId;
@@ -456,8 +344,8 @@ export class LeavesReportService {
   // ⚠️ No controller needed; this is an automatic scheduled job
   // =============================
   async accrueLeaves() {
-    const policies = await this.leavePolicyModel.find({});
-    const entitlements = await this.leaveEntitlementModel.find({});
+    const policies = await this.leavePolicyRepository.find();
+    const entitlements = await this.leaveEntitlementRepository.find();
 
     const today = new Date();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -481,14 +369,15 @@ export class LeavesReportService {
       // =========================================
       // 1️⃣ Find unpaid leave days for this employee
       // =========================================
-      const unpaidLeaveRequests = await this.leaveRequestModel
-        .find({
+      const unpaidLeaveRequests = await this.leaveRequestRepository.findWithFiltersAndPopulate(
+        {
           employeeId: entitlement.employeeId,
           status: 'APPROVED',
           'dates.from': { $lte: monthEnd },
           'dates.to': { $gte: monthStart },
-        })
-        .populate('leaveTypeId');
+        },
+        ['leaveTypeId']
+      );
 
       let unpaidDays = 0;
 

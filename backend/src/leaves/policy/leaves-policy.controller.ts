@@ -9,7 +9,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiParam,
+} from '@nestjs/swagger';
 import { LeavesPolicyService } from './leaves-policy.service';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { UpdateEntitlementDto } from '../dtos/update-entitlement.dto';
@@ -37,7 +43,10 @@ export class LeavesPolicyController {
   @Post('initiate-policy')
   @ApiOperation({ summary: 'Initiate a new leave policy' })
   @ApiBody({ type: InitiatePolicyDto })
-  @ApiResponse({ status: 201, description: 'Leave policy initiated successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Leave policy initiated successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async initiatePolicy(@Body() dto: InitiatePolicyDto): Promise<LeavePolicy> {
     return this.leavesService.initiatePolicy(dto);
@@ -45,15 +54,20 @@ export class LeavesPolicyController {
 
   // REQ-003: Configure Leave Settings - Tested
   @Post('configure-settings/:leaveTypeId')
-  @ApiOperation({ summary: 'Configure leave settings for a specific leave type' })
+  @ApiOperation({
+    summary: 'Configure leave settings for a specific leave type',
+  })
   @ApiParam({ name: 'leaveTypeId', description: 'Leave type ID' })
   @ApiBody({ type: ConfigureSettingsDto })
-  @ApiResponse({ status: 200, description: 'Leave settings configured successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Leave settings configured successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Leave type not found' })
   async configureLeaveSettings(
     @Param('leaveTypeId') leaveTypeId: string,
-    @Body() settings: ConfigureSettingsDto
+    @Body() settings: ConfigureSettingsDto,
   ): Promise<LeavePolicy> {
     return this.leavesService.configureLeaveSettings(leaveTypeId, settings);
   }
@@ -61,9 +75,14 @@ export class LeavesPolicyController {
   @Get('leave-settings/:leaveTypeId')
   @ApiOperation({ summary: 'Get leave settings for a specific leave type' })
   @ApiParam({ name: 'leaveTypeId', description: 'Leave type ID' })
-  @ApiResponse({ status: 200, description: 'Leave settings retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Leave settings retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Leave settings not found' })
-  async getLeaveSettings(@Param('leaveTypeId') leaveTypeId: string): Promise<LeavePolicy> {
+  async getLeaveSettings(
+    @Param('leaveTypeId') leaveTypeId: string,
+  ): Promise<LeavePolicy> {
     return this.leavesService.getLeaveSettings(leaveTypeId);
   }
 
@@ -71,11 +90,20 @@ export class LeavesPolicyController {
   @Patch('update-entitlement')
   @ApiOperation({ summary: 'Update employee leave entitlement' })
   @ApiBody({ type: UpdateEntitlementDto })
-  @ApiResponse({ status: 200, description: 'Leave entitlement updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Leave entitlement updated successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Leave entitlement not found' })
-  async updateEntitlement(@Param('employeeId') employeeId: string, @Param('leaveTypeId') leaveTypeId: string): Promise<LeaveEntitlement> {
-    return this.leavesService.updateEntitlementInternal(employeeId,leaveTypeId);
+  async updateEntitlement(
+    @Param('employeeId') employeeId: string,
+    @Param('leaveTypeId') leaveTypeId: string,
+  ): Promise<LeaveEntitlement> {
+    return this.leavesService.updateEntitlementInternal(
+      employeeId,
+      leaveTypeId,
+    );
   }
 
   /**
@@ -174,7 +202,10 @@ export class LeavesPolicyController {
   @Post('set-eligibility')
   @ApiOperation({ summary: 'Set eligibility rules for leave types' })
   @ApiBody({ type: SetEligibilityRulesDto })
-  @ApiResponse({ status: 200, description: 'Eligibility rules set successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Eligibility rules set successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async setEligibility(@Body() dto: SetEligibilityRulesDto) {
     return this.leavesService.setEligibilityRules(dto);
@@ -182,9 +213,14 @@ export class LeavesPolicyController {
 
   // REQ-008 — Assign Personalized Entitlements - Tested
   @Post('personalized-entitlement')
-  @ApiOperation({ summary: 'Assign personalized leave entitlements to employees' })
+  @ApiOperation({
+    summary: 'Assign personalized leave entitlements to employees',
+  })
   @ApiBody({ type: AssignPersonalizedEntitlementDto })
-  @ApiResponse({ status: 200, description: 'Personalized entitlement assigned successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Personalized entitlement assigned successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Employee or leave type not found' })
   async assignPersonalizedEntitlement(
@@ -208,7 +244,10 @@ export class LeavesPolicyController {
   @ApiOperation({ summary: 'Get calendar configuration for a specific year' })
   @ApiParam({ name: 'year', description: 'Calendar year' })
   @ApiResponse({ status: 200, description: 'Calendar retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Calendar not found for the specified year' })
+  @ApiResponse({
+    status: 404,
+    description: 'Calendar not found for the specified year',
+  })
   async getCalendar(@Param('year') year: number) {
     return this.leavesService.getCalendarByYear(year);
   }
@@ -256,24 +295,39 @@ export class LeavesPolicyController {
       type: 'object',
       properties: {
         leaveType: { $ref: '#/components/schemas/CreateSpecialLeaveTypeDto' },
-        policy: { $ref: '#/components/schemas/ConfigureSettingsDto' }
-      }
-    }
+        policy: { $ref: '#/components/schemas/ConfigureSettingsDto' },
+      },
+    },
   })
-  @ApiResponse({ status: 201, description: 'Special leave type with rules created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Special leave type with rules created successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async createSpecialLeaveTypeWithRules(
-    @Body() body: { leaveType: CreateSpecialLeaveTypeDto; policy: ConfigureSettingsDto }
+    @Body()
+    body: {
+      leaveType: CreateSpecialLeaveTypeDto;
+      policy: ConfigureSettingsDto;
+    },
   ): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
-    return this.leavesService.createSpecialLeaveTypeWithRules(body.leaveType, body.policy);
+    return this.leavesService.createSpecialLeaveTypeWithRules(
+      body.leaveType,
+      body.policy,
+    );
   }
 
   @Get('special-leave-types-with-rules/:leaveTypeId')
   @ApiOperation({ summary: 'Get special leave type with its rules' })
   @ApiParam({ name: 'leaveTypeId', description: 'Leave type ID' })
-  @ApiResponse({ status: 200, description: 'Special leave type with rules retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Special leave type with rules retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Special leave type not found' })
-  async getSpecialLeaveTypeWithRules(@Param('leaveTypeId') leaveTypeId: string): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
+  async getSpecialLeaveTypeWithRules(
+    @Param('leaveTypeId') leaveTypeId: string,
+  ): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
     return this.leavesService.getSpecialLeaveTypeWithRules(leaveTypeId);
   }
 
@@ -283,9 +337,14 @@ export class LeavesPolicyController {
   @Post('execute-annual-reset')
   @ApiOperation({ summary: 'Execute annual leave reset for employees' })
   @ApiBody({ type: AnnualResetDto })
-  @ApiResponse({ status: 200, description: 'Annual reset completed successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Annual reset completed successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  async executeAnnualReset(@Body() dto: AnnualResetDto): Promise<{ message: string }> {
+  async executeAnnualReset(
+    @Body() dto: AnnualResetDto,
+  ): Promise<{ message: string }> {
     await this.leavesService.executeAnnualReset(dto);
     return { message: 'Annual reset completed successfully' };
   }
@@ -296,19 +355,29 @@ export class LeavesPolicyController {
   @Post('manual-adjustment')
   @ApiOperation({ summary: 'Create manual leave balance adjustment' })
   @ApiBody({ type: ManualAdjustmentDto })
-  @ApiResponse({ status: 201, description: 'Manual adjustment created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Manual adjustment created successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Employee or leave type not found' })
-  async manualBalanceAdjustment(@Body() dto: ManualAdjustmentDto): Promise<LeaveAdjustment> {
+  async manualBalanceAdjustment(
+    @Body() dto: ManualAdjustmentDto,
+  ): Promise<LeaveAdjustment> {
     return this.leavesService.manualBalanceAdjustment(dto);
   }
 
   @Get('adjustment-history/:employeeId')
   @ApiOperation({ summary: 'Get adjustment history for an employee' })
   @ApiParam({ name: 'employeeId', description: 'Employee ID' })
-  @ApiResponse({ status: 200, description: 'Adjustment history retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Adjustment history retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Employee not found' })
-  async getAdjustmentHistory(@Param('employeeId') employeeId: string): Promise<LeaveAdjustment[]> {
+  async getAdjustmentHistory(
+    @Param('employeeId') employeeId: string,
+  ): Promise<LeaveAdjustment[]> {
     return this.leavesService.getAdjustmentHistory(employeeId);
   }
 

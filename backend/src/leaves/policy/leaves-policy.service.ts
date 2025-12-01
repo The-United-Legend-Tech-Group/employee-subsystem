@@ -1,5 +1,5 @@
-import { Injectable , NotFoundException} from '@nestjs/common';
-import { Types} from 'mongoose';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { LeavePolicy } from '../models/leave-policy.schema';
 import { LeaveEntitlement } from '../models/leave-entitlement.schema';
 import { LeaveType } from '../models/leave-type.schema';
@@ -12,9 +12,10 @@ import {
   CalendarRepository,
 } from '../repository';
 import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
+import { AttendanceService } from '../../time-mangement/services/attendance.service';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { ConfigureLeaveParametersDto } from '../dtos/configure-leave-parameters.dto';
-import { CreateLeaveTypeDto } from '../dtos/create-leave-type.dto'
+import { CreateLeaveTypeDto } from '../dtos/create-leave-type.dto';
 import { UpdateLeaveTypeDto } from '../dtos/update-leave-type.dto';
 import { ConfigureSettingsDto } from '../dtos/configure-settings.dto';
 import { CreateSpecialLeaveTypeDto } from '../dtos/create-special-leave-type.dto';
@@ -27,7 +28,6 @@ import { AccrualMethod } from '../enums/accrual-method.enum';
 import { RoundingRule } from '../enums/rounding-rule.enum';
 import { AnnualResetDto } from '../dtos/annual-reset.dto';
 import { AttendanceService } from '../../time-mangement/services/attendance.service';
-
 
 @Injectable()
 export class LeavesPolicyService {
@@ -46,7 +46,7 @@ export class LeavesPolicyService {
   async initiatePolicy(dto: InitiatePolicyDto): Promise<LeavePolicy> {
     return this.leavePolicyRepository.create({
       ...dto,
-      leaveTypeId: new Types.ObjectId(dto.leaveTypeId)
+      leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
     });
   }
 
@@ -351,17 +351,21 @@ export class LeavesPolicyService {
   
 
   // REQ-009 - Configure leave parameters such as maximum duration, notice periods, and approval workflows
-  async configureLeaveParameters(leaveTypeId: string, dto: ConfigureLeaveParametersDto) {
+  async configureLeaveParameters(
+    leaveTypeId: string,
+    dto: ConfigureLeaveParametersDto,
+  ) {
     const leaveType = await this.leaveTypeRepository.findById(leaveTypeId);
     if (!leaveType) throw new NotFoundException('Leave type not found');
 
-    const leavePolicy = await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
-    if(!leavePolicy) throw new NotFoundException('Leave policy not found');
+    const leavePolicy =
+      await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
+    if (!leavePolicy) throw new NotFoundException('Leave policy not found');
 
-    if(dto.maxDurationDays) {
+    if (dto.maxDurationDays) {
       leaveType.maxDurationDays = dto.maxDurationDays;
     }
-    if(dto.minNoticeDays) {
+    if (dto.minNoticeDays) {
       leavePolicy.minNoticeDays = dto.minNoticeDays;
     }
     const approvalWorkflow = dto.approvalFlowRoles
@@ -389,7 +393,7 @@ export class LeavesPolicyService {
         {
           holidays: dto.holidays,
           blockedPeriods: dto.blockedPeriods,
-        }
+        },
       );
     }
 
@@ -402,6 +406,19 @@ export class LeavesPolicyService {
     return calendars || null;
   }
 
+  /**
+   * Sync holidays from Time Management to Leaves Calendar
+   * This method imports holiday data from the attendance/time-management system
+   * and updates the calendar with holiday ObjectIds
+   */
+  async syncHolidaysToCalendar(year: number) {
+    // Get all holidays from time-management
+    const holidays = await this.attendanceService.getHolidays();
+
+    if (!holidays || !Array.isArray(holidays)) {
+      console.warn(`No holidays found in time-management system`);
+      return null;
+    }
 
    /**
    * Auto-sync holidays for current year
@@ -505,24 +522,110 @@ async createSpecialLeaveTypeWithRules(
       minNoticeDays: policySettings.minNoticeDays ?? 0,
       expiryAfterMonths: policySettings.expiryAfterMonths,
     });
+
+    // Extract holiday IDs
+    const holidayIds = yearHolidays.map((h: any) =>
+      h._id instanceof Types.ObjectId ? h._id : new Types.ObjectId(h._id),
+    );
+
+    // Find or create calendar for the year
+    let calendar = await this.calendarRepository.findByYear(year);
+    calendar = Array.isArray(calendar) ? calendar[0] : calendar;
+
+    if (!calendar) {
+      // Create new calendar with synced holidays
+      calendar = await this.calendarRepository.create({
+        year,
+        holidays: holidayIds,
+        blockedPeriods: [],
+      });
+
+      console.info(
+        `Leaves Calendar created for year ${year} with ${holidayIds.length} holidays synced from Time Management`,
+      );
+    } else {
+      // Update existing calendar with synced holidays
+      calendar = await this.calendarRepository.updateById(
+        calendar._id.toString(),
+        { holidays: holidayIds },
+      );
+
+      console.info(
+        `Leaves Calendar updated for year ${year} with ${holidayIds.length} holidays synced from Time Management`,
+      );
+    }
+
+    return {
+      calendar,
+      syncedHolidays: yearHolidays.map((h: any) => ({
+        id: h._id,
+        name: h.name,
+        startDate: h.startDate,
+        endDate: h.endDate,
+        type: h.type,
+      })),
+    };
   }
 
+  /**
+   * Auto-sync holidays for current year
+   * Can be called during calendar configuration or on-demand
+   */
+  async autoSyncHolidaysForCurrentYear() {
+    const currentYear = new Date().getFullYear();
+    return this.syncHolidaysToCalendar(currentYear);
+  }
 
-  return { leaveType, policy };
-}
+  // =============================
+  // REQ-011: Configure Special Absence/Mission Types with Custom Rules - Testing
+  // =============================
+  // Create special leave type
+  async createSpecialLeaveTypeWithRules(
+    leaveTypeDto: CreateSpecialLeaveTypeDto,
+    policySettings: ConfigureSettingsDto,
+  ): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
+    const leaveType = await this.leaveTypeRepository.create({
+      ...leaveTypeDto,
+      categoryId: new Types.ObjectId(leaveTypeDto.categoryId),
+    });
+    // 1. Try to find existing policy
+    let policy = await this.leavePolicyRepository.findOne({
+      leaveTypeId: leaveType._id,
+    });
 
+    // 2. If not found, create a new one
+    if (!policy) {
+      policy = await this.leavePolicyRepository.create({
+        leaveTypeId: leaveType._id,
+        accrualMethod: policySettings.accrualMethod ?? AccrualMethod.MONTHLY,
+        monthlyRate: policySettings.monthlyRate ?? 0,
+        yearlyRate: policySettings.yearlyRate ?? 0,
+        carryForwardAllowed: policySettings.carryForwardAllowed ?? false,
+        maxCarryForward: policySettings.maxCarryForward ?? 0,
+        roundingRule: policySettings.roundingRule ?? RoundingRule.NONE,
+        minNoticeDays: policySettings.minNoticeDays ?? 0,
+        expiryAfterMonths: policySettings.expiryAfterMonths,
+      });
+    }
 
-async getSpecialLeaveTypeWithRules(leaveTypeId: string): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
-  const leaveType = await this.leaveTypeRepository.findById(leaveTypeId);
-  if (!leaveType) throw new NotFoundException('Special leave type not found');
+    return { leaveType, policy };
+  }
 
-  const policy = await this.leavePolicyRepository.findOne({ leaveTypeId: new Types.ObjectId(leaveTypeId) });
-  if (!policy) throw new NotFoundException('Leave policy not found');
+  async getSpecialLeaveTypeWithRules(
+    leaveTypeId: string,
+  ): Promise<{ leaveType: LeaveType; policy: LeavePolicy }> {
+    const leaveType = await this.leaveTypeRepository.findById(leaveTypeId);
+    if (!leaveType) throw new NotFoundException('Special leave type not found');
 
-  return { leaveType, policy };
-}
+    const policy = await this.leavePolicyRepository.findOne({
+      leaveTypeId: new Types.ObjectId(leaveTypeId),
+    });
+    if (!policy) throw new NotFoundException('Leave policy not found');
 
-/*
+    return { leaveType, policy };
+  }
+
+  /*
 // =============================
 // REQ-012: Define Legal Leave Year & Reset Rules
 // =============================
@@ -539,101 +642,117 @@ async executeAnnualReset(): Promise<void> {
 }
 */
 
-// =============================
-// REQ-012: Define Legal Leave Year & Reset Rules
-// =============================
-async executeAnnualReset(dto: AnnualResetDto): Promise<void> {
-  const { employeeIds, leaveTypeIds, year } = dto || {};
+  // =============================
+  // REQ-012: Define Legal Leave Year & Reset Rules
+  // =============================
+  async executeAnnualReset(dto: AnnualResetDto): Promise<void> {
+    const { employeeIds, leaveTypeIds, year } = dto || {};
 
-  // Filter entitlements based on DTO
-  const filter: any = {};
-  if (employeeIds?.length) filter.employeeId = { $in: employeeIds.map(id => new Types.ObjectId(id)) };
-  if (leaveTypeIds?.length) filter.leaveTypeId = { $in: leaveTypeIds.map(id => new Types.ObjectId(id)) };
+    // Filter entitlements based on DTO
+    const filter: any = {};
+    if (employeeIds?.length)
+      filter.employeeId = {
+        $in: employeeIds.map((id) => new Types.ObjectId(id)),
+      };
+    if (leaveTypeIds?.length)
+      filter.leaveTypeId = {
+        $in: leaveTypeIds.map((id) => new Types.ObjectId(id)),
+      };
 
-  const entitlements = await this.leaveEntitlementRepository.find(filter);
+    const entitlements = await this.leaveEntitlementRepository.find(filter);
 
-  for (const ent of entitlements) {
-    const policy = await this.leavePolicyRepository.findOne({ leaveTypeId: ent.leaveTypeId });
-    if (!policy) continue; // skip if no policy
+    for (const ent of entitlements) {
+      const policy = await this.leavePolicyRepository.findOne({
+        leaveTypeId: ent.leaveTypeId,
+      });
+      if (!policy) continue; // skip if no policy
 
-    // Calculate carry-forward according to policy
-    const carryForward = policy.carryForwardAllowed
-      ? Math.min(ent.remaining ?? 0, policy.maxCarryForward ?? 0)
-      : 0;
+      // Calculate carry-forward according to policy
+      const carryForward = policy.carryForwardAllowed
+        ? Math.min(ent.remaining ?? 0, policy.maxCarryForward ?? 0)
+        : 0;
 
-    const newRemaining = ent.yearlyEntitlement + carryForward;
+      const newRemaining = ent.yearlyEntitlement + carryForward;
 
-    await this.leaveEntitlementRepository.updateById(
-      ent._id.toString(),
-      {
+      await this.leaveEntitlementRepository.updateById(ent._id.toString(), {
         taken: 0,
         pending: 0,
         carryForward: carryForward,
         remaining: newRemaining,
-        nextResetDate: new Date((year ?? new Date().getFullYear() + 1), 0, 1), // Jan 1 of next year
-      }
-    );
-  }
-}
-
-
-// =============================
-// REQ-013: Manual Balance Adjustment
-// =============================
-// Create adjustment record
-async manualBalanceAdjustment(dto: ManualAdjustmentDto): Promise<LeaveAdjustment> {
-
-  const savedAdjustment = await this.leaveAdjustmentRepository.create({
-    ...dto,
-    employeeId: new Types.ObjectId(dto.employeeId),
-    leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
-    hrUserId: new Types.ObjectId(dto.hrUserId),
-  });
-
-  // Update actual leave balance
-  await this.updateLeaveBalance(dto.employeeId, dto.leaveTypeId, dto.adjustmentType, dto.amount);
-
-  return savedAdjustment;
-}
-
-private async updateLeaveBalance(employeeId: string, leaveTypeId: string, adjustmentType: AdjustmentType, amount: number): Promise<void> {
-  let adjustment = 0;
-
-  if (adjustmentType === AdjustmentType.ADD) {
-    adjustment = amount;
-  } else if (adjustmentType === AdjustmentType.DEDUCT) {
-    adjustment = -amount;
-  }
-
-  if (adjustmentType !== AdjustmentType.ENCASHMENT) {
-    // First check if entitlement exists
-    let entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
-      employeeId,
-      leaveTypeId
-    );
-
-    if (!entitlement) {
-      // Create new entitlement if it doesn't exist
-      entitlement = await this.leaveEntitlementRepository.create({
-        employeeId: new Types.ObjectId(employeeId),
-        leaveTypeId: new Types.ObjectId(leaveTypeId),
-        yearlyEntitlement: 0,
-        accruedActual: 0,
-        accruedRounded: 0,
-        carryForward: 0,
-        taken: 0,
-        pending: 0,
-        remaining: adjustment,
+        nextResetDate: new Date(year ?? new Date().getFullYear() + 1, 0, 1), // Jan 1 of next year
       });
-    } else {
-      // Update existing entitlement
-      await this.leaveEntitlementRepository.updateById(
-        entitlement._id.toString(),
-        { remaining: (entitlement.remaining || 0) + adjustment }
-      );
     }
   }
-}
+
+  // =============================
+  // REQ-013: Manual Balance Adjustment
+  // =============================
+  // Create adjustment record
+  async manualBalanceAdjustment(
+    dto: ManualAdjustmentDto,
+  ): Promise<LeaveAdjustment> {
+    const savedAdjustment = await this.leaveAdjustmentRepository.create({
+      ...dto,
+      employeeId: new Types.ObjectId(dto.employeeId),
+      leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
+      hrUserId: new Types.ObjectId(dto.hrUserId),
+    });
+
+    // Update actual leave balance
+    await this.updateLeaveBalance(
+      dto.employeeId,
+      dto.leaveTypeId,
+      dto.adjustmentType,
+      dto.amount,
+    );
+
+    return savedAdjustment;
+  }
+
+  private async updateLeaveBalance(
+    employeeId: string,
+    leaveTypeId: string,
+    adjustmentType: AdjustmentType,
+    amount: number,
+  ): Promise<void> {
+    let adjustment = 0;
+
+    if (adjustmentType === AdjustmentType.ADD) {
+      adjustment = amount;
+    } else if (adjustmentType === AdjustmentType.DEDUCT) {
+      adjustment = -amount;
+    }
+
+    if (adjustmentType !== AdjustmentType.ENCASHMENT) {
+      // First check if entitlement exists
+      let entitlement =
+        await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+          employeeId,
+          leaveTypeId,
+        );
+
+      if (!entitlement) {
+        // Create new entitlement if it doesn't exist
+        entitlement = await this.leaveEntitlementRepository.create({
+          employeeId: new Types.ObjectId(employeeId),
+          leaveTypeId: new Types.ObjectId(leaveTypeId),
+          yearlyEntitlement: 0,
+          accruedActual: 0,
+          accruedRounded: 0,
+          carryForward: 0,
+          taken: 0,
+          pending: 0,
+          remaining: adjustment,
+        });
+      } else {
+        // Update existing entitlement
+        await this.leaveEntitlementRepository.updateById(
+          entitlement._id.toString(),
+          { remaining: (entitlement.remaining || 0) + adjustment },
+        );
+      }
+    }
+  }
 
 async getAdjustmentHistory(employeeId: string): Promise<LeaveAdjustment[]> {
   return this.leaveAdjustmentRepository.findByEmployeeId(employeeId);

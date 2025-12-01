@@ -30,4 +30,8 @@ export class LeaveTypeRepository extends BaseRepository<LeaveTypeDocument> {
   async findDeductibleLeaveTypes(): Promise<LeaveTypeDocument[]> {
     return this.model.find({ deductible: true }).exec();
   }
+
+  async findUnpaidLeaveTypes(): Promise<LeaveTypeDocument[]> {
+    return this.model.find({ paid: false }).exec();
+  }
 }

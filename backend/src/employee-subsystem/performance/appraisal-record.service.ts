@@ -5,7 +5,7 @@ import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
 import { AppraisalRecordDocument } from './models/appraisal-record.schema';
 import { AppraisalRecordStatus } from './enums/performance.enums';
-import { AttendanceService } from '../../time-mangement/attendance.service';
+import { AttendanceService } from '../../time-mangement/services/attendance.service';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
 
 @Injectable()

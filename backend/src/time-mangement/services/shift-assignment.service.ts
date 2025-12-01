@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
-import { ShiftRepository } from './repository/shift.repository';
-import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
+import { ShiftAssignmentRepository } from '../repository/shift-assignment.repository';
+import { ShiftRepository } from '../repository/shift.repository';
+import { ScheduleRuleRepository } from '../repository/schedule-rule.repository';
 
 @Injectable()
 export class ShiftAssignmentService {

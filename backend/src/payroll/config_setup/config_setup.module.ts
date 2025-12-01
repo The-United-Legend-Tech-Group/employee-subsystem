@@ -1,7 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+// Import Payroll Configuration&Setup controller and service
 import { ConfigSetupController } from './config_setup.controller';
 import { ConfigSetupService } from './config_setup.service';
+// Import Backup services and controller
+import { ConfigBackupService } from './backup/config-backup.service';
+import { ConfigBackupSchedulerService } from './backup/config-backup-scheduler.service';
+import { ConfigBackupController } from './backup/config-backup.controller';
 
 // Import individual services
 import {
@@ -69,7 +74,7 @@ import {
       },
     ]),
   ],
-  controllers: [ConfigSetupController],
+  controllers: [ConfigSetupController, ConfigBackupController],
   providers: [
     // Main service (encapsulates all individual services)
     ConfigSetupService,
@@ -93,6 +98,9 @@ import {
     SigningBonusRepository,
     TaxRulesRepository,
     TerminationBenefitsRepository,
+    // Backup services
+    ConfigBackupService,
+    ConfigBackupSchedulerService,
   ],
   exports: [ConfigSetupService], // export the facade service
 })

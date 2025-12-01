@@ -20,7 +20,9 @@ import { Types } from 'mongoose';
 @ApiTags('Leaves Requests')
 @Controller('leaves')
 export class LeavesRequestController {
-  constructor(private readonly leavesRequestService: LeavesRequestService) {}
+  constructor(
+    private readonly leavesRequestService: LeavesRequestService,
+  ) {}
 
   // ---------- REQ-015: Submit New Leave Request ----------
   @Post('submit-request')
@@ -237,4 +239,37 @@ async autoUpdateBalances(): Promise<{ updated: number }> {
   return this.leavesRequestService.autoUpdateBalancesForApprovedRequests();
 }
 
+  // --- Notify Employee About Leave Request Status ---
+  @Post('notify-employee')
+  @ApiOperation({ summary: 'Send notification to employee about leave request status (approved/rejected)' })
+  @ApiBody({ schema: {
+    type: 'object',
+    properties: {
+      leaveRequestId: { type: 'string', description: 'Leave request ID' },
+      status: { type: 'string', enum: ['approved', 'rejected', 'pending'], description: 'New status' },
+    }
+  } })
+  @ApiResponse({ status: 201, description: 'Notification sent' })
+  @ApiResponse({ status: 404, description: 'Leave request not found' })
+  async notifyEmployee(@Body() body: { r: string; status: LeaveStatus }) {
+    return this.leavesRequestService.notifyEmployee(body.status, body.r);
+  }
+  
+
+
+    // --- Notify Employee About Leave Request Status ---
+    @Post('notify-employee')
+    @ApiOperation({ summary: 'Send notification to employee about leave request status (approved/rejected)' })
+    @ApiBody({ schema: {
+      type: 'object',
+      properties: {
+        leaveRequestId: { type: 'string', description: 'Leave request ID' },
+        status: { type: 'string', enum: ['approved', 'rejected', 'pending'], description: 'New status' },
+      }
+    } })
+    @ApiResponse({ status: 201, description: 'Notification sent' })
+    @ApiResponse({ status: 404, description: 'Leave request not found' })
+    async notifyManager(@Body() body: { r: string; status: LeaveStatus }) {
+      return this.leavesRequestService.notifyManager(body.status, body.r);
+    }
 }

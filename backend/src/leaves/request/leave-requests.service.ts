@@ -10,6 +10,8 @@ import { CreateLeaveRequestDto } from '../dtos/create-leave-request.dto';
 import { UploadAttachmentDto } from '../dtos/upload-attachment.dto';
 import { UpdateLeaveRequestDto } from '../dtos/update-leave-request.dto';
 import { ManagerApprovalDto } from '../dtos/manager-approve.dto';
+import { NotificationService } from '../../employee-subsystem/notification/notification.service';
+import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import {
   LeaveRequestRepository,
@@ -25,6 +27,8 @@ export class LeavesRequestService {
     private readonly leaveTypeRepository: LeaveTypeRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly leaveEntitlementRepository: LeaveEntitlementRepository,
+    private readonly notificationService: NotificationService,
+    private readonly employeeService: EmployeeService,
   ) {}
 
   // ---------- REQ-015: Submit Leave Request ----------
@@ -105,14 +109,47 @@ export class LeavesRequestService {
     request.status = LeaveStatus.CANCELLED;
     return request.save();
   }
+
+  // REQ-019: As an employee, receive notifications when my leave request is approved, rejected
+  async notifyEmployee(status: LeaveStatus, r: string) {
+    const request = await this.leaveRequestRepository.findById(r);
+    if(!request) throw new NotFoundException("No Request Found");
+    
+    // status: 'approved' | 'rejected' | ..
+    // status: 'approved' | 'rejected' | ...
+    const type = status === LeaveStatus.APPROVED ? 'Success' : status === LeaveStatus.REJECTED ? 'Warning' : 'Info';
+    const title = status === LeaveStatus.APPROVED ? 'Leave Request Approved' : status === LeaveStatus.REJECTED ? 'Leave Request Rejected' : 'Leave Request Update';
+    const message = status === LeaveStatus.APPROVED
+      ? `Your leave request for ${request.durationDays} day(s), submitted on ${request.dates?.from?.toLocaleDateString?.() || ''}, has been approved.`
+      : status === LeaveStatus.REJECTED
+        ? `Your leave request for ${request.durationDays} day(s), submitted on ${request.dates?.from?.toLocaleDateString?.() || ''}, has been rejected.`
+        : `Your leave request status is now ${status}`;
+    return this.notificationService.create({
+      recipientId: [request.employeeId.toString()],
+      type,
+      deliveryType: 'UNICAST',
+      title,
+      message,
+      relatedEntityId: request?.leaveTypeId.toString?.(),
+      relatedModule: 'Leaves',
+    });
+  }
+
   // =============================
   // REQ-020: Manager Review Request
   // =============================
   async getLeaveRequestsForManager(managerId: string): Promise<LeaveRequest[]> {
-    // Note: This method requires employee service access to get team members
-    // For now, returning empty array as we can't access employee data without services
-    if (!managerId) return [];
-    return [];
+    
+    const team = await this.employeeService.getTeamProfiles(managerId);
+    if(!team) throw new NotFoundException("No teams for this Manager");
+
+    const employeeIds = team.items.map(member => member._id);
+    const leaveRequests = await this.leaveRequestRepository.find({
+      employeeId: { $in: employeeIds },
+    });
+    return leaveRequests;
+
+
   }
 
   // ---------- REQ-021: Manager Approves a request ----------
@@ -146,6 +183,28 @@ export class LeavesRequestService {
     });
   }
 
+  async notifyManager(status: LeaveStatus, r: string) {
+    const request = await this.leaveRequestRepository.findById(r);
+    if(!request) throw new NotFoundException("No Request Found");
+    
+    // status: 'approved' | 'rejected' | ...
+    const type = status === LeaveStatus.APPROVED ? 'Success' : status === LeaveStatus.REJECTED ? 'Warning' : 'Info';
+    const title = status === LeaveStatus.APPROVED ? 'Leave Request Approved' : status === LeaveStatus.REJECTED ? 'Leave Request Rejected' : 'Leave Request Update';
+    const message = status === LeaveStatus.APPROVED
+      ? `Your leave request for ${request.durationDays} day(s), submitted on ${request.dates?.from?.toLocaleDateString?.() || ''}, has been approved.`
+      : status === LeaveStatus.REJECTED
+        ? `Your leave request for ${request.durationDays} day(s), submitted on ${request.dates?.from?.toLocaleDateString?.() || ''}, has been rejected.`
+        : `Your leave request status is now ${status}`;
+    return this.notificationService.create({
+      recipientId: [request.employeeId.toString()],
+      type,
+      deliveryType: 'UNICAST',
+      title,
+      message,
+      relatedEntityId: request?.leaveTypeId.toString?.(),
+      relatedModule: 'Leaves',
+    });
+  }
   // =============================
   // REQ-025: HR Finalization
   // =============================

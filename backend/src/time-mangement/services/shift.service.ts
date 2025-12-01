@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ShiftRepository } from './repository/shift.repository';
+import { ShiftRepository } from '../repository/shift.repository';
 import { ShiftAssignmentService } from './shift-assignment.service';
-import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
-import { CreateShiftDto } from './dto/create-shift.dto';
-import { AssignShiftDto } from './dto/assign-shift.dto';
-import { CreateScheduleRuleDto } from './dto/create-schedule-rule.dto';
+import { ScheduleRuleRepository } from '../repository/schedule-rule.repository';
+import { CreateShiftDto } from '../dto/create-shift.dto';
+import { AssignShiftDto } from '../dto/assign-shift.dto';
+import { CreateScheduleRuleDto } from '../dto/create-schedule-rule.dto';
 
 @Injectable()
 export class ShiftService {

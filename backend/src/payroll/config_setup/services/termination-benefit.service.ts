@@ -54,6 +54,13 @@ export class TerminationBenefitService {
     id: string,
     dto: UpdateTerminationBenefitsDto,
   ): Promise<terminationAndResignationBenefitsDocument> {
+        const entity = await this.repository.findById(id);
+        if (!entity) {
+          throw new NotFoundException(`object with ID ${id} not found`);
+        }
+        if (entity.status !== ConfigStatus.DRAFT) {
+          throw new ForbiddenException('Editing is allowed when status is DRAFT only');
+        }
     const updated = await this.repository.updateById(id, dto as any);
     if (!updated) {
       throw new NotFoundException(`Termination Benefit with ID ${id} not found`);
@@ -65,6 +72,13 @@ export class TerminationBenefitService {
     id: string,
     dto: UpdateTerminationBenefitsDto,
   ): Promise<terminationAndResignationBenefitsDocument> {
+        const entity = await this.repository.findById(id);
+    if (!entity) {
+      throw new NotFoundException(`object with ID ${id} not found`);
+    }
+    if (entity.status !== ConfigStatus.DRAFT) {
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
+    }
     const { status, approvedBy, approvedAt, ...updateData } = dto as any;
     const updated = await this.repository.updateById(id, updateData);
     if (!updated) {
@@ -81,6 +95,9 @@ export class TerminationBenefitService {
     const entity = await this.repository.findById(id);
     if (!entity) {
       throw new NotFoundException(`Termination Benefit with ID ${id} not found`);
+    }
+         if (entity.status !== ConfigStatus.DRAFT) {
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     if (entity.createdBy?.toString() === approverId) {
       throw new ForbiddenException('Cannot approve your own configuration');

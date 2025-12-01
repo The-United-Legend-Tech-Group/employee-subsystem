@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseModule } from '../database/database.module';
 import { Attachment, AttachmentSchema } from './models/attachment.schema';
@@ -32,6 +32,7 @@ import { LeavesReportService } from './reports/leave-reports.service';
 import { EmployeeModule } from '../employee-subsystem/employee/employee.module';
 import { NotificationModule } from '../employee-subsystem/notification/notification.module';
 import { OrganizationStructureModule } from '../employee-subsystem/organization-structure/organization-structure.module';
+import { TimeMangementModule } from '../time-mangement/timemangment.module';
 import {
   LeavePolicyRepository,
   LeaveEntitlementRepository,
@@ -45,6 +46,7 @@ import {
 @Module({
   imports: [
     DatabaseModule,
+    forwardRef(() => TimeMangementModule), // Use forwardRef to resolve circular dependency
     // ScheduleModule.forRoot() moved to AppModule
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },

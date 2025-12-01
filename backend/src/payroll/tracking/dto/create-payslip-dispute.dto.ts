@@ -48,4 +48,3 @@ export class CreatePayslipDisputeDto {
   @IsOptional()
   refund_payment_date?: Date;
 }
-

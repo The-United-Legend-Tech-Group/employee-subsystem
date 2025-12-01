@@ -76,6 +76,6 @@ import { TimeMangementModule } from '../../time-mangement/timemangment.module';
     AppraisalDisputeRepository,
     AppraisalDisputeService,
   ],
-  exports: [MongooseModule],
+  exports: [MongooseModule, AppraisalRecordService],
 })
 export class PerformanceModule { }

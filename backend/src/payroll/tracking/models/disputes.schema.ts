@@ -43,6 +43,9 @@ export class disputes {
 
   @Prop()
   resolutionComment?: string;
+
+  @Prop()
+  approvedRefundAmount?: number; // Amount approved by Payroll Manager for refund
 }
 
 export const disputesSchema = SchemaFactory.createForClass(disputes);

@@ -52,7 +52,7 @@ export class OrganizationStructureService {
     @InjectModel(PositionAssignment.name)
     private readonly positionAssignmentModel: Model<PositionAssignmentDocument>,
     private readonly notificationService?: NotificationService,
-  ) {}
+  ) { }
 
   async getOpenPositions(): Promise<Position[]> {
     return this.positionRepository.find({ isActive: false });
@@ -591,6 +591,32 @@ export class OrganizationStructureService {
     const dept = await this.departmentRepository.findById(id);
     if (!dept) throw new NotFoundException('Department not found');
     return dept;
+  }
+
+  /**
+   * Find the department head (employee) for a department name.
+   * Returns an object with `id` (employee id string) and `employeeNumber`, or null if not found.
+   */
+  async findDepartmentHead(
+    departmentName: string,
+  ): Promise<{ id: string; employeeNumber: string } | null> {
+    if (!departmentName) return null;
+
+    // Use the DepartmentRepository helper to get the head position id
+    const headPosId = await this.departmentRepository.findHeadPositionIdByName(
+      departmentName,
+    );
+    if (!headPosId) return null;
+
+    // Find an employee assigned to that head position
+    const head = await this.employeeModel
+      .findOne({ primaryPositionId: headPosId })
+      .select('_id employeeNumber')
+      .lean()
+      .exec();
+
+    if (!head) return null;
+    return { id: head._id.toString(), employeeNumber: head.employeeNumber };
   }
 
   /**

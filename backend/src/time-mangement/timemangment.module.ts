@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseModule } from '../database/database.module';
 
@@ -41,7 +41,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
 @Module({
   imports: [
     DatabaseModule,
-    LeavesModule,
+    forwardRef(() => LeavesModule), // Use forwardRef to resolve circular dependency
     // Register feature schemas local to the time-management subsystem
     MongooseModule.forFeature([
       { name: AttendanceRecord.name, schema: AttendanceRecordSchema },

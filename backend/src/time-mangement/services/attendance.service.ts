@@ -871,7 +871,7 @@ export class AttendanceService {
    * Sync attendance data to payroll for current month
    * Calculates total worked hours per employee for payroll processing
    * Returns data ready for payroll system to apply deductions/bonuses
-   * 
+   *
    * INTEGRATION NOTE:
    * This method is called directly by PayrollModule's ExecutionService.
    * The output feeds into payroll's getAttendanceDataForPayroll() method.
@@ -951,9 +951,8 @@ export class AttendanceService {
     // Convert to payroll-ready format
     const payrollData = Array.from(employeeMap.values()).map((empData) => {
       // Convert minutes to hours (rounded to 2 decimals)
-      empData.totalWorkedHours = Math.round(
-        (empData.totalWorkedMinutes / 60) * 100,
-      ) / 100;
+      empData.totalWorkedHours =
+        Math.round((empData.totalWorkedMinutes / 60) * 100) / 100;
 
       return {
         employeeId: empData.employeeId,

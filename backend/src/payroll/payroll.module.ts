@@ -5,7 +5,12 @@ import { TrackingModule } from './tracking/tracking.module';
 import { TimeMangementModule } from '../time-mangement/timemangment.module';
 
 @Module({
-  imports: [ConfigSetupModule, ExecutionModule, TrackingModule, TimeMangementModule],
+  imports: [
+    ConfigSetupModule,
+    ExecutionModule,
+    TrackingModule,
+    TimeMangementModule,
+  ],
   exports: [ConfigSetupModule, ExecutionModule, TrackingModule],
 })
 export class PayrollModule {}

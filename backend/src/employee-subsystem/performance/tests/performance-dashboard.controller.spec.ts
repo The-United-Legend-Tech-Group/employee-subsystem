@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PerformanceDashboardController } from '../performance-dashboard.controller';
 import { PerformanceDashboardService } from '../performance-dashboard.service';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('PerformanceDashboardController', () => {
     let controller: PerformanceDashboardController;
@@ -19,7 +21,12 @@ describe('PerformanceDashboardController', () => {
                     useValue: mockService,
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .overrideGuard(authorizationGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<PerformanceDashboardController>(
             PerformanceDashboardController,

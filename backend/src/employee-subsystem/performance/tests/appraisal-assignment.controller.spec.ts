@@ -3,10 +3,11 @@ import { AppraisalAssignmentController } from '../appraisal-assignment.controlle
 import { AppraisalAssignmentService } from '../appraisal-assignment.service';
 import { AppraisalAssignmentStatus } from '../enums/performance.enums';
 import { Types } from 'mongoose';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalAssignmentController', () => {
     let controller: AppraisalAssignmentController;
-    let service: AppraisalAssignmentService;
 
     const mockService = {
         getAssignmentsByManager: jest.fn(),
@@ -21,12 +22,16 @@ describe('AppraisalAssignmentController', () => {
                     useValue: mockService,
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .overrideGuard(authorizationGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<AppraisalAssignmentController>(
             AppraisalAssignmentController,
         );
-        service = module.get<AppraisalAssignmentService>(AppraisalAssignmentService);
     });
 
     it('should be defined', () => {

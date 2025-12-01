@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppraisalAssignmentController } from '../appraisal-assignment.controller';
 import { AppraisalAssignmentService } from '../appraisal-assignment.service';
 import { BulkAssignDto } from '../dto/appraisal-assignment.dto';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalAssignmentController - Bulk', () => {
   let controller: AppraisalAssignmentController;
@@ -18,7 +20,12 @@ describe('AppraisalAssignmentController - Bulk', () => {
           useValue: mockService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(authorizationGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AppraisalAssignmentController>(AppraisalAssignmentController);
   });

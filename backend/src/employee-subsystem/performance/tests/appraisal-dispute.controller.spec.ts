@@ -4,6 +4,8 @@ import { AppraisalDisputeService } from '../appraisal-dispute.service';
 import { CreateAppraisalDisputeDto } from '../dto/create-appraisal-dispute.dto';
 import { UpdateAppraisalDisputeDto } from '../dto/update-appraisal-dispute.dto';
 import { AppraisalDisputeStatus } from '../enums/performance.enums';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalDisputeController', () => {
   let controller: AppraisalDisputeController;
@@ -27,7 +29,12 @@ describe('AppraisalDisputeController', () => {
           useValue: mockService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(authorizationGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AppraisalDisputeController>(AppraisalDisputeController);
   });

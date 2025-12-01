@@ -8,6 +8,7 @@ import { EmployeeProfileRepository } from '../repository/employee-profile.reposi
 import { EmployeeProfileChangeRequestRepository } from '../repository/ep-change-request.repository';
 import { EmployeeSystemRoleRepository } from '../repository/employee-system-role.repository';
 import { PositionAssignmentRepository } from '../../organization-structure/repository/position-assignment.repository';
+import { CandidateRepository } from '../repository/candidate.repository';
 import { Types } from 'mongoose';
 import { UpdateEmployeePositionDto } from '../dto/update-employee-position.dto';
 
@@ -39,6 +40,10 @@ describe('EmployeeService', () => {
         }
     };
     const mockAppraisalRecordModel = {};
+    const mockCandidateRepository = {
+        findById: jest.fn(),
+        updateById: jest.fn(),
+    };
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -71,6 +76,10 @@ describe('EmployeeService', () => {
                 {
                     provide: PositionAssignmentRepository,
                     useValue: mockPositionAssignmentRepository,
+                },
+                {
+                    provide: CandidateRepository,
+                    useValue: mockCandidateRepository,
                 },
             ],
         }).compile();

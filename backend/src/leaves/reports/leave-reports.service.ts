@@ -10,6 +10,7 @@ import { SubmitPostLeaveDto } from '../dtos/submit-post-leave.dto';
 import { AccrualMethod } from '../enums/accrual-method.enum';
 import { RoundingRule } from '../enums/rounding-rule.enum';
 import { LeaveStatus } from '../enums/leave-status.enum';
+import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
 import {
   LeaveEntitlementRepository,
   LeaveRequestRepository,
@@ -26,6 +27,7 @@ export class LeavesReportService {
     private readonly leaveAdjustmentRepository: LeaveAdjustmentRepository,
     private readonly leavePolicyRepository: LeavePolicyRepository,
     private readonly leaveTypeRepository: LeaveTypeRepository,
+    private readonly employeeService: EmployeeService
   ) {}
 
   // =============================
@@ -256,6 +258,26 @@ export class LeavesReportService {
   // =============================
   // REQ-034 —  Manager View Team Balances
   // =============================
+  async viewBalance(managerId: string){
+    const teams = await this.employeeService.getTeamProfiles(managerId);
+    if(!teams) throw new NotFoundException("No teams for Manager");
+    // For each team member, get their leave entitlements (balances)
+    const result: Array<{
+      employeeId: any;
+      employeeName: string;
+      balances: any[];
+    }> = [];
+
+    for (const member of teams.items) {
+      const balances = await this.leaveEntitlementRepository.findByEmployeeId(member._id.toString());
+      result.push({
+        employeeId: member._id,
+        employeeName: member.fullName || '', // if such property exists
+        balances,
+      });
+    }
+    return result;
+  }
 
 
   // =============================

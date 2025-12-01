@@ -91,7 +91,6 @@ async getManagerTeamData(
   ) {
     return this.leavesReportService.flagIrregularLeave(leaveRequestId, body.flag);
   } 
-  /*
 // =============================
 // REQ-034 —  Manager View Team Balances
 // =============================
@@ -100,11 +99,9 @@ async getManagerTeamData(
 @ApiParam({ name: 'managerId', description: 'Manager ID' })
 @ApiResponse({ status: 200, description: 'Team balances retrieved successfully' })
 @ApiResponse({ status: 404, description: 'Manager not found' })
-async getManagerTeamBalances(@Param('managerId') managerId: string) {
-  return this.leavesReportService.getManagerTeamBalances(managerId);
+async viewBalance(@Param('managerId') managerId: string) {
+  return this.leavesReportService.viewBalance(managerId);
 }
-
-*/
 // =============================
 // REQ-031 — Submit Post-Leave Request As an employee
 // =============================

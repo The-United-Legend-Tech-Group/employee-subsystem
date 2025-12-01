@@ -26,6 +26,7 @@ import { AdjustmentType } from '../enums/adjustment-type.enum';
 import { AccrualMethod } from '../enums/accrual-method.enum';
 import { RoundingRule } from '../enums/rounding-rule.enum';
 import { AnnualResetDto } from '../dtos/annual-reset.dto';
+import { AttendanceService } from '../../time-mangement/services/attendance.service';
 
 
 @Injectable()
@@ -37,6 +38,7 @@ export class LeavesPolicyService {
     private readonly leaveAdjustmentRepository: LeaveAdjustmentRepository,
     private readonly calendarRepository: CalendarRepository,
     private readonly employeeService: EmployeeService,
+    private readonly attendanceService: AttendanceService,
   ) {}
   //private readonly approvalWorkflowService: ApprovalWorkflowService
 
@@ -398,6 +400,80 @@ export class LeavesPolicyService {
   async getCalendarByYear(year: number) {
     const calendars = await this.calendarRepository.findByYear(year);
     return calendars || null;
+  }
+
+
+   /**
+   * Auto-sync holidays for current year
+   * Can be called during calendar configuration or on-demand
+   */
+   async autoSyncHolidaysForCurrentYear() {
+    const currentYear = new Date().getFullYear();
+    return this.syncHolidaysToCalendar(currentYear);
+  }
+
+    /**
+   * Sync holidays from Time Management to Leaves Calendar
+   * This method imports holiday data from the attendance/time-management system
+   * and updates the calendar with holiday ObjectIds
+   */
+    async syncHolidaysToCalendar(year: number) {
+      // Get all holidays from time-management
+      const holidays = await this.attendanceService.getHolidays();
+  
+      if (!holidays || !Array.isArray(holidays)) {
+        console.warn(`No holidays found in time-management system`);
+        return null;
+      }
+
+      // Filter holidays for the target year
+    const yearHolidays = holidays.filter((holiday: any) => {
+      const holidayYear = new Date(holiday.startDate).getFullYear();
+      return holidayYear === year && holiday.active;
+    });
+
+    // Extract holiday IDs
+    const holidayIds = yearHolidays.map((h: any) =>
+      h._id instanceof Types.ObjectId ? h._id : new Types.ObjectId(h._id),
+    );
+
+    // Find or create calendar for the year
+    let calendar = await this.calendarRepository.findByYear(year);
+    calendar = Array.isArray(calendar) ? calendar[0] : calendar;
+
+    if (!calendar) {
+      // Create new calendar with synced holidays
+      calendar = await this.calendarRepository.create({
+        year,
+        holidays: holidayIds,
+        blockedPeriods: [],
+      });
+
+      console.info(
+        `Leaves Calendar created for year ${year} with ${holidayIds.length} holidays synced from Time Management`,
+      );
+    } else {
+      // Update existing calendar with synced holidays
+      calendar = await this.calendarRepository.updateById(
+        calendar._id.toString(),
+        { holidays: holidayIds },
+      );
+
+      console.info(
+        `Leaves Calendar updated for year ${year} with ${holidayIds.length} holidays synced from Time Management`,
+      );
+    }
+
+    return {
+      calendar,
+      syncedHolidays: yearHolidays.map((h: any) => ({
+        id: h._id,
+        name: h.name,
+        startDate: h.startDate,
+        endDate: h.endDate,
+        type: h.type,
+      })),
+    };
   }
 
 // =============================

@@ -213,6 +213,37 @@ export class LeavesPolicyController {
     return this.leavesService.getCalendarByYear(year);
   }
 
+   // Sync holidays from Time Management to Leaves Calendar
+   @Post('calendar/sync-holidays/:year')
+   @ApiOperation({
+     summary: 'Sync holidays from Time Management to Leaves Calendar',
+     description:
+       'Imports holiday data from the attendance/time-management system and updates the calendar for the specified year',
+   })
+   @ApiParam({ name: 'year', description: 'Target year for holiday sync' })
+   @ApiResponse({ status: 200, description: 'Holidays synced successfully' })
+   @ApiResponse({
+     status: 404,
+     description: 'No holidays found in Time Management system',
+   })
+   async syncHolidaysToCalendar(@Param('year') year: number) {
+     return this.leavesService.syncHolidaysToCalendar(year);
+   }
+ 
+   // Auto-sync holidays for current year
+   @Post('calendar/auto-sync-holidays')
+   @ApiOperation({
+     summary: 'Auto-sync holidays for current year',
+     description:
+       'Automatically imports holidays from Time Management for the current year',
+   })
+   @ApiResponse({
+     status: 200,
+     description: 'Holidays synced successfully for current year',
+   })
+   async autoSyncHolidays() {
+     return this.leavesService.autoSyncHolidaysForCurrentYear();
+   }
 
   // ------------------------------
   // REQ-011: Configure Special Absence Types with Custom Rules - Tested

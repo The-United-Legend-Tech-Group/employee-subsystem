@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppraisalRecordService } from '../appraisal-record.service';
-import { AttendanceService } from '../../../time-mangement/attendance.service';
+import { AttendanceService } from '../../../time-mangement/services/attendance.service';
 import { AppraisalRecordRepository } from '../repository/appraisal-record.repository';
 import { AppraisalCycleRepository } from '../repository/appraisal-cycle.repository';
 import { AppraisalTemplateRepository } from '../repository/appraisal-template.repository';
@@ -14,7 +14,7 @@ import { ApprovalWorkflowService } from '../../../time-mangement/services/approv
 
 describe('Attendance Integration', () => {
     let appraisalRecordService: AppraisalRecordService;
-    let attendanceService: AttendanceService;
+
     let mockAppraisalRecordRepo: any;
     let mockAppraisalCycleRepo: any;
     let mockAttendanceRepo: any;
@@ -41,7 +41,7 @@ describe('Attendance Integration', () => {
         }).compile();
 
         appraisalRecordService = module.get<AppraisalRecordService>(AppraisalRecordService);
-        attendanceService = module.get<AttendanceService>(AttendanceService);
+
     });
 
     it('should fetch attendance summary when getting appraisal record', async () => {

@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { DatabaseModule } from '../../database/database.module';
+import { DatabaseModule } from '../database/database.module';
 import { Attachment, AttachmentSchema } from './models/attachment.schema';
+// Schedule will be initialized at the application root (AppModule)
+
 import {
   LeaveAdjustment,
   LeaveAdjustmentSchema,
@@ -21,12 +23,36 @@ import {
   LeaveCategory,
   LeaveCategorySchema,
 } from './models/leave-category.schema';
-import { LeavesController } from './leaves.controller';
-import { LeavesService } from './leaves.service';
+import { LeavesPolicyController } from './policy/leaves-policy.controller';
+import { LeavesPolicyService } from './policy/leaves-policy.service';
+import { LeavesRequestController } from './request/leave-requests.controller';
+import { LeavesRequestService } from './request/leave-requests.service';
+import { LeavesReportController } from './reports/leave-reports.controller';
+import { LeavesReportService } from './reports/leave-reports.service';
+import { EmployeeModule } from '../employee-subsystem/employee/employee.module';
+import { NotificationModule } from '../employee-subsystem/notification/notification.module';
+import { OrganizationStructureModule } from '../employee-subsystem/organization-structure/organization-structure.module';
+import { TimeMangementModule } from '../time-mangement/timemangment.module';
+import {
+  LeavePolicyRepository,
+  LeaveEntitlementRepository,
+  LeaveTypeRepository,
+  LeaveAdjustmentRepository,
+  LeaveRequestRepository,
+  CalendarRepository,
+  AttachmentRepository,
+} from './repository';
+
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-subsystem/employee/models/employee-system-role.schema';
 
 @Module({
   imports: [
     DatabaseModule,
+    forwardRef(() => TimeMangementModule), // Use forwardRef to resolve circular dependency
+    // ScheduleModule.forRoot() moved to AppModule
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },
       { name: LeaveAdjustment.name, schema: LeaveAdjustmentSchema },
@@ -36,10 +62,38 @@ import { LeavesService } from './leaves.service';
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
       { name: LeaveType.name, schema: LeaveTypeSchema },
       { name: LeaveCategory.name, schema: LeaveCategorySchema },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
     ]),
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+    }),
+    EmployeeModule,
+    NotificationModule,
+    OrganizationStructureModule,
   ],
-  controllers: [LeavesController],
-  providers: [LeavesService],
+  controllers: [
+    LeavesPolicyController,
+    LeavesRequestController,
+    LeavesReportController,
+  ],
+  providers: [
+    LeavesPolicyService,
+    LeavesRequestService,
+    LeavesReportService,
+    LeavePolicyRepository,
+    LeaveEntitlementRepository,
+    LeaveTypeRepository,
+    LeaveAdjustmentRepository,
+    LeaveRequestRepository,
+    AttachmentRepository,
+    CalendarRepository,
+  ],
   exports: [MongooseModule],
 })
-export class LeavesModule {}
+export class LeavesModule { }

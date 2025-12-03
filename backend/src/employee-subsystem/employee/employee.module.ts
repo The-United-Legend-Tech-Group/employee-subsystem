@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import {
   EmployeeProfile,
   EmployeeProfileSchema,
@@ -28,6 +30,15 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
 @Module({
   imports: [
     OrganizationStructureModule,
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+    }),
     MongooseModule.forFeature([
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: AppraisalRecord.name, schema: AppraisalRecordSchema },
@@ -52,6 +63,7 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
     CandidateRepository,
     EmployeeSystemRoleRepository,
     EmployeeProfileChangeRequestRepository,
+    EmployeeService,
   ],
 })
-export class EmployeeModule {}
+export class EmployeeModule { }

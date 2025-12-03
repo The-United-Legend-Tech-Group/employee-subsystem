@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EmployeeModule } from './employee.module';
-import { JwtModule } from '@nestjs/jwt';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -11,11 +12,16 @@ dotenv.config();
   providers: [AuthService],
   imports: [
     EmployeeModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '60m' }, // default for now
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
     }),
   ],
-  exports: [JwtModule],
+  exports: [JwtModule, AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

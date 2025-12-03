@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppraisalDisputeService } from './appraisal-dispute.service';
 import { CreateAppraisalDisputeDto } from './dto/create-appraisal-dispute.dto';
@@ -6,6 +6,10 @@ import { UpdateAppraisalDisputeDto } from './dto/update-appraisal-dispute.dto';
 import { AppraisalDispute } from './models/appraisal-dispute.schema';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { ResolveAppraisalDisputeDto } from './dto/resolve-appraisal-dispute.dto';
+import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../common/guards/authorization.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @ApiTags('Performance - Appraisal Disputes')
 @Controller('performance/disputes')
@@ -13,6 +17,7 @@ export class AppraisalDisputeController {
   constructor(private readonly disputeService: AppraisalDisputeService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Create a new appraisal dispute' })
   @ApiResponse({ status: 201, description: 'The created dispute', type: AppraisalDispute })
   async create(@Body() dto: CreateAppraisalDisputeDto) {
@@ -20,6 +25,8 @@ export class AppraisalDisputeController {
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'Get dispute by ID' })
   @ApiResponse({ status: 200, description: 'The dispute', type: AppraisalDispute })
   async findOne(@Param('id') id: string) {
@@ -27,18 +34,24 @@ export class AppraisalDisputeController {
   }
 
   @Get('record/:appraisalId')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'List disputes for an appraisal record' })
   async findByAppraisal(@Param('appraisalId') appraisalId: string) {
     return this.disputeService.findByAppraisalId(appraisalId);
   }
 
   @Get('cycle/:cycleId')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'List disputes for a cycle' })
   async findByCycle(@Param('cycleId') cycleId: string) {
     return this.disputeService.findByCycleId(cycleId);
   }
 
   @Get('open')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'List open disputes' })
   @ApiResponse({ status: 200, description: 'Open disputes', type: [AppraisalDispute] })
   async findOpen() {
@@ -46,6 +59,8 @@ export class AppraisalDisputeController {
   }
 
   @Post(':id/assign')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'Assign a reviewer to a dispute and mark under review' })
   @ApiResponse({ status: 200, description: 'The updated dispute', type: AppraisalDispute })
   async assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto) {
@@ -53,6 +68,8 @@ export class AppraisalDisputeController {
   }
 
   @Post(':id/resolve')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'Resolve a dispute with summary and status' })
   @ApiResponse({ status: 200, description: 'The resolved dispute', type: AppraisalDispute })
   async resolve(@Param('id') id: string, @Body() dto: ResolveAppraisalDisputeDto) {
@@ -60,6 +77,8 @@ export class AppraisalDisputeController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'Update a dispute (status / resolution)' })
   async update(@Param('id') id: string, @Body() dto: UpdateAppraisalDisputeDto) {
     return this.disputeService.update(id, dto);

@@ -11,8 +11,8 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiKeyGuard } from '../../guards/api-key.guard';
-import { authorizationGuard } from '../../guards/authorization.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
 
 describe('EmployeeController', () => {
   let controller: EmployeeController;
@@ -44,9 +44,9 @@ describe('EmployeeController', () => {
         },
       ],
     })
-      .overrideGuard(ApiKeyGuard)
-      .useValue({ canActivate: jest.fn(() => true) })
       .overrideGuard(authorizationGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(AuthGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();
 

@@ -4,10 +4,11 @@ import { AppraisalCycleService } from '../appraisal-cycle.service';
 import { CreateAppraisalCycleDto } from '../dto/create-appraisal-cycle.dto';
 import { UpdateAppraisalCycleDto } from '../dto/update-appraisal-cycle.dto';
 import { AppraisalTemplateType } from '../enums/performance.enums';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../../common/guards/authorization.guard';
 
 describe('AppraisalCycleController', () => {
     let controller: AppraisalCycleController;
-    let service: AppraisalCycleService;
 
     const mockService = {
         create: jest.fn(),
@@ -26,10 +27,14 @@ describe('AppraisalCycleController', () => {
                     useValue: mockService,
                 },
             ],
-        }).compile();
+        })
+            .overrideGuard(AuthGuard)
+            .useValue({ canActivate: () => true })
+            .overrideGuard(authorizationGuard)
+            .useValue({ canActivate: () => true })
+            .compile();
 
         controller = module.get<AppraisalCycleController>(AppraisalCycleController);
-        service = module.get<AppraisalCycleService>(AppraisalCycleService);
     });
 
     it('should be defined', () => {

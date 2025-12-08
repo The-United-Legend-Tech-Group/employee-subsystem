@@ -14,15 +14,20 @@ import Fade from '@mui/material/Fade';
 import Chip from '@mui/material/Chip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
+// import Table from '@mui/material/Table';
+// import TableBody from '@mui/material/TableBody';
+// import TableCell from '@mui/material/TableCell';
+// import TableContainer from '@mui/material/TableContainer';
+// import TableHead from '@mui/material/TableHead';
+// import TableRow from '@mui/material/TableRow';
+// import Paper from '@mui/material/Paper';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import TableRowsRoundedIcon from '@mui/icons-material/TableRowsRounded';
+
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 
 // Adjust imports if needed
 
@@ -46,10 +51,88 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
     const router = useRouter();
     const theme = useTheme();
     const [loading, setLoading] = React.useState(true);
-    const [team, setTeam] = React.useState<TeamMember[]>([]);
+    const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
     const [manager, setManager] = React.useState<TeamMember | null>(null);
     const [hoveredMember, setHoveredMember] = React.useState<TeamMember | null>(null);
     const [viewMode, setViewMode] = React.useState<'orbit' | 'table'>('orbit');
+    // Search and Filter Logic
+    const [searchQuery, setSearchQuery] = React.useState('');
+
+    // Combine manager and team for the table
+    const allRows = React.useMemo(() => {
+        const rows = [...teamMembers];
+        if (manager) {
+            return [manager, ...rows];
+        }
+        return rows;
+    }, [manager, teamMembers]);
+
+    const filteredRows = React.useMemo(() => {
+        if (!searchQuery) return allRows;
+        const lowerQuery = searchQuery.toLowerCase();
+        return allRows.filter(row =>
+            (row.firstName || '').toLowerCase().includes(lowerQuery) ||
+            (row.lastName || '').toLowerCase().includes(lowerQuery) ||
+            (row.email || '').toLowerCase().includes(lowerQuery) ||
+            (row.position?.title || '').toLowerCase().includes(lowerQuery) ||
+            (row.department?.name || '').toLowerCase().includes(lowerQuery)
+        );
+    }, [searchQuery, allRows]);
+
+    const columns: GridColDef[] = [
+        {
+            field: 'fullName',
+            headerName: 'Employee',
+            flex: 1,
+            minWidth: 200,
+            renderCell: (params: GridRenderCellParams<TeamMember>) => {
+                const isManager = manager && params.row._id === manager._id;
+                return (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+                        <Avatar src={params.row.profilePictureUrl} alt={params.row.firstName} sx={{ width: 32, height: 32 }} />
+                        <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                                {params.row.firstName} {params.row.lastName}
+                            </Typography>
+                            {isManager && (
+                                <Typography variant="caption" color="primary" sx={{ display: 'block', lineHeight: 1 }}>
+                                    (You)
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+                );
+            }
+        },
+        {
+            field: 'position',
+            headerName: 'Position',
+            flex: 1,
+            minWidth: 150,
+            valueGetter: (value, row) => row.position?.title || (manager && row._id === manager._id ? 'Team Lead' : '')
+        },
+        {
+            field: 'department',
+            headerName: 'Department',
+            flex: 1,
+            minWidth: 150,
+            valueGetter: (value, row) => row.department?.name
+        },
+        {
+            field: 'status',
+            headerName: 'Status',
+            width: 120,
+            renderCell: (params: GridRenderCellParams<TeamMember>) => (
+                <Chip
+                    label={params.row.status}
+                    size="small"
+                    color={params.row.status === 'ACTIVE' ? 'success' : 'default'}
+                    variant="outlined"
+                />
+            )
+        },
+        { field: 'email', headerName: 'Email', flex: 1.2, minWidth: 200 },
+    ];
 
     React.useEffect(() => {
         const fetchTeam = async () => {
@@ -82,7 +165,7 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
 
                 if (response.ok) {
                     const data = await response.json();
-                    setTeam(data.items || []);
+                    setTeamMembers(data.items || []);
                 } else {
                     console.error('Failed to fetch team', response.status, response.statusText);
                     const text = await response.text();
@@ -136,11 +219,11 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
     // Distribute members into orbits if there are too many
     const MAX_PER_ORBIT = 8;
     const orbits: TeamMember[][] = [];
-    let remainingMembers = [...team];
+    let remainingMembers = [...teamMembers];
     while (remainingMembers.length > 0) {
         orbits.push(remainingMembers.splice(0, MAX_PER_ORBIT));
     }
-    // If we have just a few extra in the last orbit, maybe balance it? For now simple chunking.
+
 
     const handleViewChange = (
         event: React.MouseEvent<HTMLElement>,
@@ -425,83 +508,53 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                     px: 3,
                     pb: 3,
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    gap: 2
                 }}>
-                    <TableContainer
-                        component={Paper}
-                        elevation={0}
-                        sx={{
-                            borderRadius: 3,
-                            border: `1px solid ${theme.palette.divider}`,
-                            height: '100%', // Fill remaining space
-                            overflow: 'auto', // Scroll inside
-                            bgcolor: 'background.paper',
-                        }}
-                    >
-                        <Table stickyHeader sx={{ minWidth: 650 }} aria-label="team table">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 'bold', color: 'text.secondary' }}>Employee</TableCell>
-                                    <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 'bold', color: 'text.secondary' }}>Position</TableCell>
-                                    <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 'bold', color: 'text.secondary' }}>Department</TableCell>
-                                    <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 'bold', color: 'text.secondary' }}>Status</TableCell>
-                                    <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 'bold', color: 'text.secondary' }}>Email</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {manager && (
-                                    <TableRow key={manager._id} selected hover>
-                                        <TableCell component="th" scope="row">
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                <Avatar src={manager.profilePictureUrl} alt={manager.firstName} />
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                                                        {manager.firstName} {manager.lastName}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
-                                                        (You)
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>{manager.position?.title || 'Team Lead'}</TableCell>
-                                        <TableCell>{manager.department?.name}</TableCell>
-                                        <TableCell>
-                                            <Chip label={manager.status} size="small" color="success" variant="outlined" />
-                                        </TableCell>
-                                        <TableCell>{manager.email}</TableCell>
-                                    </TableRow>
-                                )}
-                                {team.map((member) => (
-                                    <TableRow
-                                        key={member._id}
-                                        hover
-                                        sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                                    >
-                                        <TableCell component="th" scope="row">
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                <Avatar src={member.profilePictureUrl} alt={member.firstName} />
-                                                <Typography variant="subtitle2" component="span" fontWeight="medium">
-                                                    {member.firstName} {member.lastName}
-                                                </Typography>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>{member.position?.title}</TableCell>
-                                        <TableCell>{member.department?.name}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={member.status}
-                                                size="small"
-                                                color={member.status === 'ACTIVE' ? 'success' : 'default'}
-                                                variant="outlined"
-                                            />
-                                        </TableCell>
-                                        <TableCell>{member.email}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    {/* Search Bar */}
+                    <Fade in={viewMode === 'table'}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <TextField
+                                placeholder="Search team..."
+                                size="small"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon fontSize="small" color="action" />
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                                sx={{ width: 300, bgcolor: 'background.paper', borderRadius: 1 }}
+                            />
+                        </Box>
+                    </Fade>
+
+                    {/* DataGrid */}
+                    <Box sx={{ flex: 1, width: '100%', overflow: 'hidden' }}>
+                        <DataGrid
+                            rows={filteredRows}
+                            columns={columns}
+                            getRowId={(row) => row._id}
+                            disableRowSelectionOnClick
+                            pageSizeOptions={[10, 25, 50]}
+                            initialState={{
+                                pagination: { paginationModel: { pageSize: 10 } },
+                            }}
+                            sx={{
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 3,
+                                bgcolor: 'background.paper',
+                                '& .MuiDataGrid-cell': {
+                                    alignContent: 'center',
+                                },
+                            }}
+                        />
+                    </Box>
                 </Box>
             )}
         </Box>

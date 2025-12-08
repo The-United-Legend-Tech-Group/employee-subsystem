@@ -40,6 +40,7 @@ export default function MenuContent() {
   const isSelected = (text: string) => {
     if (text === 'Home' && (pathname === '/employee/dashboard' || pathname === '/candidate/dashboard')) return true;
     if (text === 'Team' && pathname === '/employee/team') return true;
+    if (text === 'Analytics' && pathname === '/employee/analytics') return true;
     // Add other mapping as needed
     return false;
   }
@@ -53,6 +54,7 @@ export default function MenuContent() {
       }
     }
     if (text === 'Team') router.push('/employee/team');
+    if (text === 'Analytics') router.push('/employee/analytics');
   };
 
   return (

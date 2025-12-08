@@ -37,7 +37,7 @@ export default function ProfileCard({
     const sanitize = (val: string | undefined | null) => (val === 'string' || val === null ? undefined : val);
 
     return (
-        <Card variant="outlined" sx={{ height: '100%', width: '100%' }}>
+        <Card variant="outlined" sx={{ height: 'fit-content', minHeight: '100%', width: '100%' }}>
             <CardContent>
                 <Stack spacing={2} alignItems="center">
                     <Avatar
@@ -93,15 +93,16 @@ export default function ProfileCard({
                             Biography
                         </Typography>
                         <TextField
-                            fullWidth
-                            multiline
-                            rows={4}
-                            placeholder="Tell us about yourself..."
-                            value={biography}
-                            onChange={(e) => setBiography(e.target.value)}
-                            variant="outlined"
-                            size="small"
-                        />
+                        fullWidth
+                        placeholder="Biography"
+                        multiline
+                        rows={1}
+                        minRows={1}
+                        variant="outlined"
+                        value={biography}
+                        onChange={(e) => setBiography(e.target.value)}
+                        sx={{ textAlign: 'left', mt: 2 }}
+                    />
                     </Box>
                 </Stack>
             </CardContent>

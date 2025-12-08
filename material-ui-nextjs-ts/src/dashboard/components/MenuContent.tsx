@@ -41,6 +41,7 @@ export default function MenuContent() {
     if (text === 'Home' && (pathname === '/employee/dashboard' || pathname === '/candidate/dashboard')) return true;
     if (text === 'Team' && pathname === '/employee/team') return true;
     if (text === 'Analytics' && pathname === '/employee/analytics') return true;
+    if (text === 'Settings' && pathname === '/employee/settings') return true;
     // Add other mapping as needed
     return false;
   }
@@ -55,6 +56,7 @@ export default function MenuContent() {
     }
     if (text === 'Team') router.push('/employee/team');
     if (text === 'Analytics') router.push('/employee/analytics');
+    if (text === 'Settings') router.push('/employee/settings');
   };
 
   return (
@@ -72,7 +74,7 @@ export default function MenuContent() {
       <List dense>
         {secondaryListItems.map((item, index) => (
           <ListItem key={index} disablePadding sx={{ display: 'block' }}>
-            <ListItemButton onClick={() => handleNavigation(item.text)}>
+            <ListItemButton selected={isSelected(item.text)} onClick={() => handleNavigation(item.text)}>
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>

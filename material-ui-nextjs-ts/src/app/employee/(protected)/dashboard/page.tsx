@@ -133,7 +133,7 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                                         <Typography variant="h4" fontWeight="bold" gutterBottom>
                                             {employee?.firstName} {employee?.middleName} {employee?.lastName}
                                         </Typography>
-                                        <Chip 
+                                            <Chip 
                                             label={employee?.status} 
                                             color={getStatusColor(employee?.status || '') as any} 
                                             size="medium" 
@@ -142,7 +142,7 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                                                 fontWeight: 'bold',
                                                 border: 'none',
                                                 ...(employee?.status === 'ON_LEAVE' && {
-                                                    bgcolor: '#FFC107', // Amber 500
+                                                    bgcolor: '#ffface',
                                                     color: 'black'
                                                 })
                                             }} 
@@ -229,7 +229,7 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                                                     fontWeight: 'bold',
                                                     border: 'none',
                                                     ...(employee?.status === 'ON_LEAVE' && {
-                                                        bgcolor: '#FFC107', // Amber 500
+                                                        bgcolor: '#ffface',
                                                         color: 'black'
                                                     })
                                                 }}

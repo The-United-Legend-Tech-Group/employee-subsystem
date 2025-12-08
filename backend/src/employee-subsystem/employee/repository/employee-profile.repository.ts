@@ -3,24 +3,31 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import {
-  EmployeeProfile,
-  EmployeeProfileDocument,
+    EmployeeProfile,
+    EmployeeProfileDocument,
 } from '../models/employee-profile.schema';
 
 @Injectable()
 export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDocument> {
-  constructor(
-    @InjectModel(EmployeeProfile.name) model: Model<EmployeeProfileDocument>,
-  ) {
-    super(model);
-  }
+    constructor(
+        @InjectModel(EmployeeProfile.name) model: Model<EmployeeProfileDocument>,
+    ) {
+        super(model);
+    }
 
-  async findByEmail(email: string): Promise<EmployeeProfileDocument | null> {
-    return this.model
-      .findOne({ personalEmail: email })
-      .select('+password')
-      .exec();
-  }
+    async findByEmail(email: string): Promise<EmployeeProfileDocument | null> {
+        return this.model
+            .findOne({ personalEmail: email })
+            .select('+password')
+            .exec();
+    }
+
+    async findLastEmployeeNumberForPrefix(prefix: string): Promise<EmployeeProfileDocument | null> {
+        return this.model
+            .findOne({ employeeNumber: new RegExp(`^${prefix}`) })
+            .sort({ employeeNumber: -1 })
+            .exec();
+    }
 
     async getTeamSummaryByManagerId(managerId: string) {
         // Find the manager and get their position
@@ -118,16 +125,16 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
         const managerPositionId = manager.primaryPositionId;
         console.log(`[getTeamMembersByManagerId] Manager position: ${managerPositionId}`);
 
-    // Exclude sensitive personal fields
-    const projection: any = {
-      nationalId: 0,
-      password: 0,
-      personalEmail: 0,
-      mobilePhone: 0,
-      homePhone: 0,
-      address: 0,
-      accessProfileId: 0,
-    };
+        // Exclude sensitive personal fields
+        const projection: any = {
+            nationalId: 0,
+            password: 0,
+            personalEmail: 0,
+            mobilePhone: 0,
+            homePhone: 0,
+            address: 0,
+            accessProfileId: 0,
+        };
 
         // NOTE: supervisorPositionId may be stored as string in the database
         // even though schema defines it as ObjectId, so we need to match both types

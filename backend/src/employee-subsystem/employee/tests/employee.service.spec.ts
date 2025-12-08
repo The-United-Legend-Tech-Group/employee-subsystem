@@ -98,6 +98,43 @@ describe('EmployeeService', () => {
         expect(service).toBeDefined();
     });
 
+    describe('onboard', () => {
+        it('should auto-generate employee number when not provided', async () => {
+            const createEmployeeDto: any = {
+                firstName: 'John',
+                lastName: 'Doe',
+                // employeeNumber is missing to trigger auto-generation
+            };
+
+            const mockLastEmployee = {
+                employeeNumber: 'EMP-20231025-0001',
+            };
+
+            // Mock finding the last employee
+            (mockEmployeeProfileRepository as any).findLastEmployeeNumberForPrefix = jest.fn().mockResolvedValue(mockLastEmployee);
+
+            // Mock the save method on the created employee instance
+            const saveMock = jest.fn().mockResolvedValue({ ...createEmployeeDto, _id: 'new-id' });
+            (mockEmployeeProfileModel as any).mockImplementation(() => ({
+                save: saveMock,
+            }));
+
+            // Mock Date to ensure consistent prefix generation if needed, 
+            // but for simple logic check, we can just inspect the arguments.
+            // However, since the service generates the prefix based on *current* date,
+            // we'll primarily verify that findLastEmployeeNumberForPrefix was called 
+            // and that the new employeeNumber follows the sequence.
+
+            await service.onboard(createEmployeeDto);
+
+            expect((mockEmployeeProfileRepository as any).findLastEmployeeNumberForPrefix).toHaveBeenCalled();
+            // We expect the new number to be incremented from the mock one
+            // The actual prefix depends on the current date, so we'll just check the sequence part "0002"
+            // or implicitly check that it was assigned to the DTO.
+            expect(createEmployeeDto.employeeNumber).toMatch(/EMP-\d{8}-0002/);
+        });
+    });
+
     describe('updatePosition', () => {
         it('should update position and create a position assignment', async () => {
             const employeeId = new Types.ObjectId().toHexString();

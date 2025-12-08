@@ -139,10 +139,18 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
                 ]
             })
             .select(projection)
+            .populate('primaryPositionId', 'title')
+            .populate('primaryDepartmentId', 'name')
             .lean()
             .exec();
 
         console.log(`[getTeamMembersByManagerId] Found ${teamMembers.length} team members`);
-        return teamMembers;
+        
+        // Map populated fields to frontend expected structure
+        return teamMembers.map((member: any) => ({
+            ...member,
+            position: member.primaryPositionId,
+            department: member.primaryDepartmentId,
+        }));
     }
 }

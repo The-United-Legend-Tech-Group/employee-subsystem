@@ -26,6 +26,8 @@ import { EmployeeSystemRoleRepository } from './repository/employee-system-role.
 import { Candidate, CandidateSchema } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
+import { Position, PositionSchema } from '../organization-structure/models/position.schema';
+import { Department, DepartmentSchema } from '../organization-structure/models/department.schema';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { OrganizationStructureModule } from '../organization-structure/organizat
       },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
       { name: Candidate.name, schema: CandidateSchema },
+      { name: Position.name, schema: PositionSchema },
+      { name: Department.name, schema: DepartmentSchema },
     ]),
   ],
   controllers: [EmployeeController],

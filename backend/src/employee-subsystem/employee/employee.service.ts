@@ -399,7 +399,12 @@ export class EmployeeService {
 
   // Fetch full employee profile along with system role assignment
   async getProfile(employeeId: string) {
-    const employee = await this.employeeProfileRepository.findById(employeeId);
+    const employee = await this.employeeProfileModel
+      .findById(employeeId)
+      .populate('primaryPositionId', 'title')
+      .populate('primaryDepartmentId', 'name')
+      .exec();
+      
     if (!employee) {
       throw new NotFoundException('Employee not found');
     }
@@ -411,6 +416,14 @@ export class EmployeeService {
     // Return combined view; omit any sensitive fields if present
     const profileObj: any = employee.toObject ? employee.toObject() : employee;
     if (profileObj.password) delete profileObj.password;
+    
+    // Map populated fields to frontend expected structure
+    if (profileObj.primaryPositionId && typeof profileObj.primaryPositionId === 'object') {
+      profileObj.position = profileObj.primaryPositionId;
+    }
+    if (profileObj.primaryDepartmentId && typeof profileObj.primaryDepartmentId === 'object') {
+      profileObj.department = profileObj.primaryDepartmentId;
+    }
 
     // Fetch appraisal records for performance history (most recent first)
     const records: any[] = await this.appraisalRecordModel

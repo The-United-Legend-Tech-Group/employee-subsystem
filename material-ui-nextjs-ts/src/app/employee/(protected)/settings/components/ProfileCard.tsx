@@ -3,11 +3,12 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Avatar from '@mui/material/Avatar';
 import PersonIcon from '@mui/icons-material/Person';
+import TextField from '@mui/material/TextField';
+import Stack from '@mui/material/Stack';
 
 interface EmployeeProfile {
     firstName: string;
@@ -36,17 +37,18 @@ export default function ProfileCard({
     const sanitize = (val: string | undefined | null) => (val === 'string' || val === null ? undefined : val);
 
     return (
-        <Card variant="outlined" sx={{ height: '100%' }}>
+        <Card variant="outlined" sx={{ height: '100%', width: '100%' }}>
             <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 2 }}>
+                <Stack spacing={2} alignItems="center">
                     <Avatar
                         src={sanitize(profilePictureUrl)}
-                        sx={{ width: 120, height: 120, bgcolor: 'primary.main', fontSize: 60 }}
+                        sx={{ width: 100, height: 100, bgcolor: 'primary.main', fontSize: 50 }}
                     >
                         {!sanitize(profilePictureUrl) && <PersonIcon fontSize="inherit" />}
                     </Avatar>
-                    <Box>
-                        <Typography variant="h6" gutterBottom>
+
+                    <Box textAlign="center">
+                        <Typography variant="h6" component="div">
                             {sanitize(profile?.firstName)} {sanitize(profile?.lastName)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -54,51 +56,54 @@ export default function ProfileCard({
                         </Typography>
                     </Box>
 
-                    <Divider flexItem sx={{ my: 1, width: '100%' }} />
-
-                    <input
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        id="profile-picture-upload"
-                        type="file"
-                        onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                                if (file.size > 2 * 1024 * 1024) {
-                                    setError('File size too large. Please select an image under 2MB.');
-                                    return;
-                                }
-
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                    setProfilePictureUrl(reader.result as string);
-                                    setError(null);
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        }}
-                    />
-                    <label htmlFor="profile-picture-upload" style={{ width: '100%' }}>
-                        <Button
-                            variant="outlined"
-                            component="span"
-                            fullWidth
-                            sx={{ mb: 2 }}
-                        >
-                            Upload Picture
-                        </Button>
-                    </label>
-
-                    <TextField
-                        fullWidth
-                        placeholder="Biography"
-                        multiline
-                        rows={6}
+                    <Button
                         variant="outlined"
-                        value={biography}
-                        onChange={(e) => setBiography(e.target.value)}
-                    />
-                </Box>
+                        component="label"
+                        fullWidth
+                        size="small"
+                    >
+                        Upload Picture
+                        <input
+                            accept="image/*"
+                            type="file"
+                            hidden
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    if (file.size > 2 * 1024 * 1024) {
+                                        setError('File size too large. Please select an image under 2MB.');
+                                        return;
+                                    }
+
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                        setProfilePictureUrl(reader.result as string);
+                                        setError(null);
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }}
+                        />
+                    </Button>
+
+                    <Divider flexItem />
+
+                    <Box width="100%">
+                        <Typography variant="subtitle2" gutterBottom>
+                            Biography
+                        </Typography>
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                            placeholder="Tell us about yourself..."
+                            value={biography}
+                            onChange={(e) => setBiography(e.target.value)}
+                            variant="outlined"
+                            size="small"
+                        />
+                    </Box>
+                </Stack>
             </CardContent>
         </Card>
     );

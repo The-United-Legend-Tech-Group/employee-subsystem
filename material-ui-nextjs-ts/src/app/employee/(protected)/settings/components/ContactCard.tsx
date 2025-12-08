@@ -3,10 +3,8 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import SaveIcon from '@mui/icons-material/Save';
@@ -42,26 +40,33 @@ export default function ContactCard({
     setCountry
 }: ContactCardProps) {
     return (
-        <Card variant="outlined" sx={{ height: '100%' }}>
-            <CardHeader
-                title="Personal Information"
-                subheader="Update your biography and contact details"
-                action={
-                    <Button
-                        variant="contained"
-                        startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                    >
-                        {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                }
-            />
-            <Divider />
+        <Card variant="outlined" sx={{ height: '100%', width: '100%' }}>
             <CardContent>
-                <Stack spacing={3}>
+                <Stack spacing={4}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                            <Typography variant="h6" gutterBottom>
+                                Personal Information
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Update your contact details and address
+                            </Typography>
+                        </Box>
+                        <Button
+                            variant="contained"
+                            startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                            onClick={handleSaveProfile}
+                            disabled={saving}
+                            size="small"
+                        >
+                            {saving ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </Box>
+
                     <Box>
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>Phone Numbers</Typography>
+                        <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+                            Phone Numbers
+                        </Typography>
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
@@ -69,6 +74,7 @@ export default function ContactCard({
                                     placeholder="Mobile Phone"
                                     value={mobilePhone}
                                     onChange={(e) => setMobilePhone(e.target.value)}
+                                    size="small"
                                 />
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
@@ -77,15 +83,16 @@ export default function ContactCard({
                                     placeholder="Home Phone"
                                     value={homePhone}
                                     onChange={(e) => setHomePhone(e.target.value)}
+                                    size="small"
                                 />
                             </Grid>
                         </Grid>
                     </Box>
 
-                    <Divider />
-
                     <Box>
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>Address</Typography>
+                        <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+                            Address
+                        </Typography>
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 12 }}>
                                 <TextField
@@ -93,6 +100,7 @@ export default function ContactCard({
                                     placeholder="Street Address"
                                     value={streetAddress}
                                     onChange={(e) => setStreetAddress(e.target.value)}
+                                    size="small"
                                 />
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
@@ -101,6 +109,7 @@ export default function ContactCard({
                                     placeholder="City"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
+                                    size="small"
                                 />
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
@@ -109,6 +118,7 @@ export default function ContactCard({
                                     placeholder="Country"
                                     value={country}
                                     onChange={(e) => setCountry(e.target.value)}
+                                    size="small"
                                 />
                             </Grid>
                         </Grid>

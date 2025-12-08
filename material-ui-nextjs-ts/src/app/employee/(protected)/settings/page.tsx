@@ -153,7 +153,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' }, p: 3 }}>
+        <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
             <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
                 Settings
             </Typography>
@@ -161,7 +161,7 @@ export default function SettingsPage() {
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-            <Grid container spacing={3}>
+            <Grid container spacing={2} columns={12}>
                 {/* Profile Picture & Bio */}
                 <Grid size={{ xs: 12, md: 4, lg: 3 }}>
                     <ProfileCard

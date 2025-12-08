@@ -185,6 +185,15 @@ export class EmployeeController {
     return this.employeeService.rejectProfileChangeRequest(requestId, body?.reason);
   }
 
+  @Get('candidate/:id')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get candidate profile' })
+  @ApiParam({ name: 'id', description: 'Candidate ID' })
+  @ApiResponse({ status: 200, description: 'Candidate profile retrieved' })
+  async getCandidate(@Param('id') id: string) {
+    return this.employeeService.findCandidateById(id);
+  }
+
   // Employee: fetch own (or specific) full profile
   @Get(':id')
   @UseGuards(AuthGuard)

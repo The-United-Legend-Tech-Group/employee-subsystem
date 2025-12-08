@@ -46,7 +46,7 @@ export class AuthController {
       sameSite: 'strict',
     });
 
-    return { message: 'Login successful' };
+    return { message: 'Login successful', access_token, candidateId };
   }
 
   @Post('/employee/login')
@@ -74,6 +74,6 @@ export class AuthController {
       sameSite: 'strict',
     });
 
-    return { message: 'Login successful' };
+    return { message: 'Login successful', access_token, employeeId };
   }
 }

@@ -3,13 +3,10 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import CssBaseline from '@mui/material/CssBaseline';
 import Divider from '@mui/material/Divider';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
-import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
@@ -63,7 +60,7 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
     },
 }));
 
-export default function CandidateLogin() {
+export default function EmployeeLogin() {
     const router = useRouter();
 
     const [emailError, setEmailError] = React.useState(false);
@@ -117,7 +114,7 @@ export default function CandidateLogin() {
 
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-            const response = await fetch(`${apiUrl}/auth/candidate/login`, {
+            const response = await fetch(`${apiUrl}/auth/employee/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -129,8 +126,8 @@ export default function CandidateLogin() {
                 // Successful login
                 const data = await response.json();
                 localStorage.setItem('access_token', data.access_token);
-                localStorage.setItem('candidateId', data.candidateId);
-                router.push('/candidate/dashboard');
+                localStorage.setItem('employeeId', data.employeeId);
+                router.push('/employee/dashboard');
             } else {
                 const errorData = await response.json();
                 setFormError(errorData.message || 'Login failed. Please check your credentials.');
@@ -153,7 +150,7 @@ export default function CandidateLogin() {
                         variant="h4"
                         sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)' }}
                     >
-                        Candidate Login
+                        Employee Login
                     </Typography>
                     <Box
                         component="form"
@@ -207,21 +204,6 @@ export default function CandidateLogin() {
                         >
                             Sign in
                         </Button>
-                    </Box>
-                    <Divider>
-                        <Typography sx={{ color: 'text.secondary' }}>or</Typography>
-                    </Divider>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography sx={{ textAlign: 'center' }}>
-                            Don't have an account?{' '}
-                            <Link
-                                href="/candidate/register"
-                                variant="body2"
-                                sx={{ alignSelf: 'center' }}
-                            >
-                                Sign up
-                            </Link>
-                        </Typography>
                     </Box>
                 </Card>
             </SignUpContainer>

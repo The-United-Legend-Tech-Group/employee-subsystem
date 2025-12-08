@@ -434,6 +434,14 @@ export class EmployeeService {
     };
   }
 
+  async findCandidateById(id: string): Promise<Candidate> {
+    const candidate = await this.candidateRepository.findById(id);
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+    return candidate;
+  }
+
   async updateCandidateStatus(candidateId: string, updateCandidateStatusDto: UpdateCandidateStatusDto): Promise<Candidate> {
     const candidate = await this.candidateRepository.findById(candidateId);
     if (!candidate) {

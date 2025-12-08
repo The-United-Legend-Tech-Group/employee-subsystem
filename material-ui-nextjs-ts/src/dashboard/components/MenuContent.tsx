@@ -30,6 +30,13 @@ export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
 
+  const isCandidate = pathname.startsWith('/candidate');
+
+  const visibleListItems = mainListItems.filter(item => {
+    if (isCandidate && item.text === 'Team') return false;
+    return true;
+  });
+
   const isSelected = (text: string) => {
     if (text === 'Home' && (pathname === '/employee/dashboard' || pathname === '/candidate/dashboard')) return true;
     if (text === 'Team' && pathname === '/employee/team') return true;
@@ -38,14 +45,20 @@ export default function MenuContent() {
   }
 
   const handleNavigation = (text: string) => {
-    if (text === 'Home') router.push('/employee/dashboard');
+    if (text === 'Home') {
+      if (isCandidate) {
+        router.push('/candidate/dashboard');
+      } else {
+        router.push('/employee/dashboard');
+      }
+    }
     if (text === 'Team') router.push('/employee/team');
   };
 
   return (
     <Stack sx={{ flexGrow: 1, p: 1, justifyContent: 'space-between' }}>
       <List dense>
-        {mainListItems.map((item, index) => (
+        {visibleListItems.map((item, index) => (
           <ListItem key={index} disablePadding sx={{ display: 'block' }}>
             <ListItemButton selected={isSelected(item.text)} onClick={() => handleNavigation(item.text)}>
               <ListItemIcon>{item.icon}</ListItemIcon>

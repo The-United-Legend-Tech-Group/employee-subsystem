@@ -1,5 +1,7 @@
 import Stack from '@mui/material/Stack';
-import CustomDatePicker from './CustomDatePicker';
+import dynamic from 'next/dynamic';
+
+const CustomDatePicker = dynamic(() => import('./CustomDatePicker'), { ssr: false });
 import NavbarBreadcrumbs from './NavbarBreadcrumbs';
 import MenuButton from './MenuButton';
 import ColorModeIconDropdown from '../../shared-theme/ColorModeIconDropdown';

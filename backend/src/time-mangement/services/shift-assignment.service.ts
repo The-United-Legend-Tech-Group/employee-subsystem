@@ -9,7 +9,6 @@ export class ShiftAssignmentService {
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly shiftRepo: ShiftRepository,
     private readonly scheduleRuleRepo?: ScheduleRuleRepository,
-    private readonly notificationService?: NotificationService,
   ) {}
 
   async assignShiftToEmployee(dto: any) {
@@ -26,45 +25,7 @@ export class ShiftAssignmentService {
       status: dto.status,
     } as any;
 
-    const created = await this.shiftAssignmentRepo.create(payload);
-
-    // notify HR Admin if endDate is nearing expiry
-    try {
-      if (created && created.endDate && this.notificationService) {
-        const daysBefore = parseInt(
-          process.env.SHIFT_EXPIRY_NOTIFY_DAYS || '7',
-          10,
-        );
-        const now = new Date();
-        const diffDays = Math.ceil(
-          (new Date(created.endDate as any).getTime() - now.getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
-        if (diffDays <= daysBefore && diffDays >= 0) {
-          const notif: CreateNotificationDto = {
-            recipientId: [],
-            type: 'Info',
-            deliveryType: 'UNICAST',
-            title: 'Shift Assignment Nearing Expiry',
-            message: `Shift assignment for employee ${created.employeeId} (shift ${
-              (shift && (shift as any).name) || created.shiftId
-            }) expires in ${diffDays} day(s). Please review and renew or reassign.`,
-            relatedEntityId: (created as any)._id?.toString?.(),
-            relatedModule: 'Time',
-            deliverToRole: SystemRole.HR_ADMIN,
-          } as any;
-          void this.notificationService.create(notif);
-        }
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'Shift expiry notification failed',
-        e && e.message ? e.message : e,
-      );
-    }
-
-    return created;
+    return this.shiftAssignmentRepo.create(payload);
   }
 
   async assignShiftScoped(dto: any) {
@@ -89,43 +50,6 @@ export class ShiftAssignmentService {
         };
         const res = await this.shiftAssignmentRepo.create(payload);
         created.push(res);
-        try {
-          if (res && res.endDate && this.notificationService) {
-            const daysBefore = parseInt(
-              process.env.SHIFT_EXPIRY_NOTIFY_DAYS || '7',
-              10,
-            );
-            const now = new Date();
-            const diffDays = Math.ceil(
-              (new Date(res.endDate as any).getTime() - now.getTime()) /
-                (1000 * 60 * 60 * 24),
-            );
-            if (diffDays <= daysBefore && diffDays >= 0) {
-              const shiftObj = await this.shiftRepo.findById(
-                res.shiftId as any,
-              );
-              const notif: CreateNotificationDto = {
-                recipientId: [],
-                type: 'Info',
-                deliveryType: 'UNICAST',
-                title: 'Shift Assignment Nearing Expiry',
-                message: `Shift assignment for employee ${res.employeeId} (shift ${
-                  (shiftObj && (shiftObj as any).name) || res.shiftId
-                }) expires in ${diffDays} day(s).`,
-                relatedEntityId: (res as any)._id?.toString?.(),
-                relatedModule: 'Time',
-                deliverToRole: SystemRole.HR_ADMIN,
-              } as any;
-              void this.notificationService.create(notif);
-            }
-          }
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            'Shift expiry notification failed',
-            e && e.message ? e.message : e,
-          );
-        }
       }
       return created;
     }
@@ -140,41 +64,6 @@ export class ShiftAssignmentService {
       };
       const res = await this.shiftAssignmentRepo.create(payload);
       created.push(res);
-      try {
-        if (res && res.endDate && this.notificationService) {
-          const daysBefore = parseInt(
-            process.env.SHIFT_EXPIRY_NOTIFY_DAYS || '7',
-            10,
-          );
-          const now = new Date();
-          const diffDays = Math.ceil(
-            (new Date(res.endDate as any).getTime() - now.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-          if (diffDays <= daysBefore && diffDays >= 0) {
-            const shiftObj = await this.shiftRepo.findById(res.shiftId as any);
-            const notif: CreateNotificationDto = {
-              recipientId: [],
-              type: 'Info',
-              deliveryType: 'UNICAST',
-              title: 'Shift Assignment Nearing Expiry',
-              message: `Shift assignment for department target (shift ${
-                (shiftObj && (shiftObj as any).name) || res.shiftId
-              }) expires in ${diffDays} day(s).`,
-              relatedEntityId: (res as any)._id?.toString?.(),
-              relatedModule: 'Time',
-              deliverToRole: SystemRole.HR_ADMIN,
-            } as any;
-            void this.notificationService.create(notif);
-          }
-        }
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          'Shift expiry notification failed',
-          e && e.message ? e.message : e,
-        );
-      }
       return created;
     }
 
@@ -188,41 +77,6 @@ export class ShiftAssignmentService {
       };
       const res = await this.shiftAssignmentRepo.create(payload);
       created.push(res);
-      try {
-        if (res && res.endDate && this.notificationService) {
-          const daysBefore = parseInt(
-            process.env.SHIFT_EXPIRY_NOTIFY_DAYS || '7',
-            10,
-          );
-          const now = new Date();
-          const diffDays = Math.ceil(
-            (new Date(res.endDate as any).getTime() - now.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-          if (diffDays <= daysBefore && diffDays >= 0) {
-            const shiftObj = await this.shiftRepo.findById(res.shiftId as any);
-            const notif: CreateNotificationDto = {
-              recipientId: [],
-              type: 'Info',
-              deliveryType: 'UNICAST',
-              title: 'Shift Assignment Nearing Expiry',
-              message: `Shift assignment for position target (shift ${
-                (shiftObj && (shiftObj as any).name) || res.shiftId
-              }) expires in ${diffDays} day(s).`,
-              relatedEntityId: (res as any)._id?.toString?.(),
-              relatedModule: 'Time',
-              deliverToRole: SystemRole.HR_ADMIN,
-            } as any;
-            void this.notificationService.create(notif);
-          }
-        }
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          'Shift expiry notification failed',
-          e && e.message ? e.message : e,
-        );
-      }
       return created;
     }
 

@@ -9,7 +9,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <InitColorSchemeScript attribute="class" />
+        <InitColorSchemeScript attribute="data-mui-color-scheme" />
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <AppTheme>
             {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}

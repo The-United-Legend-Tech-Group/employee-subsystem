@@ -18,7 +18,7 @@ import { AdminUpdateEmployeeProfileDto } from './dto/admin-update-employee-profi
 import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
 import { UpdateEmployeeDepartmentDto } from './dto/update-employee-department.dto';
 import { UpdateEmployeePositionDto } from './dto/update-employee-position.dto';
-import { MaritalStatus, SystemRole, EmployeeStatus, ProfileChangeStatus } from './enums/employee-profile.enums';
+import { MaritalStatus, SystemRole, EmployeeStatus, ProfileChangeStatus, CandidateStatus } from './enums/employee-profile.enums';
 import { EmployeeSystemRoleRepository } from './repository/employee-system-role.repository';
 import { EmployeeProfileChangeRequestRepository } from './repository/ep-change-request.repository';
 import { PositionAssignmentRepository } from '../organization-structure/repository/position-assignment.repository';
@@ -432,6 +432,70 @@ export class EmployeeService {
         appraisalHistory,
       },
     };
+  }
+
+  async getCandidate(candidateId: string): Promise<Candidate> {
+    const candidate = await this.candidateRepository.findById(candidateId);
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${candidateId} not found`);
+    }
+    return candidate;
+  }
+
+  async convertCandidateToEmployee(candidateId: string): Promise<EmployeeProfile> {
+    // 1. Fetch candidate with password
+    const candidate = await this.candidateRepository.findByIdWithPassword(candidateId);
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${candidateId} not found`);
+    }
+
+    if (candidate.status === CandidateStatus.HIRED) {
+      throw new ConflictException('Candidate is already hired');
+    }
+
+    // 2. Generate Employee Number (CAN-XXXX -> EMP-XXXX)
+    const employeeNumber = candidate.candidateNumber.replace('CAN-', 'EMP-');
+
+    // Check if employee number already exists (safety check)
+    const existingEmployee = await this.employeeProfileModel.exists({ employeeNumber });
+    if (existingEmployee) {
+      throw new ConflictException(`Employee with number ${employeeNumber} already exists`);
+    }
+
+    // 3. Create Employee Profile
+    const employeeData: Partial<EmployeeProfile> = {
+      // UserProfileBase fields
+      firstName: candidate.firstName,
+      middleName: candidate.middleName,
+      lastName: candidate.lastName,
+      fullName: candidate.fullName,
+      nationalId: candidate.nationalId,
+      gender: candidate.gender,
+      maritalStatus: candidate.maritalStatus,
+      dateOfBirth: candidate.dateOfBirth,
+      personalEmail: candidate.personalEmail,
+      mobilePhone: candidate.mobilePhone,
+      homePhone: candidate.homePhone,
+      address: candidate.address,
+      profilePictureUrl: candidate.profilePictureUrl,
+      password: candidate.password, // Copy password hash
+
+      // Employee specific fields
+      employeeNumber: employeeNumber,
+      primaryDepartmentId: candidate.departmentId,
+      primaryPositionId: candidate.positionId,
+      status: EmployeeStatus.ACTIVE,
+      statusEffectiveFrom: new Date(),
+      dateOfHire: new Date(),
+    };
+
+    // Save Employee Profile
+    const employeeProfile = await this.employeeProfileRepository.create(employeeData as EmployeeProfile);
+
+    // 4. Update Candidate Status
+    await this.candidateRepository.updateById(candidateId, { status: CandidateStatus.HIRED });
+
+    return employeeProfile;
   }
 
   async updateCandidateStatus(candidateId: string, updateCandidateStatusDto: UpdateCandidateStatusDto): Promise<Candidate> {

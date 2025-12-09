@@ -2,8 +2,7 @@
 
 import Switch, { SwitchProps } from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
-import { styled } from "@mui/material/styles";
-import { useColorScheme } from "@mui/material/styles";
+import { styled, useColorScheme } from "@mui/material/styles";
 
 const ModeSwitchRoot = styled(Switch)(({ theme }) => ({
   width: 64,
@@ -12,14 +11,19 @@ const ModeSwitchRoot = styled(Switch)(({ theme }) => ({
   display: "flex",
   "& .MuiSwitch-switchBase": {
     padding: 4,
-    transitionDuration: "280ms",
-    transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+    transitionDuration: "420ms",
+    transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
     transitionProperty: "transform",
     "&.Mui-checked": {
       transform: "translateX(28px)",
       color: "#fff",
       "& + .MuiSwitch-track": {
         opacity: 1,
+        backgroundImage:
+          theme.palette.mode === "dark"
+            ? "linear-gradient(135deg, rgba(20, 72, 128, 0.9), rgba(7, 25, 46, 0.85))"
+            : "linear-gradient(135deg, rgba(17, 44, 97, 0.85), rgba(76, 121, 203, 0.55))",
+        backgroundPosition: "100% 50%",
         backgroundColor:
           theme.palette.mode === "dark"
             ? "rgba(33, 150, 243, 0.4)"
@@ -29,6 +33,9 @@ const ModeSwitchRoot = styled(Switch)(({ theme }) => ({
         backgroundImage:
           "url('data:image/svg+xml;utf8,<svg xmlns=" +
           '"http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>\')',
+      },
+      "& .MuiSwitch-thumb": {
+        transform: "scale(1)",
       },
     },
   },
@@ -44,10 +51,14 @@ const ModeSwitchRoot = styled(Switch)(({ theme }) => ({
       theme.palette.mode === "dark"
         ? "0px 6px 18px rgba(0, 0, 0, 0.35)"
         : "0px 6px 18px rgba(0, 0, 0, 0.25)",
-    transition: theme.transitions.create(["background-color", "box-shadow"], {
-      duration: 260,
-      easing: theme.transitions.easing.easeInOut,
-    }),
+    transition: theme.transitions.create(
+      ["background-color", "box-shadow", "transform"],
+      {
+        duration: 360,
+        easing: theme.transitions.easing.easeInOut,
+      }
+    ),
+    transform: "scale(0.94)",
     "&:before": {
       content: "''",
       position: "absolute",
@@ -68,14 +79,23 @@ const ModeSwitchRoot = styled(Switch)(({ theme }) => ({
       theme.palette.mode === "dark"
         ? "rgba(7, 25, 46, 0.8)"
         : "rgba(214, 221, 234, 0.9)",
+    backgroundImage:
+      theme.palette.mode === "dark"
+        ? "linear-gradient(135deg, rgba(7, 25, 46, 0.95), rgba(7, 25, 46, 0.75))"
+        : "linear-gradient(135deg, rgba(214, 221, 234, 0.95), rgba(214, 221, 234, 0.75))",
+    backgroundSize: "200% 100%",
+    backgroundPosition: "0% 50%",
     boxShadow:
       theme.palette.mode === "dark"
         ? "inset 0 0 0 1px rgba(255, 255, 255, 0.08)"
         : "inset 0 0 0 1px rgba(17, 44, 97, 0.08)",
-    transition: theme.transitions.create("background-color", {
-      duration: 320,
-      easing: theme.transitions.easing.easeInOut,
-    }),
+    transition: theme.transitions.create(
+      ["background-color", "background-position", "box-shadow"],
+      {
+        duration: 420,
+        easing: theme.transitions.easing.easeInOut,
+      }
+    ),
   },
 }));
 

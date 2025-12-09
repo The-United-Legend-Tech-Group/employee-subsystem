@@ -15,6 +15,7 @@ import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
+import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 import { usePathname, useRouter } from 'next/navigation';
 
 const mainListItems = [
@@ -23,6 +24,7 @@ const mainListItems = [
   { text: 'Team', icon: <PeopleRoundedIcon />, path: '/employee/team' },
   { text: 'Analytics', icon: <AnalyticsRoundedIcon />, path: '/employee/analytics' },
   { text: 'Clients', icon: <AssignmentRoundedIcon />, path: '/employee/clients' },
+  { text: 'Submit Request', icon: <EditNoteRoundedIcon />, path: '/employee/submit-request' },
   { text: 'Manage Organization', icon: <ApartmentRoundedIcon />, path: '/employee/manage-organization' },
 ];
 
@@ -50,6 +52,7 @@ export default function MenuContent() {
     if (text === 'Settings' && pathname === '/employee/settings') return true;
     if (text === 'Calendar' && pathname === '/employee/calendar') return true;
     if (text === 'Clients' && pathname === '/employee/clients') return true;
+    if (text === 'Submit Request' && pathname === '/employee/submit-request') return true;
     if (text === 'Manage Organization' && pathname === '/employee/manage-organization') return true;
     return false;
   }
@@ -67,6 +70,7 @@ export default function MenuContent() {
     if (text === 'Settings') router.push('/employee/settings');
     if (text === 'Calendar') router.push('/employee/calendar');
     if (text === 'Clients') router.push('/employee/clients');
+    if (text === 'Submit Request') router.push('/employee/submit-request');
     if (text === 'Manage Organization') router.push('/employee/manage-organization');
   };
 

@@ -13,19 +13,36 @@ import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 import MenuButton from './MenuButton';
 
+import { useRouter, usePathname } from 'next/navigation';
+
 const MenuItem = styled(MuiMenuItem)({
   margin: '2px 0',
 });
 
 export default function OptionsMenu() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('employeeId');
+    localStorage.removeItem('candidateId'); // Clear all potential auth tokens
+    handleClose();
+    router.push('/employee/login');
+  };
+
+  const basePath = pathname.startsWith('/candidate') ? '/candidate' : '/employee';
+
   return (
     <React.Fragment>
       <MenuButton
@@ -55,14 +72,13 @@ export default function OptionsMenu() {
           },
         }}
       >
-        <MenuItem onClick={handleClose}>Profile</MenuItem>
-        <MenuItem onClick={handleClose}>My account</MenuItem>
+        <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/dashboard`); }}>Profile</MenuItem>
         <Divider />
-        <MenuItem onClick={handleClose}>Add another account</MenuItem>
-        <MenuItem onClick={handleClose}>Settings</MenuItem>
+        <MenuItem onClick={() => { handleClose(); router.push('/employee/login'); }}>Add another account</MenuItem>
+        <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/settings`); }}>Settings</MenuItem>
         <Divider />
         <MenuItem
-          onClick={handleClose}
+          onClick={handleLogout}
           sx={{
             [`& .${listItemIconClasses.root}`]: {
               ml: 'auto',

@@ -87,9 +87,7 @@ export default function SideMenu({ user }: SideMenuProps) {
           <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: '16px' }}>
             {userData.name}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {userData.email}
-          </Typography>
+
         </Box>
         <OptionsMenu />
       </Stack>

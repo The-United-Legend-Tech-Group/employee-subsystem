@@ -24,6 +24,7 @@ export default function OptionsMenu() {
   const pathname = usePathname();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const basePath = pathname.startsWith('/candidate') ? '/candidate' : '/employee';
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -38,10 +39,8 @@ export default function OptionsMenu() {
     localStorage.removeItem('employeeId');
     localStorage.removeItem('candidateId'); // Clear all potential auth tokens
     handleClose();
-    router.push('/employee/login');
+    router.push(`${basePath}/login`);
   };
-
-  const basePath = pathname.startsWith('/candidate') ? '/candidate' : '/employee';
 
   return (
     <React.Fragment>
@@ -74,7 +73,7 @@ export default function OptionsMenu() {
       >
         <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/dashboard`); }}>Profile</MenuItem>
         <Divider />
-        <MenuItem onClick={() => { handleClose(); router.push('/employee/login'); }}>Add another account</MenuItem>
+        <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/login`); }}>Add another account</MenuItem>
         <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/settings`); }}>Settings</MenuItem>
         <Divider />
         <MenuItem

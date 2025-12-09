@@ -71,9 +71,13 @@ export default function SubmitRequestPage() {
         e.preventDefault();
         setSuccessMessage('');
         setErrorMessage('');
-        setSubmitting(true);
 
-        if (!employeeId) return;
+        if (!employeeId) {
+            setErrorMessage('Employee verification failed. Please refresh or login again.');
+            return;
+        }
+
+        setSubmitting(true);
 
         try {
             const token = localStorage.getItem('access_token');

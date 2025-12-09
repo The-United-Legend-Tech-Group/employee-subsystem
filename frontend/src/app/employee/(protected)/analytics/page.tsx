@@ -6,7 +6,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -17,7 +16,6 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Chip from '@mui/material/Chip';
 import DownloadIcon from '@mui/icons-material/Download';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
 
 import StatCard from '../../../../common/material-ui/dashboard/components/StatCard';
@@ -94,10 +92,8 @@ function CustomTabPanel(props: { children?: React.ReactNode; index: number; valu
 }
 
 export default function AnalyticsPage() {
-    const theme = useTheme();
     const [loadingSummary, setLoadingSummary] = React.useState(true);
     const [summary, setSummary] = React.useState<ComplianceSummary | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
 
     // Filters
     const [month, setMonth] = React.useState(new Date().getMonth() + 1);

@@ -8,9 +8,7 @@ import Typography from '@mui/material/Typography';
 import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import PersonIcon from '@mui/icons-material/Person';
 import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 
 interface HierarchyNode {

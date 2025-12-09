@@ -120,7 +120,7 @@ export default function SettingsPage() {
                 body: JSON.stringify(profilePayload)
             });
 
-            if (!profileRes.ok) throw new Error('Failed to update profile details');
+            if (!profileRes.ok) throw new Error('Failed to update profile details (biography/picture)');
 
             // 2. Update Contact Info
             const contactPayload = {
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                 body: JSON.stringify(contactPayload)
             });
 
-            if (!contactRes.ok) throw new Error('Failed to update contact info');
+            if (!contactRes.ok) throw new Error('Profile saved, but failed to update contact info');
 
             setSuccess('Settings updated successfully');
 

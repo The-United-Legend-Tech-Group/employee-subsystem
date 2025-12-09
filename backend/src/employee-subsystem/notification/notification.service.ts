@@ -10,16 +10,14 @@ export type NotificationDocument = Notification & Document;
 export class NotificationService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
-  ) {}
+  ) { }
 
   async create(
     createNotificationDto: CreateNotificationDto,
   ): Promise<Notification> {
     const payload: Partial<Notification> = {
       ...createNotificationDto,
-      recipientId: createNotificationDto.recipientId.map(
-        (id) => new Types.ObjectId(id),
-      ),
+      recipientId: createNotificationDto.recipientId?.map(id => new Types.ObjectId(id)),
     };
     return this.notificationRepository.create(payload);
   }
@@ -28,5 +26,19 @@ export class NotificationService {
     return this.notificationRepository.find({
       $or: [{ recipientId: recipientId }, { deliveryType: 'BROADCAST' }],
     });
+  }
+
+  async markAsRead(id: string): Promise<Notification | null> {
+    return this.notificationRepository.updateById(
+      id,
+      { isRead: true },
+    );
+  }
+
+  async markAllAsRead(recipientId: string): Promise<any> {
+    return this.notificationRepository.updateMany(
+      { recipientId: new Types.ObjectId(recipientId), isRead: false },
+      { isRead: true },
+    );
   }
 }

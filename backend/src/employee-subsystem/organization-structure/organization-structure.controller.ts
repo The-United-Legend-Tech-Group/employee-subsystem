@@ -45,8 +45,8 @@ export class OrganizationStructureController {
   }
 
   @Get('hierarchy')
-  @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Get organizational hierarchy (Employees)' })
+  //@UseGuards(AuthGuard)
+  //@ApiOperation({ summary: 'Get organizational hierarchy (Employees)' })
   @ApiResponse({
     status: 200,
     description: 'Organizational hierarchy tree',

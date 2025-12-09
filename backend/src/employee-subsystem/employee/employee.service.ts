@@ -45,6 +45,11 @@ export class EmployeeService {
     createEmployeeDto: CreateEmployeeDto,
   ): Promise<EmployeeProfile> {
     try {
+      // Auto-generate employee number if not provided
+      if (!createEmployeeDto.employeeNumber) {
+        createEmployeeDto.employeeNumber = await this.generateEmployeeNumber();
+      }
+
       const createdEmployee = new this.employeeProfileModel(createEmployeeDto);
       return await createdEmployee.save();
     } catch (error) {
@@ -399,7 +404,12 @@ export class EmployeeService {
 
   // Fetch full employee profile along with system role assignment
   async getProfile(employeeId: string) {
-    const employee = await this.employeeProfileRepository.findById(employeeId);
+    const employee = await this.employeeProfileModel
+      .findById(employeeId)
+      .populate('primaryPositionId', 'title')
+      .populate('primaryDepartmentId', 'name')
+      .exec();
+      
     if (!employee) {
       throw new NotFoundException('Employee not found');
     }
@@ -411,6 +421,14 @@ export class EmployeeService {
     // Return combined view; omit any sensitive fields if present
     const profileObj: any = employee.toObject ? employee.toObject() : employee;
     if (profileObj.password) delete profileObj.password;
+    
+    // Map populated fields to frontend expected structure
+    if (profileObj.primaryPositionId && typeof profileObj.primaryPositionId === 'object') {
+      profileObj.position = profileObj.primaryPositionId;
+    }
+    if (profileObj.primaryDepartmentId && typeof profileObj.primaryDepartmentId === 'object') {
+      profileObj.department = profileObj.primaryDepartmentId;
+    }
 
     // Fetch appraisal records for performance history (most recent first)
     const records: any[] = await this.appraisalRecordModel
@@ -434,6 +452,14 @@ export class EmployeeService {
     };
   }
 
+  async findCandidateById(id: string): Promise<Candidate> {
+    const candidate = await this.candidateRepository.findById(id);
+    if (!candidate) {
+      throw new NotFoundException(`Candidate with ID ${id} not found`);
+    }
+    return candidate;
+  }
+
   async updateCandidateStatus(candidateId: string, updateCandidateStatusDto: UpdateCandidateStatusDto): Promise<Candidate> {
     const candidate = await this.candidateRepository.findById(candidateId);
     if (!candidate) {
@@ -449,5 +475,29 @@ export class EmployeeService {
     }
 
     return updatedCandidate;
+  }
+
+  private async generateEmployeeNumber(): Promise<string> {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    // Generate employee number in format: EMP-YYYYMMDD-XXXX
+    const prefix = `EMP-${year}${month}${day}`;
+    const lastEmployee = await this.employeeProfileRepository.findLastEmployeeNumberForPrefix(prefix);
+
+    let sequence = 1;
+    if (lastEmployee) {
+      const parts = lastEmployee.employeeNumber.split('-');
+      if (parts.length === 3) {
+        const lastSequence = parseInt(parts[2], 10);
+        if (!isNaN(lastSequence)) {
+          sequence = lastSequence + 1;
+        }
+      }
+    }
+
+    return `${prefix}-${String(sequence).padStart(4, '0')}`;
   }
 }

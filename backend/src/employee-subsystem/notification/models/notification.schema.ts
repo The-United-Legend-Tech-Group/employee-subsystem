@@ -39,6 +39,9 @@ export class Notification {
   isRead: boolean;
 
   @Prop()
+  deadline: Date;
+
+  @Prop()
   readAt: Date;
 }
 

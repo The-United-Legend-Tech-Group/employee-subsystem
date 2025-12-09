@@ -64,8 +64,8 @@ export class EmployeeController {
     return this.employeeService.adminUpdateProfile(id, updateEmployeeProfileDto);
   }
   @Patch(':id/status')
-  @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
+  //@UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Update employee status' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: UpdateEmployeeStatusDto })
@@ -125,7 +125,7 @@ export class EmployeeController {
 
   @Get('team/summary')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.DEPARTMENT_HEAD)
+  //@Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
   @ApiOperation({ summary: 'Get team summary' })
   @ApiQuery({ name: 'managerId', required: true })
   @ApiResponse({ status: 200, description: 'Team summary retrieved' })
@@ -135,7 +135,7 @@ export class EmployeeController {
 
   @Get('team/profiles')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.DEPARTMENT_HEAD)
+  //@Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
   @ApiOperation({ summary: 'Get team profiles' })
   @ApiQuery({ name: 'managerId', required: true })
   @ApiResponse({ status: 200, description: 'Team profiles retrieved' })
@@ -183,6 +183,15 @@ export class EmployeeController {
   @ApiResponse({ status: 200, description: 'Request rejected' })
   async rejectProfileChangeRequest(@Param('requestId') requestId: string, @Body() body: { reason?: string }) {
     return this.employeeService.rejectProfileChangeRequest(requestId, body?.reason);
+  }
+
+  @Get('candidate/:id')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get candidate profile' })
+  @ApiParam({ name: 'id', description: 'Candidate ID' })
+  @ApiResponse({ status: 200, description: 'Candidate profile retrieved' })
+  async getCandidate(@Param('id') id: string) {
+    return this.employeeService.findCandidateById(id);
   }
 
   // Employee: fetch own (or specific) full profile

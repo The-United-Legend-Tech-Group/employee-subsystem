@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationController } from '../notification.controller';
 import { NotificationService } from '../notification.service';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
-import { ApiKeyGuard } from '../../guards/api-key.guard';
-import { AuthGuard } from '../../guards/authentication.guard';
+import { AuthGuard } from '../../../common/guards/authentication.guard';
+
 
 describe('NotificationController', () => {
   let controller: NotificationController;
@@ -14,9 +14,7 @@ describe('NotificationController', () => {
     findByRecipientId: jest.fn(),
   };
 
-  const mockApiKeyGuard = {
-    canActivate: jest.fn(() => true),
-  };
+
 
   const mockAuthGuard = {
     canActivate: jest.fn((context) => {
@@ -36,8 +34,6 @@ describe('NotificationController', () => {
         },
       ],
     })
-      .overrideGuard(ApiKeyGuard)
-      .useValue(mockApiKeyGuard)
       .overrideGuard(AuthGuard)
       .useValue(mockAuthGuard)
       .compile();

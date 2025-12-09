@@ -5,7 +5,9 @@ import { EmployeeModule } from './employee/employee.module';
 import { OrganizationStructureModule } from './organization-structure/organization-structure.module';
 import { NotificationModule } from './notification/notification.module';
 import { AuthModule } from './employee/auth.module';
-import { DatabaseModule } from '../../database/database.module';
+import { DatabaseModule } from '../database/database.module';
+import { PerformanceModule } from './performance/performance.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { DatabaseModule } from '../../database/database.module';
     OrganizationStructureModule,
     NotificationModule,
     AuthModule,
+    PerformanceModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

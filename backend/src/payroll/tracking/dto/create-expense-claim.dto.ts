@@ -1,52 +1,25 @@
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsBoolean,
-  IsDate,
-  IsOptional,
-  Min,
-  IsMongoId,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNumber, Min } from 'class-validator';
 
+/**
+ * DTO for creating expense reimbursement claims
+ * 
+ * Fulfills: REQ-PY-17 - Submit expense reimbursement claims
+ * 
+ * This DTO captures the essential information needed when an employee
+ * submits an expense claim for reimbursement. The claim will be created
+ * with status "under review" and will go through the approval workflow.
+ */
 export class CreateExpenseClaimDto {
   @IsString()
-  claim_id: string;
-
-  @IsMongoId()
-  employee_id: string;
+  claim_id: string; // Unique claim identifier (e.g., CLAIM-0001)
 
   @IsString()
-  description: string;
+  description: string; // Description of the expense being claimed
+
+  @IsString()
+  claimType: string; // Type of expense (e.g., medical, travel, office supplies)
 
   @IsNumber()
   @Min(0)
-  amount: number;
-
-  @IsEnum(['PendingSpecialist', 'PendingManager', 'Approved', 'Rejected'])
-  @IsOptional()
-  status?: 'PendingSpecialist' | 'PendingManager' | 'Approved' | 'Rejected';
-
-  @IsDate()
-  @Type(() => Date)
-  date: Date;
-
-  @IsBoolean()
-  @IsOptional()
-  finance_notified?: boolean;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  refund_amount?: number;
-
-  @IsEnum(['Pending', 'Processed', 'Included in Payroll'])
-  @IsOptional()
-  refund_status?: 'Pending' | 'Processed' | 'Included in Payroll';
-
-  @IsDate()
-  @Type(() => Date)
-  @IsOptional()
-  refund_payment_date?: Date;
+  amount: number; // Amount being claimed for reimbursement
 }

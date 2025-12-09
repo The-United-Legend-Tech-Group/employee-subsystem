@@ -6,9 +6,6 @@ export type StructureChangeLogDocument = HydratedDocument<StructureChangeLog>;
 
 @Schema({ collection: 'structure_change_logs', timestamps: true })
 export class StructureChangeLog {
-  @Prop({ type: Types.ObjectId, auto: true })
-  _id: Types.ObjectId;
-
   @Prop({ type: String, enum: Object.values(ChangeLogAction), required: true })
   action: ChangeLogAction;
 

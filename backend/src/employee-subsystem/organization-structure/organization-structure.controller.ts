@@ -6,6 +6,7 @@ import {
   Body,
   Patch,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { OrganizationStructureService } from './organization-structure.service';
@@ -18,6 +19,10 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
 import { Position } from './models/position.schema';
 import { Department } from './models/department.schema';
+import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../common/guards/authorization.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @ApiTags('Organization Structure')
 @Controller('organization-structure')
@@ -27,9 +32,9 @@ export class OrganizationStructureController {
   ) {}
 
   @Get('positions/open')
-  //@UseGuards(ApiKeyGuard)
-  //@ApiSecurity('api-key')
-  @ApiOperation({ summary: 'Get all open positions (M2M)' })
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_ADMIN)
+  @ApiOperation({ summary: 'Get all open positions' })
   @ApiResponse({
     status: 200,
     description: 'List of open positions',
@@ -40,16 +45,7 @@ export class OrganizationStructureController {
   }
 
   @Get('hierarchy')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(
-  //    Role.DEPARTMENT_EMPLOYEE,
-  //    Role.DEPARTMENT_HEAD,
-  //    Role.HR_EMPLOYEE,
-  //    Role.HR_MANAGER,
-  //    Role.HR_ADMIN,
-  //    Role.SYSTEM_ADMIN,
-  //)
-  //@ApiSecurity('api-key')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get organizational hierarchy (Employees)' })
   @ApiResponse({
     status: 200,
@@ -61,9 +57,8 @@ export class OrganizationStructureController {
   }
 
   @Get('requests/pending')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(Role.SYSTEM_ADMIN)
-  //@ApiSecurity('api-key')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({
     summary: 'List pending structure change requests (System Admin)',
   })
@@ -77,9 +72,8 @@ export class OrganizationStructureController {
   }
 
   @Get('requests/:id')
-  // @UseGuards(ApiKeyGuard, authorizationGuard)
-  // @Roles(Role.SYSTEM_ADMIN)
-  // @ApiSecurity('api-key')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({
     summary: 'Get a single structure change request by id (System Admin)',
   })
@@ -94,27 +88,18 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getChangeRequestById(id);
   }
 
-  @Post('requests/:id/approve')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(Role.SYSTEM_ADMIN)
-  //@ApiSecurity('api-key')
-  @ApiOperation({
-    summary: 'Approve a structure change request (System Admin)',
-  })
-  async approveRequest(
-    @Param('id') id: string,
-    @Body() body: { comment?: string },
-  ): Promise<StructureChangeRequest> {
-    return this.organizationStructureService.approveChangeRequest(
-      id,
-      body?.comment,
-    );
-  }
+    @Post('requests/:id/approve')
+    @UseGuards(AuthGuard, authorizationGuard)
+    @Roles(SystemRole.SYSTEM_ADMIN)
+    @ApiOperation({ summary: 'Approve a structure change request (System Admin)' })
+    @ApiResponse({ status: 200, description: 'Approved change request', type: StructureChangeRequest })
+    async approveRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
+        return this.organizationStructureService.approveChangeRequest(id, body?.comment);
+    }
 
   @Post('requests/:id/reject')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(Role.SYSTEM_ADMIN)
-  //@ApiSecurity('api-key')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({ summary: 'Reject a structure change request (System Admin)' })
   async rejectRequest(
     @Param('id') id: string,
@@ -127,9 +112,8 @@ export class OrganizationStructureController {
   }
 
   @Post('requests')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
-  //@ApiSecurity('api-key')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Submit a structure change request (Managers)' })
   @ApiResponse({
     status: 201,
@@ -143,9 +127,8 @@ export class OrganizationStructureController {
   }
 
   @Get('managers/:managerId/team')
-  //@UseGuards(ApiKeyGuard, authorizationGuard)
-  //@Roles(Role.DEPARTMENT_HEAD, Role.HR_MANAGER)
-  //@ApiSecurity('api-key')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({
     summary: "Get a manager's team structure and reporting lines (Managers)",
   })
@@ -159,6 +142,8 @@ export class OrganizationStructureController {
   }
 
   @Patch('positions/:id/deactivate')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Deactivate a position (mark as inactive)' })
   @ApiResponse({ status: 200, description: 'Updated position', type: Position })
   async deactivatePosition(@Param('id') id: string): Promise<Position> {
@@ -166,6 +151,8 @@ export class OrganizationStructureController {
   }
 
   @Post('departments')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Create a department' })
   @ApiResponse({
     status: 201,
@@ -177,6 +164,8 @@ export class OrganizationStructureController {
   }
 
   @Get('departments')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'List departments' })
   @ApiResponse({
     status: 200,
@@ -188,6 +177,8 @@ export class OrganizationStructureController {
   }
 
   @Get('departments/:id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Get department by id' })
   @ApiResponse({ status: 200, description: 'Department', type: Department })
   async getDepartment(@Param('id') id: string): Promise<any> {
@@ -195,6 +186,8 @@ export class OrganizationStructureController {
   }
 
   @Patch('positions/:id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Update a position' })
   @ApiResponse({ status: 200, description: 'Updated position', type: Position })
   async updatePosition(
@@ -205,6 +198,8 @@ export class OrganizationStructureController {
   }
 
   @Post('positions')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Create a position' })
   @ApiResponse({ status: 201, description: 'Created position', type: Position })
   async createPosition(@Body() dto: CreatePositionDto): Promise<any> {
@@ -212,6 +207,8 @@ export class OrganizationStructureController {
   }
 
   @Get('positions')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'List positions' })
   @ApiResponse({
     status: 200,
@@ -223,6 +220,8 @@ export class OrganizationStructureController {
   }
 
   @Get('positions/:id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Get position by id' })
   @ApiResponse({ status: 200, description: 'Position', type: Position })
   async getPosition(@Param('id') id: string): Promise<any> {
@@ -230,6 +229,8 @@ export class OrganizationStructureController {
   }
 
   @Delete('positions/:id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({
     summary: 'Remove a position if it has no assignments or employees',
   })
@@ -238,6 +239,8 @@ export class OrganizationStructureController {
   }
 
   @Patch('departments/:id')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Update a department' })
   @ApiResponse({ status: 200, description: 'Updated department', type: Object })
   async updateDepartment(

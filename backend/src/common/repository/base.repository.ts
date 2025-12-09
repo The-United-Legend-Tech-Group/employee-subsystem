@@ -73,4 +73,8 @@ export class BaseRepository<T extends Document> implements IRepository<T> {
   async deleteById(id: string): Promise<any> {
     return this.model.findByIdAndDelete(id).exec();
   }
+
+  async countDocuments(query: FilterQuery<T> = {}): Promise<number> {
+    return this.model.countDocuments(query).exec();
+  }
 }

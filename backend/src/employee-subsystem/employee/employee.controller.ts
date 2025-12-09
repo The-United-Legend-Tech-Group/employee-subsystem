@@ -1,21 +1,5 @@
-import {
-  Body,
-  Controller,
-  Patch,
-  Param,
-  Post,
-  UseGuards,
-  Get,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-  ApiParam,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Body, Controller, Patch, Param, Post, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateContactInfoDto } from './dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
@@ -23,18 +7,23 @@ import { UpdateEmployeeStatusDto } from './dto/update-employee-status.dto';
 import { CreateProfileChangeRequestDto } from './dto/create-profile-change-request.dto';
 import { AdminUpdateEmployeeProfileDto } from './dto/admin-update-employee-profile.dto';
 import { AssignRolesDto } from './dto/assign-roles.dto';
+import { UpdateEmployeeDepartmentDto } from './dto/update-employee-department.dto';
+import { UpdateEmployeePositionDto } from './dto/update-employee-position.dto';
 import { EmployeeService } from './employee.service';
-import { ProfileChangeStatus } from './enums/employee-profile.enums';
-import { ApiKeyGuard } from '../guards/api-key.guard';
+import { ProfileChangeStatus, SystemRole } from './enums/employee-profile.enums';
+import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../common/guards/authorization.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Employee')
 @Controller('employee')
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
+  constructor(private readonly employeeService: EmployeeService) { }
 
   @Post('onboard')
-  @UseGuards(ApiKeyGuard)
-  @ApiOperation({ summary: 'Onboard a new employee (M2M)' })
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  @ApiOperation({ summary: 'Onboard a new employee' })
   @ApiResponse({ status: 201, description: 'Employee successfully onboarded' })
   @ApiBody({ type: CreateEmployeeDto })
   async onboard(@Body() createEmployeeDto: CreateEmployeeDto) {
@@ -42,19 +31,17 @@ export class EmployeeController {
   }
 
   @Patch(':id/contact-info')
-  //@UseGuards(ApiKeyGuard)
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Update employee contact info' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: UpdateContactInfoDto })
   @ApiResponse({ status: 200, description: 'Contact info updated' })
-  async updateContactInfo(
-    @Param('id') id: string,
-    @Body() updateContactInfoDto: UpdateContactInfoDto,
-  ) {
+  async updateContactInfo(@Param('id') id: string, @Body() updateContactInfoDto: UpdateContactInfoDto) {
     return this.employeeService.updateContactInfo(id, updateContactInfoDto);
   }
 
   @Patch(':id/profile')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Update employee profile' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: UpdateEmployeeProfileDto })
@@ -67,36 +54,50 @@ export class EmployeeController {
   }
 
   @Patch(':id/profile/admin')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Admin update employee profile' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: AdminUpdateEmployeeProfileDto })
   @ApiResponse({ status: 200, description: 'Profile updated by admin' })
-  async adminUpdateProfile(
-    @Param('id') id: string,
-    @Body() updateEmployeeProfileDto: AdminUpdateEmployeeProfileDto,
-  ) {
-    return this.employeeService.adminUpdateProfile(
-      id,
-      updateEmployeeProfileDto,
-    );
+  async adminUpdateProfile(@Param('id') id: string, @Body() updateEmployeeProfileDto: AdminUpdateEmployeeProfileDto) {
+    return this.employeeService.adminUpdateProfile(id, updateEmployeeProfileDto);
   }
   @Patch(':id/status')
-  //@UseGuards(ApiKeyGuard)
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Update employee status' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: UpdateEmployeeStatusDto })
   @ApiResponse({ status: 200, description: 'Status updated' })
-  async updateStatus(
-    @Param('id') id: string,
-    @Body() updateEmployeeStatusDto: UpdateEmployeeStatusDto,
-  ) {
+  async updateStatus(@Param('id') id: string, @Body() updateEmployeeStatusDto: UpdateEmployeeStatusDto) {
     return this.employeeService.updateStatus(id, updateEmployeeStatusDto);
   }
 
+  @Patch(':id/department')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
+  @ApiOperation({ summary: 'Update employee department' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiBody({ type: UpdateEmployeeDepartmentDto })
+  @ApiResponse({ status: 200, description: 'Department updated' })
+  async updateDepartment(@Param('id') id: string, @Body() updateEmployeeDepartmentDto: UpdateEmployeeDepartmentDto) {
+    return this.employeeService.updateDepartment(id, updateEmployeeDepartmentDto);
+  }
+
+  @Patch(':id/position')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
+  @ApiOperation({ summary: 'Update employee position' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiBody({ type: UpdateEmployeePositionDto })
+  @ApiResponse({ status: 200, description: 'Position updated' })
+  async updatePosition(@Param('id') id: string, @Body() updateEmployeePositionDto: UpdateEmployeePositionDto) {
+    return this.employeeService.updatePosition(id, updateEmployeePositionDto);
+  }
+
   @Post(':id/correction-request')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Request profile correction' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: CreateProfileChangeRequestDto })
@@ -112,24 +113,19 @@ export class EmployeeController {
   }
 
   @Post(':id/roles')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Assign roles to employee' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiBody({ type: AssignRolesDto })
   @ApiResponse({ status: 200, description: 'Roles assigned' })
-  async assignRoles(
-    @Param('id') id: string,
-    @Body() assignRolesDto: AssignRolesDto,
-  ) {
+  async assignRoles(@Param('id') id: string, @Body() assignRolesDto: AssignRolesDto) {
     return this.employeeService.assignRoles(id, assignRolesDto);
   }
 
   @Get('team/summary')
-  //@UseGuards(authorizationGuard)
+  //@UseGuards(AuthGuard, authorizationGuard)
   //@Roles(SystemRole.DEPARTMENT_HEAD)
-  //@ApiBearerAuth()
   @ApiOperation({ summary: 'Get team summary' })
   @ApiQuery({ name: 'managerId', required: true })
   @ApiResponse({ status: 200, description: 'Team summary retrieved' })
@@ -138,9 +134,8 @@ export class EmployeeController {
   }
 
   @Get('team/profiles')
-  //@UseGuards(authorizationGuard)
+  //@UseGuards(AuthGuard, authorizationGuard)
   //@Roles(SystemRole.DEPARTMENT_HEAD)
-  //@ApiBearerAuth()
   @ApiOperation({ summary: 'Get team profiles' })
   @ApiQuery({ name: 'managerId', required: true })
   @ApiResponse({ status: 200, description: 'Team profiles retrieved' })
@@ -150,22 +145,18 @@ export class EmployeeController {
 
   // HR Admin: review profile change requests
   @Get('profile-change-requests')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'List profile change requests' })
   @ApiQuery({ name: 'status', enum: ProfileChangeStatus, required: false })
   @ApiResponse({ status: 200, description: 'List of change requests' })
-  async listProfileChangeRequests(
-    @Query('status') status?: ProfileChangeStatus,
-  ) {
+  async listProfileChangeRequests(@Query('status') status?: ProfileChangeStatus) {
     return this.employeeService.listProfileChangeRequests(status as any);
   }
 
   @Get('profile-change-requests/:requestId')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Get profile change request details' })
   @ApiParam({ name: 'requestId', description: 'Request ID' })
   @ApiResponse({ status: 200, description: 'Change request details' })
@@ -174,9 +165,8 @@ export class EmployeeController {
   }
 
   @Patch('profile-change-requests/:requestId/approve')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Approve profile change request' })
   @ApiParam({ name: 'requestId', description: 'Request ID' })
   @ApiResponse({ status: 200, description: 'Request approved' })
@@ -185,27 +175,19 @@ export class EmployeeController {
   }
 
   @Patch('profile-change-requests/:requestId/reject')
-  //@UseGuards(authorizationGuard)
-  //@Roles(SystemRole.HR_ADMIN)
-  //@ApiBearerAuth()
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Reject profile change request' })
   @ApiParam({ name: 'requestId', description: 'Request ID' })
-  @ApiBody({
-    schema: { type: 'object', properties: { reason: { type: 'string' } } },
-  })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'Request rejected' })
-  async rejectProfileChangeRequest(
-    @Param('requestId') requestId: string,
-    @Body() body: { reason?: string },
-  ) {
-    return this.employeeService.rejectProfileChangeRequest(
-      requestId,
-      body?.reason,
-    );
+  async rejectProfileChangeRequest(@Param('requestId') requestId: string, @Body() body: { reason?: string }) {
+    return this.employeeService.rejectProfileChangeRequest(requestId, body?.reason);
   }
 
   // Employee: fetch own (or specific) full profile
   @Get(':id')
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get employee profile' })
   @ApiParam({ name: 'id', description: 'Employee ID' })
   @ApiResponse({ status: 200, description: 'Profile retrieved' })

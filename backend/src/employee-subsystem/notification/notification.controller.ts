@@ -1,17 +1,15 @@
-import { Body, Controller, Post, UseGuards, Get, Req } from '@nestjs/common';
+import { Body, Controller, Post, Get, Req, UseGuards } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { ApiKeyGuard } from '../guards/api-key.guard';
-import { AuthGuard } from '../guards/authentication.guard';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { AuthGuard } from '../../common/guards/authentication.guard';
 
 @ApiTags('Notification')
 @Controller('notification')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(private readonly notificationService: NotificationService) { }
 
   @Post()
-  @UseGuards(ApiKeyGuard)
   @ApiOperation({ summary: 'Create a new notification' })
   @ApiResponse({
     status: 201,

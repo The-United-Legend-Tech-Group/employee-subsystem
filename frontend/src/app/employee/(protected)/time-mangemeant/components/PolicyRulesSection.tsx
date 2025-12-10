@@ -24,6 +24,7 @@ import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 
 import SectionHeading from "./SectionHeading";
+import ShiftTemplateCard from "./ShiftTemplateCard";
 import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
 
 type PolicyRulesSectionProps = {
@@ -326,141 +327,6 @@ function PolicyInsightCard({ insight }: PolicyInsightCardProps) {
         </Stack>
       </CardContent>
     </Card>
-  );
-}
-
-type ShiftTemplateCardProps = {
-  shift: ShiftDefinition;
-};
-
-function ShiftTemplateCard({ shift }: ShiftTemplateCardProps) {
-  const durationMinutes = computeShiftDurationMinutes(shift);
-  const durationLabel =
-    durationMinutes > 0 ? formatDuration(durationMinutes) : "Not set";
-  const requiresApproval = Boolean(shift.requiresApprovalForOvertime);
-  const policyLabel = shift.punchPolicy ?? "Not configured";
-  const startLabel = shift.startTime || "—";
-  const endLabel = shift.endTime || "—";
-  const graceIn = shift.graceInMinutes ?? 0;
-  const graceOut = shift.graceOutMinutes ?? 0;
-
-  const approvalCopy = requiresApproval
-    ? "Manager approval required before overtime is applied."
-    : "Overtime is auto-applied based on this template.";
-
-  return (
-    <Box
-      sx={(theme) => {
-        const palette = requiresApproval
-          ? theme.palette.warning
-          : theme.palette.primary;
-        const accent =
-          typeof palette === "object" && palette?.main
-            ? palette.main
-            : theme.palette.primary.main;
-        const isDark = theme.palette.mode === "dark";
-        const surface = isDark
-          ? alpha(theme.palette.background.paper, 0.9)
-          : alpha(theme.palette.background.paper, 0.98);
-        const borderBase = alpha(
-          isDark ? theme.palette.common.white : theme.palette.common.black,
-          isDark ? 0.12 : 0.1
-        );
-        const shadowBase = alpha(
-          theme.palette.common.black,
-          isDark ? 0.5 : 0.12
-        );
-
-        return {
-          position: "relative",
-          p: 2.25,
-          pl: 3,
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: borderBase,
-          borderLeft: `4px solid ${alpha(accent, 0.65)}`,
-          backgroundColor: surface,
-          boxShadow: `0 12px 24px ${shadowBase}`,
-          transition: "transform 0.2s ease, box-shadow 0.2s ease",
-          minHeight: 176,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-          overflow: "hidden",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            boxShadow: `0 16px 32px ${shadowBase}`,
-          },
-        };
-      }}
-    >
-      <Stack spacing={1.5} sx={{ flexGrow: 1 }}>
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="flex-start"
-          justifyContent="space-between"
-        >
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {shift.name || "Untitled template"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Punch policy · {policyLabel}
-            </Typography>
-          </Box>
-          <Chip
-            size="small"
-            label={requiresApproval ? "Needs approval" : "Auto-applies"}
-            color={requiresApproval ? "warning" : "success"}
-            variant="filled"
-            sx={(theme) => ({
-              fontWeight: 600,
-              px: 1.5,
-              bgcolor: alpha(
-                requiresApproval
-                  ? theme.palette.warning.main
-                  : theme.palette.success.main,
-                theme.palette.mode === "dark" ? 0.5 : 0.3
-              ),
-            })}
-          />
-        </Stack>
-
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Chip
-            size="small"
-            variant="outlined"
-            icon={<ScheduleRoundedIcon fontSize="small" />}
-            label={`${startLabel} → ${endLabel}`}
-          />
-          <Chip
-            size="small"
-            variant="outlined"
-            icon={<TimelapseRoundedIcon fontSize="small" />}
-            label={`Duration ${durationLabel}`}
-          />
-          <Chip
-            size="small"
-            variant="outlined"
-            icon={<AvTimerRoundedIcon fontSize="small" />}
-            label={`Grace ${graceIn}m / ${graceOut}m`}
-            sx={(theme) => ({
-              bgcolor: alpha(
-                Number.isFinite(graceIn + graceOut)
-                  ? theme.palette.text.primary
-                  : theme.palette.background.default,
-                theme.palette.mode === "dark" ? 0.1 : 0.05
-              ),
-            })}
-          />
-        </Stack>
-      </Stack>
-
-      <Typography variant="body2" color="text.secondary">
-        {approvalCopy}
-      </Typography>
-    </Box>
   );
 }
 

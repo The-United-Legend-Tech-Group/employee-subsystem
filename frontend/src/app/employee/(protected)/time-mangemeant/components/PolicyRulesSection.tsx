@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+import AvTimerRoundedIcon from "@mui/icons-material/AvTimerRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
+import TimelapseRoundedIcon from "@mui/icons-material/TimelapseRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import Alert from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
@@ -18,6 +21,7 @@ import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
 import SectionHeading from "./SectionHeading";
 import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
@@ -124,69 +128,135 @@ function determinePunchPolicy(shifts: ShiftDefinition[]) {
 
   let topPolicy: string | null = null;
   let maxCount = 0;
+
   for (const [policy, count] of Object.entries(tally)) {
     if (count > maxCount) {
       topPolicy = policy;
       maxCount = count;
     }
   }
+
   return topPolicy;
 }
 
-function punchPolicyBreakdown(shifts: ShiftDefinition[]) {
-  const counts = shifts.reduce<Record<string, number>>((acc, shift) => {
-    if (!shift.punchPolicy) {
-      return acc;
-    }
-    acc[shift.punchPolicy] = (acc[shift.punchPolicy] || 0) + 1;
+type PunchPolicySummary = {
+  policy: string;
+  count: number;
+};
+
+function punchPolicyBreakdown(shifts: ShiftDefinition[]): PunchPolicySummary[] {
+  if (shifts.length === 0) {
+    return [];
+  }
+
+  const summary = shifts.reduce<Record<string, number>>((acc, shift) => {
+    const key = shift.punchPolicy ?? "Not configured";
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  return Object.entries(counts)
+  return Object.entries(summary)
     .map(([policy, count]) => ({ policy, count }))
     .sort((a, b) => b.count - a.count);
 }
 
-function describePattern(rule: ScheduleRule) {
-  const parsed = parsePattern(rule.pattern);
-  if (!parsed) {
-    return "Not specified";
-  }
-  if (typeof parsed === "string") {
-    return parsed;
-  }
-  if (Array.isArray(parsed)) {
-    return parsed.join(", ");
-  }
-  if (typeof parsed === "object") {
-    return Object.entries(parsed)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(" | ");
-  }
-  return String(parsed);
-}
-
-const weekendKeywords = ["weekend", "sat", "sun", "fri", "off"];
-
 function detectWeekendRules(rules: ScheduleRule[]) {
+  const keywordPattern =
+    /(weekend|week-end|saturday|sunday|rest day|day off|off day)/i;
+
   return rules.filter((rule) => {
-    const text = `${rule.name ?? ""} ${rule.pattern ?? ""}`.toLowerCase();
-    return weekendKeywords.some((keyword) => text.includes(keyword));
+    if (!rule) {
+      return false;
+    }
+    if (keywordPattern.test(rule.name ?? "")) {
+      return true;
+    }
+    if (rule.pattern && keywordPattern.test(rule.pattern)) {
+      return true;
+    }
+    const parsed = parsePattern(rule.pattern);
+    if (parsed && typeof parsed === "object") {
+      const serialized = JSON.stringify(parsed).toLowerCase();
+      return keywordPattern.test(serialized);
+    }
+    return false;
   });
 }
 
-function PolicyInsightCard({ insight }: { insight: PolicyInsight }) {
+function describePattern(rule: ScheduleRule) {
+  if (!rule.pattern) {
+    return "No pattern defined";
+  }
+
+  const parsed = parsePattern(rule.pattern);
+
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const typed = parsed as Record<string, unknown>;
+    const parts: string[] = [];
+
+    if (typeof typed.frequency === "string" && typed.frequency.length > 0) {
+      parts.push(`Repeats ${typed.frequency}`);
+    }
+
+    if (Array.isArray(typed.days) && typed.days.length > 0) {
+      parts.push(`Days ${typed.days.join(", ")}`);
+    }
+
+    if (typeof typed.description === "string" && typed.description) {
+      parts.push(typed.description);
+    }
+
+    if (typeof typed.type === "string" && typed.type) {
+      parts.push(typed.type);
+    }
+
+    if (parts.length > 0) {
+      return parts.join(" · ");
+    }
+  }
+
+  if (typeof parsed === "string") {
+    return parsed;
+  }
+
+  return rule.pattern;
+}
+
+type PolicyInsightCardProps = {
+  insight: PolicyInsight;
+};
+
+function PolicyInsightCard({ insight }: PolicyInsightCardProps) {
   return (
     <Card variant="outlined" sx={{ height: "100%" }}>
       <CardContent>
         <Stack spacing={2.5}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={2} alignItems="center">
             <Avatar
               sx={{
-                bgcolor: `${insight.avatarColor}.light`,
-                color: `${insight.avatarColor}.dark`,
-                width: 44,
-                height: 44,
+                bgcolor: (theme) => {
+                  const palette =
+                    (theme.palette as Record<string, any>)[
+                      insight.avatarColor
+                    ] ?? theme.palette.primary;
+                  const mainColor =
+                    typeof palette === "object" && palette?.main
+                      ? palette.main
+                      : theme.palette.primary.main;
+                  return alpha(mainColor, 0.12);
+                },
+                color: (theme) => {
+                  const palette =
+                    (theme.palette as Record<string, any>)[
+                      insight.avatarColor
+                    ] ?? theme.palette.primary;
+                  return (
+                    (typeof palette === "object" && palette?.main) ||
+                    theme.palette.primary.main
+                  );
+                },
+                width: 40,
+                height: 40,
               }}
             >
               {insight.icon}
@@ -201,11 +271,13 @@ function PolicyInsightCard({ insight }: { insight: PolicyInsight }) {
             </Box>
           </Stack>
 
-          <Stack spacing={1}>
+          <Stack spacing={1.5}>
             {insight.toggles.map((toggle) => (
-              <Box key={toggle.label} sx={{ display: "flex", flexDirection: "column" }}>
+              <Box key={toggle.label}>
                 <FormControlLabel
-                  control={<Switch checked={toggle.enabled} disabled size="small" />}
+                  control={
+                    <Switch checked={toggle.enabled} disabled size="small" />
+                  }
                   label={
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {toggle.label}
@@ -213,7 +285,11 @@ function PolicyInsightCard({ insight }: { insight: PolicyInsight }) {
                   }
                 />
                 {toggle.hint ? (
-                  <Typography variant="caption" color="text.secondary" sx={{ pl: 4.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ pl: 4.5 }}
+                  >
                     {toggle.hint}
                   </Typography>
                 ) : null}
@@ -253,6 +329,141 @@ function PolicyInsightCard({ insight }: { insight: PolicyInsight }) {
   );
 }
 
+type ShiftTemplateCardProps = {
+  shift: ShiftDefinition;
+};
+
+function ShiftTemplateCard({ shift }: ShiftTemplateCardProps) {
+  const durationMinutes = computeShiftDurationMinutes(shift);
+  const durationLabel =
+    durationMinutes > 0 ? formatDuration(durationMinutes) : "Not set";
+  const requiresApproval = Boolean(shift.requiresApprovalForOvertime);
+  const policyLabel = shift.punchPolicy ?? "Not configured";
+  const startLabel = shift.startTime || "—";
+  const endLabel = shift.endTime || "—";
+  const graceIn = shift.graceInMinutes ?? 0;
+  const graceOut = shift.graceOutMinutes ?? 0;
+
+  const approvalCopy = requiresApproval
+    ? "Manager approval required before overtime is applied."
+    : "Overtime is auto-applied based on this template.";
+
+  return (
+    <Box
+      sx={(theme) => {
+        const palette = requiresApproval
+          ? theme.palette.warning
+          : theme.palette.primary;
+        const accent =
+          typeof palette === "object" && palette?.main
+            ? palette.main
+            : theme.palette.primary.main;
+        const isDark = theme.palette.mode === "dark";
+        const surface = isDark
+          ? alpha(theme.palette.background.paper, 0.9)
+          : alpha(theme.palette.background.paper, 0.98);
+        const borderBase = alpha(
+          isDark ? theme.palette.common.white : theme.palette.common.black,
+          isDark ? 0.12 : 0.1
+        );
+        const shadowBase = alpha(
+          theme.palette.common.black,
+          isDark ? 0.5 : 0.12
+        );
+
+        return {
+          position: "relative",
+          p: 2.25,
+          pl: 3,
+          borderRadius: 2,
+          border: "1px solid",
+          borderColor: borderBase,
+          borderLeft: `4px solid ${alpha(accent, 0.65)}`,
+          backgroundColor: surface,
+          boxShadow: `0 12px 24px ${shadowBase}`,
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          minHeight: 176,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.5,
+          overflow: "hidden",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: `0 16px 32px ${shadowBase}`,
+          },
+        };
+      }}
+    >
+      <Stack spacing={1.5} sx={{ flexGrow: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="flex-start"
+          justifyContent="space-between"
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight="bold">
+              {shift.name || "Untitled template"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Punch policy · {policyLabel}
+            </Typography>
+          </Box>
+          <Chip
+            size="small"
+            label={requiresApproval ? "Needs approval" : "Auto-applies"}
+            color={requiresApproval ? "warning" : "success"}
+            variant="filled"
+            sx={(theme) => ({
+              fontWeight: 600,
+              px: 1.5,
+              bgcolor: alpha(
+                requiresApproval
+                  ? theme.palette.warning.main
+                  : theme.palette.success.main,
+                theme.palette.mode === "dark" ? 0.5 : 0.3
+              ),
+            })}
+          />
+        </Stack>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<ScheduleRoundedIcon fontSize="small" />}
+            label={`${startLabel} → ${endLabel}`}
+          />
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<TimelapseRoundedIcon fontSize="small" />}
+            label={`Duration ${durationLabel}`}
+          />
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<AvTimerRoundedIcon fontSize="small" />}
+            label={`Grace ${graceIn}m / ${graceOut}m`}
+            sx={(theme) => ({
+              bgcolor: alpha(
+                Number.isFinite(graceIn + graceOut)
+                  ? theme.palette.text.primary
+                  : theme.palette.background.default,
+                theme.palette.mode === "dark" ? 0.1 : 0.05
+              ),
+            })}
+          />
+        </Stack>
+      </Stack>
+
+      <Typography variant="body2" color="text.secondary">
+        {approvalCopy}
+      </Typography>
+    </Box>
+  );
+}
+
 export default function PolicyRulesSection({
   section,
   shifts,
@@ -285,7 +496,8 @@ export default function PolicyRulesSection({
     const inValues = activeShifts.map((shift) => shift.graceInMinutes ?? 0);
     const outValues = activeShifts.map((shift) => shift.graceOutMinutes ?? 0);
 
-    const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
+    const sum = (values: number[]) =>
+      values.reduce((acc, value) => acc + value, 0);
     const range = (values: number[]) => ({
       min: Math.min(...values),
       max: Math.max(...values),
@@ -316,7 +528,8 @@ export default function PolicyRulesSection({
 
     const longest = Math.max(...minutes);
     const shortest = Math.min(...minutes);
-    const average = minutes.reduce((acc, value) => acc + value, 0) / minutes.length;
+    const average =
+      minutes.reduce((acc, value) => acc + value, 0) / minutes.length;
 
     return { longest, shortest, average };
   }, [activeShifts]);
@@ -334,7 +547,8 @@ export default function PolicyRulesSection({
   const policyInsights = React.useMemo<PolicyInsight[]>(() => {
     const overtimeTrackingEnabled = activeShifts.length > 0;
     const gracePolicyEnforced = activeShifts.some(
-      (shift) => (shift.graceInMinutes ?? 0) > 0 || (shift.graceOutMinutes ?? 0) > 0
+      (shift) =>
+        (shift.graceInMinutes ?? 0) > 0 || (shift.graceOutMinutes ?? 0) > 0
     );
     const strictPunchPolicy = activeShifts.some(
       (shift) => shift.punchPolicy === "FIRST_LAST"
@@ -425,13 +639,17 @@ export default function PolicyRulesSection({
         chips: [
           graceAverages.maxOut
             ? {
-                label: `Checkout grace up to ${formatMinutes(graceAverages.maxOut)}`,
+                label: `Checkout grace up to ${formatMinutes(
+                  graceAverages.maxOut
+                )}`,
                 color: "default",
               }
             : undefined,
           graceAverages.maxIn
             ? {
-                label: `Check-in grace up to ${formatMinutes(graceAverages.maxIn)}`,
+                label: `Check-in grace up to ${formatMinutes(
+                  graceAverages.maxIn
+                )}`,
                 color: "default",
               }
             : undefined,
@@ -455,9 +673,10 @@ export default function PolicyRulesSection({
           {
             label: "Requires manager approval",
             enabled: weekendEnabled && approvalRequired > 0,
-            hint: weekendEnabled && approvalRequired > 0
-              ? "Weekend overtime ties back to shift approvals"
-              : "No weekend approval enforcement",
+            hint:
+              weekendEnabled && approvalRequired > 0
+                ? "Weekend overtime ties back to shift approvals"
+                : "No weekend approval enforcement",
           },
         ],
         metrics: [
@@ -467,9 +686,7 @@ export default function PolicyRulesSection({
           },
           {
             label: "Primary pattern",
-            value: weekendRules[0]
-              ? describePattern(weekendRules[0])
-              : "None",
+            value: weekendRules[0] ? describePattern(weekendRules[0]) : "None",
           },
         ],
         chips: weekendRules.length
@@ -557,8 +774,8 @@ export default function PolicyRulesSection({
                         Shift templates
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Live data from `/time/shifts` exposes active definitions and
-                        grace windows.
+                        Live data from `/time/shifts` exposes active definitions
+                        and grace windows.
                       </Typography>
                     </Box>
 
@@ -610,7 +827,8 @@ export default function PolicyRulesSection({
                                 : Math.min(
                                     100,
                                     Math.round(
-                                      (approvalRequired / activeShifts.length) * 100
+                                      (approvalRequired / activeShifts.length) *
+                                        100
                                     )
                                   )
                             }
@@ -650,103 +868,41 @@ export default function PolicyRulesSection({
                         No active shifts configured yet.
                       </Alert>
                     ) : (
-                      <Grid container spacing={2}>
+                      <Stack spacing={2}>
                         {activeShifts.slice(0, 6).map((shift) => (
-                          <Grid item xs={12} sm={6} key={shift._id}>
-                            <Box
-                              sx={{
-                                px: 2,
-                                py: 1.75,
-                                borderRadius: 2,
-                                border: "1px solid",
-                                borderColor: "divider",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                                height: "100%",
-                              }}
-                            >
-                              <Stack spacing={1.5} sx={{ height: "100%" }}>
-                                <Stack
-                                  direction="row"
-                                  spacing={1}
-                                  alignItems="center"
-                                  justifyContent="space-between"
-                                  flexWrap="wrap"
-                                  useFlexGap
-                                >
-                                  <Typography fontWeight="bold" sx={{ mr: 2 }}>
-                                    {shift.name}
-                                  </Typography>
-                                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                    {shift.requiresApprovalForOvertime && (
-                                      <Chip
-                                        size="small"
-                                        label="Approval needed"
-                                        color="warning"
-                                        variant="outlined"
-                                      />
-                                    )}
-                                    {shift.punchPolicy && (
-                                      <Chip
-                                        size="small"
-                                        label={`Policy: ${shift.punchPolicy}`}
-                                        variant="outlined"
-                                      />
-                                    )}
-                                  </Stack>
-                                </Stack>
-
-                                <Stack
-                                  direction={{ xs: "column", sm: "row" }}
-                                  spacing={1}
-                                  alignItems={{ xs: "flex-start", sm: "center" }}
-                                  justifyContent="space-between"
-                                >
-                                  <Typography variant="body2" color="text.primary">
-                                    {shift.startTime} → {shift.endTime}
-                                  </Typography>
-                                  <Chip
-                                    size="small"
-                                    variant="outlined"
-                                    label={`Duration ${formatDuration(
-                                      computeShiftDurationMinutes(shift)
-                                    )}`}
-                                  />
-                                </Stack>
-
-                                <Typography variant="body2" color="text.secondary">
-                                  Grace window (in / out): {shift.graceInMinutes ?? 0}m /
-                                  {" "}
-                                  {shift.graceOutMinutes ?? 0}m
-                                </Typography>
-                              </Stack>
-                            </Box>
-                          </Grid>
+                          <ShiftTemplateCard key={shift._id} shift={shift} />
                         ))}
-                      </Grid>
+                      </Stack>
                     )}
 
-                      {punchPolicies.length ? (
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">
-                            Punch policy coverage
-                          </Typography>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                            {punchPolicies.map((policy) => (
-                              <Chip
-                                key={policy.policy}
-                                size="small"
-                                variant="outlined"
-                                label={`${policy.policy}: ${policy.count}`}
-                              />
-                            ))}
-                          </Stack>
-                        </Box>
+                    {punchPolicies.length ? (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Punch policy coverage
+                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          flexWrap="wrap"
+                          useFlexGap
+                          sx={{ mt: 0.5 }}
+                        >
+                          {punchPolicies.map((policy) => (
+                            <Chip
+                              key={policy.policy}
+                              size="small"
+                              variant="outlined"
+                              label={`${policy.policy}: ${policy.count}`}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
                     ) : null}
                   </Stack>
                 </CardContent>
-                <CardActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
+                <CardActions
+                  sx={{ justifyContent: "space-between", px: 3, pb: 2 }}
+                >
                   <Chip
                     color="info"
                     label={`${activeShifts.length} active templates`}
@@ -770,7 +926,8 @@ export default function PolicyRulesSection({
                         Schedule rules
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Pulled from `/time/schedule-rules` to describe rotation patterns.
+                        Pulled from `/time/schedule-rules` to describe rotation
+                        patterns.
                       </Typography>
                     </Box>
 
@@ -868,28 +1025,56 @@ export default function PolicyRulesSection({
                                 spacing={1}
                                 alignItems={{ xs: "flex-start", sm: "center" }}
                               >
-                                <Typography fontWeight="bold" sx={{ flexGrow: 1 }}>
+                                <Typography
+                                  fontWeight="bold"
+                                  sx={{ flexGrow: 1 }}
+                                >
                                   {rule.name}
                                 </Typography>
                                 <Chip
                                   size="small"
-                                  color={rule.active === false ? "default" : "success"}
-                                  label={rule.active === false ? "Inactive" : "Active"}
+                                  color={
+                                    rule.active === false
+                                      ? "default"
+                                      : "success"
+                                  }
+                                  label={
+                                    rule.active === false
+                                      ? "Inactive"
+                                      : "Active"
+                                  }
                                   variant="outlined"
                                 />
-                                {upcomingRules.some((upcoming) => upcoming._id === rule._id) ? (
-                                  <Chip size="small" color="info" label="Upcoming" variant="outlined" />
+                                {upcomingRules.some(
+                                  (upcoming) => upcoming._id === rule._id
+                                ) ? (
+                                  <Chip
+                                    size="small"
+                                    color="info"
+                                    label="Upcoming"
+                                    variant="outlined"
+                                  />
                                 ) : null}
                               </Stack>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
                                 {describePattern(rule)}
                               </Typography>
-                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                flexWrap="wrap"
+                                useFlexGap
+                              >
                                 {rule.shiftTypes?.length ? (
                                   <Chip
                                     size="small"
                                     variant="outlined"
-                                    label={`Shift types: ${rule.shiftTypes.join(", ")}`}
+                                    label={`Shift types: ${rule.shiftTypes.join(
+                                      ", "
+                                    )}`}
                                   />
                                 ) : null}
                                 {rule.startDate ? (
@@ -914,7 +1099,9 @@ export default function PolicyRulesSection({
                     )}
                   </Stack>
                 </CardContent>
-                <CardActions sx={{ justifyContent: "space-between", px: 3, pb: 2 }}>
+                <CardActions
+                  sx={{ justifyContent: "space-between", px: 3, pb: 2 }}
+                >
                   <Chip
                     color="info"
                     label={`${scheduleRules.length} total rules`}

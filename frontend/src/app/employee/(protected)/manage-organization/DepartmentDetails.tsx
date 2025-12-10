@@ -173,24 +173,15 @@ export default function DepartmentDetails({ department, onUpdate }: DepartmentDe
                                     multiline
                                     rows={1}
                                 />
-                                <Paper variant="outlined" sx={{ p: '8px 16px', display: 'flex', alignItems: 'center', height: 40, borderColor: formData.isActive ? 'success.main' : 'divider', bgcolor: formData.isActive ? 'success.dark' : 'transparent', transition: 'all 0.2s', width: 'fit-content' }}>
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={formData.isActive}
-                                                onChange={handleChange}
-                                                name="isActive"
-                                                color="success"
-                                            />
-                                        }
-                                        label={
-                                            <Typography variant="body2" sx={{ fontWeight: 500, color: formData.isActive ? 'white' : 'text.primary' }}>
-                                                {formData.isActive ? 'Active' : 'Inactive'}
-                                            </Typography>
-                                        }
-                                        sx={{ mr: 0 }}
-                                    />
-                                </Paper>
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    color={formData.isActive ? 'error' : 'primary'}
+                                    onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                    sx={{ mt: 2, borderRadius: 2, textTransform: 'none' }}
+                                >
+                                    {formData.isActive ? 'Deactivate' : 'Activate'}
+                                </Button>
                             </Stack>
                         </form>
                     </Box>

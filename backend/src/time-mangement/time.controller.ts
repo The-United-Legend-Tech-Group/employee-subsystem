@@ -152,6 +152,69 @@ export class TimeController {
     return this.attendanceService.punch(dto as any);
   }
 
+  @Get('attendance/records/:employeeId')
+  @ApiOperation({
+    summary:
+      'Get attendance records for an employee with pagination and filters',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start date for filter (ISO string)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End date for filter (ISO string)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 20, max: 100)',
+  })
+  @ApiQuery({
+    name: 'hasMissedPunch',
+    required: false,
+    description: 'Filter by missed punch status',
+  })
+  @ApiQuery({
+    name: 'finalisedForPayroll',
+    required: false,
+    description: 'Filter by payroll finalised status',
+  })
+  getAttendanceRecords(
+    @Param('employeeId') employeeId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('hasMissedPunch') hasMissedPunch?: string,
+    @Query('finalisedForPayroll') finalisedForPayroll?: string,
+  ) {
+    return this.attendanceService.getAttendanceRecords(
+      employeeId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      page ? parseInt(page, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined,
+      hasMissedPunch === 'true'
+        ? true
+        : hasMissedPunch === 'false'
+          ? false
+          : undefined,
+      finalisedForPayroll === 'true'
+        ? true
+        : finalisedForPayroll === 'false'
+          ? false
+          : undefined,
+    );
+  }
+
   @Post('attendance/corrections')
   @ApiOperation({ summary: 'Submit an attendance correction request' })
   submitCorrection(@Body() dto: CreateAttendanceCorrectionDto) {

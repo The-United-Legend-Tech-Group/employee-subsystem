@@ -1,48 +1,68 @@
-'use client';
-'use client';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Stack from '@mui/material/Stack';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import AnalyticsRoundedIcon from '@mui/icons-material/AnalyticsRounded';
-import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
-import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
-import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
-import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
-import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
-import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
-import { usePathname, useRouter } from 'next/navigation';
+"use client";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
+import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
+import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
+import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
+import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
+import { usePathname, useRouter } from "next/navigation";
 
 const mainListItems = [
-  { text: 'Home', icon: <HomeRoundedIcon />, path: '/employee/dashboard' },
-  { text: 'Calendar', icon: <CalendarMonthRoundedIcon />, path: '/employee/calendar' },
-  { text: 'Team', icon: <PeopleRoundedIcon />, path: '/employee/team' },
-  { text: 'Analytics', icon: <AnalyticsRoundedIcon />, path: '/employee/analytics' },
-  { text: 'Clients', icon: <AssignmentRoundedIcon />, path: '/employee/clients' },
-  { text: 'Submit Request', icon: <EditNoteRoundedIcon />, path: '/employee/submit-request' },
-  { text: 'Manage Organization', icon: <ApartmentRoundedIcon />, path: '/employee/manage-organization' },
+  { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard" },
+  {
+    text: "Calendar",
+    icon: <CalendarMonthRoundedIcon />,
+    path: "/employee/calendar",
+  },
+  { text: "Team", icon: <PeopleRoundedIcon />, path: "/employee/team" },
+  {
+    text: "Analytics",
+    icon: <AnalyticsRoundedIcon />,
+    path: "/employee/analytics",
+  },
+  {
+    text: "Clients",
+    icon: <AssignmentRoundedIcon />,
+    path: "/employee/clients",
+  },
+  {
+    text: "Time Management",
+    icon: <AccessTimeRoundedIcon />,
+    path: "/employee/time-mangemeant",
+  },
+  {
+    text: "Manage Organization",
+    icon: <ApartmentRoundedIcon />,
+    path: "/employee/manage-organization",
+  },
   { text: 'Manage Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests' },
 ];
 
 const secondaryListItems = [
-  { text: 'Settings', icon: <SettingsRoundedIcon /> },
-  { text: 'About', icon: <InfoRoundedIcon /> },
-  { text: 'Feedback', icon: <HelpRoundedIcon /> },
+  { text: "Settings", icon: <SettingsRoundedIcon /> },
+  { text: "About", icon: <InfoRoundedIcon /> },
+  { text: "Feedback", icon: <HelpRoundedIcon /> },
 ];
 
 export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isCandidate = pathname.startsWith('/candidate');
+  const isCandidate = pathname.startsWith("/candidate");
 
-  const visibleListItems = mainListItems.filter(item => {
-    if (isCandidate && item.text === 'Team') return false;
+  const visibleListItems = mainListItems.filter((item) => {
+    if (isCandidate && item.text === "Team") return false;
     return true;
   });
 
@@ -56,15 +76,16 @@ export default function MenuContent() {
     if (text === 'Submit Request' && pathname === '/employee/submit-request') return true;
     if (text === 'Manage Organization' && pathname === '/employee/manage-organization') return true;
     if (text === 'Manage Requests' && pathname === '/employee/manage-requests') return true;
+    if (text === 'Time Management' && pathname === '/employee/time-management') return true;
     return false;
-  }
+  };
 
   const handleNavigation = (text: string) => {
-    if (text === 'Home') {
+    if (text === "Home") {
       if (isCandidate) {
-        router.push('/candidate/dashboard');
+        router.push("/candidate/dashboard");
       } else {
-        router.push('/employee/dashboard');
+        router.push("/employee/dashboard");
       }
     }
     if (text === 'Team') router.push('/employee/team');
@@ -75,14 +96,18 @@ export default function MenuContent() {
     if (text === 'Submit Request') router.push('/employee/submit-request');
     if (text === 'Manage Organization') router.push('/employee/manage-organization');
     if (text === 'Manage Requests') router.push('/employee/manage-requests');
+    if (text === 'Time Management') router.push('/employee/time-management');
   };
 
   return (
-    <Stack sx={{ flexGrow: 1, p: 1, justifyContent: 'space-between' }}>
+    <Stack sx={{ flexGrow: 1, p: 1, justifyContent: "space-between" }}>
       <List dense>
         {visibleListItems.map((item, index) => (
-          <ListItem key={index} disablePadding sx={{ display: 'block' }}>
-            <ListItemButton selected={isSelected(item.text)} onClick={() => handleNavigation(item.text)}>
+          <ListItem key={index} disablePadding sx={{ display: "block" }}>
+            <ListItemButton
+              selected={isSelected(item.text)}
+              onClick={() => handleNavigation(item.text)}
+            >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>
@@ -91,8 +116,11 @@ export default function MenuContent() {
       </List>
       <List dense>
         {secondaryListItems.map((item, index) => (
-          <ListItem key={index} disablePadding sx={{ display: 'block' }}>
-            <ListItemButton selected={isSelected(item.text)} onClick={() => handleNavigation(item.text)}>
+          <ListItem key={index} disablePadding sx={{ display: "block" }}>
+            <ListItemButton
+              selected={isSelected(item.text)}
+              onClick={() => handleNavigation(item.text)}
+            >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>

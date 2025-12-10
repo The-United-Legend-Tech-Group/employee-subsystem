@@ -63,6 +63,66 @@ export class AttendanceService {
     };
   }
 
+  async getAttendanceRecords(
+    employeeId: string,
+    startDate?: Date,
+    endDate?: Date,
+    page: number = 1,
+    limit: number = 20,
+    hasMissedPunch?: boolean,
+    finalisedForPayroll?: boolean,
+  ) {
+    if (!this.attendanceRepo)
+      throw new Error('AttendanceRepository not available');
+
+    // If no date range provided, fetch all records
+    const query: any = { employeeId };
+
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+
+    // Add optional filters
+    if (hasMissedPunch !== undefined) {
+      query.hasMissedPunch = hasMissedPunch;
+    }
+    if (finalisedForPayroll !== undefined) {
+      query.finalisedForPayroll = finalisedForPayroll;
+    }
+
+    // Validate and limit pagination
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(100, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
+
+    // Get total count for pagination metadata
+    const total = await this.attendanceRepo.countDocuments(query);
+    const totalPages = Math.ceil(total / validLimit);
+
+    // Fetch records with pagination using Mongoose query builder
+    const records = await this.attendanceRepo['model']
+      .find(query)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(validLimit)
+      .exec();
+
+    return {
+      data: records,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages,
+        hasNextPage: validPage < totalPages,
+        hasPrevPage: validPage > 1,
+      },
+    };
+  }
+
   async punch(dto: PunchDto) {
     if (!this.attendanceRepo)
       throw new Error('AttendanceRepository not available');

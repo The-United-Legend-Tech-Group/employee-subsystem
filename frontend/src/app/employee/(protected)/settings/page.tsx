@@ -9,6 +9,7 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import ProfileCard from './components/ProfileCard';
 import ContactCard from './components/ContactCard';
+import { decryptData } from '../../../../common/utils/encryption';
 
 interface Address {
     city?: string;
@@ -53,15 +54,18 @@ export default function SettingsPage() {
     React.useEffect(() => {
         const fetchProfile = async () => {
             const token = localStorage.getItem('access_token');
-            const employeeId = localStorage.getItem('employeeId');
+            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !employeeId) {
+            if (!token || !encryptedEmployeeId) {
                 setError('Authentication details missing');
                 setLoading(false);
                 return;
             }
 
             try {
+                const employeeId = await decryptData(encryptedEmployeeId, token);
+                if (!employeeId) throw new Error('Decryption failed');
+
                 const res = await fetch(`${apiUrl}/employee/${employeeId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -98,9 +102,13 @@ export default function SettingsPage() {
         setError(null);
         setSuccess(null);
         const token = localStorage.getItem('access_token');
-        const employeeId = localStorage.getItem('employeeId');
+        const encryptedEmployeeId = localStorage.getItem('employeeId');
 
         try {
+            if (!token || !encryptedEmployeeId) throw new Error('Auth missing');
+            const employeeId = await decryptData(encryptedEmployeeId, token);
+            if (!employeeId) throw new Error('Decryption failed');
+
             // 1. Update Profile (Bio, Picture)
             const profilePayload = { biography, profilePictureUrl };
             const profileRes = await fetch(`${apiUrl}/employee/${employeeId}/profile`, {
@@ -112,7 +120,7 @@ export default function SettingsPage() {
                 body: JSON.stringify(profilePayload)
             });
 
-            if (!profileRes.ok) throw new Error('Failed to update profile details');
+            if (!profileRes.ok) throw new Error('Failed to update profile details (biography/picture)');
 
             // 2. Update Contact Info
             const contactPayload = {
@@ -129,7 +137,7 @@ export default function SettingsPage() {
                 body: JSON.stringify(contactPayload)
             });
 
-            if (!contactRes.ok) throw new Error('Failed to update contact info');
+            if (!contactRes.ok) throw new Error('Profile saved, but failed to update contact info');
 
             setSuccess('Settings updated successfully');
 

@@ -8,9 +8,7 @@ import Typography from '@mui/material/Typography';
 import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import PersonIcon from '@mui/icons-material/Person';
 import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 
 interface HierarchyNode {
@@ -34,6 +32,7 @@ const OrgChartNode = ({ node }: { node: HierarchyNode }) => {
                 elevation={0}
                 sx={{
                     width: 180,
+                    mx: 1, // Add margin to card to create spacing while keeping lines connected
                     textAlign: 'center',
                     border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
@@ -82,7 +81,7 @@ const OrgChartNode = ({ node }: { node: HierarchyNode }) => {
                             fontSize: '0.65rem',
                             fontWeight: 600,
                             borderRadius: 1,
-                            bgcolor: node.description === 'Open' ? 'success.lighter' : 'action.hover', // Note: 'success.lighter' might not exist, safer to use alpha or light
+                            bgcolor: node.description === 'Open' ? 'success.lighter' : 'action.hover',
                             color: node.description === 'Open' ? 'success.dark' : 'text.secondary',
                             ...(node.description === 'Open' && { bgcolor: theme.palette.success.light, color: theme.palette.success.contrastText }),
                             '& .MuiChip-label': { px: 1 }
@@ -113,7 +112,7 @@ const OrgChartNode = ({ node }: { node: HierarchyNode }) => {
                     }} />
 
                     {node.children.map((child, index) => (
-                        <Box key={child._id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', px: 1 }}>
+                        <Box key={child._id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             {/* Top Wrapper for lines to Child */}
                             <Box sx={{ height: 16, width: '100%', position: 'relative' }}>
                                 {/* Horizontal Line */}
@@ -223,7 +222,15 @@ export default function OrganizationHierarchy() {
                 <Typography variant="h6" gutterBottom component="div" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
                     Organization Structure
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minWidth: 'fit-content', gap: 2 }}>
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                    minWidth: 'fit-content',
+                    gap: 2,
+                    p: 1,
+                    pb: 4 // Explicit bottom padding for shadows
+                }}>
                     {hierarchy.map((rootNode) => (
                         <OrgChartNode key={rootNode._id} node={rootNode} />
                     ))}

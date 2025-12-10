@@ -19,6 +19,17 @@ const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
 
 export default function NavbarBreadcrumbs() {
   const pathname = usePathname();
+
+  const getBreadcrumbTitle = () => {
+    if (pathname.includes('/notifications')) return 'Notifications';
+    if (pathname.includes('/team')) return 'Team';
+    if (pathname.includes('/manage-organization')) return 'Manage Organization';
+    if (pathname.includes('/analytics')) return 'Analytics';
+    if (pathname.includes('/calendar')) return 'Calendar';
+    if (pathname.includes('/clients')) return 'Clients';
+    return 'Home';
+  };
+
   return (
     <StyledBreadcrumbs
       aria-label="breadcrumb"
@@ -26,7 +37,7 @@ export default function NavbarBreadcrumbs() {
     >
       <Typography variant="body1">Dashboard</Typography>
       <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
-        {pathname.includes('/notifications') ? 'Notifications' : pathname.includes('/team') ? 'Team' : 'Home'}
+        {getBreadcrumbTitle()}
       </Typography>
     </StyledBreadcrumbs>
   );

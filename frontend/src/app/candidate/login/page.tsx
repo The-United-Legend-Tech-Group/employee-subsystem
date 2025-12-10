@@ -3,10 +3,8 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import CssBaseline from '@mui/material/CssBaseline';
 import Divider from '@mui/material/Divider';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
 import Link from '@mui/material/Link';
@@ -22,6 +20,7 @@ import AppTheme from '../../../common/material-ui/shared-theme/AppTheme';
 
 import ArcanaLogo from '../../../common/material-ui/shared-theme/ArcanaLogo';
 import ColorModeSelect from '../../../common/material-ui/shared-theme/ColorModeSelect';
+import { encryptData } from '../../../common/utils/encryption';
 
 const Card = styled(MuiCard)(({ theme }) => ({
     display: 'flex',
@@ -130,7 +129,9 @@ export default function CandidateLogin() {
                 // Successful login
                 const data = await response.json();
                 localStorage.setItem('access_token', data.access_token);
-                localStorage.setItem('candidateId', data.candidateId);
+                // Encrypt candidateId
+                const encryptedCandidateId = await encryptData(data.candidateId, data.access_token);
+                localStorage.setItem('candidateId', encryptedCandidateId);
                 router.push('/candidate/dashboard');
             } else {
                 const errorData = await response.json();

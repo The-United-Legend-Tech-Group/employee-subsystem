@@ -15,9 +15,11 @@ import { useRouter } from "next/navigation";
 // Adjust imports based on your project structure
 import AppTheme from "../../../common/material-ui/shared-theme/AppTheme";
 
+
 import ArcanaLogo from "../../../common/material-ui/shared-theme/ArcanaLogo";
 import ColorModeSelect from "../../../common/material-ui/shared-theme/ColorModeSelect";
-
+import { encryptData } from '../../../common/utils/encryption';
+        
 const floatLayers = keyframes`
     0% {
         transform: translate3d(-40%, -28%, 0) rotate(-18deg) scale(0.9);
@@ -105,6 +107,7 @@ const beamSweep = keyframes`
         opacity: 0.25;
     }
 `;
+
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: "flex",
@@ -257,14 +260,49 @@ export default function EmployeeLogin() {
     event.preventDefault();
     setFormError("");
 
-    if (!validateInputs()) {
-      return;
-    }
 
-    const data = new FormData(event.currentTarget);
-    const payload = {
-      email: data.get("email"),
-      password: data.get("password"),
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setFormError('');
+
+        if (!validateInputs()) {
+            return;
+        }
+
+        const data = new FormData(event.currentTarget);
+        const payload = {
+            email: data.get('email'),
+            password: data.get('password'),
+        };
+
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+            const response = await fetch(`${apiUrl}/auth/employee/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (response.ok) {
+                // Successful login
+                const data = await response.json();
+                localStorage.setItem('access_token', data.access_token);
+
+                // Encrypt employeeId before storing
+                const encryptedEmployeeId = await encryptData(data.employeeId, data.access_token);
+                localStorage.setItem('employeeId', encryptedEmployeeId);
+
+                router.push('/employee/dashboard');
+            } else {
+                const errorData = await response.json();
+                setFormError(errorData.message || 'Login failed. Please check your credentials.');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            setFormError('An unexpected error occurred. Please try again later.');
+        }
     };
 
     try {

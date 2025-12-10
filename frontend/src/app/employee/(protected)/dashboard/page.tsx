@@ -43,6 +43,7 @@ interface Employee {
 }
 
 import OrganizationHierarchy from './OrganizationHierarchy';
+import { decryptData } from '../../../../common/utils/encryption';
 
 export default function EmployeeDashboard(props: { disableCustomTheme?: boolean }) {
     const router = useRouter();
@@ -52,14 +53,17 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
     React.useEffect(() => {
         const fetchEmployee = async () => {
             const token = localStorage.getItem('access_token');
-            const employeeId = localStorage.getItem('employeeId');
+            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !employeeId) {
+            if (!token || !encryptedEmployeeId) {
                 router.push('/employee/login');
                 return;
             }
 
             try {
+                const employeeId = await decryptData(encryptedEmployeeId, token);
+                if (!employeeId) throw new Error('Decryption failed');
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/${employeeId}`, {
                     headers: {

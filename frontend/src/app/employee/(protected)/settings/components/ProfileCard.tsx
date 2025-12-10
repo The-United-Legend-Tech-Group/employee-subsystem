@@ -36,7 +36,7 @@ export default function ProfileCard({
     setBiography,
     setError
 }: ProfileCardProps) {
-    const sanitize = (val: string | undefined | null) => (val === 'string' || val === null ? undefined : val);
+    const sanitize = (val: string | undefined | null) => (!val || val.trim() === '' ? undefined : val);
 
     return (
         <Card variant="outlined" sx={{ height: 'fit-content', minHeight: '100%', width: '100%' }}>
@@ -95,16 +95,16 @@ export default function ProfileCard({
                             Biography
                         </Typography>
                         <TextField
-                        fullWidth
-                        placeholder="Biography"
-                        multiline
-                        rows={1}
-                        minRows={1}
-                        variant="outlined"
-                        value={biography}
-                        onChange={(e) => setBiography(e.target.value)}
-                        sx={{ textAlign: 'left', mt: 2 }}
-                    />
+                            fullWidth
+                            placeholder="Biography"
+                            multiline
+                            rows={1}
+                            minRows={1}
+                            variant="outlined"
+                            value={biography}
+                            onChange={(e) => setBiography(e.target.value)}
+                            sx={{ textAlign: 'left', mt: 2 }}
+                        />
                     </Box>
                 </Stack>
             </CardContent>

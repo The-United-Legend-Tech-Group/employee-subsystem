@@ -25,6 +25,10 @@ export class CandidateRepository extends BaseRepository<CandidateDocument> {
     return this.model.findOne({ nationalId }).exec();
   }
 
+  async findByIdWithPassword(id: string) {
+    return this.model.findById(id).select('+password').exec();
+  }
+
   async findLastCandidateNumberForPrefix(prefix: string) {
     return this.model
       .findOne({ candidateNumber: new RegExp(`^${prefix}`) })

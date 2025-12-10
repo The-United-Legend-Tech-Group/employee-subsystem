@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -19,7 +18,6 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 
 // Icons
@@ -27,8 +25,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
-import EditIcon from '@mui/icons-material/Edit';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
+import { decryptData } from '../../../../common/utils/encryption';
 
 interface Candidate {
     _id: string;
@@ -52,14 +49,17 @@ export default function CandidateDashboard(props: { disableCustomTheme?: boolean
     React.useEffect(() => {
         const fetchCandidate = async () => {
             const token = localStorage.getItem('access_token');
-            const candidateId = localStorage.getItem('candidateId');
+            const encryptedCandidateId = localStorage.getItem('candidateId');
 
-            if (!token || !candidateId) {
+            if (!token || !encryptedCandidateId) {
                 router.push('/candidate/login');
                 return;
             }
 
             try {
+                const candidateId = await decryptData(encryptedCandidateId, token);
+                if (!candidateId) throw new Error('Decryption failed');
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/candidate/${candidateId}`, {
                     headers: {
@@ -86,7 +86,7 @@ export default function CandidateDashboard(props: { disableCustomTheme?: boolean
     }, [router]);
 
     const getStatusColor = (status: string) => {
-        switch (status.toUpperCase()) {
+        switch (status?.toUpperCase()) {
             case 'ACTIVE':
                 return 'success';
             case 'PENDING':
@@ -95,6 +95,18 @@ export default function CandidateDashboard(props: { disableCustomTheme?: boolean
                 return 'error';
             case 'HIRED':
                 return 'success';
+            case 'APPLIED':
+                return 'info';
+            case 'SCREENING':
+                return 'warning';
+            case 'INTERVIEW':
+                return 'info';
+            case 'OFFER_SENT':
+                return 'warning';
+            case 'OFFER_ACCEPTED':
+                return 'success';
+            case 'WITHDRAWN':
+                return 'default';
             default:
                 return 'default';
         }

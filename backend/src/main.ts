@@ -5,8 +5,14 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppConfigService } from './config/app-config.service';
 import cookieParser from 'cookie-parser';
 
+import { json, urlencoded } from 'express';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // Increase payload limit
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   const configService = app.get<AppConfigService>(AppConfigService);
 
   // Global validation pipe for DTO validation

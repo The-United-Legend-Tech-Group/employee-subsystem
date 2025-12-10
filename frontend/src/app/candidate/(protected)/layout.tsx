@@ -16,6 +16,7 @@ import {
     datePickersCustomizations,
     treeViewCustomizations,
 } from '../../../common/material-ui/dashboard/theme/customizations';
+import { decryptData } from '../../../common/utils/encryption';
 
 const xThemeComponents = {
     ...chartsCustomizations,
@@ -42,14 +43,17 @@ export default function CandidateLayout({ children }: LayoutProps) {
     React.useEffect(() => {
         const fetchCandidate = async () => {
             const token = localStorage.getItem('access_token');
-            const candidateId = localStorage.getItem('candidateId');
+            const encryptedCandidateId = localStorage.getItem('candidateId');
 
-            if (!token || !candidateId) {
+            if (!token || !encryptedCandidateId) {
                 router.push('/candidate/login');
                 return;
             }
 
             try {
+                const candidateId = await decryptData(encryptedCandidateId, token);
+                if (!candidateId) throw new Error('Decryption failed');
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/candidate/${candidateId}`, {
                     headers: {
@@ -60,9 +64,13 @@ export default function CandidateLayout({ children }: LayoutProps) {
                 if (response.ok) {
                     const data = await response.json();
                     setCandidate(data);
+                } else {
+                    console.error('Failed to fetch candidate profile', response.status, response.statusText);
+                    router.push('/candidate/login');
                 }
             } catch (error) {
                 console.error('Failed to fetch candidate profile for layout', error);
+                router.push('/candidate/login');
             }
         };
 

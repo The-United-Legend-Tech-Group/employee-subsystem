@@ -98,7 +98,7 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                 <SideMenu user={employee ? {
                     name: `${employee.firstName} ${employee.lastName}`,
                     email: employee.workEmail || employee.personalEmail,
-                    image: employee.profilePictureUrl || '/static/images/avatar/7.jpg'
+                    image: employee.profilePictureUrl || ''
                 } : undefined} />
                 <AppNavbar />
 

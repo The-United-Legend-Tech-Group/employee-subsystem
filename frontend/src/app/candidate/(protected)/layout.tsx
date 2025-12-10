@@ -84,7 +84,7 @@ export default function CandidateLayout({ children }: LayoutProps) {
                 <SideMenu user={candidate ? {
                     name: `${candidate.firstName} ${candidate.lastName}`,
                     email: candidate.personalEmail,
-                    image: candidate.profilePictureUrl || '/static/images/avatar/default.jpg'
+                    image: candidate.profilePictureUrl || ''
                 } : undefined} />
                 <AppNavbar />
 

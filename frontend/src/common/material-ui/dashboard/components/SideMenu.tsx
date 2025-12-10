@@ -34,7 +34,7 @@ export default function SideMenu({ user }: SideMenuProps) {
   const userData = user || {
     name: 'Riley Carter',
     email: 'riley@email.com',
-    image: '/static/images/avatar/7.jpg',
+    image: '',
   };
 
   return (

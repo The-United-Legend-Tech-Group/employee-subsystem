@@ -14,23 +14,16 @@ import Fade from '@mui/material/Fade';
 import Chip from '@mui/material/Chip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-// import Table from '@mui/material/Table';
-// import TableBody from '@mui/material/TableBody';
-// import TableCell from '@mui/material/TableCell';
-// import TableContainer from '@mui/material/TableContainer';
-// import TableHead from '@mui/material/TableHead';
-// import TableRow from '@mui/material/TableRow';
-// import Paper from '@mui/material/Paper';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import TableRowsRoundedIcon from '@mui/icons-material/TableRowsRounded';
 
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
+import { decryptData } from '../../../../common/utils/encryption';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import PersonIcon from '@mui/icons-material/Person';
 
-// Adjust imports if needed
 
 interface TeamMember {
     _id: string;
@@ -38,14 +31,9 @@ interface TeamMember {
     lastName: string;
     position?: { title: string };
     department?: { name: string };
-    profilePictureUrl?: string; // Assuming this might exist or we use a placeholder
+    profilePictureUrl?: string;
     email: string;
     status: string;
-}
-
-interface TeamData {
-    manager: TeamMember; // Ideally we fetch the manager's details too
-    members: TeamMember[];
 }
 
 export default function TeamPage(props: { disableCustomTheme?: boolean }) {
@@ -138,14 +126,17 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
     React.useEffect(() => {
         const fetchTeam = async () => {
             const token = localStorage.getItem('access_token');
-            const employeeId = localStorage.getItem('employeeId');
+            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !employeeId) {
+            if (!token || !encryptedEmployeeId) {
                 router.push('/employee/login');
                 return;
             }
 
             try {
+                const employeeId = await decryptData(encryptedEmployeeId, token);
+                if (!employeeId) throw new Error('Decryption failed');
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
                 // Fetch current user (Manager) profile first to show in center

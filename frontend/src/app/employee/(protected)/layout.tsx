@@ -16,6 +16,7 @@ import {
     datePickersCustomizations,
     treeViewCustomizations,
 } from '../../../common/material-ui/dashboard/theme/customizations';
+import { decryptData } from '../../../common/utils/encryption';
 
 const xThemeComponents = {
     ...chartsCustomizations,
@@ -36,6 +37,7 @@ interface EmployeeProfile {
     profilePictureUrl?: string;
 }
 
+
 export default function EmployeeLayout({ children }: LayoutProps) {
     const router = useRouter();
     const [employee, setEmployee] = React.useState<EmployeeProfile | null>(null);
@@ -43,9 +45,9 @@ export default function EmployeeLayout({ children }: LayoutProps) {
     React.useEffect(() => {
         const fetchEmployee = async () => {
             const token = localStorage.getItem('access_token');
-            const employeeId = localStorage.getItem('employeeId');
+            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !employeeId) {
+            if (!token || !encryptedEmployeeId) {
                 // Let the individual pages handle redirect if needed, or handle it here.
                 // Handling it here is safer for the protected group.
                 router.push('/employee/login');
@@ -53,6 +55,15 @@ export default function EmployeeLayout({ children }: LayoutProps) {
             }
 
             try {
+                // Decrypt employeeId
+                const employeeId = await decryptData(encryptedEmployeeId, token);
+
+                if (!employeeId) {
+                    console.error('Failed to decrypt employee ID');
+                    router.push('/employee/login');
+                    return;
+                }
+
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/${employeeId}`, {
                     headers: {
@@ -63,9 +74,17 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                 if (response.ok) {
                     const data = await response.json();
                     setEmployee(data.profile || data);
+                } else {
+                    console.error('Failed to fetch employee profile', response.status, response.statusText);
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('employeeId');
+                    router.push('/employee/login');
                 }
             } catch (error) {
                 console.error('Failed to fetch employee profile for layout', error);
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('employeeId');
+                router.push('/employee/login');
             }
         };
 

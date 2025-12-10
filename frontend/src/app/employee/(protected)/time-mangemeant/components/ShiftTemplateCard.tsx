@@ -28,6 +28,8 @@ interface ShiftDefinition {
 
 type ShiftTemplateCardProps = {
   shift: ShiftDefinition;
+  onSelect?: () => void;
+  selected?: boolean;
 };
 
 function computeShiftDurationMinutes(shift: ShiftDefinition) {
@@ -65,7 +67,11 @@ function formatDuration(minutes: number) {
   return `${remaining}m`;
 }
 
-export default function ShiftTemplateCard({ shift }: ShiftTemplateCardProps) {
+export default function ShiftTemplateCard({
+  shift,
+  onSelect,
+  selected,
+}: ShiftTemplateCardProps) {
   const durationMinutes = computeShiftDurationMinutes(shift);
   const durationLabel =
     durationMinutes > 0 ? formatDuration(durationMinutes) : "Not set";
@@ -78,15 +84,30 @@ export default function ShiftTemplateCard({ shift }: ShiftTemplateCardProps) {
 
   return (
     <Card
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (onSelect && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       variant="outlined"
       sx={(theme) => ({
+        width: "100%",
         position: "relative",
         overflow: "hidden",
         borderLeft: 4,
-        borderLeftColor: requiresApproval
+        borderLeftColor: selected
+          ? theme.palette.primary.dark
+          : requiresApproval
           ? theme.palette.warning.main
           : theme.palette.primary.main,
         transition: "all 0.2s ease-in-out",
+        cursor: onSelect ? "pointer" : "default",
+        boxShadow: selected ? theme.shadows[12] : undefined,
+        transform: selected ? "translateY(-4px)" : undefined,
         "&:hover": {
           transform: "translateY(-4px)",
           boxShadow: theme.shadows[8],

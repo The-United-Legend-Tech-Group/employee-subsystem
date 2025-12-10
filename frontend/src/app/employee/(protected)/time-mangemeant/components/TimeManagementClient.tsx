@@ -86,6 +86,7 @@ export default function TimeManagementClient({
     []
   );
   const [managerQueueEnabled, setManagerQueueEnabled] = React.useState(false);
+  const [authToken, setAuthToken] = React.useState<string | null>(null);
 
   const sectionMap = React.useMemo(
     () => new Map(sections.map((section) => [section.id, section])),
@@ -195,6 +196,8 @@ export default function TimeManagementClient({
           router.push("/employee/login");
           return;
         }
+
+        setAuthToken(token);
 
         const managerId = LINE_MANAGER_KEYS.map((key) =>
           window.localStorage.getItem(key)
@@ -330,7 +333,15 @@ export default function TimeManagementClient({
   }, []);
 
   return (
-    <Box sx={{ width: "100%", maxWidth: { sm: "100%", md: "1700px" }, py: 3 }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: { sm: "100%", md: "1700px" },
+        mx: "auto",
+        py: 3,
+        px: { xs: 2, md: 3 },
+      }}
+    >
       <Stack spacing={4}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -408,6 +419,8 @@ export default function TimeManagementClient({
               shifts={shiftDefinitions}
               scheduleRules={scheduleRules}
               loading={loading}
+              authToken={authToken}
+              onRefresh={handleRefresh}
             />
           )}
 

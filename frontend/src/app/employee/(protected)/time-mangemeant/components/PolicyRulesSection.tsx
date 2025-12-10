@@ -43,14 +43,9 @@ import SectionHeading from "./SectionHeading";
 import ShiftTemplateCard from "./ShiftTemplateCard";
 import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 
-const HOLIDAY_TYPES = [
-  "NATIONAL",
-  "ORGANIZATIONAL",
-  "WEEKLY_REST",
-] as const;
+const HOLIDAY_TYPES = ["NATIONAL", "ORGANIZATIONAL", "WEEKLY_REST"] as const;
 
 const WEEKDAY_OPTIONS = [
   { label: "Sun", value: 0 },

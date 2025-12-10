@@ -128,6 +128,7 @@ export default function ShiftAssignmentsSection({
               <TableHead>
                 <TableRow>
                   <TableCell>Shift</TableCell>
+                  <TableCell>Assigned To</TableCell>
                   <TableCell>Window</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Schedule rule</TableCell>
@@ -140,6 +141,22 @@ export default function ShiftAssignmentsSection({
                     label: assignment.status,
                     color: "default" as const,
                   };
+
+                  // Determine assignment scope
+                  const assignmentScope = assignment.employeeId
+                    ? "Employee"
+                    : assignment.departmentId
+                    ? "Department"
+                    : assignment.positionId
+                    ? "Position"
+                    : "Unknown";
+
+                  const assignmentTarget =
+                    assignment.employeeId ||
+                    assignment.departmentId ||
+                    assignment.positionId ||
+                    "-";
+
                   return (
                     <TableRow key={assignment._id} hover>
                       <TableCell>
@@ -152,6 +169,34 @@ export default function ShiftAssignmentsSection({
                             ? ` · Ends ${formatDate(assignment.endDate)}`
                             : ""}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="column" spacing={0.25}>
+                          <Chip
+                            size="small"
+                            label={assignmentScope}
+                            color={
+                              assignmentScope === "Employee"
+                                ? "primary"
+                                : assignmentScope === "Department"
+                                ? "secondary"
+                                : "default"
+                            }
+                            variant="outlined"
+                          />
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              fontFamily: "monospace",
+                              fontSize: "0.7rem",
+                            }}
+                          >
+                            {typeof assignmentTarget === "string"
+                              ? assignmentTarget.slice(-8)
+                              : assignmentTarget}
+                          </Typography>
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         {assignment.shiftExtras ? (

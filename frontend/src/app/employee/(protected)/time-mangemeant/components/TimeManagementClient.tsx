@@ -13,18 +13,23 @@ import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import AttendanceSection from "./AttendanceSection";
+import AttendanceRecordsSection from "./AttendanceRecordsSection";
 import ExceptionsSection from "./ExceptionsSection";
+import TimeExceptionsSection from "./TimeExceptionsSection";
 import OverviewMetrics from "./OverviewMetrics";
 import PolicyRulesSection from "./PolicyRulesSection";
 import SectionHeading from "./SectionHeading";
 import ShiftAssignmentsSection from "./ShiftAssignmentsSection";
 import {
+  AttendanceRecord,
   CorrectionRequest,
   HolidayDefinition,
+  PunchType,
   ScheduleRule,
   SectionDefinition,
   ShiftAssignment,
   ShiftDefinition,
+  TimeException,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
@@ -76,6 +81,26 @@ export default function TimeManagementClient({
   >([]);
   const [scheduleRules, setScheduleRules] = React.useState<ScheduleRule[]>([]);
   const [holidays, setHolidays] = React.useState<HolidayDefinition[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = React.useState<
+    AttendanceRecord[]
+  >([]);
+  const [attendancePagination, setAttendancePagination] = React.useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+  const [attendanceFilters, setAttendanceFilters] = React.useState({
+    startDate: undefined as string | undefined,
+    endDate: undefined as string | undefined,
+    hasMissedPunch: undefined as boolean | undefined,
+    finalisedForPayroll: undefined as boolean | undefined,
+  });
+  const [timeExceptions, setTimeExceptions] = React.useState<TimeException[]>(
+    []
+  );
   const [pendingCorrections, setPendingCorrections] = React.useState<
     CorrectionRequest[]
   >([]);
@@ -148,20 +173,46 @@ export default function TimeManagementClient({
     );
   }, [sectionMap]);
 
+  const attendanceRecordsSection = React.useMemo<SectionDefinition>(() => {
+    return (
+      sectionMap.get("attendance-records") || {
+        id: "attendance-records",
+        title: "Attendance records & punches",
+        description:
+          "View and record employee clock in/out punches and daily attendance tracking.",
+      }
+    );
+  }, [sectionMap]);
+
+  const timeExceptionsSection = React.useMemo<SectionDefinition>(() => {
+    return (
+      sectionMap.get("time-exceptions") || {
+        id: "time-exceptions",
+        title: "Time exceptions",
+        description:
+          "Monitor and resolve attendance exceptions including missed punches, late arrivals, and overtime requests.",
+      }
+    );
+  }, [sectionMap]);
+
   const tabItems = React.useMemo(
     () => [
       overviewSection,
       attendanceSection,
+      attendanceRecordsSection,
       shiftsSection,
       policiesSection,
       exceptionsSection,
+      timeExceptionsSection,
     ],
     [
       overviewSection,
       attendanceSection,
+      attendanceRecordsSection,
       shiftsSection,
       policiesSection,
       exceptionsSection,
+      timeExceptionsSection,
     ]
   );
 
@@ -219,11 +270,38 @@ export default function TimeManagementClient({
 
         const fetchOptions: FetchOptions = { token };
 
+        // Build attendance query params
+        const attendanceParams = new URLSearchParams({
+          page: attendancePagination.page.toString(),
+          limit: attendancePagination.limit.toString(),
+        });
+
+        if (attendanceFilters.startDate) {
+          attendanceParams.append("startDate", attendanceFilters.startDate);
+        }
+        if (attendanceFilters.endDate) {
+          attendanceParams.append("endDate", attendanceFilters.endDate);
+        }
+        if (attendanceFilters.hasMissedPunch !== undefined) {
+          attendanceParams.append(
+            "hasMissedPunch",
+            attendanceFilters.hasMissedPunch.toString()
+          );
+        }
+        if (attendanceFilters.finalisedForPayroll !== undefined) {
+          attendanceParams.append(
+            "finalisedForPayroll",
+            attendanceFilters.finalisedForPayroll.toString()
+          );
+        }
+
         const [
           shiftsRes,
           assignmentsRes,
           rulesRes,
           holidaysRes,
+          attendanceRes,
+          exceptionsRes,
           historyRes,
           pendingRes,
           payrollRes,
@@ -236,6 +314,21 @@ export default function TimeManagementClient({
           ),
           secureFetch<ScheduleRule[]>(`/time/schedule-rules`, [], fetchOptions),
           secureFetch<HolidayDefinition[]>(`/time/holidays`, [], fetchOptions),
+          fetch(
+            `${API_BASE}/time/attendance/records/${employeeId}?${attendanceParams}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ).then(async (res) => {
+            if (!res.ok)
+              throw new Error(`Failed to fetch attendance: ${res.status}`);
+            return res.json();
+          }),
+          secureFetch<TimeException[]>(
+            `/time/exceptions/employee/${employeeId}`,
+            [],
+            fetchOptions
+          ),
           secureFetch<CorrectionRequest[]>(
             `/time/corrections/history/${employeeId}?startDate=${startRange.toISOString()}&endDate=${endRange.toISOString()}`,
             [],
@@ -261,6 +354,31 @@ export default function TimeManagementClient({
         setShiftAssignments(coerceArray<ShiftAssignment>(assignmentsRes));
         setScheduleRules(coerceArray<ScheduleRule>(rulesRes));
         setHolidays(coerceArray<HolidayDefinition>(holidaysRes));
+
+        // Handle paginated attendance response
+        if (
+          attendanceRes &&
+          typeof attendanceRes === "object" &&
+          "data" in attendanceRes &&
+          "pagination" in attendanceRes
+        ) {
+          setAttendanceRecords((attendanceRes as any).data || []);
+          setAttendancePagination(
+            (attendanceRes as any).pagination || {
+              page: 1,
+              limit: 20,
+              total: 0,
+              totalPages: 0,
+              hasNextPage: false,
+              hasPrevPage: false,
+            }
+          );
+        } else {
+          // Fallback for non-paginated response
+          setAttendanceRecords(coerceArray<AttendanceRecord>(attendanceRes));
+        }
+
+        setTimeExceptions(coerceArray<TimeException>(exceptionsRes));
         setCorrectionHistory(coerceArray<CorrectionRequest>(historyRes));
         setPendingCorrections(coerceArray<CorrectionRequest>(pendingRes));
         setPayrollQueue(coerceArray<CorrectionRequest>(payrollRes));
@@ -281,7 +399,16 @@ export default function TimeManagementClient({
     return () => {
       isMounted = false;
     };
-  }, [router, refreshKey]);
+  }, [
+    router,
+    refreshKey,
+    attendancePagination.page,
+    attendancePagination.limit,
+    attendanceFilters.startDate,
+    attendanceFilters.endDate,
+    attendanceFilters.hasMissedPunch,
+    attendanceFilters.finalisedForPayroll,
+  ]);
 
   const overviewMetrics = React.useMemo(() => {
     const activeShifts = shiftDefinitions.filter(
@@ -295,6 +422,14 @@ export default function TimeManagementClient({
     }).length;
     const pendingCount = pendingCorrections.length;
     const payrollCount = payrollQueue.length;
+    const openExceptions = timeExceptions.filter(
+      (ex) => ex.status === "OPEN" || ex.status === "PENDING"
+    ).length;
+    const recentAttendance = attendanceRecords.filter((record) => {
+      const recordDate = new Date(record.date).getTime();
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      return recordDate >= weekAgo;
+    }).length;
 
     return [
       {
@@ -325,12 +460,114 @@ export default function TimeManagementClient({
         trend: (payrollCount > 0 ? "up" : "neutral") as "up" | "neutral",
         data: buildSparkline(payrollCount),
       },
+      {
+        title: "Open exceptions",
+        value: `${openExceptions}`,
+        interval: "Requiring attention",
+        trend: (openExceptions > 0 ? "down" : "neutral") as "down" | "neutral",
+        data: buildSparkline(openExceptions),
+      },
+      {
+        title: "Recent attendance",
+        value: `${recentAttendance}`,
+        interval: "Last 7 days",
+        trend: (recentAttendance > 0 ? "up" : "neutral") as "up" | "neutral",
+        data: buildSparkline(recentAttendance),
+      },
     ];
-  }, [shiftDefinitions, shiftAssignments, pendingCorrections, payrollQueue]);
+  }, [
+    shiftDefinitions,
+    shiftAssignments,
+    pendingCorrections,
+    payrollQueue,
+    timeExceptions,
+    attendanceRecords,
+  ]);
 
   const handleRefresh = React.useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
+
+  const handlePageChange = React.useCallback((newPage: number) => {
+    setAttendancePagination((prev) => ({ ...prev, page: newPage }));
+  }, []);
+
+  const handlePageSizeChange = React.useCallback((newSize: number) => {
+    setAttendancePagination((prev) => ({ ...prev, page: 1, limit: newSize }));
+  }, []);
+
+  const handleFiltersChange = React.useCallback(
+    (
+      startDate?: string,
+      endDate?: string,
+      hasMissedPunch?: boolean,
+      finalisedForPayroll?: boolean
+    ) => {
+      setAttendanceFilters({
+        startDate,
+        endDate,
+        hasMissedPunch,
+        finalisedForPayroll,
+      });
+      // Reset to page 1 when filters change
+      setAttendancePagination((prev) => ({ ...prev, page: 1 }));
+    },
+    []
+  );
+
+  const handlePunchRecord = React.useCallback(
+    async (employeeId: string, type: PunchType, time?: string) => {
+      if (!authToken) {
+        throw new Error("Not authenticated");
+      }
+
+      // Build request body, only include time if provided
+      const requestBody: {
+        employeeId: string;
+        type: PunchType;
+        time?: string;
+      } = {
+        employeeId,
+        type,
+      };
+
+      // Only add time field if it's provided and not empty
+      if (time && time.trim()) {
+        requestBody.time = time;
+      }
+
+      const response = await fetch(`${API_BASE}/time/attendance/punch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Punch error response:", errorText);
+
+        // Try to parse error message from backend
+        try {
+          const errorJson = JSON.parse(errorText);
+          const message =
+            errorJson.message ||
+            errorJson.error ||
+            `Failed to record punch: ${response.status}`;
+          throw new Error(message);
+        } catch (parseError) {
+          // If JSON parsing fails, throw generic error
+          throw new Error(`Failed to record punch: ${response.status}`);
+        }
+      }
+
+      // Refresh data after successful punch
+      handleRefresh();
+    },
+    [authToken, handleRefresh]
+  );
 
   return (
     <Box
@@ -424,11 +661,32 @@ export default function TimeManagementClient({
             />
           )}
 
+          {activeSection === attendanceRecordsSection.id && (
+            <AttendanceRecordsSection
+              section={attendanceRecordsSection}
+              attendanceRecords={attendanceRecords}
+              loading={loading}
+              onPunchRecord={handlePunchRecord}
+              pagination={attendancePagination}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              onFiltersChange={handleFiltersChange}
+            />
+          )}
+
           {activeSection === exceptionsSection.id && (
             <ExceptionsSection
               section={exceptionsSection}
               holidays={holidays}
               payrollQueue={payrollQueue}
+              loading={loading}
+            />
+          )}
+
+          {activeSection === timeExceptionsSection.id && (
+            <TimeExceptionsSection
+              section={timeExceptionsSection}
+              exceptions={timeExceptions}
               loading={loading}
             />
           )}

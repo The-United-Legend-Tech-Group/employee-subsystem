@@ -14,17 +14,7 @@ import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
 import TimelapseRoundedIcon from "@mui/icons-material/TimelapseRounded";
 import AvTimerRoundedIcon from "@mui/icons-material/AvTimerRounded";
 
-interface ShiftDefinition {
-  _id: string;
-  name: string;
-  startTime?: string;
-  endTime?: string;
-  punchPolicy?: string;
-  graceInMinutes?: number;
-  graceOutMinutes?: number;
-  requiresApprovalForOvertime?: boolean;
-  active?: boolean;
-}
+import { ShiftDefinition } from "./types";
 
 type ShiftTemplateCardProps = {
   shift: ShiftDefinition;

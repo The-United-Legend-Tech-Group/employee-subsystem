@@ -55,7 +55,7 @@ function ServerDay(props: PickersDayProps & { highlightedDays?: number[], notifi
     let badgeColor = 'primary';
     if (hasEvents) {
         const today = dayjs();
-        const diff = day.diff(today, 'day');
+        const diff = (day as Dayjs).diff(today, 'day');
         if (diff < 0) badgeColor = 'default'; // Past
         else if (diff <= 2) badgeColor = 'error';
         else if (diff <= 5) badgeColor = 'warning';
@@ -170,7 +170,7 @@ export default function CalendarPage() {
                                     <LocalizationProvider dateAdapter={AdapterDayjs}>
                                         <DateCalendar
                                             value={value}
-                                            onChange={(newValue) => setValue(newValue)}
+                                            onChange={(newValue) => setValue(newValue as Dayjs | null)}
                                             loading={loading}
                                             renderLoading={() => <DayCalendarSkeleton />}
                                             showDaysOutsideCurrentMonth

@@ -16,6 +16,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import TableRowsRoundedIcon from '@mui/icons-material/TableRowsRounded';
+import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
 
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -23,6 +24,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import { decryptData } from '../../../../common/utils/encryption';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import PersonIcon from '@mui/icons-material/Person';
+import Button from '@mui/material/Button';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 
 
 interface TeamMember {
@@ -77,10 +80,13 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
             renderCell: (params: GridRenderCellParams<TeamMember>) => {
                 const isManager = manager && params.row._id === manager._id;
                 return (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+                    <Box
+                        onClick={() => router.push(`/employee/team/member-details/${params.row._id}`)}
+                        sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                    >
                         <Avatar src={params.row.profilePictureUrl} alt={params.row.firstName} sx={{ width: 32, height: 32 }} />
                         <Box>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography variant="body2" fontWeight="medium" sx={{ color: 'primary.main', textDecoration: 'underline' }}>
                                 {params.row.firstName} {params.row.lastName}
                             </Typography>
                             {isManager && (
@@ -217,14 +223,7 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
     }
 
 
-    const handleViewChange = (
-        event: React.MouseEvent<HTMLElement>,
-        newView: 'orbit' | 'table',
-    ) => {
-        if (newView !== null) {
-            setViewMode(newView);
-        }
-    };
+
 
     return (
         <Box sx={{
@@ -242,11 +241,22 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
             }}>
                 <ToggleButtonGroup
                     value={viewMode}
                     exclusive
-                    onChange={handleViewChange}
+                    onChange={(e, newView) => {
+                        if (newView === 'summary') {
+                            router.push('/employee/team/summary');
+                            return;
+                        }
+                        if (newView !== null) {
+                            setViewMode(newView);
+                        }
+                    }}
                     aria-label="view mode"
                     sx={{
                         bgcolor: 'background.paper',
@@ -283,6 +293,10 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                     <ToggleButton value="table" aria-label="table view">
                         <TableRowsRoundedIcon fontSize="small" sx={{ mr: 1 }} />
                         <Typography variant="caption" fontWeight="bold">List</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="summary" aria-label="summary view">
+                        <AssessmentRoundedIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">Summary</Typography>
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>
@@ -495,6 +509,19 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                                             <Typography variant="caption" color="text.secondary">
                                                 {member.email}
                                             </Typography>
+
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                endIcon={<ArrowForwardRoundedIcon />}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Prevent card bubble events
+                                                    router.push(`/employee/team/member-details/${member._id}`);
+                                                }}
+                                                sx={{ mt: 2, borderRadius: 2 }}
+                                            >
+                                                View Profile
+                                            </Button>
                                         </CardContent>
                                     </Card>
 

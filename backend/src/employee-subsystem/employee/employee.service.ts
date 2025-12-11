@@ -25,6 +25,7 @@ import { PositionAssignmentRepository } from '../organization-structure/reposito
 import { Candidate } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
 import { UpdateCandidateStatusDto } from './dto/update-candidate-status.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class EmployeeService {
@@ -197,6 +198,14 @@ export class EmployeeService {
       throw new NotFoundException('Employee not found');
     }
 
+    // Hash password if provided
+    if ((updateEmployeeProfileDto as any).password) {
+      (updateEmployeeProfileDto as any).password = await bcrypt.hash(
+        (updateEmployeeProfileDto as any).password,
+        10,
+      );
+    }
+
     // Apply the provided updates directly. This route is intended for HR admins
     // who are allowed to edit any profile fields. Validation/guards are handled
     // by the controller/authorization layer.
@@ -258,10 +267,71 @@ export class EmployeeService {
     return this.employeeProfileChangeRequestRepository.create(payload);
   }
 
+
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) {
+    const result = await this.employeeProfileRepository.findAll(page, limit, search);
+
+
+    const items = await Promise.all(result.items.map(async (doc: any) => {
+      // Re-use logic or manual lookup if populates failed (common in this codebase's mixed patterns)
+      let positionTitle = 'N/A';
+      let departmentName = 'N/A';
+
+      if (doc.primaryPositionId) {
+        // Try to fetch if not populated
+        if (doc.primaryPositionId.title) {
+          positionTitle = doc.primaryPositionId.title;
+        } else {
+          const pos = await this.positionRepository.findById(doc.primaryPositionId);
+          if (pos) positionTitle = pos.title;
+        }
+      }
+
+      if (doc.primaryDepartmentId) {
+        const Department = this.employeeProfileModel.db.model('Department');
+        if (doc.primaryDepartmentId.name) {
+          departmentName = doc.primaryDepartmentId.name;
+        } else {
+          const dept = await Department.findById(doc.primaryDepartmentId).select('name').lean<{ name: string }>().exec();
+          if (dept) departmentName = dept.name;
+        }
+      }
+
+      return {
+        _id: doc._id,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.personalEmail, // or workEmail
+        employeeNumber: doc.employeeNumber,
+        position: { title: positionTitle },
+        department: { name: departmentName },
+        status: doc.status
+      };
+    }));
+
+    return {
+      items,
+      total: result.total,
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit)
+    };
+  }
+
   async getTeamSummary(managerId: string) {
-    const items =
+    const result =
       await this.employeeProfileRepository.getTeamSummaryByManagerId(managerId);
-    return { managerId, items };
+    return {
+      managerId,
+      items: result.positionSummary, // Keep backward compatibility for frontend bits using 'items'
+      positionSummary: result.positionSummary,
+      roleSummary: result.roleSummary,
+    };
   }
 
   async getTeamProfiles(managerId: string) {
@@ -411,6 +481,33 @@ export class EmployeeService {
     // Return combined view; omit any sensitive fields if present
     const profileObj: any = employee.toObject ? employee.toObject() : employee;
     if (profileObj.password) delete profileObj.password;
+
+    // Manually populate position and department
+    if (profileObj.primaryPositionId) {
+      if (profileObj.primaryPositionId.title) {
+        profileObj.position = { title: profileObj.primaryPositionId.title };
+      } else {
+        const pos = await this.positionRepository.findById(profileObj.primaryPositionId.toString());
+        if (pos) {
+          profileObj.position = { title: pos.title, _id: pos._id };
+        }
+      }
+    }
+
+    if (profileObj.primaryDepartmentId) {
+      if (profileObj.primaryDepartmentId.name) {
+        profileObj.department = { name: profileObj.primaryDepartmentId.name };
+      } else {
+        const Department = this.employeeProfileModel.db.model('Department');
+        const dept = await Department.findById(profileObj.primaryDepartmentId)
+          .select('name')
+          .lean<{ name: string; _id: Types.ObjectId }>()
+          .exec();
+        if (dept) {
+          profileObj.department = { name: dept.name, _id: dept._id };
+        }
+      }
+    }
 
     // Fetch appraisal records for performance history (most recent first)
     const records: any[] = await this.appraisalRecordModel

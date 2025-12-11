@@ -365,14 +365,13 @@ export class OrganizationStructureService {
    * Roots are positions that do not report to another position.
    */
   async getOrganizationHierarchy(): Promise<any[]> {
-    const positions = await this.positionRepository.find({ isActive: true });
+    const positions = await this.positionRepository.findAllActiveLean();
 
     const map = new Map<string, any>();
 
     positions.forEach((p: any) => {
-      const obj = typeof p.toObject === 'function' ? p.toObject() : { ...p };
-      const id = obj._id?.toString() || obj.id || '';
-      map.set(id, { ...obj, id, children: [] });
+      const id = p._id?.toString() || p.id || '';
+      map.set(id, { ...p, id, children: [] });
     });
 
     const roots: any[] = [];
@@ -570,8 +569,13 @@ export class OrganizationStructureService {
    */
   async createDepartment(dto: any): Promise<any> {
     // basic validation
-    if (!dto || !dto.code || !dto.name) {
-      throw new BadRequestException('Department code and name are required');
+    if (!dto || !dto.name) {
+      throw new BadRequestException('Department name is required');
+    }
+
+    // Auto-generate code if not provided
+    if (!dto.code) {
+      dto.code = `DEPT-${Date.now()}`;
     }
 
     return this.departmentRepository.create(dto);
@@ -623,10 +627,15 @@ export class OrganizationStructureService {
    * Create a new position
    */
   async createPosition(dto: any): Promise<any> {
-    if (!dto || !dto.code || !dto.title || !dto.departmentId) {
+    if (!dto || !dto.title || !dto.departmentId) {
       throw new BadRequestException(
-        'Position code, title and departmentId are required',
+        'Position title and departmentId are required',
       );
+    }
+
+    // Auto-generate code if not provided
+    if (!dto.code) {
+      dto.code = `POS-${Date.now()}`;
     }
 
     // Check for duplicate position code

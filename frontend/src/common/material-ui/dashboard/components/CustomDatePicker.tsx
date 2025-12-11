@@ -1,5 +1,5 @@
 'use client';
-'use client';
+
 import * as React from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { useForkRef } from '@mui/material/utils';
@@ -24,7 +24,7 @@ function ButtonField(props: ButtonFieldProps) {
   const valueStr =
     pickerContext.value == null
       ? parsedFormat
-      : pickerContext.value.format(pickerContext.fieldFormat);
+      : dayjs(pickerContext.value).format(pickerContext.fieldFormat);
 
   // Cast to any to access potentially present but un-typed properties that cause DOM errors
   const { slotProps, inputRef, ...other } = forwardedProps as any;
@@ -52,7 +52,7 @@ export default function CustomDatePicker() {
       <DatePicker
         value={value}
         label={value == null ? null : value.format('MMM DD, YYYY')}
-        onChange={(newValue) => setValue(newValue)}
+        onChange={(newValue) => setValue(newValue as Dayjs | null)}
         slots={{ field: ButtonField }}
         slotProps={{
           nextIconButton: { size: 'small' },

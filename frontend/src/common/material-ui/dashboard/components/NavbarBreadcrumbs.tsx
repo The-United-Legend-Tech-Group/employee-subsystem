@@ -20,25 +20,43 @@ const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
 export default function NavbarBreadcrumbs() {
   const pathname = usePathname();
 
-  const getBreadcrumbTitle = () => {
-    if (pathname.includes('/notifications')) return 'Notifications';
-    if (pathname.includes('/team')) return 'Team';
-    if (pathname.includes('/manage-organization')) return 'Manage Organization';
-    if (pathname.includes('/analytics')) return 'Analytics';
-    if (pathname.includes('/calendar')) return 'Calendar';
-    if (pathname.includes('/clients')) return 'Clients';
-    return 'Home';
-  };
+  // Split path paths and filter out empty strings and 'employee' prefix if redundant
+  const pathnames = pathname.split('/').filter((x) => x && x !== 'employee');
 
   return (
     <StyledBreadcrumbs
       aria-label="breadcrumb"
       separator={<NavigateNextRoundedIcon fontSize="small" />}
     >
-      <Typography variant="body1">Dashboard</Typography>
-      <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
-        {getBreadcrumbTitle()}
+      <Typography variant="body1" color="text.secondary">
+        Dashboard
       </Typography>
+      {pathnames.map((value, index) => {
+        const last = index === pathnames.length - 1;
+        const to = `/employee/${pathnames.slice(0, index + 1).join('/')}`;
+
+        // Map segment to readable title
+        let title = value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, ' ');
+
+        // Specific overrides
+        if (value === 'member-details') title = 'Member Details';
+        if (value === '(protected)') return null; // Should not appear but just in case
+
+        // Hide IDs if they are long strings (simple heuristic)
+        if (value.length > 20 || (value.match(/\d/) && value.length > 10)) {
+          return null;
+        }
+
+        return last ? (
+          <Typography key={to} variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
+            {title}
+          </Typography>
+        ) : (
+          <Typography key={to} variant="body1" color="text.secondary">
+            {title}
+          </Typography>
+        );
+      })}
     </StyledBreadcrumbs>
   );
 }

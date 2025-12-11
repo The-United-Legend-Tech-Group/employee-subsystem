@@ -2,6 +2,7 @@ import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDepartmentDto {
+  @IsOptional()
   @IsString()
   @ApiProperty({ description: 'Unique department code' })
   code: string;

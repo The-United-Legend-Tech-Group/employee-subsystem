@@ -20,6 +20,21 @@ import { Roles } from '../../common/decorators/roles.decorator';
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) { }
 
+  @Get()
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get all employees with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'List of employees retrieved' })
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+  ) {
+    return this.employeeService.findAll(Number(page), Number(limit), search);
+  }
+
   @Post('onboard')
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
@@ -165,7 +180,7 @@ export class EmployeeController {
   // HR Admin: review profile change requests
   @Get('profile-change-requests')
   @UseGuards(AuthGuard, authorizationGuard)
- // @Roles(SystemRole.HR_ADMIN)
+  // @Roles(SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'List profile change requests' })
   @ApiQuery({ name: 'status', enum: ProfileChangeStatus, required: false })
   @ApiResponse({ status: 200, description: 'List of change requests' })

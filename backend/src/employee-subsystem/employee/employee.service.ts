@@ -258,6 +258,62 @@ export class EmployeeService {
     return this.employeeProfileChangeRequestRepository.create(payload);
   }
 
+
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) {
+    const result = await this.employeeProfileRepository.findAll(page, limit, search);
+
+ 
+    const items = await Promise.all(result.items.map(async (doc: any) => {
+      // Re-use logic or manual lookup if populates failed (common in this codebase's mixed patterns)
+      let positionTitle = 'N/A';
+      let departmentName = 'N/A';
+
+      if (doc.primaryPositionId) {
+        // Try to fetch if not populated
+        if (doc.primaryPositionId.title) {
+          positionTitle = doc.primaryPositionId.title;
+        } else {
+          const pos = await this.positionRepository.findById(doc.primaryPositionId);
+          if (pos) positionTitle = pos.title;
+        }
+      }
+
+      if (doc.primaryDepartmentId) {
+        const Department = this.employeeProfileModel.db.model('Department');
+        if (doc.primaryDepartmentId.name) {
+          departmentName = doc.primaryDepartmentId.name;
+        } else {
+          const dept = await Department.findById(doc.primaryDepartmentId).select('name').lean<{ name: string }>().exec();
+          if (dept) departmentName = dept.name;
+        }
+      }
+
+      return {
+        _id: doc._id,
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+        email: doc.personalEmail, // or workEmail
+        employeeNumber: doc.employeeNumber,
+        position: { title: positionTitle },
+        department: { name: departmentName },
+        status: doc.status
+      };
+    }));
+
+    return {
+      items,
+      total: result.total,
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit)
+    };
+  }
+
   async getTeamSummary(managerId: string) {
     const result =
       await this.employeeProfileRepository.getTeamSummaryByManagerId(managerId);

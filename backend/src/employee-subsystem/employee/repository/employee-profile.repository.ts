@@ -164,6 +164,36 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
         return data || { positionSummary: [], roleSummary: [] };
     }
 
+    async findAll(
+        page: number = 1,
+        limit: number = 10,
+        search?: string,
+    ): Promise<{ items: EmployeeProfileDocument[]; total: number }> {
+        const skip = (page - 1) * limit;
+        const query: any = {};
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query.$or = [
+                { firstName: searchRegex },
+                { lastName: searchRegex },
+                { employeeNumber: searchRegex },
+            ];
+        }
+
+        const [items, total] = await Promise.all([
+            this.model
+                .find(query)
+                .skip(skip)
+                .limit(limit)
+                .sort({ createdAt: -1 })
+                .exec(),
+            this.model.countDocuments(query).exec(),
+        ]);
+
+        return { items, total };
+    }
+
     async getTeamMembersByManagerId(managerId: string) {
         // Find the manager and get their position
         const manager = await this.model

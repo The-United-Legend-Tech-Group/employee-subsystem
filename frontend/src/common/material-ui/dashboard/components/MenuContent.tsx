@@ -42,6 +42,7 @@ const mainListItems = [
     path: "/employee/manage-organization",
   },
   { text: 'Manage Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests' },
+  { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees' },
 ];
 
 const secondaryListItems = [
@@ -70,6 +71,7 @@ export default function MenuContent() {
     if (text === 'Submit Request' && pathname === '/employee/submit-request') return true;
     if (text === 'Manage Organization' && pathname === '/employee/manage-organization') return true;
     if (text === 'Manage Requests' && pathname === '/employee/manage-requests') return true;
+    if (text === 'Manage Employees' && pathname.startsWith('/employee/manage-employees')) return true;
     if (text === 'Time Management' && pathname === '/employee/time-mangemeant') return true;
     return false;
   };
@@ -89,6 +91,7 @@ export default function MenuContent() {
     if (text === 'Submit Request') router.push('/employee/submit-request');
     if (text === 'Manage Organization') router.push('/employee/manage-organization');
     if (text === 'Manage Requests') router.push('/employee/manage-requests');
+    if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Time Management') router.push('/employee/time-mangemeant');
   };
 

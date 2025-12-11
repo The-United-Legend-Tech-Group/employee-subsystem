@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import _ from 'lodash';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import {
     EmployeeProfile,
@@ -176,7 +177,8 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
         const query: any = {};
 
         if (search) {
-            const searchRegex = new RegExp(search, 'i');
+            const escapedSearch = _.escapeRegExp(search);
+            const searchRegex = new RegExp(escapedSearch, 'i');
             query.$or = [
                 { firstName: searchRegex },
                 { lastName: searchRegex },

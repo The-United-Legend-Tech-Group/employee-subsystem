@@ -25,6 +25,7 @@ import { PositionAssignmentRepository } from '../organization-structure/reposito
 import { Candidate } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
 import { UpdateCandidateStatusDto } from './dto/update-candidate-status.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class EmployeeService {
@@ -195,6 +196,14 @@ export class EmployeeService {
     const employee = await this.employeeProfileRepository.findById(id);
     if (!employee) {
       throw new NotFoundException('Employee not found');
+    }
+
+    // Hash password if provided
+    if ((updateEmployeeProfileDto as any).password) {
+      (updateEmployeeProfileDto as any).password = await bcrypt.hash(
+        (updateEmployeeProfileDto as any).password,
+        10,
+      );
     }
 
     // Apply the provided updates directly. This route is intended for HR admins

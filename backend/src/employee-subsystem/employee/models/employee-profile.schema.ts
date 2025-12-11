@@ -20,7 +20,7 @@ export class EmployeeProfile extends UserProfileBase {
   @Prop({ type: Date, required: true })
   dateOfHire: Date;
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String, unique: true, sparse: true })
   workEmail?: string;
 
   @Prop({ type: String })

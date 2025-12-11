@@ -241,7 +241,7 @@ function EmployeeListContent() {
     return (
         <PageContainer
             title={pageTitle}
-            breadcrumbs={[{ title: pageTitle }]}
+            breadcrumbs={[]}
             actions={
                 <Stack direction="row" alignItems="center" spacing={1}>
                     <Tooltip title="Reload data" placement="right" enterDelay={1000}>

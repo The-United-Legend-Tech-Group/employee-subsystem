@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -8,48 +8,32 @@ import Alert from '@mui/material/Alert';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
-import MenuItem from '@mui/material/MenuItem';
 import Autocomplete from '@mui/material/Autocomplete';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 interface Position {
     _id: string;
     code: string;
     title: string;
-    description: string;
-    departmentId: string;
-    reportsToPositionId?: string;
-    isActive: boolean;
 }
 
-interface Department {
-    _id: string;
-    name: string;
-}
-
-interface CreatePositionFormProps {
-    departmentId?: string;
-    departmentName?: string;
-    departments?: Department[];
+interface CreateDepartmentFormProps {
+    positions?: Position[];
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export default function CreatePositionForm({ departmentId, departmentName, departments = [], onSuccess, onCancel }: CreatePositionFormProps) {
+export default function CreateDepartmentForm({ positions = [], onSuccess, onCancel }: CreateDepartmentFormProps) {
     const [formData, setFormData] = useState({
         code: '',
-        title: '',
+        name: '',
         description: '',
-        departmentId: departmentId || '',
-        isActive: false
+        headPositionId: '',
+        isActive: true
     });
+    const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (departmentId) {
-            setFormData(prev => ({ ...prev, departmentId }));
-        }
-    }, [departmentId]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, checked, type } = e.target;
@@ -58,8 +42,6 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
             [name]: type === 'checkbox' ? checked : value
         }));
     };
-
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,16 +56,11 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
                 ...formData
             };
 
-            // Should be already in formData, but ensure it's validated
-            if (!payload.departmentId) {
-                throw new Error('Department must be selected');
-            }
-
             // Clean up empty optional fields
-            if (!payload.code) delete payload.code;
+            if (!payload.headPositionId) delete payload.headPositionId;
             if (!payload.code) delete payload.code;
 
-            const response = await fetch(`${apiUrl}/organization-structure/positions`, {
+            const response = await fetch(`${apiUrl}/organization-structure/departments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -94,13 +71,13 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.message || 'Failed to create position');
+                throw new Error(data.message || 'Failed to create department');
             }
 
             onSuccess();
         } catch (err: any) {
-            console.error('Error creating position:', err);
-            setError(err.message || 'Failed to create position');
+            console.error('Error creating department:', err);
+            setError(err.message || 'Failed to create department');
         } finally {
             setLoading(false);
         }
@@ -109,51 +86,19 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom>
-                {departmentName ? `Add Position to ${departmentName}` : 'Create New Position'}
+                Create New Department
             </Typography>
 
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
             <Stack spacing={2}>
-                {!departmentId && (
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                            Department *
-                        </Typography>
-                        <TextField
-                            select
-                            name="departmentId"
-                            value={formData.departmentId}
-                            onChange={handleChange}
-                            fullWidth
-                            size="small"
-                            hiddenLabel
-                            SelectProps={{
-                                displayEmpty: true,
-                                renderValue: (value: any) => {
-                                    if (!value) {
-                                        return <Typography color="text.secondary">Select a department</Typography>;
-                                    }
-                                    const selected = departments.find(d => d._id === value);
-                                    return selected ? selected.name : value;
-                                }
-                            }}
-                        >
-                            {departments.map((dept) => (
-                                <MenuItem key={dept._id} value={dept._id}>
-                                    {dept.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    </Box>
-                )}
                 <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                        Position Code
+                        Department Code
                     </Typography>
                     <TextField
                         name="code"
-                        placeholder="e.g., ENG-SE-01 (Leave empty to auto-generate)"
+                        placeholder="e.g., DEPT-001 (Leave empty to auto-generate)"
                         value={formData.code}
                         onChange={handleChange}
                         fullWidth
@@ -164,12 +109,12 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
                 </Box>
                 <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                        Title *
+                        Name *
                     </Typography>
                     <TextField
-                        name="title"
-                        placeholder="e.g., Senior Software Engineer"
-                        value={formData.title}
+                        name="name"
+                        placeholder="e.g., Engineering"
+                        value={formData.name}
                         onChange={handleChange}
                         required
                         fullWidth
@@ -183,7 +128,7 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
                     </Typography>
                     <TextField
                         name="description"
-                        placeholder="Enter position description..."
+                        placeholder="Enter department description..."
                         value={formData.description}
                         onChange={handleChange}
                         multiline
@@ -193,8 +138,56 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
                         hiddenLabel
                     />
                 </Box>
-
-
+                <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                        Department Head
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Autocomplete
+                            open={open}
+                            onOpen={() => setOpen(true)}
+                            onClose={() => setOpen(false)}
+                            options={positions}
+                            getOptionLabel={(option) => `${option.title} (${option.code})`}
+                            value={positions.find(p => p._id === formData.headPositionId) || null}
+                            onChange={(event, newValue) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    headPositionId: newValue ? newValue._id : ''
+                                }));
+                            }}
+                            forcePopupIcon={false}
+                            sx={{ flexGrow: 1 }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    placeholder="Optional: Select department head"
+                                    fullWidth
+                                    size="small"
+                                    hiddenLabel
+                                />
+                            )}
+                        />
+                        <Button
+                            variant="outlined"
+                            onClick={() => setOpen((prev) => !prev)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            sx={{ minWidth: 40, minHeight: 10, p: 0, borderColor: 'rgba(0, 0, 0, 0.23)' }}
+                        >
+                            <ArrowDropDownIcon />
+                        </Button>
+                    </Box>
+                </Box>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={formData.isActive}
+                            onChange={handleChange}
+                            name="isActive"
+                        />
+                    }
+                    label="Active"
+                />
 
                 <Stack direction="row" spacing={2} justifyContent="flex-end">
                     <Button onClick={onCancel} disabled={loading}>
@@ -206,7 +199,7 @@ export default function CreatePositionForm({ departmentId, departmentName, depar
                         disabled={loading}
                         startIcon={loading ? <CircularProgress size={20} /> : null}
                     >
-                        Create Position
+                        Create Department
                     </Button>
                 </Stack>
             </Stack>

@@ -143,8 +143,8 @@ function EmployeeDetailsContent() {
             title={pageTitle}
             breadcrumbs={[
                 { title: 'Employees', path: '/employee/manage-employees' },
-                { title: pageTitle },
-            ]}
+            ]
+            }
         >
             <Box sx={{ flexGrow: 1, width: '100%' }}>
                 <Grid container spacing={2} sx={{ width: '100%' }}>

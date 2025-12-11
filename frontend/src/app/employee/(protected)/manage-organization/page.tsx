@@ -10,6 +10,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import Chip from '@mui/material/Chip';
 import Fade from '@mui/material/Fade';
+import Snackbar from '@mui/material/Snackbar';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -17,13 +18,17 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TablePagination from '@mui/material/TablePagination';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import DepartmentDetails from './DepartmentDetails';
 import PositionDetails from './PositionDetails';
 import CreatePositionForm from './CreatePositionForm';
+import CreateDepartmentForm from './CreateDepartmentForm';
+import AssignEmployeeForm from './AssignEmployeeForm';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
+import PersonIcon from '@mui/icons-material/Person';
 
 interface Department {
     _id: string;
@@ -62,12 +67,18 @@ export default function ManageOrganizationPage() {
     const [rowsPerPage, setRowsPerPage] = React.useState(5);
     const [selectedDepartment, setSelectedDepartment] = React.useState<Department | null>(null);
     const [isCreatingPosition, setIsCreatingPosition] = React.useState(false);
+    const [isCreatingDepartment, setIsCreatingDepartment] = React.useState(false);
+    const [isAssigningEmployee, setIsAssigningEmployee] = React.useState(false);
+    const [order, setOrder] = React.useState<'asc' | 'desc'>('desc');
+    const [orderBy, setOrderBy] = React.useState<keyof Department>('createdAt');
 
     // Positions State
     const [positionSearchQuery, setPositionSearchQuery] = React.useState('');
     const [positionPage, setPositionPage] = React.useState(0);
     const [positionRowsPerPage, setPositionRowsPerPage] = React.useState(5);
     const [selectedPosition, setSelectedPosition] = React.useState<Position | null>(null);
+    const [positionOrder, setPositionOrder] = React.useState<'asc' | 'desc'>('desc');
+    const [positionOrderBy, setPositionOrderBy] = React.useState<keyof Position>('createdAt');
 
     const [mounted, setMounted] = React.useState(false);
 
@@ -75,27 +86,77 @@ export default function ManageOrganizationPage() {
         setMounted(true);
     }, []);
 
-    // Departments Filter
-    const filteredRows = React.useMemo(() => {
-        if (!searchQuery) return departments;
-        const lowerQuery = searchQuery.toLowerCase();
-        return departments.filter(dept =>
-            (dept.code || '').toLowerCase().includes(lowerQuery) ||
-            (dept.name || '').toLowerCase().includes(lowerQuery) ||
-            (dept.description || '').toLowerCase().includes(lowerQuery)
-        );
-    }, [searchQuery, departments]);
+    // Sorting Logic
+    function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
+        if (b[orderBy] < a[orderBy]) {
+            return -1;
+        }
+        if (b[orderBy] > a[orderBy]) {
+            return 1;
+        }
+        return 0;
+    }
 
-    // Positions Filter
+    function getComparator<Key extends keyof any>(
+        order: 'asc' | 'desc',
+        orderBy: Key,
+    ): (a: any, b: any) => number {
+        return order === 'desc'
+            ? (a, b) => descendingComparator(a, b, orderBy)
+            : (a, b) => -descendingComparator(a, b, orderBy);
+    }
+
+    function stableSort<T>(array: readonly T[], comparator: (a: T, b: T) => number) {
+        const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
+        stabilizedThis.sort((a, b) => {
+            const order = comparator(a[0], b[0]);
+            if (order !== 0) {
+                return order;
+            }
+            return a[1] - b[1];
+        });
+        return stabilizedThis.map((el) => el[0]);
+    }
+
+    const handleRequestSort = (property: keyof Department) => {
+        const isAsc = orderBy === property && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(property);
+    };
+
+    const handleRequestPositionSort = (property: keyof Position) => {
+        const isAsc = positionOrderBy === property && positionOrder === 'asc';
+        setPositionOrder(isAsc ? 'desc' : 'asc');
+        setPositionOrderBy(property);
+    };
+
+    // Departments Filter & Sort
+    const filteredRows = React.useMemo(() => {
+        let filtered = departments;
+        if (searchQuery) {
+            const lowerQuery = searchQuery.toLowerCase();
+            filtered = departments.filter(dept =>
+                (dept.code || '').toLowerCase().includes(lowerQuery) ||
+                (dept.name || '').toLowerCase().includes(lowerQuery) ||
+                (dept.description || '').toLowerCase().includes(lowerQuery)
+            );
+        }
+        return stableSort(filtered, getComparator(order, orderBy));
+    }, [searchQuery, departments, order, orderBy]);
+
+    // Positions Filter & Sort
     const filteredPositions = React.useMemo(() => {
-        if (!positionSearchQuery) return positions;
-        const lowerQuery = positionSearchQuery.toLowerCase();
-        return positions.filter(pos =>
-            (pos.code || '').toLowerCase().includes(lowerQuery) ||
-            (pos.title || '').toLowerCase().includes(lowerQuery) ||
-            (pos.description || '').toLowerCase().includes(lowerQuery)
-        );
-    }, [positionSearchQuery, positions]);
+        let filtered = positions;
+        if (positionSearchQuery) {
+            const lowerQuery = positionSearchQuery.toLowerCase();
+            filtered = positions.filter(pos =>
+                (pos.code || '').toLowerCase().includes(lowerQuery) ||
+                (pos.title || '').toLowerCase().includes(lowerQuery) ||
+                (pos.description || '').toLowerCase().includes(lowerQuery)
+            );
+        }
+        return stableSort(filtered, getComparator(positionOrder, positionOrderBy));
+    }, [positionSearchQuery, positions, positionOrder, positionOrderBy]);
 
     // Avoid a layout jump when reaching the last page with empty rows.
     const emptyRows =
@@ -125,23 +186,49 @@ export default function ManageOrganizationPage() {
     const handleRowClick = (dept: Department) => {
         setSelectedDepartment(dept);
         setIsCreatingPosition(false);
+        setIsCreatingDepartment(false);
+        setIsAssigningEmployee(false);
     };
 
     const handleAddPositionClick = (e: React.MouseEvent, dept: Department) => {
         e.stopPropagation();
         setSelectedDepartment(dept);
         setIsCreatingPosition(true);
+        setIsCreatingDepartment(false);
+        setIsAssigningEmployee(false);
     };
 
     const handleCreatePositionSuccess = () => {
         setIsCreatingPosition(false);
         setSuccess('Position created successfully');
         fetchData();
-        setTimeout(() => setSuccess(null), 3000);
+    };
+
+    const handleCreateDepartmentSuccess = () => {
+        setIsCreatingDepartment(false);
+        setSuccess('Department created successfully');
+        fetchData();
+    };
+
+    const handleAssignEmployeeClick = (e: React.MouseEvent, pos: Position) => {
+        e.stopPropagation();
+        setSelectedPosition(pos);
+        setIsAssigningEmployee(true);
+        setIsCreatingPosition(false);
+        setIsCreatingDepartment(false);
+    };
+
+    const handleAssignEmployeeSuccess = () => {
+        setIsAssigningEmployee(false);
+        setSuccess('Employee assigned successfully');
+        fetchData();
     };
 
     const handlePositionRowClick = (pos: Position) => {
         setSelectedPosition(pos);
+        setIsCreatingPosition(false); // Switch out of creation mode
+        setIsCreatingDepartment(false);
+        setIsAssigningEmployee(false);
     };
 
     const fetchData = async () => {
@@ -204,7 +291,6 @@ export default function ManageOrganizationPage() {
             setDepartments(prev => prev.map(d => d._id === id ? { ...d, ...updatedData } : d));
 
             setSuccess('Department updated successfully');
-            setTimeout(() => setSuccess(null), 3000);
 
         } catch (err) {
             console.error('Error updating department:', err);
@@ -239,7 +325,6 @@ export default function ManageOrganizationPage() {
             setPositions(prev => prev.map(p => p._id === id ? { ...p, ...updatedData } : p));
 
             setSuccess('Position updated successfully');
-            setTimeout(() => setSuccess(null), 3000);
 
         } catch (err) {
             console.error('Error updating position:', err);
@@ -258,7 +343,18 @@ export default function ManageOrganizationPage() {
             </Typography>
 
             {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
+
+
+            <Snackbar
+                open={!!success}
+                autoHideDuration={6000}
+                onClose={() => setSuccess(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+                    {success}
+                </Alert>
+            </Snackbar>
 
             {/* Departments Section */}
             <Box sx={{ width: '100%' }}>
@@ -286,6 +382,19 @@ export default function ManageOrganizationPage() {
                             sx={{ width: 300, bgcolor: 'background.paper', borderRadius: 1 }}
                         />
                     </Fade>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => {
+                            setIsCreatingDepartment(true);
+                            setSelectedDepartment(null);
+                            setIsCreatingPosition(false);
+                            setIsAssigningEmployee(false);
+                        }}
+                        sx={{ ml: 2 }}
+                    >
+                        Create Department
+                    </Button>
                 </Box>
 
                 <Paper sx={{ width: '100%', mb: 2, border: '1px solid', borderColor: 'divider' }} elevation={0}>
@@ -297,7 +406,15 @@ export default function ManageOrganizationPage() {
                                     <TableCell>Name</TableCell>
                                     <TableCell>Description</TableCell>
                                     <TableCell>Status</TableCell>
-                                    <TableCell>Created At</TableCell>
+                                    <TableCell sortDirection={orderBy === 'createdAt' ? order : false}>
+                                        <TableSortLabel
+                                            active={orderBy === 'createdAt'}
+                                            direction={orderBy === 'createdAt' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('createdAt')}
+                                        >
+                                            Created At
+                                        </TableSortLabel>
+                                    </TableCell>
                                     <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -379,7 +496,13 @@ export default function ManageOrganizationPage() {
                     />
                 </Paper>
 
-                {isCreatingPosition && selectedDepartment ? (
+                {isCreatingDepartment ? (
+                    <CreateDepartmentForm
+                        positions={positions}
+                        onSuccess={handleCreateDepartmentSuccess}
+                        onCancel={() => setIsCreatingDepartment(false)}
+                    />
+                ) : isCreatingPosition && selectedDepartment ? (
                     <CreatePositionForm
                         departmentId={selectedDepartment._id}
                         departmentName={selectedDepartment.name}
@@ -389,6 +512,7 @@ export default function ManageOrganizationPage() {
                 ) : (
                     <DepartmentDetails
                         department={selectedDepartment}
+                        positions={positions}
                         onUpdate={handleUpdateDepartment}
                     />
                 )}
@@ -403,25 +527,27 @@ export default function ManageOrganizationPage() {
                         Positions
                     </Typography>
 
-                    <Fade in={true}>
-                        <TextField
-                            placeholder="Search positions..."
-                            size="small"
-                            value={positionSearchQuery}
-                            onChange={(e) => {
-                                setPositionSearchQuery(e.target.value);
-                                setPositionPage(0);
-                            }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon fontSize="small" color="action" />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{ width: 300, bgcolor: 'background.paper', borderRadius: 1 }}
-                        />
-                    </Fade>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Fade in={true}>
+                            <TextField
+                                placeholder="Search positions..."
+                                size="small"
+                                value={positionSearchQuery}
+                                onChange={(e) => {
+                                    setPositionSearchQuery(e.target.value);
+                                    setPositionPage(0);
+                                }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon fontSize="small" color="action" />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{ width: 300, bgcolor: 'background.paper', borderRadius: 1 }}
+                            />
+                        </Fade>
+                    </Box>
                 </Box>
 
                 <Paper sx={{ width: '100%', mb: 2, border: '1px solid', borderColor: 'divider' }} elevation={0}>
@@ -433,17 +559,26 @@ export default function ManageOrganizationPage() {
                                     <TableCell>Title</TableCell>
                                     <TableCell>Department ID</TableCell>
                                     <TableCell>Status</TableCell>
-                                    <TableCell>Created At</TableCell>
+                                    <TableCell sortDirection={positionOrderBy === 'createdAt' ? positionOrder : false}>
+                                        <TableSortLabel
+                                            active={positionOrderBy === 'createdAt'}
+                                            direction={positionOrderBy === 'createdAt' ? positionOrder : 'asc'}
+                                            onClick={() => handleRequestPositionSort('createdAt')}
+                                        >
+                                            Created At
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {loading && positions.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center">Loading...</TableCell>
+                                        <TableCell colSpan={6} align="center">Loading...</TableCell>
                                     </TableRow>
                                 ) : filteredPositions.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center">No positions found.</TableCell>
+                                        <TableCell colSpan={6} align="center">No positions found.</TableCell>
                                     </TableRow>
                                 ) : (
                                     filteredPositions
@@ -481,13 +616,23 @@ export default function ManageOrganizationPage() {
                                                         />
                                                     </TableCell>
                                                     <TableCell>{new Date(pos.createdAt).toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <Button
+                                                            size="small"
+                                                            startIcon={<PersonIcon />}
+                                                            onClick={(e) => handleAssignEmployeeClick(e, pos)}
+                                                            variant="outlined"
+                                                        >
+                                                            Assign Employee
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             );
                                         })
                                 )}
                                 {emptyPositionRows > 0 && (
                                     <TableRow style={{ height: 53 * emptyPositionRows }}>
-                                        <TableCell colSpan={5} />
+                                        <TableCell colSpan={6} />
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -504,10 +649,20 @@ export default function ManageOrganizationPage() {
                     />
                 </Paper>
 
-                <PositionDetails
-                    position={selectedPosition}
-                    onUpdate={handleUpdatePosition}
-                />
+                {isAssigningEmployee && selectedPosition ? (
+                    <AssignEmployeeForm
+                        positionId={selectedPosition._id}
+                        positionCode={selectedPosition.code}
+                        positionTitle={selectedPosition.title}
+                        onSuccess={handleAssignEmployeeSuccess}
+                        onCancel={() => setIsAssigningEmployee(false)}
+                    />
+                ) : (
+                    <PositionDetails
+                        position={selectedPosition}
+                        onUpdate={handleUpdatePosition}
+                    />
+                )}
             </Box>
         </Stack>
     );

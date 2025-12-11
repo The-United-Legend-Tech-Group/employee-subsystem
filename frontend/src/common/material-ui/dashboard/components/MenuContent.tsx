@@ -9,6 +9,7 @@ import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
+import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
@@ -30,6 +31,11 @@ const mainListItems = [
     text: "Analytics",
     icon: <AnalyticsRoundedIcon />,
     path: "/employee/analytics",
+  },
+  {
+    text: "Performance",
+    icon: <AssessmentRoundedIcon />,
+    path: "/employee/performance/templates",
   },
   {
     text: "Time Management",
@@ -73,6 +79,7 @@ export default function MenuContent() {
     if (text === 'Manage Requests' && pathname === '/employee/manage-requests') return true;
     if (text === 'Manage Employees' && pathname.startsWith('/employee/manage-employees')) return true;
     if (text === 'Time Management' && pathname === '/employee/time-mangemeant') return true;
+    if (text === 'Performance' && pathname.startsWith('/employee/performance')) return true;
     return false;
   };
 
@@ -93,6 +100,7 @@ export default function MenuContent() {
     if (text === 'Manage Requests') router.push('/employee/manage-requests');
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Time Management') router.push('/employee/time-mangemeant');
+    if (text === 'Performance') router.push('/employee/performance/templates');
   };
 
   return (

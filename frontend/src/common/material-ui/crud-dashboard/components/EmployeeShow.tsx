@@ -83,7 +83,7 @@ export default function EmployeeShow() {
         });
       } catch (deleteError) {
         notifications.show(
-          `Failed to delete employee. Reason:' ${(deleteError as Error).message}`,
+          `Failed to delete employee. Reason: ${(deleteError as Error).message}`,
           {
             severity: 'error',
             autoHideDuration: 3000,

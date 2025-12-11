@@ -132,7 +132,7 @@ export class EmployeeController {
   }
 
   @Post(':id/roles')
-  @UseGuards(AuthGuard, authorizationGuard)
+  //@UseGuards(AuthGuard)
   //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
   @ApiOperation({ summary: 'Assign roles to employee' })
   @ApiParam({ name: 'id', description: 'Employee ID' })

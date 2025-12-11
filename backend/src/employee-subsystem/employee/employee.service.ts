@@ -259,9 +259,14 @@ export class EmployeeService {
   }
 
   async getTeamSummary(managerId: string) {
-    const items =
+    const result =
       await this.employeeProfileRepository.getTeamSummaryByManagerId(managerId);
-    return { managerId, items };
+    return {
+      managerId,
+      items: result.positionSummary, // Keep backward compatibility for frontend bits using 'items'
+      positionSummary: result.positionSummary,
+      roleSummary: result.roleSummary,
+    };
   }
 
   async getTeamProfiles(managerId: string) {

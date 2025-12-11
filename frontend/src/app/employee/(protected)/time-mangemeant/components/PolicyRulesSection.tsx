@@ -188,13 +188,13 @@ type PolicyInsight = {
   chips?: Array<{
     label: string;
     color?:
-    | "default"
-    | "primary"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "info"
-    | "error";
+      | "default"
+      | "primary"
+      | "secondary"
+      | "success"
+      | "warning"
+      | "info"
+      | "error";
   }>;
 };
 
@@ -379,7 +379,7 @@ function PolicyInsightCard({
                 bgcolor: (theme) => {
                   const palette =
                     (theme.palette as Record<string, any>)[
-                    insight.avatarColor
+                      insight.avatarColor
                     ] ?? theme.palette.primary;
                   const mainColor =
                     typeof palette === "object" && palette?.main
@@ -390,7 +390,7 @@ function PolicyInsightCard({
                 color: (theme) => {
                   const palette =
                     (theme.palette as Record<string, any>)[
-                    insight.avatarColor
+                      insight.avatarColor
                     ] ?? theme.palette.primary;
                   return (
                     (typeof palette === "object" && palette?.main) ||
@@ -464,7 +464,7 @@ function PolicyInsightCard({
 
           <Grid container spacing={1.5}>
             {insight.metrics.map((metric) => (
-              <Grid size={{ xs: 12, sm: 6 }} key={metric.label}>
+              <Grid item xs={12} sm={6} key={metric.label}>
                 <Typography variant="caption" color="text.secondary">
                   {metric.label}
                 </Typography>
@@ -600,8 +600,9 @@ export default function PolicyRulesSection({
 
     return {
       duration: formatDuration(computeShiftDurationMinutes(selectedShift)),
-      schedule: `${selectedShift.startTime ?? "—"} → ${selectedShift.endTime ?? "—"
-        }`,
+      schedule: `${selectedShift.startTime ?? "—"} → ${
+        selectedShift.endTime ?? "—"
+      }`,
       punchPolicy: selectedShift.punchPolicy ?? "Not configured",
       requiresApproval: Boolean(selectedShift.requiresApprovalForOvertime),
       graceIn: selectedShift.graceInMinutes ?? 0,
@@ -737,9 +738,9 @@ export default function PolicyRulesSection({
           },
           dominantPunchPolicy
             ? {
-              label: `Primary punch policy: ${dominantPunchPolicy}`,
-              color: "info",
-            }
+                label: `Primary punch policy: ${dominantPunchPolicy}`,
+                color: "info",
+              }
             : undefined,
         ].filter(Boolean) as PolicyInsight["chips"],
       },
@@ -757,8 +758,8 @@ export default function PolicyRulesSection({
             enabled: gracePolicyEnforced,
             hint: gracePolicyEnforced
               ? `Range ${formatMinutes(graceAverages.minIn)} - ${formatMinutes(
-                graceAverages.maxIn
-              )} on clock-in`
+                  graceAverages.maxIn
+                )} on clock-in`
               : "No grace windows configured",
             action: {
               kind: "shift",
@@ -794,19 +795,19 @@ export default function PolicyRulesSection({
         chips: [
           graceAverages.maxOut
             ? {
-              label: `Checkout grace up to ${formatMinutes(
-                graceAverages.maxOut
-              )}`,
-              color: "default",
-            }
+                label: `Checkout grace up to ${formatMinutes(
+                  graceAverages.maxOut
+                )}`,
+                color: "default",
+              }
             : undefined,
           graceAverages.maxIn
             ? {
-              label: `Check-in grace up to ${formatMinutes(
-                graceAverages.maxIn
-              )}`,
-              color: "default",
-            }
+                label: `Check-in grace up to ${formatMinutes(
+                  graceAverages.maxIn
+                )}`,
+                color: "default",
+              }
             : undefined,
         ].filter(Boolean) as PolicyInsight["chips"],
       },
@@ -859,11 +860,11 @@ export default function PolicyRulesSection({
         ],
         chips: weekendRules.length
           ? [
-            {
-              label: weekendRules[0].name,
-              color: weekendRules[0].active === false ? "default" : "success",
-            },
-          ]
+              {
+                label: weekendRules[0].name,
+                color: weekendRules[0].active === false ? "default" : "success",
+              },
+            ]
           : undefined,
       },
     ];
@@ -904,14 +905,14 @@ export default function PolicyRulesSection({
           <Skeleton variant="text" width={280} height={36} />
           <Grid container spacing={3}>
             {[0, 1, 2].map((item) => (
-              <Grid size={{ xs: 12, md: 4 }} key={item}>
+              <Grid item xs={12} md={4} key={item}>
                 <Skeleton variant="rounded" height={240} />
               </Grid>
             ))}
           </Grid>
           <Grid container spacing={3}>
             {[0, 1].map((item) => (
-              <Grid size={{ xs: 12, md: 6 }} key={item}>
+              <Grid item xs={12} md={6} key={item}>
                 <Skeleton variant="rounded" height={280} />
               </Grid>
             ))}
@@ -925,7 +926,7 @@ export default function PolicyRulesSection({
             </Typography>
             <Grid container spacing={3}>
               {policyInsights.map((insight) => (
-                <Grid size={{ xs: 12, md: 4 }} key={insight.id}>
+                <Grid item xs={12} md={4} key={insight.id}>
                   <PolicyInsightCard
                     insight={insight}
                     onToggle={handlePolicyToggle}
@@ -937,7 +938,7 @@ export default function PolicyRulesSection({
           </Box>
 
           <Grid container spacing={3} alignItems="stretch">
-            <Grid size={{ xs: 12, lg: 7 }}>
+            <Grid item xs={12} lg={7}>
               <Card variant="outlined" sx={{ height: "100%" }}>
                 <CardContent>
                   <Stack spacing={2.5}>
@@ -952,7 +953,7 @@ export default function PolicyRulesSection({
                     </Box>
 
                     <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -974,7 +975,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -997,12 +998,12 @@ export default function PolicyRulesSection({
                               activeShifts.length === 0
                                 ? 0
                                 : Math.min(
-                                  100,
-                                  Math.round(
-                                    (approvalRequired / activeShifts.length) *
-                                    100
+                                    100,
+                                    Math.round(
+                                      (approvalRequired / activeShifts.length) *
+                                        100
+                                    )
                                   )
-                                )
                             }
                             sx={{ mt: 1.5, height: 6, borderRadius: 3 }}
                           />
@@ -1011,7 +1012,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -1094,7 +1095,7 @@ export default function PolicyRulesSection({
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, lg: 5 }}>
+            <Grid item xs={12} lg={5}>
               <Card variant="outlined" sx={{ height: "100%" }}>
                 <CardContent>
                   <Stack spacing={2.5}>
@@ -1128,7 +1129,7 @@ export default function PolicyRulesSection({
                           </Box>
 
                           <Grid container spacing={1}>
-                            <Grid size={6}>
+                            <Grid item xs={6}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1139,7 +1140,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.duration}
                               </Typography>
                             </Grid>
-                            <Grid size={6}>
+                            <Grid item xs={6}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1150,7 +1151,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.schedule}
                               </Typography>
                             </Grid>
-                            <Grid size={6}>
+                            <Grid item xs={6}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1161,7 +1162,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.graceIn}m
                               </Typography>
                             </Grid>
-                            <Grid size={6}>
+                            <Grid item xs={6}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1220,7 +1221,7 @@ export default function PolicyRulesSection({
                     </Box>
 
                     <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -1242,7 +1243,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -1264,7 +1265,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 4 }}>
+                      <Grid item xs={12} sm={4}>
                         <Box
                           sx={{
                             px: 2,
@@ -1295,7 +1296,7 @@ export default function PolicyRulesSection({
                     ) : (
                       <Grid container spacing={2}>
                         {scheduleRules.slice(0, 6).map((rule) => (
-                          <Grid size={12} key={rule._id}>
+                          <Grid item xs={12} key={rule._id}>
                             <Box
                               sx={{
                                 px: 2,

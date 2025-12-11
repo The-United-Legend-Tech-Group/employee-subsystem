@@ -365,14 +365,13 @@ export class OrganizationStructureService {
    * Roots are positions that do not report to another position.
    */
   async getOrganizationHierarchy(): Promise<any[]> {
-    const positions = await this.positionRepository.find({ isActive: true });
+    const positions = await this.positionRepository.findAllActiveLean();
 
     const map = new Map<string, any>();
 
     positions.forEach((p: any) => {
-      const obj = typeof p.toObject === 'function' ? p.toObject() : { ...p };
-      const id = obj._id?.toString() || obj.id || '';
-      map.set(id, { ...obj, id, children: [] });
+      const id = p._id?.toString() || p.id || '';
+      map.set(id, { ...p, id, children: [] });
     });
 
     const roots: any[] = [];

@@ -11,4 +11,7 @@ export class PositionRepository extends BaseRepository<PositionDocument> {
   ) {
     super(positionModel);
   }
+  async findAllActiveLean(): Promise<Position[]> {
+    return this.model.find({ isActive: true }).lean().exec() as unknown as Position[];
+  }
 }

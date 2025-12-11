@@ -76,18 +76,11 @@ const compactTree = (node: HierarchyNode): HierarchyNode => {
     return newNode;
 };
 
-const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; currentPositionId?: string | null }) => {
+const OrgChartNode = React.memo(({ node, currentPositionId }: { node: HierarchyNode; currentPositionId?: string | null }) => {
     const theme = useTheme();
     const isCurrentUser = node._id === currentPositionId;
     const groupColor = React.useMemo(() => stringToColor(node.departmentId || node._id), [node.departmentId, node._id]);
-
-    const [expanded, setExpanded] = React.useState(() => {
-        // If current position is set, expand if on path
-        if (currentPositionId) {
-            return hasDescendant(node, currentPositionId);
-        }
-        return false;
-    });
+    const hasChildren = node.children && node.children.length > 0;
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -96,7 +89,7 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
                 elevation={isCurrentUser ? 4 : 0}
                 sx={{
                     width: 180,
-                    mx: 1, // Add margin to card to create spacing while keeping lines connected
+                    mx: 1,
                     textAlign: 'center',
                     border: `1px solid ${isCurrentUser ? theme.palette.primary.main : theme.palette.divider}`,
                     borderRadius: 2,
@@ -115,7 +108,6 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
                     }
                 }}
                 id={`node-${node._id}`}
-
             >
                 <Box sx={{
                     height: 4,
@@ -127,7 +119,7 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
                         <Avatar
                             sx={{
-                                bgcolor: `${groupColor}20`, // 20% opacity
+                                bgcolor: `${groupColor}20`,
                                 color: groupColor,
                                 width: 40,
                                 height: 40,
@@ -164,12 +156,12 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
             </Card>
 
             {/* Children Container */}
-            {node.children && node.children.length > 0 && (
+            {hasChildren && (
                 <Box
                     sx={{
                         display: 'flex',
                         position: 'relative',
-                        pt: 2, // 16px spacing for lines
+                        pt: 2,
                         alignItems: 'flex-start'
                     }}
                 >
@@ -179,7 +171,7 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
                         top: 0,
                         left: '50%',
                         width: '1px',
-                        height: 16, // Matches pt
+                        height: 16,
                         bgcolor: 'divider',
                         transform: 'translateX(-50%)',
                     }} />
@@ -218,7 +210,7 @@ const OrgChartNode = ({ node, currentPositionId }: { node: HierarchyNode; curren
             )}
         </Box>
     );
-};
+});
 
 export default function OrganizationHierarchy() {
     const [hierarchy, setHierarchy] = React.useState<HierarchyNode[]>([]);
@@ -227,13 +219,15 @@ export default function OrganizationHierarchy() {
     const [currentPositionId, setCurrentPositionId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        const fetchHierarchyAndProfile = async () => {
-            try {
-                const token = localStorage.getItem('access_token');
-                const encryptedEmployeeId = localStorage.getItem('employeeId');
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+        const fetchData = async () => {
+            let token: string | null = null;
+            let apiUrl: string | undefined = undefined;
 
-                if (!token || !encryptedEmployeeId) {
+            try {
+                token = localStorage.getItem('access_token');
+                apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+
+                if (!token) {
                     throw new Error('Authentication details missing');
                 }
 
@@ -248,16 +242,22 @@ export default function OrganizationHierarchy() {
                 // Apply compaction to all root nodes
                 const compactedData = hierarchyData.map((root: HierarchyNode) => compactTree(root));
                 setHierarchy(compactedData);
+                setLoading(false); // Show hierarchy immediately
 
-                // 2. Fetch User Profile to get Position
-                try {
-                    // Start by importing decryptData dynamically or assuming it's available?
-                    // Since we can't easily import from here without knowing exact path structure relative to this file's compile context if it was outside src... 
-                    // But we verified the path is in src/common/utils/encryption.
-                    // Let's use the known relative path.
+            } catch (err) {
+                console.error('Error fetching hierarchy:', err);
+                setError('Failed to load organization hierarchy.');
+                setLoading(false);
+                return; // Stop if hierarchy fails
+            }
+
+            // 2. Fetch User Profile (Background)
+            try {
+                const encryptedEmployeeId = localStorage.getItem('employeeId');
+                if (encryptedEmployeeId && token) {
                     const { decryptData } = await import('../../../../common/utils/encryption');
-
                     const employeeId = await decryptData(encryptedEmployeeId, token);
+
                     if (employeeId) {
                         const profileRes = await fetch(`${apiUrl}/employee/${employeeId}`, {
                             headers: { 'Authorization': `Bearer ${token}` }
@@ -266,8 +266,6 @@ export default function OrganizationHierarchy() {
                         if (profileRes.ok) {
                             const profileData = await profileRes.json();
                             const p = profileData.profile || profileData;
-
-                            // Check for position ID in various possible locations
                             const posId = p.position?._id || p.primaryPositionId?._id || (typeof p.primaryPositionId === 'string' ? p.primaryPositionId : null);
 
                             if (posId) {
@@ -275,20 +273,13 @@ export default function OrganizationHierarchy() {
                             }
                         }
                     }
-                } catch (e) {
-                    console.warn('Failed to fetch user position for centering', e);
-                    // Non-critical error, just won't center
                 }
-
-            } catch (err) {
-                console.error('Error fetching data:', err);
-                setError('Failed to load organization hierarchy.');
-            } finally {
-                setLoading(false);
+            } catch (e) {
+                console.warn('Failed to fetch user position for centering', e);
             }
         };
 
-        fetchHierarchyAndProfile();
+        fetchData();
     }, []);
 
     // Effect to scroll to the current position node
@@ -363,7 +354,11 @@ export default function OrganizationHierarchy() {
                     pb: 4
                 }}>
                     {hierarchy.map((rootNode) => (
-                        <OrgChartNode key={rootNode._id} node={rootNode} currentPositionId={currentPositionId} />
+                        <OrgChartNode
+                            key={rootNode._id}
+                            node={rootNode}
+                            currentPositionId={currentPositionId}
+                        />
                     ))}
                 </Box>
             </CardContent>

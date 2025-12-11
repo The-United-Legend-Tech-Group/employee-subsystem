@@ -13,6 +13,13 @@ import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import SaveIcon from '@mui/icons-material/Save';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import Autocomplete from '@mui/material/Autocomplete';
+
+interface Position {
+    _id: string;
+    code: string;
+    title: string;
+}
 
 interface Department {
     _id: string;
@@ -27,10 +34,11 @@ interface Department {
 
 interface DepartmentDetailsProps {
     department: Department | null;
+    positions?: Position[];
     onUpdate: (id: string, data: Partial<Department>) => void;
 }
 
-export default function DepartmentDetails({ department, onUpdate }: DepartmentDetailsProps) {
+export default function DepartmentDetails({ department, positions = [], onUpdate }: DepartmentDetailsProps) {
     const [formData, setFormData] = React.useState({
         name: '',
         description: '',
@@ -173,6 +181,30 @@ export default function DepartmentDetails({ department, onUpdate }: DepartmentDe
                                     multiline
                                     rows={1}
                                 />
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                        Department Head
+                                    </Typography>
+                                    <Autocomplete
+                                        options={positions}
+                                        getOptionLabel={(option) => `${option.title} (${option.code})`}
+                                        value={positions.find(p => p._id === formData.headPositionId) || null}
+                                        onChange={(event, newValue) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                headPositionId: newValue ? newValue._id : ''
+                                            }));
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                placeholder="Select department head"
+                                                fullWidth
+                                                size="small"
+                                            />
+                                        )}
+                                    />
+                                </Box>
                                 <Button
                                     fullWidth
                                     variant="contained"

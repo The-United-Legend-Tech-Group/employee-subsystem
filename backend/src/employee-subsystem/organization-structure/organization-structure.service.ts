@@ -570,8 +570,13 @@ export class OrganizationStructureService {
    */
   async createDepartment(dto: any): Promise<any> {
     // basic validation
-    if (!dto || !dto.code || !dto.name) {
-      throw new BadRequestException('Department code and name are required');
+    if (!dto || !dto.name) {
+      throw new BadRequestException('Department name is required');
+    }
+
+    // Auto-generate code if not provided
+    if (!dto.code) {
+      dto.code = `DEPT-${Date.now()}`;
     }
 
     return this.departmentRepository.create(dto);
@@ -623,10 +628,15 @@ export class OrganizationStructureService {
    * Create a new position
    */
   async createPosition(dto: any): Promise<any> {
-    if (!dto || !dto.code || !dto.title || !dto.departmentId) {
+    if (!dto || !dto.title || !dto.departmentId) {
       throw new BadRequestException(
-        'Position code, title and departmentId are required',
+        'Position title and departmentId are required',
       );
+    }
+
+    // Auto-generate code if not provided
+    if (!dto.code) {
+      dto.code = `POS-${Date.now()}`;
     }
 
     // Check for duplicate position code

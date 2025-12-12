@@ -35,6 +35,7 @@ import {
 } from './models/position-assignment.schema';
 import { NotificationService } from '../notification/notification.service';
 import { CreateNotificationDto } from '../notification/dto/create-notification.dto';
+import { CreatePositionAssignmentDto } from './dto/create-position-assignment.dto';
 
 @Injectable()
 export class OrganizationStructureService {
@@ -439,27 +440,13 @@ export class OrganizationStructureService {
     const pos = await this.positionRepository.findById(id);
     if (!pos) throw new NotFoundException('Position not found');
 
-    // Check for employees assigned to this position
-    const employee = await this.employeeModel
-      .findOne({ primaryPositionId: pos._id })
-      .lean()
-      .exec();
-    if (employee) {
-      throw new BadRequestException(
-        'Cannot remove position: employee(s) assigned to this position',
-      );
-    }
+    // Clear primaryPositionId for employees assigned to this position
+    await this.employeeModel.updateMany(
+      { primaryPositionId: pos._id },
+      { $unset: { primaryPositionId: "" } }
+    );
 
-    // Check for position assignments
-    const assignment = await this.positionAssignmentModel
-      .findOne({ positionId: pos._id })
-      .lean()
-      .exec();
-    if (assignment) {
-      throw new BadRequestException(
-        'Cannot remove position: existing position assignment records found',
-      );
-    }
+    // We also remove the check for existing position assignments as requested, allowing deletion.
 
     await this.positionRepository.deleteById(id);
   }
@@ -679,5 +666,59 @@ export class OrganizationStructureService {
     const pos = await this.positionRepository.findById(id);
     if (!pos) throw new NotFoundException('Position not found');
     return pos;
+  }
+
+  /**
+   * Assign an employee to a position
+   */
+  async assignPosition(dto: CreatePositionAssignmentDto): Promise<PositionAssignment> {
+    const { employeeId, positionId, startDate, endDate } = dto;
+
+    // 1. Validate Position
+    const position = await this.positionRepository.findById(positionId);
+    if (!position) {
+      throw new NotFoundException('Position not found');
+    }
+
+    // Activate position if it was inactive (Open)
+    if (!position.isActive) {
+      await this.positionRepository.updateById(positionId, { $set: { isActive: true } });
+      // Update local object to reflect change for subsequent logic if needed
+      position.isActive = true;
+    }
+
+    // 2. Validate Employee
+    const employee = await this.employeeModel.findById(employeeId);
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    // 3. Create Position Assignment
+    const assignment = new this.positionAssignmentModel({
+      employeeProfileId: new Types.ObjectId(employeeId),
+      positionId: new Types.ObjectId(positionId),
+      departmentId: position.departmentId, // Snapshot at assignment time
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+    const savedAssignment = await assignment.save();
+
+    // 4. Update Employee Profile
+    // Update primaryPositionId, primaryDepartmentId, and supervisorPositionId
+    const updates: any = {
+      primaryPositionId: new Types.ObjectId(positionId),
+      primaryDepartmentId: position.departmentId,
+    };
+
+    if (position.reportsToPositionId) {
+      updates.supervisorPositionId = position.reportsToPositionId;
+    } else {
+      // If the new position reports to no one (e.g. CEO), clear the supervisor
+      updates.$unset = { supervisorPositionId: "" };
+    }
+
+    await this.employeeModel.findByIdAndUpdate(employeeId, updates);
+
+    return savedAssignment;
   }
 }

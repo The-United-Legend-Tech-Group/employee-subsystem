@@ -17,8 +17,11 @@ import { StructureChangeRequest } from './models/structure-change-request.schema
 import { CreateStructureChangeRequestDto } from './dto/create-structure-change-request.dto';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
+import { CreatePositionAssignmentDto } from './dto/create-position-assignment.dto';
 import { Position } from './models/position.schema';
 import { Department } from './models/department.schema';
+import { PositionAssignment } from './models/position-assignment.schema';
+
 import { AuthGuard } from '../../common/guards/authentication.guard';
 import { authorizationGuard } from '../../common/guards/authorization.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -29,7 +32,7 @@ import { SystemRole } from '../employee/enums/employee-profile.enums';
 export class OrganizationStructureController {
   constructor(
     private readonly organizationStructureService: OrganizationStructureService,
-  ) {}
+  ) { }
 
   @Get('positions/open')
   @UseGuards(AuthGuard, authorizationGuard)
@@ -88,14 +91,14 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getChangeRequestById(id);
   }
 
-    @Post('requests/:id/approve')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.SYSTEM_ADMIN)
-    @ApiOperation({ summary: 'Approve a structure change request (System Admin)' })
-    @ApiResponse({ status: 200, description: 'Approved change request', type: StructureChangeRequest })
-    async approveRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
-        return this.organizationStructureService.approveChangeRequest(id, body?.comment);
-    }
+  @Post('requests/:id/approve')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({ summary: 'Approve a structure change request (System Admin)' })
+  @ApiResponse({ status: 200, description: 'Approved change request', type: StructureChangeRequest })
+  async approveRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
+    return this.organizationStructureService.approveChangeRequest(id, body?.comment);
+  }
 
   @Post('requests/:id/reject')
   @UseGuards(AuthGuard, authorizationGuard)
@@ -139,6 +142,21 @@ export class OrganizationStructureController {
   })
   async getManagerTeam(@Param('managerId') managerId: string): Promise<any> {
     return this.organizationStructureService.getManagerTeamStructure(managerId);
+  }
+
+  @Post('assignments')
+  @UseGuards(AuthGuard, authorizationGuard)
+ // @Roles(SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
+  @ApiOperation({ summary: 'Assign an employee to a position' })
+  @ApiResponse({
+    status: 201,
+    description: 'Created position assignment',
+    type: PositionAssignment,
+  })
+  async assignPosition(
+    @Body() dto: CreatePositionAssignmentDto,
+  ): Promise<PositionAssignment> {
+    return this.organizationStructureService.assignPosition(dto);
   }
 
   @Patch('positions/:id/deactivate')

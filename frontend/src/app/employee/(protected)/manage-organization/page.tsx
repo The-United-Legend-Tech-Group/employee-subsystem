@@ -11,6 +11,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import Chip from '@mui/material/Chip';
 import Fade from '@mui/material/Fade';
 import Snackbar from '@mui/material/Snackbar';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -29,6 +34,7 @@ import AssignEmployeeForm from './AssignEmployeeForm';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface Department {
     _id: string;
@@ -79,6 +85,12 @@ export default function ManageOrganizationPage() {
     const [selectedPosition, setSelectedPosition] = React.useState<Position | null>(null);
     const [positionOrder, setPositionOrder] = React.useState<'asc' | 'desc'>('desc');
     const [positionOrderBy, setPositionOrderBy] = React.useState<keyof Position>('createdAt');
+
+
+    // Delete Dialog State
+    const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+    const [positionToDelete, setPositionToDelete] = React.useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = React.useState(false);
 
     const [mounted, setMounted] = React.useState(false);
 
@@ -329,6 +341,53 @@ export default function ManageOrganizationPage() {
         } catch (err) {
             console.error('Error updating position:', err);
             setError('Failed to update position.');
+        }
+    };
+
+    const handleDeletePosition = async (id: string): Promise<boolean> => {
+        console.log('handleDeletePosition called with id:', id);
+        setError(null);
+        setSuccess(null);
+        setIsDeleting(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+            console.log('Deleting position at:', `${apiUrl}/organization-structure/positions/${id}`);
+
+            const response = await fetch(`${apiUrl}/organization-structure/positions/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            console.log('Delete response status:', response.status);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Delete failed:', errorData);
+                throw new Error(errorData.message || 'Failed to delete position');
+            }
+
+            console.log('Delete successful, refreshing data...');
+
+            // Refresh data
+            await fetchData();
+
+            // Clear selection if the deleted position was selected
+            if (selectedPosition && selectedPosition._id === id) {
+                setSelectedPosition(null);
+            }
+
+            setSuccess('Position deleted successfully');
+            return true;
+
+        } catch (err: any) {
+            console.error('Error deleting position inside catch:', err);
+            setError(err.message || 'Failed to delete position.');
+            return false;
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -625,6 +684,20 @@ export default function ManageOrganizationPage() {
                                                         >
                                                             Assign Employee
                                                         </Button>
+                                                        <Button
+                                                            size="small"
+                                                            startIcon={<DeleteIcon />}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setPositionToDelete(pos._id);
+                                                                setDeleteDialogOpen(true);
+                                                            }}
+                                                            variant="outlined"
+                                                            color="error" // Styled as requested with error color but same variant (outlined)
+                                                            sx={{ ml: 1 }}
+                                                        >
+                                                            Delete
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -664,6 +737,37 @@ export default function ManageOrganizationPage() {
                     />
                 )}
             </Box>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => !isDeleting && setDeleteDialogOpen(false)}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                <DialogTitle id="alert-dialog-title">
+                    {"Delete Position?"}
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                        Are you sure you want to delete this position? This will clear the position assignment for any employees currently holding it.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>Cancel</Button>
+                    <Button onClick={async () => {
+                        if (positionToDelete) {
+                            const success = await handleDeletePosition(positionToDelete);
+                            if (success) {
+                                setDeleteDialogOpen(false);
+                                setPositionToDelete(null);
+                            }
+                        }
+                    }} color="error" autoFocus disabled={isDeleting}>
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Stack>
     );
 }

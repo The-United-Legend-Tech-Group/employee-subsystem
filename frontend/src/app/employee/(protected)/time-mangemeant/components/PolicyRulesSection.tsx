@@ -464,7 +464,7 @@ function PolicyInsightCard({
 
           <Grid container spacing={1.5}>
             {insight.metrics.map((metric) => (
-              <Grid item xs={12} sm={6} key={metric.label}>
+              <Grid size={{ xs: 12, sm: 6 }} key={metric.label}>
                 <Typography variant="caption" color="text.secondary">
                   {metric.label}
                 </Typography>
@@ -905,14 +905,14 @@ export default function PolicyRulesSection({
           <Skeleton variant="text" width={280} height={36} />
           <Grid container spacing={3}>
             {[0, 1, 2].map((item) => (
-              <Grid item xs={12} md={4} key={item}>
+              <Grid size={{ xs: 12, md: 4 }} key={item}>
                 <Skeleton variant="rounded" height={240} />
               </Grid>
             ))}
           </Grid>
           <Grid container spacing={3}>
             {[0, 1].map((item) => (
-              <Grid item xs={12} md={6} key={item}>
+              <Grid size={{ xs: 12, md: 6 }} key={item}>
                 <Skeleton variant="rounded" height={280} />
               </Grid>
             ))}
@@ -926,7 +926,7 @@ export default function PolicyRulesSection({
             </Typography>
             <Grid container spacing={3}>
               {policyInsights.map((insight) => (
-                <Grid item xs={12} md={4} key={insight.id}>
+                <Grid size={{ xs: 12, md: 4 }} key={insight.id}>
                   <PolicyInsightCard
                     insight={insight}
                     onToggle={handlePolicyToggle}
@@ -938,7 +938,7 @@ export default function PolicyRulesSection({
           </Box>
 
           <Grid container spacing={3} alignItems="stretch">
-            <Grid item xs={12} lg={7}>
+            <Grid size={{ xs: 12, lg: 7 }}>
               <Card variant="outlined" sx={{ height: "100%" }}>
                 <CardContent>
                   <Stack spacing={2.5}>
@@ -953,7 +953,7 @@ export default function PolicyRulesSection({
                     </Box>
 
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -975,7 +975,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -1012,7 +1012,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -1095,7 +1095,7 @@ export default function PolicyRulesSection({
               </Card>
             </Grid>
 
-            <Grid item xs={12} lg={5}>
+            <Grid size={{ xs: 12, lg: 5 }}>
               <Card variant="outlined" sx={{ height: "100%" }}>
                 <CardContent>
                   <Stack spacing={2.5}>
@@ -1129,7 +1129,7 @@ export default function PolicyRulesSection({
                           </Box>
 
                           <Grid container spacing={1}>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1140,7 +1140,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.duration}
                               </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1151,7 +1151,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.schedule}
                               </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1162,7 +1162,7 @@ export default function PolicyRulesSection({
                                 {selectedShiftInfo.graceIn}m
                               </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -1221,7 +1221,7 @@ export default function PolicyRulesSection({
                     </Box>
 
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -1243,7 +1243,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -1265,7 +1265,7 @@ export default function PolicyRulesSection({
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid item xs={12} sm={4}>
+                      <Grid size={{ xs: 12, sm: 4 }}>
                         <Box
                           sx={{
                             px: 2,
@@ -1296,7 +1296,7 @@ export default function PolicyRulesSection({
                     ) : (
                       <Grid container spacing={2}>
                         {scheduleRules.slice(0, 6).map((rule) => (
-                          <Grid item xs={12} key={rule._id}>
+                          <Grid size={{ xs: 12 }} key={rule._id}>
                             <Box
                               sx={{
                                 px: 2,

@@ -27,9 +27,8 @@ const SECTIONS = [
   },
   {
     id: "exceptions",
-    title: "Exceptions & payroll",
-    description:
-      "Track holidays, time exceptions, and approved corrections ready for payroll.",
+    title: "Exceptions & holidays",
+    description: "Track holidays, time exceptions",
   },
 ];
 

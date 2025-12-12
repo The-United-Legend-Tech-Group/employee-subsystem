@@ -14,6 +14,9 @@ export class Notification {
   })
   recipientId?: Types.ObjectId[];
 
+  @Prop({ type: Date })
+  deadline?: Date;
+
   @Prop({ required: true, enum: ['Alert', 'Info', 'Success', 'Warning'] }) //SUBJECT TO CHANGE
   type: string;
 

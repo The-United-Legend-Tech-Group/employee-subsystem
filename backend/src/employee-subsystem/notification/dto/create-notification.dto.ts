@@ -19,6 +19,12 @@ export class CreateNotificationDto {
   @IsOptional()
   recipientId?: string[];
 
+  @ApiPropertyOptional({ description: 'Deadline for the notification' })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  deadline?: Date;
+
   @ApiPropertyOptional({ type: [String], description: 'Array of Position ObjectIds' })
   @IsArray()
   @IsMongoId({ each: true })

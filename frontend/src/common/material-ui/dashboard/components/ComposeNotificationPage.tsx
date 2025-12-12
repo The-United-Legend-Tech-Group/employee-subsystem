@@ -16,6 +16,10 @@ import Snackbar from '@mui/material/Snackbar'; // Check if standard Snackbar sho
 import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs, { Dayjs } from 'dayjs';
 
 interface Position {
     _id: string;
@@ -35,6 +39,7 @@ export default function ComposeNotificationPage() {
     const [message, setMessage] = React.useState('');
     const [type, setType] = React.useState('Info');
     const [isBroadcast, setIsBroadcast] = React.useState(false);
+    const [deadline, setDeadline] = React.useState<Dayjs | null>(null);
     const [selectedEmployees, setSelectedEmployees] = React.useState<Employee[]>([]);
     const [selectedPositions, setSelectedPositions] = React.useState<Position[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -130,6 +135,7 @@ export default function ComposeNotificationPage() {
             title,
             message,
             type,
+            deadline: deadline ? deadline.toISOString() : undefined,
             deliveryType: (selectedPositions.length === 0 && selectedEmployees.length === 0) ? 'BROADCAST' : (selectedPositions.length > 0 || selectedEmployees.length > 1 ? 'MULTICAST' : 'UNICAST'),
             recipientId: selectedEmployees.map(e => e._id),
             positionIds: selectedPositions.map(p => p._id)
@@ -156,6 +162,7 @@ export default function ComposeNotificationPage() {
                 setTitle('');
                 setMessage('');
                 setIsBroadcast(false);
+                setDeadline(null);
                 setSelectedEmployees([]);
                 setSelectedPositions([]);
             } else {
@@ -226,6 +233,19 @@ export default function ComposeNotificationPage() {
                                 <MenuItem value="Warning">Warning</MenuItem>
                                 <MenuItem value="Success">Success</MenuItem>
                             </TextField>
+                        </Box>
+
+                        <Box>
+                            <Typography variant="body2" fontWeight={600} mb={1}>
+                                Deadline
+                            </Typography>
+                            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                <DateTimePicker
+                                    value={deadline}
+                                    onChange={(newValue) => setDeadline(newValue)}
+                                    slotProps={{ textField: { fullWidth: true, hiddenLabel: true } }}
+                                />
+                            </LocalizationProvider>
                         </Box>
 
                         <Box>

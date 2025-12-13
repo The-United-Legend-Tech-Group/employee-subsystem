@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -39,7 +40,7 @@ export class authorizationGuard implements CanActivate {
       });
 
       if (!employeeRoles || !employeeRoles.roles) {
-        throw new UnauthorizedException('Access Denied');
+        throw new ForbiddenException('Access Denied');
       }
 
       const hasRole = requiredRoles.some((role) =>
@@ -47,7 +48,7 @@ export class authorizationGuard implements CanActivate {
       );
 
       if (!hasRole) {
-        throw new UnauthorizedException('unauthorized access');
+        throw new ForbiddenException('unauthorized access');
       }
       return true;
     }
@@ -55,7 +56,7 @@ export class authorizationGuard implements CanActivate {
     // Fallback for candidates or users without employeeId cookie
     const userRole = user.role;
     if (!requiredRoles.includes(userRole))
-      throw new UnauthorizedException('unauthorized access');
+      throw new ForbiddenException('unauthorized access');
 
     return true;
   }

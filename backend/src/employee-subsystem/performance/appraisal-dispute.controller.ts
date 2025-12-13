@@ -24,6 +24,15 @@ export class AppraisalDisputeController {
     return this.disputeService.create(dto);
   }
 
+  @Get('open')
+  @UseGuards(AuthGuard) //, authorizationGuard)
+  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @ApiOperation({ summary: 'List open disputes' })
+  @ApiResponse({ status: 200, description: 'Open disputes', type: [AppraisalDispute] })
+  async findOpen() {
+    return this.disputeService.findOpen();
+  }
+
   @Get(':id')
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
@@ -49,13 +58,12 @@ export class AppraisalDisputeController {
     return this.disputeService.findByCycleId(cycleId);
   }
 
-  @Get('open')
-  @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
-  @ApiOperation({ summary: 'List open disputes' })
-  @ApiResponse({ status: 200, description: 'Open disputes', type: [AppraisalDispute] })
-  async findOpen() {
-    return this.disputeService.findOpen();
+  @Get('employee/:employeeId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'List disputes for an employee' })
+  @ApiResponse({ status: 200, description: 'Employee disputes', type: [AppraisalDispute] })
+  async findByEmployee(@Param('employeeId') employeeId: string) {
+    return this.disputeService.findByEmployeeId(employeeId);
   }
 
   @Post(':id/assign')
@@ -68,11 +76,12 @@ export class AppraisalDisputeController {
   }
 
   @Post(':id/resolve')
-  @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @UseGuards(AuthGuard) //, authorizationGuard)
+  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
   @ApiOperation({ summary: 'Resolve a dispute with summary and status' })
   @ApiResponse({ status: 200, description: 'The resolved dispute', type: AppraisalDispute })
   async resolve(@Param('id') id: string, @Body() dto: ResolveAppraisalDisputeDto) {
+    console.log(`Resolving dispute ${id} with payload:`, dto);
     return this.disputeService.resolve(id, dto);
   }
 

@@ -125,3 +125,41 @@ export interface AppraisalTemplate {
     instructions?: string;
     isActive: boolean;
 }
+
+export enum AppraisalDisputeStatus {
+    OPEN = 'OPEN',
+    UNDER_REVIEW = 'UNDER_REVIEW',
+    ADJUSTED = 'ADJUSTED',
+    REJECTED = 'REJECTED',
+}
+
+export interface AppraisalDispute {
+    _id: string;
+    appraisalId: string | AppraisalRecord;
+    assignmentId: string;
+    cycleId: string;
+    raisedByEmployeeId: string | EmployeeProfileShort;
+    reason: string;
+    details?: string;
+    submittedAt: string;
+    status: AppraisalDisputeStatus;
+    assignedReviewerEmployeeId?: string | EmployeeProfileShort;
+    resolutionSummary?: string;
+    resolvedAt?: string;
+    resolvedByEmployeeId?: string | EmployeeProfileShort;
+}
+
+export interface CreateAppraisalDisputeDto {
+    appraisalId: string;
+    assignmentId: string;
+    cycleId: string;
+    raisedByEmployeeId: string;
+    reason: string;
+    details?: string;
+}
+
+export interface ResolveAppraisalDisputeDto {
+    status: AppraisalDisputeStatus;
+    resolutionSummary: string;
+    resolvedByEmployeeId: string;
+}

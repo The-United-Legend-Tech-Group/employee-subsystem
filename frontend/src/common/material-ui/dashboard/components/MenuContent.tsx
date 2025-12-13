@@ -1,10 +1,12 @@
 "use client";
+import { useState } from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
+import Collapse from "@mui/material/Collapse";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
@@ -20,6 +22,9 @@ import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePathname, useRouter } from "next/navigation";
 
 const mainListItems = [
@@ -35,6 +40,21 @@ const mainListItems = [
     icon: <AnalyticsRoundedIcon />,
     path: "/employee/analytics",
   },
+  {
+    text: "Time Management",
+    icon: <AccessTimeRoundedIcon />,
+    path: "/employee/time-mangemeant",
+  },
+  {
+    text: "Manage Organization",
+    icon: <ApartmentRoundedIcon />,
+    path: "/employee/manage-organization",
+  },
+  { text: 'Manage Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests' },
+  { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees' },
+];
+
+const performanceSubItems = [
   {
     text: "Performance Dashboard",
     icon: <DashboardRoundedIcon />,
@@ -80,18 +100,6 @@ const mainListItems = [
     icon: <ReportProblemRoundedIcon />,
     path: "/employee/performance/disputes",
   },
-  {
-    text: "Time Management",
-    icon: <AccessTimeRoundedIcon />,
-    path: "/employee/time-mangemeant",
-  },
-  {
-    text: "Manage Organization",
-    icon: <ApartmentRoundedIcon />,
-    path: "/employee/manage-organization",
-  },
-  { text: 'Manage Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests' },
-  { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees' },
 ];
 
 const secondaryListItems = [
@@ -103,8 +111,10 @@ const secondaryListItems = [
 export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
+  const [performanceOpen, setPerformanceOpen] = useState(false);
 
   const isCandidate = pathname.startsWith("/candidate");
+  const isPerformancePath = pathname.startsWith("/employee/performance");
 
   const visibleListItems = mainListItems.filter((item) => {
     if (isCandidate && item.text === "Team") return false;
@@ -134,7 +144,12 @@ export default function MenuContent() {
     return false;
   };
 
-  const handleNavigation = (text: string) => {
+  const handleNavigation = (text: string, path?: string) => {
+    if (path) {
+      router.push(path);
+      return;
+    }
+
     if (text === "Home") {
       if (isCandidate) {
         router.push("/candidate/dashboard");
@@ -151,15 +166,6 @@ export default function MenuContent() {
     if (text === 'Manage Requests') router.push('/employee/manage-requests');
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Time Management') router.push('/employee/time-mangemeant');
-    if (text === 'Performance Dashboard') router.push('/employee/performance/dashboard');
-    if (text === 'Performance Templates') router.push('/employee/performance/templates');
-    if (text === 'Appraisal Cycles') router.push('/employee/performance/cycles');
-    if (text === 'Appraisal Assignments') router.push('/employee/performance/assignments');
-    if (text === 'Appraisal Monitoring') router.push('/employee/performance/monitoring');
-    if (text === 'Manager Appraisal Dashboard') router.push('/employee/performance/manager');
-    if (text === 'My Assigned Appraisals') router.push('/employee/performance/manager-assignments');
-    if (text === 'My Performance Records') router.push('/employee/performance/my-records');
-    if (text === 'Disputes') router.push('/employee/performance/disputes');
   };
 
   return (
@@ -176,7 +182,39 @@ export default function MenuContent() {
             </ListItemButton>
           </ListItem>
         ))}
+        
+        {/* Performance Dropdown */}
+        <ListItem disablePadding sx={{ display: "block" }}>
+          <ListItemButton
+            selected={isPerformancePath}
+            onClick={() => setPerformanceOpen(!performanceOpen)}
+          >
+            <ListItemIcon>
+              <TrendingUpRoundedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Performance" />
+            {performanceOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </ListItemButton>
+        </ListItem>
+        
+        <Collapse in={performanceOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {performanceSubItems.map((item, index) => (
+              <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                <ListItemButton
+                  sx={{ pl: 4 }}
+                  selected={isSelected(item.text)}
+                  onClick={() => handleNavigation(item.text, item.path)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
       </List>
+      
       <List dense>
         {secondaryListItems.map((item, index) => (
           <ListItem key={index} disablePadding sx={{ display: "block" }}>

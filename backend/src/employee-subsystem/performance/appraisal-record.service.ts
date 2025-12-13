@@ -113,21 +113,49 @@ export class AppraisalRecordService {
             }
         }
 
-        // Update record
+        // Check if this is a re-evaluation after dispute (assignment status is IN_PROGRESS but was previously PUBLISHED)
+        const assignment = await this.appraisalAssignmentRepository.findOne({ _id: record.assignmentId });
+        const isDisputeReEvaluation = assignment && 
+            assignment.status === AppraisalAssignmentStatus.IN_PROGRESS && 
+            assignment.publishedAt; // If it has a publishedAt date, it was previously published
+
+        // Update record - if re-evaluation after dispute, publish directly
+        const newStatus = isDisputeReEvaluation 
+            ? AppraisalRecordStatus.HR_PUBLISHED 
+            : AppraisalRecordStatus.MANAGER_SUBMITTED;
+
+        const updatePayload: any = {
+            ratings: validatedRatings,
+            totalScore,
+            managerSummary: updateDto.managerSummary,
+            strengths: updateDto.strengths,
+            improvementAreas: updateDto.improvementAreas,
+            status: newStatus,
+        };
+
+        if (isDisputeReEvaluation) {
+            updatePayload.hrPublishedAt = new Date();
+        }
+
         const updatedRecord = await this.appraisalRecordRepository.update(
             { _id: id },
-            {
-                ratings: validatedRatings,
-                totalScore,
-                managerSummary: updateDto.managerSummary,
-                strengths: updateDto.strengths,
-                improvementAreas: updateDto.improvementAreas,
-                status: AppraisalRecordStatus.MANAGER_SUBMITTED,
-            },
+            updatePayload,
         );
 
         if (!updatedRecord) {
             throw new NotFoundException(`Appraisal record with ID ${id} not found`);
+        }
+
+        // If re-evaluation after dispute, update assignment to PUBLISHED
+        if (isDisputeReEvaluation && assignment) {
+            await this.appraisalAssignmentRepository.update(
+                { _id: assignment._id },
+                {
+                    status: AppraisalAssignmentStatus.PUBLISHED,
+                    publishedAt: new Date(),
+                }
+            );
+            this.logger.log(`Re-evaluation after dispute completed and auto-published. Record ID: ${id}`);
         }
 
         // Requirement: Downstream Sub-Systems Depending on This Output: Performance Management (Manager ratings and scores)

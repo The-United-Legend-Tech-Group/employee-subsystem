@@ -1,4 +1,11 @@
 import TimeManagementClient from "./components/TimeManagementClient";
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import AssignmentTurnedInRoundedIcon from "@mui/icons-material/AssignmentTurnedInRounded";
+import PunchClockRoundedIcon from "@mui/icons-material/PunchClockRounded";
+import WorkHistoryRoundedIcon from "@mui/icons-material/WorkHistoryRounded";
+import RuleRoundedIcon from "@mui/icons-material/RuleRounded";
+import EventBusyRoundedIcon from "@mui/icons-material/EventBusyRounded";
+import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 
 const SECTIONS = [
   {
@@ -6,29 +13,48 @@ const SECTIONS = [
     title: "Time ops overview",
     description:
       "High-level metrics summarising shifts, corrections, and payroll readiness.",
+    icon: <DashboardRoundedIcon fontSize="small" />,
   },
   {
     id: "attendance",
     title: "Attendance & corrections",
     description:
       "Monitor employee punches, corrections, and manager approvals in real time.",
+    icon: <AssignmentTurnedInRoundedIcon fontSize="small" />,
   },
   {
     id: "shifts",
     title: "Shift assignments",
     description:
       "View active shift templates and forthcoming employee coverage blocks.",
+    icon: <WorkHistoryRoundedIcon fontSize="small" />,
   },
   {
     id: "policies",
     title: "Policies & rules",
     description:
       "Surface punch policies, overtime approvals, and scheduling patterns in one place.",
+    icon: <RuleRoundedIcon fontSize="small" />,
   },
   {
     id: "exceptions",
     title: "Exceptions & holidays",
     description: "Track holidays, time exceptions",
+    icon: <EventBusyRoundedIcon fontSize="small" />,
+  },
+  {
+    id: "attendance-records",
+    title: "Attendance records & punches",
+    description:
+      "View and record employee clock in/out punches and daily attendance tracking.",
+    icon: <PunchClockRoundedIcon fontSize="small" />,
+  },
+  {
+    id: "time-exceptions",
+    title: "Time exceptions",
+    description:
+      "Monitor and resolve attendance exceptions including missed punches, late arrivals, and overtime requests.",
+    icon: <ReportProblemRoundedIcon fontSize="small" />,
   },
 ];
 

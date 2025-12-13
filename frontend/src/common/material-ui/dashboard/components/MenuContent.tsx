@@ -18,6 +18,7 @@ import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { usePathname, useRouter } from "next/navigation";
 
 const mainListItems = [
@@ -52,6 +53,11 @@ const mainListItems = [
     text: "Appraisal Assignments",
     icon: <AssignmentRoundedIcon />,
     path: "/employee/performance/assignments",
+  },
+  {
+    text: "Appraisal Monitoring",
+    icon: <VisibilityRoundedIcon />,
+    path: "/employee/performance/monitoring",
   },
   {
     text: "Manager Appraisal Dashboard",
@@ -109,6 +115,7 @@ export default function MenuContent() {
     if (text === 'Performance Templates' && pathname === '/employee/performance/templates') return true;
     if (text === 'Appraisal Cycles' && pathname === '/employee/performance/cycles') return true;
     if (text === 'Appraisal Assignments' && pathname === '/employee/performance/assignments') return true;
+    if (text === 'Appraisal Monitoring' && pathname === '/employee/performance/monitoring') return true;
     if (text === 'Manager Appraisal Dashboard' && pathname === '/employee/performance/manager') return true;
     if (text === 'My Assigned Appraisals' && pathname === '/employee/performance/manager-assignments') return true;
     return false;
@@ -135,6 +142,7 @@ export default function MenuContent() {
     if (text === 'Performance Templates') router.push('/employee/performance/templates');
     if (text === 'Appraisal Cycles') router.push('/employee/performance/cycles');
     if (text === 'Appraisal Assignments') router.push('/employee/performance/assignments');
+    if (text === 'Appraisal Monitoring') router.push('/employee/performance/monitoring');
     if (text === 'Manager Appraisal Dashboard') router.push('/employee/performance/manager');
     if (text === 'My Assigned Appraisals') router.push('/employee/performance/manager-assignments');
   };

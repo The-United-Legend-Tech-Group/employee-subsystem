@@ -20,6 +20,7 @@ import {
     AccordionSummary,
     AccordionDetails,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { decryptData } from '../../../../../common/utils/encryption';
 import { AppraisalRecord } from '../../../../../types/performance';
@@ -137,12 +138,12 @@ function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
                     <Typography variant="h6" component="div">
                         Appraisal Record
                     </Typography>
-                    <Chip 
-                        label={record.overallRatingLabel || 'No Rating'} 
-                        color={record.overallRatingLabel ? 'primary' : 'default'} 
+                    <Chip
+                        label={record.overallRatingLabel || 'No Rating'}
+                        color={record.overallRatingLabel ? 'primary' : 'default'}
                     />
                 </Box>
-                
+
                 <Grid container spacing={2} mb={3}>
                     <Grid size={{ xs: 12, sm: 6 }}>
                         <Typography variant="subtitle2" color="text.secondary">Total Score</Typography>
@@ -157,7 +158,7 @@ function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
                 <Divider sx={{ my: 2 }} />
 
                 <Typography variant="h6" gutterBottom>Manager Feedback</Typography>
-                
+
                 <Box mb={2}>
                     <Typography variant="subtitle2" color="primary">Summary</Typography>
                     <Typography variant="body2" paragraph>
@@ -165,9 +166,11 @@ function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
                     </Typography>
                 </Box>
 
+
+
                 <Grid container spacing={2} mb={2}>
                     <Grid size={{ xs: 12, md: 6 }}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: '#f5f9ff' }}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: (theme) => alpha(theme.palette.success.main, 0.08) }}>
                             <Typography variant="subtitle2" color="success.main" gutterBottom>Strengths</Typography>
                             <Typography variant="body2">
                                 {record.strengths || 'None listed.'}
@@ -175,7 +178,7 @@ function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
                         </Paper>
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: '#fff5f5' }}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: (theme) => alpha(theme.palette.error.main, 0.08) }}>
                             <Typography variant="subtitle2" color="error.main" gutterBottom>Areas for Improvement</Typography>
                             <Typography variant="body2">
                                 {record.improvementAreas || 'None listed.'}

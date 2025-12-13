@@ -16,7 +16,17 @@ export class AppraisalDisputeService {
   ) {}
 
   async create(dto: CreateAppraisalDisputeDto): Promise<AppraisalDisputeDocument> {
-    return this.disputeRepository.create(dto as any);
+    const payload: any = {
+      appraisalId: dto.appraisalId,
+      assignmentId: dto.assignmentId,
+      cycleId: dto.cycleId,
+      raisedByEmployeeId: dto.raisedByEmployeeId,
+      reason: dto.reason,
+      details: dto.details,
+      status: AppraisalDisputeStatus.OPEN,
+      submittedAt: new Date(),
+    };
+    return this.disputeRepository.create(payload);
   }
 
   async findOne(id: string): Promise<AppraisalDisputeDocument> {

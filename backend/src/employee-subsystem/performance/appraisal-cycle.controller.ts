@@ -33,7 +33,7 @@ export class AppraisalCycleController {
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
+    async remove(@Param('id') id: string) {
         return this.appraisalCycleService.remove(id);
     }
 }

@@ -147,19 +147,24 @@ export default function TemplateForm({
                 </Typography>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
                     <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Template Name
+                        </Typography>
                         <TextField
                             fullWidth
-                            label="Template Name"
+                            placeholder="Enter template name"
                             value={formData.name}
                             onChange={(e) => handleChange('name', e.target.value)}
                             required
                         />
                     </Box>
                     <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Template Type
+                        </Typography>
                         <TextField
                             fullWidth
                             select
-                            label="Template Type"
                             value={formData.templateType}
                             onChange={(e) => handleChange('templateType', e.target.value)}
                         >
@@ -171,21 +176,27 @@ export default function TemplateForm({
                         </TextField>
                     </Box>
                     <Box sx={{ width: '100%' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Description
+                        </Typography>
                         <TextField
                             fullWidth
                             multiline
                             rows={1}
-                            label="Description"
+                            placeholder="Enter description"
                             value={formData.description}
                             onChange={(e) => handleChange('description', e.target.value)}
                         />
                     </Box>
                     <Box sx={{ width: '100%' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Instructions
+                        </Typography>
                         <TextField
                             fullWidth
                             multiline
                             rows={1}
-                            label="Instructions"
+                            placeholder="Enter instructions"
                             value={formData.instructions}
                             onChange={(e) => handleChange('instructions', e.target.value)}
                         />
@@ -210,10 +221,12 @@ export default function TemplateForm({
                 </Typography>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
                     <Box sx={{ width: { xs: '100%', md: '33.3333%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Scale Type
+                        </Typography>
                         <TextField
                             fullWidth
                             select
-                            label="Scale Type"
                             value={formData.ratingScale.type}
                             onChange={(e) => handleRatingScaleChange('type', e.target.value)}
                         >
@@ -225,19 +238,23 @@ export default function TemplateForm({
                         </TextField>
                     </Box>
                     <Box sx={{ width: { xs: '100%', md: '33.3333%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Minimum Value
+                        </Typography>
                         <TextField
                             fullWidth
                             type="number"
-                            label="Minimum Value"
                             value={formData.ratingScale.min}
                             onChange={(e) => handleRatingScaleChange('min', Number(e.target.value))}
                         />
                     </Box>
                     <Box sx={{ width: { xs: '100%', md: '33.3333%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Maximum Value
+                        </Typography>
                         <TextField
                             fullWidth
                             type="number"
-                            label="Maximum Value"
                             value={formData.ratingScale.max}
                             onChange={(e) => handleRatingScaleChange('max', Number(e.target.value))}
                         />
@@ -253,22 +270,28 @@ export default function TemplateForm({
                     </Button>
                 </Box>
                 {formData.criteria?.map((criterion, index) => (
-                    <Box key={criterion.key || index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                    <Box key={criterion.key || index} sx={{ mb: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                         <Stack spacing={2}>
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                                 <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Title
+                                    </Typography>
                                     <TextField
                                         fullWidth
-                                        label="Title"
+                                        placeholder="Criterion title"
                                         value={criterion.title}
                                         onChange={(e) => handleCriterionChange(index, 'title', e.target.value)}
                                         required
                                     />
                                 </Box>
                                 <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Details
+                                    </Typography>
                                     <TextField
                                         fullWidth
-                                        label="Details"
+                                        placeholder="Criterion details"
                                         value={criterion.details}
                                         onChange={(e) => handleCriterionChange(index, 'details', e.target.value)}
                                     />
@@ -277,10 +300,12 @@ export default function TemplateForm({
 
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
                                 <Box sx={{ width: { xs: '100%', md: '25%' } }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Weight (0-100)
+                                    </Typography>
                                     <TextField
                                         fullWidth
                                         type="number"
-                                        label="Weight (0-100)"
                                         value={criterion.weight ?? 0}
                                         onChange={(e) => handleCriterionChange(index, 'weight', Number(e.target.value))}
                                     />
@@ -315,22 +340,22 @@ export default function TemplateForm({
                 </Typography>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
                     <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Departments
+                        </Typography>
                         <FormControl fullWidth>
-                            <InputLabel>Departments</InputLabel>
                             <Select
                                 multiple
                                 value={formData.applicableDepartmentIds || []}
                                 onChange={(e) => handleChange('applicableDepartmentIds', e.target.value)}
-                                input={<OutlinedInput label="Departments" />}
+                                input={<OutlinedInput />}
                                 renderValue={(selected) => (
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         {Array.isArray(selected)
-                                            ? selected.map((value) => (
-                                                  <Chip
-                                                      key={value}
-                                                      label={departments.find((d) => d._id === value)?.name || value}
-                                                  />
-                                              ))
+                                            ? selected.map((value) => {
+                                                const dept = departments.find((d) => d._id === value);
+                                                return dept ? <Chip key={value} label={dept.name} /> : null;
+                                            })
                                             : null}
                                     </Box>
                                 )}
@@ -345,22 +370,22 @@ export default function TemplateForm({
                         </FormControl>
                     </Box>
                     <Box sx={{ width: { xs: '100%', md: '50%' } }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Positions
+                        </Typography>
                         <FormControl fullWidth>
-                            <InputLabel>Positions</InputLabel>
                             <Select
                                 multiple
                                 value={formData.applicablePositionIds || []}
                                 onChange={(e) => handleChange('applicablePositionIds', e.target.value)}
-                                input={<OutlinedInput label="Positions" />}
+                                input={<OutlinedInput />}
                                 renderValue={(selected) => (
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         {Array.isArray(selected)
-                                            ? selected.map((value) => (
-                                                  <Chip
-                                                      key={value}
-                                                      label={positions.find((p) => p._id === value)?.title || value}
-                                                  />
-                                              ))
+                                            ? selected.map((value) => {
+                                                const pos = positions.find((p) => p._id === value);
+                                                return pos ? <Chip key={value} label={pos.title} /> : null;
+                                            })
                                             : null}
                                     </Box>
                                 )}

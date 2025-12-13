@@ -15,6 +15,7 @@ import {
     Typography,
     IconButton,
     Chip,
+    Skeleton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -111,34 +112,51 @@ export default function AppraisalTemplatesPage() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {templates.map((template) => (
-                            <TableRow key={template._id}>
-                                <TableCell>{template.name}</TableCell>
-                                <TableCell>{template.templateType}</TableCell>
-                                <TableCell>{template.ratingScale.type}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={template.isActive ? 'Active' : 'Inactive'}
-                                        color={template.isActive ? 'success' : 'default'}
-                                        size="small"
-                                    />
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton
-                                        color="primary"
-                                        onClick={() => router.push(`/employee/performance/templates/${template._id}`)}
-                                    >
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton
-                                        color="error"
-                                        onClick={() => handleDelete(template._id)}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {loading ? (
+                            Array.from(new Array(5)).map((_, index) => (
+                                <TableRow key={index}>
+                                    <TableCell><Skeleton variant="text" /></TableCell>
+                                    <TableCell><Skeleton variant="text" width={100} /></TableCell>
+                                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                                    <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 4 }} /></TableCell>
+                                    <TableCell align="right">
+                                        <Box display="flex" justifyContent="flex-end" gap={1}>
+                                            <Skeleton variant="circular" width={40} height={40} />
+                                            <Skeleton variant="circular" width={40} height={40} />
+                                        </Box>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            templates.map((template) => (
+                                <TableRow key={template._id}>
+                                    <TableCell>{template.name}</TableCell>
+                                    <TableCell>{template.templateType}</TableCell>
+                                    <TableCell>{template.ratingScale.type}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={template.isActive ? 'Active' : 'Inactive'}
+                                            color={template.isActive ? 'success' : 'default'}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => router.push(`/employee/performance/templates/${template._id}`)}
+                                        >
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            color="error"
+                                            onClick={() => handleDelete(template._id)}
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
                         {templates.length === 0 && !loading && (
                             <TableRow>
                                 <TableCell colSpan={5} align="center">

@@ -22,6 +22,9 @@ import {
     TextField,
     MenuItem,
     Stack,
+    Skeleton,
+    Snackbar,
+    Alert,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -46,9 +49,19 @@ export default function AppraisalCyclesPage() {
         employeeAcknowledgementDueDate: '',
     });
 
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success',
+    });
+
     useEffect(() => {
         loadCycles();
     }, []);
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
 
     const loadCycles = async () => {
         try {
@@ -126,6 +139,7 @@ export default function AppraisalCyclesPage() {
                     const errorText = await response.text();
                     throw new Error(`Failed to update cycle: ${response.status} ${response.statusText} - ${errorText}`);
                 }
+                setSnackbar({ open: true, message: 'Cycle updated successfully', severity: 'success' });
             } else {
                 const response = await fetch(`${API_URL}/performance/cycles`, {
                     method: 'POST',
@@ -140,33 +154,47 @@ export default function AppraisalCyclesPage() {
                     const errorText = await response.text();
                     throw new Error(`Failed to create cycle: ${response.status} ${response.statusText} - ${errorText}`);
                 }
+                setSnackbar({ open: true, message: 'Cycle created successfully', severity: 'success' });
             }
             handleCloseDialog();
             loadCycles();
         } catch (error: any) {
             console.error('Failed to save cycle', error);
-            alert(error.message || 'Failed to save cycle');
+            setSnackbar({ open: true, message: error.message || 'Failed to save cycle', severity: 'error' });
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this cycle?')) {
-            try {
-                const response = await fetch(`${API_URL}/performance/cycles/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    },
-                    credentials: 'include',
-                });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to delete cycle: ${response.status} ${response.statusText} - ${errorText}`);
-                }
-                loadCycles();
-            } catch (error) {
-                console.error('Failed to delete cycle', error);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [cycleToDelete, setCycleToDelete] = useState<string | null>(null);
+
+    const handleDeleteClick = (id: string) => {
+        setCycleToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!cycleToDelete) return;
+
+        try {
+            const response = await fetch(`${API_URL}/performance/cycles/${cycleToDelete}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+                credentials: 'include',
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to delete cycle: ${response.status} ${response.statusText} - ${errorText}`);
             }
+            setSnackbar({ open: true, message: 'Cycle deleted successfully', severity: 'success' });
+            loadCycles();
+        } catch (error: any) {
+            console.error('Failed to delete cycle', error);
+            setSnackbar({ open: true, message: error.message || 'Failed to delete cycle', severity: 'error' });
+        } finally {
+            setDeleteDialogOpen(false);
+            setCycleToDelete(null);
         }
     };
 
@@ -204,34 +232,49 @@ export default function AppraisalCyclesPage() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {cycles.map((cycle) => (
-                            <TableRow key={cycle._id}>
-                                <TableCell>{cycle.name}</TableCell>
-                                <TableCell>{cycle.cycleType}</TableCell>
-                                <TableCell>{new Date(cycle.startDate).toLocaleDateString()}</TableCell>
-                                <TableCell>{new Date(cycle.endDate).toLocaleDateString()}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={cycle.status}
-                                        color={cycle.status === AppraisalCycleStatus.ACTIVE ? 'success' : 'default'}
-                                    />
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton onClick={() => handleOpenDialog(cycle)} size="small">
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => handleDelete(cycle._id)} size="small" color="error">
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {cycles.length === 0 && !loading && (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">
-                                    No appraisal cycles found.
-                                </TableCell>
-                            </TableRow>
+                        {loading ? (
+                            [...Array(5)].map((_, index) => (
+                                <TableRow key={index}>
+                                    <TableCell><Skeleton animation="wave" /></TableCell>
+                                    <TableCell><Skeleton animation="wave" /></TableCell>
+                                    <TableCell><Skeleton animation="wave" /></TableCell>
+                                    <TableCell><Skeleton animation="wave" /></TableCell>
+                                    <TableCell><Skeleton animation="wave" /></TableCell>
+                                    <TableCell align="right"><Skeleton animation="wave" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <>
+                                {cycles.map((cycle) => (
+                                    <TableRow key={cycle._id}>
+                                        <TableCell>{cycle.name}</TableCell>
+                                        <TableCell>{cycle.cycleType}</TableCell>
+                                        <TableCell>{new Date(cycle.startDate).toLocaleDateString()}</TableCell>
+                                        <TableCell>{new Date(cycle.endDate).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={cycle.status}
+                                                color={cycle.status === AppraisalCycleStatus.ACTIVE ? 'success' : 'default'}
+                                            />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <IconButton onClick={() => handleOpenDialog(cycle)} size="small">
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton onClick={() => handleDeleteClick(cycle._id)} size="small" color="error">
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {cycles.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} align="center">
+                                            No appraisal cycles found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </>
                         )}
                     </TableBody>
                 </Table>
@@ -243,80 +286,97 @@ export default function AppraisalCyclesPage() {
                     <Box component="form" sx={{ mt: 2 }}>
                         <Stack spacing={2}>
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                                <TextField
-                                    fullWidth
-                                    label="Name"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleInputChange}
-                                    required
-                                />
-                                <TextField
-                                    fullWidth
-                                    select
-                                    label="Cycle Type"
-                                    name="cycleType"
-                                    value={formData.cycleType}
-                                    onChange={handleInputChange}
-                                    required
-                                >
-                                    {Object.values(AppraisalTemplateType).map((type) => (
-                                        <MenuItem key={type} value={type}>
-                                            {type}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Name</Typography>
+                                    <TextField
+                                        fullWidth
+                                        hiddenLabel
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        required
+                                    />
+                                </Box>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Cycle Type</Typography>
+                                    <TextField
+                                        fullWidth
+                                        select
+                                        hiddenLabel
+                                        name="cycleType"
+                                        value={formData.cycleType}
+                                        onChange={handleInputChange}
+                                        required
+                                    >
+                                        {Object.values(AppraisalTemplateType).map((type) => (
+                                            <MenuItem key={type} value={type}>
+                                                {type}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Box>
                             </Stack>
-                            <TextField
-                                fullWidth
-                                label="Description"
-                                name="description"
-                                value={formData.description}
-                                onChange={handleInputChange}
-                                multiline
-                                rows={1}
-                            />
+                            <Box sx={{ width: '100%' }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Description</Typography>
+                                <TextField
+                                    fullWidth
+                                    hiddenLabel
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleInputChange}
+                                    multiline
+                                    rows={1}
+                                />
+                            </Box>
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                                <TextField
-                                    fullWidth
-                                    label="Start Date"
-                                    name="startDate"
-                                    type="date"
-                                    value={formData.startDate}
-                                    onChange={handleInputChange}
-                                    InputLabelProps={{ shrink: true }}
-                                    required
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="End Date"
-                                    name="endDate"
-                                    type="date"
-                                    value={formData.endDate}
-                                    onChange={handleInputChange}
-                                    InputLabelProps={{ shrink: true }}
-                                    required
-                                />
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Start Date</Typography>
+                                    <TextField
+                                        fullWidth
+                                        hiddenLabel
+                                        name="startDate"
+                                        type="date"
+                                        value={formData.startDate}
+                                        onChange={handleInputChange}
+                                        required
+                                    />
+                                </Box>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>End Date</Typography>
+                                    <TextField
+                                        fullWidth
+                                        hiddenLabel
+                                        name="endDate"
+                                        type="date"
+                                        value={formData.endDate}
+                                        onChange={handleInputChange}
+                                        required
+                                    />
+                                </Box>
                             </Stack>
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                                <TextField
-                                    fullWidth
-                                    label="Manager Due Date"
-                                    name="managerDueDate"
-                                    type="date"
-                                    value={formData.managerDueDate}
-                                    onChange={handleInputChange}
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Employee Acknowledgement Due Date"
-                                    name="employeeAcknowledgementDueDate"
-                                    type="date"
-                                    value={formData.employeeAcknowledgementDueDate}
-                                    onChange={handleInputChange}
-                                    InputLabelProps={{ shrink: true }}
-                                />
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Manager Due Date</Typography>
+                                    <TextField
+                                        fullWidth
+                                        hiddenLabel
+                                        name="managerDueDate"
+                                        type="date"
+                                        value={formData.managerDueDate}
+                                        onChange={handleInputChange}
+                                    />
+                                </Box>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Employee Acknowledgement Due Date</Typography>
+                                    <TextField
+                                        fullWidth
+                                        hiddenLabel
+                                        name="employeeAcknowledgementDueDate"
+                                        type="date"
+                                        value={formData.employeeAcknowledgementDueDate}
+                                        onChange={handleInputChange}
+                                    />
+                                </Box>
                             </Stack>
                         </Stack>
                     </Box>
@@ -328,6 +388,33 @@ export default function AppraisalCyclesPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+            >
+                <DialogTitle>Confirm Delete</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete this appraisal cycle? This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmDelete} color="error" variant="contained">
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 }

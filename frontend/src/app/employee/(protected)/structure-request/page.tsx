@@ -14,7 +14,8 @@ import {
     Autocomplete,
     CircularProgress,
     Paper,
-    Alert
+    Alert,
+    Snackbar
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import IconButton from '@mui/material/IconButton';
@@ -116,7 +117,7 @@ export default function StructureRequestPage() {
 
         const payload = {
             requestType,
-            requestedByEmployeeId: selectedEmployee?._id || selectedEmployee?.id,
+            requestedByEmployeeId: selectedEmployee?._id || selectedEmployee?.id || currentUserId,
             targetDepartmentId: selectedDepartment?._id || selectedDepartment?.id,
             targetPositionId: selectedPosition?._id || selectedPosition?.id,
             details,
@@ -173,8 +174,6 @@ export default function StructureRequestPage() {
                 </IconButton>
             </Box>
             <Paper sx={{ p: 4, mt: 3 }}>
-                {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
                 <form onSubmit={handleSubmit}>
                     <Stack spacing={3}>
@@ -196,42 +195,48 @@ export default function StructureRequestPage() {
                             </FormControl>
                         </Box>
 
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Employee (Requested For) *</Typography>
-                            <Autocomplete
-                                options={employees}
-                                getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeNumber})`}
-                                value={selectedEmployee}
-                                onChange={(_, newValue) => setSelectedEmployee(newValue)}
-                                onInputChange={(_, newInputValue) => {
-                                    fetchEmployees(newInputValue);
-                                }}
-                                filterOptions={(x) => x} // Disable client-side filtering since we do server-side
-                                renderInput={(params) => <TextField {...params} size="small" placeholder="Search by name or ID" />}
-                            />
-                        </Box>
+                        {requestType === 'UPDATE_POSITION' && (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Employee (Requested For) *</Typography>
+                                <Autocomplete
+                                    options={employees}
+                                    getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.employeeNumber})`}
+                                    value={selectedEmployee}
+                                    onChange={(_, newValue) => setSelectedEmployee(newValue)}
+                                    onInputChange={(_, newInputValue) => {
+                                        fetchEmployees(newInputValue);
+                                    }}
+                                    filterOptions={(x) => x} // Disable client-side filtering since we do server-side
+                                    renderInput={(params) => <TextField {...params} size="small" placeholder="Search by name or ID" />}
+                                />
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Target Department</Typography>
-                            <Autocomplete
-                                options={departments}
-                                getOptionLabel={(option) => option.name}
-                                value={selectedDepartment}
-                                onChange={(_, newValue) => setSelectedDepartment(newValue)}
-                                renderInput={(params) => <TextField {...params} size="small" placeholder="Select Department" />}
-                            />
-                        </Box>
+                        {requestType !== 'NEW_DEPARTMENT' && (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Target Department</Typography>
+                                <Autocomplete
+                                    options={departments}
+                                    getOptionLabel={(option) => option.name}
+                                    value={selectedDepartment}
+                                    onChange={(_, newValue) => setSelectedDepartment(newValue)}
+                                    renderInput={(params) => <TextField {...params} size="small" placeholder="Select Department" />}
+                                />
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Target Position</Typography>
-                            <Autocomplete
-                                options={positions}
-                                getOptionLabel={(option) => `${option.title} (${option.code})`}
-                                value={selectedPosition}
-                                onChange={(_, newValue) => setSelectedPosition(newValue)}
-                                renderInput={(params) => <TextField {...params} size="small" placeholder="Select Position" />}
-                            />
-                        </Box>
+                        {requestType !== 'NEW_POSITION' && (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Target Position</Typography>
+                                <Autocomplete
+                                    options={positions}
+                                    getOptionLabel={(option) => `${option.title} (${option.code})`}
+                                    value={selectedPosition}
+                                    onChange={(_, newValue) => setSelectedPosition(newValue)}
+                                    renderInput={(params) => <TextField {...params} size="small" placeholder="Select Position" />}
+                                />
+                            </Box>
+                        )}
 
                         <Box>
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Details</Typography>
@@ -264,13 +269,41 @@ export default function StructureRequestPage() {
                             size="large"
                             type="submit"
                             disabled={loading}
-                            startIcon={loading ? <CircularProgress size={20} /> : null}
+                            sx={{ position: 'relative', minWidth: 160 }}
                         >
-                            Submit Request
+                            {loading ? (
+                                <CircularProgress size={24} sx={{ color: 'inherit' }} />
+                            ) : (
+                                'Submit Request'
+                            )}
                         </Button>
                     </Stack>
                 </form>
             </Paper>
+
+            {/* Success Snackbar */}
+            <Snackbar
+                open={!!success}
+                autoHideDuration={5000}
+                onClose={() => setSuccess(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+                    {success}
+                </Alert>
+            </Snackbar>
+
+            {/* Error Snackbar */}
+            <Snackbar
+                open={!!error}
+                autoHideDuration={5000}
+                onClose={() => setError(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+                    {error}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

@@ -26,6 +26,9 @@ export default function Home() {
         <Link href="/about" color="secondary" component={NextLink}>
           Go to the about page
         </Link>
+        <Link href="/employee/performance/manager" color="primary" component={NextLink} sx={{ mt: 2 }}>
+          Manager Appraisal Dashboard
+        </Link>
         <ProTip />
         <Copyright />
       </Box>

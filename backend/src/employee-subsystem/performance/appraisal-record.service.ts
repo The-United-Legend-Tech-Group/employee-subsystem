@@ -1,20 +1,24 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { AppraisalRecordRepository } from './repository/appraisal-record.repository';
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
 import { AppraisalRecordDocument } from './models/appraisal-record.schema';
-import { AppraisalRecordStatus } from './enums/performance.enums';
+import { AppraisalRecordStatus, AppraisalAssignmentStatus } from './enums/performance.enums';
 import { AttendanceService } from '../../time-mangement/services/attendance.service';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
+import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
 
 @Injectable()
 export class AppraisalRecordService {
+    private readonly logger = new Logger(AppraisalRecordService.name);
+
     constructor(
         private readonly appraisalRecordRepository: AppraisalRecordRepository,
         private readonly appraisalTemplateRepository: AppraisalTemplateRepository,
         private readonly attendanceService: AttendanceService,
         private readonly appraisalCycleRepository: AppraisalCycleRepository,
+        private readonly appraisalAssignmentRepository: AppraisalAssignmentRepository,
     ) { }
 
     async getRecordById(id: string): Promise<any> {
@@ -126,6 +130,9 @@ export class AppraisalRecordService {
             throw new NotFoundException(`Appraisal record with ID ${id} not found`);
         }
 
+        // Requirement: Downstream Sub-Systems Depending on This Output: Performance Management (Manager ratings and scores)
+        this.logger.log(`Manager ratings and scores updated for Performance Management consumption. Record ID: ${id}, Total Score: ${totalScore}`);
+
         return updatedRecord;
     }
 
@@ -226,6 +233,20 @@ export class AppraisalRecordService {
         } as Partial<AppraisalRecordDocument>;
 
         const created = await this.appraisalRecordRepository.create(recordPayload as any);
+
+        // Update assignment status
+        await this.appraisalAssignmentRepository.update(
+            { _id: createDto.assignmentId },
+            {
+                status: AppraisalAssignmentStatus.SUBMITTED,
+                submittedAt: new Date(),
+                latestAppraisalId: created._id,
+            }
+        );
+
+        // Requirement: Downstream Sub-Systems Depending on This Output: Performance Management (Manager ratings and scores)
+        this.logger.log(`Manager ratings and scores created for Performance Management consumption. Record ID: ${created._id}, Total Score: ${totalScore}`);
+
         return created as AppraisalRecordDocument;
     }
 }

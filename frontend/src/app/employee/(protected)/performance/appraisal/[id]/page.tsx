@@ -74,7 +74,17 @@ export default function AppraisalFormPage() {
             setAssignment(currentAssignment);
 
             // 2. Fetch Template
-            const templateRes = await fetch(`${API_URL}/performance/templates/${currentAssignment.templateId}`, { headers });
+            let templateId: string;
+            if (currentAssignment.templateId && typeof currentAssignment.templateId === 'object' && '_id' in currentAssignment.templateId) {
+                const rawId = (currentAssignment.templateId as any)._id;
+                templateId = typeof rawId === 'string' ? rawId : String(rawId);
+            } else if (typeof currentAssignment.templateId === 'string') {
+                templateId = currentAssignment.templateId;
+            } else {
+                throw new Error('Invalid Template ID in assignment');
+            }
+
+            const templateRes = await fetch(`${API_URL}/performance/templates/${templateId}`, { headers });
             if (!templateRes.ok) throw new Error('Failed to fetch template');
             const templateData: AppraisalTemplate = await templateRes.json();
             setTemplate(templateData);

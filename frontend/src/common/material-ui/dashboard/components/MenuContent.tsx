@@ -19,6 +19,7 @@ import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import { usePathname, useRouter } from "next/navigation";
 
 const mainListItems = [
@@ -75,6 +76,11 @@ const mainListItems = [
     path: "/employee/performance/my-records",
   },
   {
+    text: "Disputes",
+    icon: <ReportProblemRoundedIcon />,
+    path: "/employee/performance/disputes",
+  },
+  {
     text: "Time Management",
     icon: <AccessTimeRoundedIcon />,
     path: "/employee/time-mangemeant",
@@ -124,6 +130,7 @@ export default function MenuContent() {
     if (text === 'Manager Appraisal Dashboard' && pathname === '/employee/performance/manager') return true;
     if (text === 'My Assigned Appraisals' && pathname === '/employee/performance/manager-assignments') return true;
     if (text === 'My Performance Records' && pathname === '/employee/performance/my-records') return true;
+    if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
     return false;
   };
 
@@ -152,6 +159,7 @@ export default function MenuContent() {
     if (text === 'Manager Appraisal Dashboard') router.push('/employee/performance/manager');
     if (text === 'My Assigned Appraisals') router.push('/employee/performance/manager-assignments');
     if (text === 'My Performance Records') router.push('/employee/performance/my-records');
+    if (text === 'Disputes') router.push('/employee/performance/disputes');
   };
 
   return (

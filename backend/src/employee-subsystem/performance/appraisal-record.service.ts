@@ -136,7 +136,7 @@ export class AppraisalRecordService {
         return updatedRecord;
     }
 
-    async getFinalizedRecordsForEmployee(employeeProfileId: string): Promise<Partial<AppraisalRecordDocument>[]> {
+    async getFinalizedRecordsForEmployee(employeeProfileId: string): Promise<any[]> {
         // Find records that have been published by HR
         const records = await this.appraisalRecordRepository.find({
             employeeProfileId,
@@ -144,19 +144,55 @@ export class AppraisalRecordService {
         });
 
         // Map to only return fields relevant for employee view
-        return records.map((r) => ({
-            _id: (r as any)._id,
-            templateId: r.templateId,
-            cycleId: r.cycleId,
-            ratings: r.ratings,
-            totalScore: r.totalScore,
-            overallRatingLabel: r.overallRatingLabel,
-            managerSummary: r.managerSummary,
-            strengths: r.strengths,
-            improvementAreas: r.improvementAreas,
-            hrPublishedAt: r.hrPublishedAt,
-            employeeViewedAt: r.employeeViewedAt,
+        const populatedRecords = await Promise.all(records.map(async (r) => {
+            const cycle = await this.appraisalCycleRepository.findOne({ _id: r.cycleId });
+            const template = await this.appraisalTemplateRepository.findOne({ _id: r.templateId });
+            
+            // Calculate overall rating label if not already set
+            let overallRatingLabel = r.overallRatingLabel;
+            if (!overallRatingLabel && template && r.totalScore !== undefined) {
+                overallRatingLabel = this.calculateRatingLabel(r.totalScore, template.ratingScale);
+            }
+            
+            return {
+                _id: (r as any)._id,
+                assignmentId: r.assignmentId,
+                templateId: r.templateId,
+                cycleId: r.cycleId,
+                cycleName: cycle ? cycle.name : 'Unknown Cycle',
+                ratings: r.ratings,
+                totalScore: r.totalScore,
+                overallRatingLabel: overallRatingLabel,
+                managerSummary: r.managerSummary,
+                strengths: r.strengths,
+                improvementAreas: r.improvementAreas,
+                hrPublishedAt: r.hrPublishedAt,
+                employeeViewedAt: r.employeeViewedAt,
+            };
         }));
+
+        return populatedRecords;
+    }
+
+    private calculateRatingLabel(score: number, ratingScale: any): string {
+        if (!ratingScale.labels || ratingScale.labels.length === 0) {
+            return score.toFixed(2);
+        }
+
+        const range = ratingScale.max - ratingScale.min;
+        const labelCount = ratingScale.labels.length;
+        const labelRange = range / labelCount;
+
+        for (let i = 0; i < labelCount; i++) {
+            const lowerBound = ratingScale.min + (i * labelRange);
+            const upperBound = ratingScale.min + ((i + 1) * labelRange);
+            
+            if (score >= lowerBound && (i === labelCount - 1 ? score <= upperBound : score < upperBound)) {
+                return ratingScale.labels[i];
+            }
+        }
+
+        return ratingScale.labels[labelCount - 1];
     }
 
     async createRecord(createDto: CreateAppraisalRecordDto): Promise<AppraisalRecordDocument> {

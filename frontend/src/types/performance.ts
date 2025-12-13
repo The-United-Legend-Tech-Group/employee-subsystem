@@ -47,6 +47,7 @@ export interface AppraisalRecord {
     _id?: string;
     assignmentId: string;
     cycleId: string;
+    cycleName?: string;
     templateId: string;
     employeeProfileId: string;
     managerProfileId: string;

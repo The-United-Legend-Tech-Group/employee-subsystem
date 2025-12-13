@@ -30,7 +30,7 @@ export class AnalyticsService {
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly employeeProfileRepo: EmployeeProfileRepository,
     private readonly departmentRepo: DepartmentRepository,
-  ) {}
+  ) { }
 
   /**
    * Generate overtime report for HR/Payroll officers
@@ -81,7 +81,7 @@ export class AnalyticsService {
       if (
         filters.departmentId &&
         (employee as any).primaryDepartmentId?.toString() !==
-          filters.departmentId
+        filters.departmentId
       ) {
         continue;
       }
@@ -141,10 +141,10 @@ export class AnalyticsService {
 
         const holidayType = isHoliday
           ? holidays.find((h: any) => {
-              const holidayStart = new Date(h.startDate);
-              const holidayEnd = h.endDate ? new Date(h.endDate) : holidayStart;
-              return recordDate >= holidayStart && recordDate <= holidayEnd;
-            })?.type
+            const holidayStart = new Date(h.startDate);
+            const holidayEnd = h.endDate ? new Date(h.endDate) : holidayStart;
+            return recordDate >= holidayStart && recordDate <= holidayEnd;
+          })?.type
           : undefined;
 
         // Get department name
@@ -162,6 +162,7 @@ export class AnalyticsService {
         const clockOut = punches.find((p: any) => p.type === 'OUT')?.time;
 
         overtimeRecords.push({
+          attendanceId: (record as any)._id,
           employeeId,
           employeeName: `${employee.firstName} ${employee.lastName}`,
           department: departmentName,
@@ -171,7 +172,7 @@ export class AnalyticsService {
           shiftEndTime: shift.endTime,
           actualClockIn: clockIn,
           actualClockOut: clockOut,
-          wasApproved: !shift.requiresApprovalForOvertime, // If doesn't require approval, consider it approved
+          wasApproved: !shift.requiresApprovalForOvertime,
           isHoliday,
           holidayType,
         });
@@ -237,7 +238,7 @@ export class AnalyticsService {
       if (
         filters.departmentId &&
         (employee as any).primaryDepartmentId?.toString() !==
-          filters.departmentId
+        filters.departmentId
       ) {
         continue;
       }

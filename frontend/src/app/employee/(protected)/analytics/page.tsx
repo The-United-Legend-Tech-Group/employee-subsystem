@@ -40,6 +40,7 @@ interface ComplianceSummary {
 }
 
 interface OvertimeRecord {
+    attendanceId: string;
     employeeId: string;
     employeeName: string;
     department: string;
@@ -198,67 +199,67 @@ export default function AnalyticsPage() {
     const overtimeColumns: GridColDef[] = [
         { field: 'employeeName', headerName: 'Employee', flex: 1, minWidth: 150 },
         { field: 'department', headerName: 'Department', flex: 1, minWidth: 150 },
-        { 
-            field: 'date', 
-            headerName: 'Date', 
+        {
+            field: 'date',
+            headerName: 'Date',
             width: 120,
             valueFormatter: (params) => new Date(params as string).toLocaleDateString()
         },
-        { 
-            field: 'overtimeHours', 
-            headerName: 'OT Hours', 
-            width: 100, 
+        {
+            field: 'overtimeHours',
+            headerName: 'OT Hours',
+            width: 100,
             type: 'number',
             valueFormatter: (params) => (params as number)?.toFixed(2)
         },
-        { 
-            field: 'actualClockIn', 
-            headerName: 'Clock In', 
+        {
+            field: 'actualClockIn',
+            headerName: 'Clock In',
             width: 100,
-            valueFormatter: (params) => params ? new Date(params as string).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'
+            valueFormatter: (params) => params ? new Date(params as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'
         },
-        { 
-            field: 'actualClockOut', 
-            headerName: 'Clock Out', 
+        {
+            field: 'actualClockOut',
+            headerName: 'Clock Out',
             width: 100,
-            valueFormatter: (params) => params ? new Date(params as string).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'
+            valueFormatter: (params) => params ? new Date(params as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'
         },
-        { 
-            field: 'isHoliday', 
-            headerName: 'Holiday', 
-            width: 100, 
-            type: 'boolean' 
+        {
+            field: 'isHoliday',
+            headerName: 'Holiday',
+            width: 100,
+            type: 'boolean'
         },
     ];
 
     const exceptionColumns: GridColDef[] = [
         { field: 'employeeName', headerName: 'Employee', flex: 1, minWidth: 150 },
         { field: 'department', headerName: 'Department', flex: 1, minWidth: 150 },
-        { 
-            field: 'date', 
-            headerName: 'Date', 
+        {
+            field: 'date',
+            headerName: 'Date',
             width: 120,
             valueFormatter: (params) => new Date(params as string).toLocaleDateString()
         },
-        { 
-            field: 'exceptionType', 
-            headerName: 'Type', 
+        {
+            field: 'exceptionType',
+            headerName: 'Type',
             width: 150,
             renderCell: (params) => (
-                <Chip 
-                    label={params.value} 
-                    color={params.value === 'MISSED_PUNCH' ? 'warning' : 'error'} 
-                    size="small" 
+                <Chip
+                    label={params.value}
+                    color={params.value === 'MISSED_PUNCH' ? 'warning' : 'error'}
+                    size="small"
                     variant="outlined"
                 />
             )
         },
         { field: 'details', headerName: 'Details', flex: 1.5, minWidth: 200 },
-        { 
-            field: 'hasCorrectionRequest', 
-            headerName: 'Correction Pending', 
-            width: 150, 
-            type: 'boolean' 
+        {
+            field: 'hasCorrectionRequest',
+            headerName: 'Correction Pending',
+            width: 150,
+            type: 'boolean'
         },
     ];
 
@@ -270,7 +271,7 @@ export default function AnalyticsPage() {
                 <Typography component="h2" variant="h5" fontWeight="bold">
                     Analytics Dashboard
                 </Typography>
-                
+
                 <Stack direction="row" spacing={2} alignItems="center">
                     <TextField
                         select
@@ -356,19 +357,19 @@ export default function AnalyticsPage() {
                         <Tab label="Overtime Report" />
                         <Tab label="Exception Report" />
                     </Tabs>
-                    
+
                     <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<DownloadIcon />} 
+                        <Button
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
                             size="small"
                             onClick={() => handleDownload(tabValue === 0 ? 'overtime' : 'exception', 'CSV')}
                         >
                             Export CSV
                         </Button>
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<DownloadIcon />} 
+                        <Button
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
                             size="small"
                             onClick={() => handleDownload(tabValue === 0 ? 'overtime' : 'exception', 'EXCEL')}
                         >
@@ -382,7 +383,7 @@ export default function AnalyticsPage() {
                         <DataGrid
                             rows={overtimeRecords}
                             columns={overtimeColumns}
-                            getRowId={(row) => `${row.employeeId}-${row.date}`}
+                            getRowId={(row) => row.attendanceId}
                             loading={loadingReports}
                             slots={{ toolbar: GridToolbar }}
                             slotProps={{

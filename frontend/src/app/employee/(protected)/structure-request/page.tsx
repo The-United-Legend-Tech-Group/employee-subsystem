@@ -15,8 +15,13 @@ import {
     CircularProgress,
     Paper,
     Alert,
-    Snackbar
+    Snackbar,
+    ToggleButton,
+    ToggleButtonGroup,
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import { useRouter } from 'next/navigation';
 import IconButton from '@mui/material/IconButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -153,8 +158,60 @@ export default function StructureRequestPage() {
         }
     };
 
+    const theme = useTheme();
+
     return (
         <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
+            {/* Toggle Navigation */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <ToggleButtonGroup
+                    value="submit"
+                    exclusive
+                    onChange={(e, newView) => {
+                        if (newView === 'my-requests') {
+                            router.push('/employee/structure-request/my-requests');
+                        }
+                    }}
+                    aria-label="request view mode"
+                    sx={{
+                        bgcolor: 'background.paper',
+                        borderRadius: '24px',
+                        boxShadow: theme.shadows[3],
+                        p: 0.5,
+                        gap: 0.5,
+                        '& .MuiToggleButton-root': {
+                            borderRadius: '20px',
+                            border: 'none',
+                            px: 2,
+                            py: 0.5,
+                            transition: 'all 0.2s',
+                            color: 'text.secondary',
+                            '&.Mui-selected': {
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                boxShadow: theme.shadows[2],
+                                '&:hover': {
+                                    bgcolor: 'primary.dark',
+                                }
+                            },
+                            '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            }
+                        },
+                    }}
+                    size="small"
+                >
+                    <ToggleButton value="submit" aria-label="submit request">
+                        <AddCircleOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">Submit Request</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="my-requests" aria-label="my requests">
+                        <ListAltIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">My Requests</Typography>
+                    </ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h4" gutterBottom>
                     Submit Structure Change Request

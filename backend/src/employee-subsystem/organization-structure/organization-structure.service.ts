@@ -70,6 +70,13 @@ export class OrganizationStructureService {
       .exec();
   }
 
+  async listChangeRequestsByEmployee(employeeId: string): Promise<StructureChangeRequest[]> {
+    return this.changeRequestModel
+      .find({ submittedByEmployeeId: employeeId })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
   async getChangeRequestById(id: string): Promise<StructureChangeRequest> {
     const req = await this.changeRequestModel.findById(id).exec();
     if (!req) throw new NotFoundException('Change request not found');

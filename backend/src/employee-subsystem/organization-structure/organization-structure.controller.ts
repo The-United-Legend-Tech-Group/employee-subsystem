@@ -86,6 +86,22 @@ export class OrganizationStructureController {
     return this.organizationStructureService.listChangeRequests();
   }
 
+  @Get('requests/user/:employeeId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'List structure change requests submitted by a specific employee',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Change requests for the employee',
+    type: [StructureChangeRequest],
+  })
+  async listRequestsByEmployee(
+    @Param('employeeId') employeeId: string,
+  ): Promise<StructureChangeRequest[]> {
+    return this.organizationStructureService.listChangeRequestsByEmployee(employeeId);
+  }
+
   @Get('requests/:id')
   @UseGuards(AuthGuard, authorizationGuard)
   //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.DEPARTMENT_HEAD)

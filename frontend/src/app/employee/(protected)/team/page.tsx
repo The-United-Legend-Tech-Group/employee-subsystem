@@ -304,9 +304,9 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                         <AssessmentRoundedIcon fontSize="small" sx={{ mr: 1 }} />
                         <Typography variant="caption" fontWeight="bold">Summary</Typography>
                     </ToggleButton>
-                    <ToggleButton value="submit" aria-label="submit request">
+                    <ToggleButton value="submit" aria-label="manage requests">
                         <AddCircleOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-                        <Typography variant="caption" fontWeight="bold">Submit Request</Typography>
+                        <Typography variant="caption" fontWeight="bold">Manage Requests</Typography>
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>

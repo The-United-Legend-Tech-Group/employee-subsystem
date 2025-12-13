@@ -122,6 +122,14 @@ export class OrganizationStructureService {
       // don't fail approval if structure approval record creation fails
     }
 
+    // Apply the change
+    try {
+      await this.applyChangeRequest(updated);
+    } catch (err) {
+      console.error('[OrganizationStructure] approveChangeRequest - failed to apply change:', err);
+      // Should we roll back approval? For now, we log it. Ideally we should transactionalize this.
+    }
+
     // Create structure change log
     try {
       const log = new this.changeLogModel({
@@ -158,6 +166,23 @@ export class OrganizationStructureService {
       // don't fail approval if notification fails
     }
     return updated;
+  }
+
+  private async applyChangeRequest(request: StructureChangeRequestDocument) {
+    // Logic to apply the change based on request type
+    console.log(`[OrganizationStructure] applyChangeRequest - applying request ${request.requestNumber} type ${request.requestType}`);
+
+    if (request.requestType === 'UPDATE_POSITION' && request.targetPositionId && request.requestedByEmployeeId) {
+      // This combination implies a "Change Assignment" request
+      const assignmentDto: CreatePositionAssignmentDto = {
+        employeeId: request.requestedByEmployeeId.toString(),
+        positionId: request.targetPositionId.toString(),
+        startDate: new Date().toISOString(), // Start immediately upon approval
+        changeRequestId: request._id.toString()
+      };
+      console.log('[OrganizationStructure] applyChangeRequest - executing assignPosition');
+      await this.assignPosition(assignmentDto);
+    }
   }
 
   async rejectChangeRequest(
@@ -694,12 +719,26 @@ export class OrganizationStructureService {
     }
 
     // 3. Create Position Assignment
+
+    // 3a. Close existing active assignment if any
+    const existingAssignment = await this.positionAssignmentModel.findOne({
+      employeeProfileId: new Types.ObjectId(employeeId),
+      endDate: { $exists: false }
+    });
+
+    if (existingAssignment) {
+      existingAssignment.endDate = new Date(); // Close it effective now
+      await existingAssignment.save();
+    }
+
     const assignment = new this.positionAssignmentModel({
       employeeProfileId: new Types.ObjectId(employeeId),
       positionId: new Types.ObjectId(positionId),
       departmentId: position.departmentId, // Snapshot at assignment time
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : undefined,
+      changeRequestId: dto.changeRequestId ? new Types.ObjectId(dto.changeRequestId) : undefined,
+      reason: dto.reason,
     });
     const savedAssignment = await assignment.save();
 

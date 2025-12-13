@@ -7,6 +7,16 @@ export class CreatePositionAssignmentDto {
     @IsNotEmpty()
     employeeId: string;
 
+    @ApiProperty({ description: 'Reason for the assignment change (optional)', required: false })
+    @IsString()
+    @IsOptional()
+    reason?: string;
+
+    @ApiProperty({ description: 'The ID of the change request associated with this assignment (optional)', required: false })
+    @IsString()
+    @IsOptional()
+    changeRequestId?: string;
+
     @ApiProperty({ description: 'The ID of the position to assign the employee to' })
     @IsString()
     @IsNotEmpty()

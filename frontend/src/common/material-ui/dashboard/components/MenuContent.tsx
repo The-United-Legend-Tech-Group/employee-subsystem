@@ -45,6 +45,7 @@ const mainListItems = [
   { text: 'Manage Requests', icon: <AssignmentRoundedIcon />, path: '/employee/requests/my-requests' },
   { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees' },
   { text: 'Compose Notification', icon: <SendTwoToneIcon />, path: '/employee/compose-notification' },
+  { text: 'Submit Request', icon: <AssignmentRoundedIcon />, path: '/employee/structure-request' },
 ];
 
 const secondaryListItems = [
@@ -75,6 +76,7 @@ export default function MenuContent() {
     if (text === 'Manage Requests') return pathname === '/employee/manage-requests';
     if (text === 'Manage Employees') return pathname.startsWith('/employee/manage-employees');
     if (text === 'Compose Notification') return pathname === '/employee/compose-notification';
+    if (text === 'Submit Request') return pathname === '/employee/structure-request';
     if (text === 'Time Management') return pathname === '/employee/time-mangemeant';
     return false;
   };
@@ -91,8 +93,8 @@ export default function MenuContent() {
     if (text === 'Analytics') router.push('/employee/analytics');
     if (text === 'Settings') router.push('/employee/settings');
     if (text === 'Calendar') router.push('/employee/calendar');
-    if (text === 'Submit Request') router.push('/employee/submit-request');
-    if (text === 'Manage Organization') router.push('/employee/manage-organization');
+    if (text === 'Submit Request') router.push('/employee/structure-request');
+    if (text === 'Manage Organization') router.push('/employee/manage-organization'); // Assuming this was already there or handled generally
     if (text === 'Manage Requests') router.push('/employee/manage-requests');
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Compose Notification') router.push('/employee/compose-notification');

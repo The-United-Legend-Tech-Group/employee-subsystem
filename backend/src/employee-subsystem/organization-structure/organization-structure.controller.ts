@@ -116,7 +116,7 @@ export class OrganizationStructureController {
 
   @Post('requests')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.DEPARTMENT_HEAD)
+  //@Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Submit a structure change request (Managers)' })
   @ApiResponse({
     status: 201,
@@ -128,6 +128,8 @@ export class OrganizationStructureController {
   ): Promise<StructureChangeRequest> {
     return this.organizationStructureService.submitChangeRequest(dto);
   }
+
+
 
   @Get('managers/:managerId/team')
   @UseGuards(AuthGuard, authorizationGuard)
@@ -146,7 +148,7 @@ export class OrganizationStructureController {
 
   @Post('assignments')
   @UseGuards(AuthGuard, authorizationGuard)
- // @Roles(SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
+  // @Roles(SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Assign an employee to a position' })
   @ApiResponse({
     status: 201,

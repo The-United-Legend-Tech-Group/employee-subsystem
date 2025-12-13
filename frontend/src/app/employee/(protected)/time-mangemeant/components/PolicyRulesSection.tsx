@@ -130,6 +130,7 @@ const createDefaultShiftForm = (): ShiftFormState => ({
   endTime: "17:00",
   active: true,
   graceInMinutes: 0,
+  graceOutMinutes: 0,
 });
 
 const createDefaultHolidayForm = (): HolidayFormState => ({
@@ -415,44 +416,61 @@ function PolicyInsightCard({
 
           <Stack spacing={1.5}>
             {insight.toggles.map((toggle) => {
-              const toggleDisabled = (() => {
-                if (!onToggle) return true;
-                if (toggle.action?.kind === "info") {
-                  return false;
-                }
-                return disableInteractions || !toggle.action;
-              })();
+              const toggleDisabled =
+                !onToggle || (!toggle.action && toggle.action?.kind !== "info");
+              const hasAction = toggle.action && toggle.action.kind !== "info";
 
               return (
                 <Box key={toggle.id}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={toggle.enabled}
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      label={toggle.enabled ? "Active" : "Inactive"}
+                      size="small"
+                      color={toggle.enabled ? "success" : "default"}
+                      variant="outlined"
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 500, flexGrow: 1 }}
+                    >
+                      {toggle.label}
+                    </Typography>
+                    {hasAction && (
+                      <Button
                         size="small"
+                        variant="outlined"
                         disabled={toggleDisabled}
-                        onClick={(event) => event.preventDefault()}
-                        onChange={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          if (toggleDisabled) {
-                            return;
+                        onClick={() => {
+                          if (!toggleDisabled) {
+                            onToggle?.(insight.id, toggle);
                           }
-                          onToggle?.(insight.id, toggle);
                         }}
-                      />
-                    }
-                    label={
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {toggle.label}
-                      </Typography>
-                    }
-                  />
+                        sx={{ minWidth: "auto", textTransform: "none" }}
+                      >
+                        Configure
+                      </Button>
+                    )}
+                    {!hasAction && toggle.action?.kind === "info" && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        disabled={toggleDisabled}
+                        onClick={() => {
+                          if (!toggleDisabled) {
+                            onToggle?.(insight.id, toggle);
+                          }
+                        }}
+                        sx={{ minWidth: "auto", textTransform: "none" }}
+                      >
+                        Info
+                      </Button>
+                    )}
+                  </Stack>
                   {toggle.hint ? (
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      sx={{ pl: 4.5 }}
+                      sx={{ pl: 0, mt: 0.5, display: "block" }}
                     >
                       {toggle.hint}
                     </Typography>
@@ -660,18 +678,10 @@ export default function PolicyRulesSection({
         return;
       }
 
-      if (!tokenReady) {
-        setSnackbar({
-          open: true,
-          severity: "warning",
-          message: "Please sign in again to configure policies.",
-        });
-        return;
-      }
-
+      // Open dialog even without token - validation happens on submit
       setActiveAction({ ...toggle.action, label: toggle.label });
     },
-    [tokenReady]
+    []
   );
 
   const policyInsights = React.useMemo<PolicyInsight[]>(() => {
@@ -748,67 +758,107 @@ export default function PolicyRulesSection({
         id: "lateness",
         title: "Lateness policy",
         description:
-          "Uses grace windows and punch policies enforced via attendance service.",
+          "Set grace periods, lateness thresholds, and automatic deductions for fair penalty application.",
         icon: <WarningAmberRoundedIcon fontSize="small" />,
         avatarColor: "warning",
         toggles: [
           {
-            id: "graceWindows",
-            label: "Grace windows enforced",
+            id: "gracePeriodsActive",
+            label: "Grace periods enforced",
             enabled: gracePolicyEnforced,
             hint: gracePolicyEnforced
-              ? `Range ${formatMinutes(graceAverages.minIn)} - ${formatMinutes(
-                  graceAverages.maxIn
-                )} on clock-in`
-              : "No grace windows configured",
+              ? `${
+                  activeShifts.filter(
+                    (s) =>
+                      (s.graceInMinutes ?? 0) > 0 ||
+                      (s.graceOutMinutes ?? 0) > 0
+                  ).length
+                } shifts with grace windows`
+              : "Configure grace via shift templates",
             action: {
               kind: "shift",
               helperText:
-                "Provide grace minutes when creating a shift template to enforce lateness windows.",
-              preset: { graceInMinutes: 5 },
+                "Create shifts with grace periods. Grace minutes allow employees to clock in/out within a tolerance window without penalties.",
+              preset: { graceInMinutes: 15 },
             },
           },
           {
-            id: "strictPunchPolicy",
-            label: "Strict punch policy",
-            enabled: strictPunchPolicy,
-            hint: strictPunchPolicy
-              ? "FIRST_LAST policy present"
-              : "Multiple punch accumulation",
+            id: "latenessThresholds",
+            label: "Lateness threshold tracking",
+            enabled: gracePolicyEnforced,
+            hint: gracePolicyEnforced
+              ? `Thresholds defined by grace windows across ${activeShifts.length} shifts`
+              : "Set up shifts with grace periods first",
             action: {
               kind: "info",
               message:
-                "Punch policy adjustments require backend support. Tracking remains read-only here.",
+                "Lateness thresholds are determined by graceInMinutes on each shift. Arrivals after the grace window are considered late.",
+            },
+          },
+          {
+            id: "automaticDeductions",
+            label: "Automatic penalty deductions",
+            enabled: strictPunchPolicy && gracePolicyEnforced,
+            hint:
+              strictPunchPolicy && gracePolicyEnforced
+                ? "FIRST_LAST policy enables accurate lateness tracking"
+                : "Requires strict punch policy and grace configuration",
+            action: {
+              kind: "info",
+              message:
+                "Penalties are calculated based on minutes late beyond the grace period. Configure per-shift grace thresholds to control when deductions apply.",
             },
           },
         ],
         metrics: [
           {
-            label: "Average grace (in)",
+            label: "Clock-in grace average",
             value: formatMinutes(graceAverages.avgIn),
           },
           {
-            label: "Average grace (out)",
+            label: "Clock-out grace average",
             value: formatMinutes(graceAverages.avgOut),
+          },
+          {
+            label: "Max clock-in tolerance",
+            value: formatMinutes(graceAverages.maxIn),
+          },
+          {
+            label: "Shifts with grace",
+            value: `${
+              activeShifts.filter(
+                (s) =>
+                  (s.graceInMinutes ?? 0) > 0 || (s.graceOutMinutes ?? 0) > 0
+              ).length
+            }/${activeShifts.length}`,
           },
         ],
         chips: [
-          graceAverages.maxOut
-            ? {
-                label: `Checkout grace up to ${formatMinutes(
-                  graceAverages.maxOut
-                )}`,
-                color: "default",
-              }
-            : undefined,
-          graceAverages.maxIn
+          graceAverages.maxIn > 0
             ? {
                 label: `Check-in grace up to ${formatMinutes(
                   graceAverages.maxIn
                 )}`,
-                color: "default",
+                color: "success",
               }
             : undefined,
+          graceAverages.maxOut > 0
+            ? {
+                label: `Checkout grace up to ${formatMinutes(
+                  graceAverages.maxOut
+                )}`,
+                color: "success",
+              }
+            : undefined,
+          strictPunchPolicy
+            ? {
+                label: "FIRST_LAST policy active",
+                color: "info",
+              }
+            : {
+                label: "Flexible punch tracking",
+                color: "default",
+              },
         ].filter(Boolean) as PolicyInsight["chips"],
       },
       {
@@ -930,7 +980,7 @@ export default function PolicyRulesSection({
                   <PolicyInsightCard
                     insight={insight}
                     onToggle={handlePolicyToggle}
-                    disableInteractions={loading || !tokenReady}
+                    disableInteractions={loading}
                   />
                 </Grid>
               ))}
@@ -1407,22 +1457,20 @@ export default function PolicyRulesSection({
           </Grid>
         </Stack>
       )}
-      {tokenReady ? (
-        <PolicyActionDialog
-          open={Boolean(activeAction)}
-          action={activeAction}
-          token={authToken ?? ""}
-          onClose={() => setActiveAction(null)}
-          onSuccess={(message) => {
-            onRefresh?.();
-            setSnackbar({
-              open: true,
-              severity: "success",
-              message,
-            });
-          }}
-        />
-      ) : null}
+      <PolicyActionDialog
+        open={Boolean(activeAction)}
+        action={activeAction}
+        token={authToken ?? ""}
+        onClose={() => setActiveAction(null)}
+        onSuccess={(message) => {
+          onRefresh?.();
+          setSnackbar({
+            open: true,
+            severity: "success",
+            message,
+          });
+        }}
+      />
       <Snackbar
         open={snackbar.open}
         autoHideDuration={5000}
@@ -1467,6 +1515,10 @@ function PolicyActionDialog({
   );
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [shiftTypes, setShiftTypes] = React.useState<
+    Array<{ _id: string; name: string; active?: boolean }>
+  >([]);
+  const [loadingShiftTypes, setLoadingShiftTypes] = React.useState(false);
 
   React.useEffect(() => {
     setError(null);
@@ -1478,12 +1530,30 @@ function PolicyActionDialog({
 
     if (action.kind === "shift") {
       setShiftForm({ ...createDefaultShiftForm(), ...action.preset });
+      // Load shift types for dropdown
+      const loadTypes = async () => {
+        setLoadingShiftTypes(true);
+        try {
+          const res = await fetch(`${API_BASE}/time/shift-types`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setShiftTypes(Array.isArray(data) ? data : []);
+          }
+        } catch (e) {
+          console.warn("Failed to load shift types:", e);
+        } finally {
+          setLoadingShiftTypes(false);
+        }
+      };
+      loadTypes();
     } else if (action.kind === "weekend") {
       setHolidayForm({ ...createDefaultHolidayForm(), ...action.preset });
     } else if (action.kind === "rule") {
       setRuleForm({ ...createDefaultScheduleRuleForm(), ...action.preset });
     }
-  }, [action]);
+  }, [action, token]);
 
   const isShift = action?.kind === "shift";
   const isWeekend = action?.kind === "weekend";
@@ -1504,14 +1574,23 @@ function PolicyActionDialog({
       setError(null);
 
       if (action.kind === "shift") {
-        if (!shiftForm.name.trim() || !shiftForm.shiftType.trim()) {
-          throw new Error("Shift name and shift type are required.");
+        if (!shiftForm.name.trim()) {
+          throw new Error("Shift name is required.");
+        }
+        if (!shiftForm.shiftType.trim()) {
+          throw new Error("Please select a shift type.");
         }
         if (!/^\d{2}:\d{2}$/.test(shiftForm.startTime)) {
           throw new Error("Provide a valid start time in HH:MM format.");
         }
         if (!/^\d{2}:\d{2}$/.test(shiftForm.endTime)) {
           throw new Error("Provide a valid end time in HH:MM format.");
+        }
+        if (shiftForm.graceInMinutes < 0 || shiftForm.graceInMinutes > 120) {
+          throw new Error("Clock-in grace must be between 0 and 120 minutes.");
+        }
+        if (shiftForm.graceOutMinutes < 0 || shiftForm.graceOutMinutes > 120) {
+          throw new Error("Clock-out grace must be between 0 and 120 minutes.");
         }
 
         const payload = {
@@ -1520,13 +1599,12 @@ function PolicyActionDialog({
           startTime: shiftForm.startTime,
           endTime: shiftForm.endTime,
           active: shiftForm.active,
-          graceInMinutes: Number.isFinite(shiftForm.graceInMinutes)
-            ? Number(shiftForm.graceInMinutes)
-            : 0,
+          graceInMinutes: Number(shiftForm.graceInMinutes) || 0,
+          graceOutMinutes: Number(shiftForm.graceOutMinutes) || 0,
         };
 
         await postJson(token, "/time/shifts", payload);
-        onSuccess?.("Shift template created successfully.");
+        onSuccess?.("Shift template created successfully with grace periods.");
         onClose();
         return;
       }
@@ -1642,19 +1720,61 @@ function PolicyActionDialog({
               fullWidth
               required
             />
-            <TextField
-              label="Shift type ID"
-              helperText="Provide an existing ShiftType document identifier"
-              value={shiftForm.shiftType}
-              onChange={(event) =>
-                setShiftForm((prev) => ({
-                  ...prev,
-                  shiftType: event.target.value,
-                }))
-              }
-              fullWidth
-              required
-            />
+            {loadingShiftTypes ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <CircularProgress size={20} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading shift types...
+                </Typography>
+              </Box>
+            ) : shiftTypes.length > 0 ? (
+              <FormControl fullWidth required>
+                <InputLabel id="shift-type-select-label">Shift type</InputLabel>
+                <Select
+                  labelId="shift-type-select-label"
+                  value={shiftForm.shiftType}
+                  label="Shift type"
+                  onChange={(event) =>
+                    setShiftForm((prev) => ({
+                      ...prev,
+                      shiftType: event.target.value,
+                    }))
+                  }
+                >
+                  {shiftTypes.map((st) => (
+                    <MenuItem key={st._id} value={st._id}>
+                      {st.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  Select the shift category this template belongs to
+                </FormHelperText>
+              </FormControl>
+            ) : (
+              <>
+                <TextField
+                  label="Shift type ID"
+                  helperText="Provide an existing ShiftType document identifier or create one below"
+                  value={shiftForm.shiftType}
+                  onChange={(event) =>
+                    setShiftForm((prev) => ({
+                      ...prev,
+                      shiftType: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  required
+                />
+                <Alert severity="warning">
+                  <Typography variant="caption">
+                    No shift types found. You can manually enter a shift type
+                    ID, or contact your administrator to create shift types
+                    first.
+                  </Typography>
+                </Alert>
+              </>
+            )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 label="Start time"
@@ -1683,19 +1803,50 @@ function PolicyActionDialog({
                 fullWidth
               />
             </Stack>
-            <TextField
-              label="Grace minutes (clock-in)"
-              type="number"
-              inputProps={{ min: 0, step: 1 }}
-              value={shiftForm.graceInMinutes}
-              onChange={(event) =>
-                setShiftForm((prev) => ({
-                  ...prev,
-                  graceInMinutes: Number(event.target.value) || 0,
-                }))
-              }
-              fullWidth
-            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                label="Grace period (clock-in)"
+                type="number"
+                inputProps={{ min: 0, step: 1, max: 120 }}
+                value={shiftForm.graceInMinutes}
+                onChange={(event) =>
+                  setShiftForm((prev) => ({
+                    ...prev,
+                    graceInMinutes: Number(event.target.value) || 0,
+                  }))
+                }
+                fullWidth
+                helperText="Minutes after shift start"
+              />
+              <TextField
+                label="Grace period (clock-out)"
+                type="number"
+                inputProps={{ min: 0, step: 1, max: 120 }}
+                value={shiftForm.graceOutMinutes}
+                onChange={(event) =>
+                  setShiftForm((prev) => ({
+                    ...prev,
+                    graceOutMinutes: Number(event.target.value) || 0,
+                  }))
+                }
+                fullWidth
+                helperText="Minutes before shift end"
+              />
+            </Stack>
+            <Alert severity="info">
+              <Typography variant="caption">
+                <strong>Grace periods:</strong>
+                <br />• <strong>Clock-in grace:</strong> Employees can arrive up
+                to {shiftForm.graceInMinutes || 0} min late without penalty
+                <br />• <strong>Clock-out grace:</strong> Employees can leave up
+                to {shiftForm.graceOutMinutes || 0} min early without penalty
+                <br />
+                • Times beyond these thresholds trigger lateness tracking and
+                deductions
+                <br />• Configure different periods per shift type to match
+                operational needs
+              </Typography>
+            </Alert>
             <FormControlLabel
               control={
                 <Switch

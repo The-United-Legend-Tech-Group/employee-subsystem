@@ -71,10 +71,6 @@ export default function ManagerAssignmentsPage() {
             alert('No appraisal record found to publish.');
             return;
         }
-        
-        if (!confirm('Are you sure you want to publish this appraisal? It will become visible to the employee.')) {
-            return;
-        }
 
         try {
             const token = localStorage.getItem('access_token');

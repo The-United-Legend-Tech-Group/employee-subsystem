@@ -114,7 +114,7 @@ export default function AppraisalFormPage() {
                 // Initialize empty ratings based on template
                 const initialRatings: Record<string, { value: number; comments: string }> = {};
                 templateData.criteria?.forEach((c: any) => {
-                    initialRatings[c.key] = { value: 0, comments: '' };
+                    initialRatings[c.key] = { value: templateData.ratingScale?.min || 0, comments: '' };
                 });
                 setRatings(initialRatings);
             }
@@ -190,7 +190,10 @@ export default function AppraisalFormPage() {
                     body: JSON.stringify(updateDto)
                 });
 
-                if (!res.ok) throw new Error('Failed to update record');
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.message || 'Failed to update record');
+                }
             } else {
                 // Create new record
                 const createDto: CreateAppraisalRecordDto = {
@@ -211,7 +214,10 @@ export default function AppraisalFormPage() {
                     body: JSON.stringify(createDto)
                 });
 
-                if (!res.ok) throw new Error('Failed to create record');
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.message || 'Failed to create record');
+                }
             }
 
             router.push('/employee/performance/manager-assignments');

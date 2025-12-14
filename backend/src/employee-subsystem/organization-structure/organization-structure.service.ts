@@ -529,6 +529,32 @@ export class OrganizationStructureService {
 
     const updated = await this.positionRepository.updateById(id, { $set: dto });
     if (!updated) throw new NotFoundException('Position not found');
+
+    // Propagate changes to employees assigned to this position
+    const updates: Partial<EmployeeProfile> = {};
+    const oldReportsTo =
+      pos.reportsToPositionId && pos.reportsToPositionId.toString();
+    const newReportsTo =
+      updated.reportsToPositionId && updated.reportsToPositionId.toString();
+
+    if (oldReportsTo !== newReportsTo) {
+      updates.supervisorPositionId = updated.reportsToPositionId;
+    }
+
+    const oldDept = pos.departmentId && pos.departmentId.toString();
+    const newDept = updated.departmentId && updated.departmentId.toString();
+
+    if (oldDept !== newDept) {
+      updates.primaryDepartmentId = updated.departmentId;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.employeeModel.updateMany(
+        { primaryPositionId: updated._id },
+        { $set: updates },
+      );
+    }
+
     return updated as any as Position;
   }
 

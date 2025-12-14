@@ -73,7 +73,7 @@ export default function OptionsMenu() {
       >
         <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/dashboard`); }}>Profile</MenuItem>
         <Divider />
-        <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/login`); }}>Add another account</MenuItem>
+        <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/login`); }}>Switch Accounts</MenuItem>
         <MenuItem onClick={() => { handleClose(); router.push(`${basePath}/settings`); }}>Settings</MenuItem>
         <Divider />
         <MenuItem

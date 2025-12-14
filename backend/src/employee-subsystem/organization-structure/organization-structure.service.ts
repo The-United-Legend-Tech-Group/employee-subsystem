@@ -453,7 +453,8 @@ export class OrganizationStructureService {
   }
 
   /**
-   * Return the user's hierarchy subtree rooted at their primary position.
+   * Return the user's hierarchy showing the path from the root to the user's position,
+   * including all ancestors and the user's subordinates.
    * Returns in the same format as getOrganizationHierarchy (array of root nodes).
    * Available to all authenticated employees, not role-limited.
    */
@@ -478,13 +479,15 @@ export class OrganizationStructureService {
 
     const positions = await this.positionRepository.findAllActiveLean();
 
+    // Build a map of position id -> position object
     const map = new Map<string, any>();
     positions.forEach((p: any) => {
       const id = p._id?.toString() || p.id || '';
       map.set(id, { ...p, id, children: [] });
     });
 
-    // Build parent-child relationships
+    // Build parent lookup for finding ancestors
+    const parentMap = new Map<string, string>();
     positions.forEach((p: any) => {
       const id = (p._id && p._id.toString && p._id.toString()) || p.id || '';
       const reportsTo =
@@ -492,18 +495,90 @@ export class OrganizationStructureService {
         p.reportsToPositionId.toString &&
         p.reportsToPositionId.toString();
       if (reportsTo && map.has(reportsTo)) {
-        map.get(reportsTo).children.push(map.get(id));
+        parentMap.set(id, reportsTo);
       }
     });
 
-    const root = map.get(userPositionId);
-    if (!root) {
+    const userNode = map.get(userPositionId);
+    if (!userNode) {
       // User's position is not in active positions
       return [];
     }
 
-    // Return the user's position as the root of the subtree
-    return [root];
+    // Find the ancestor chain from user to root
+    const ancestorChain: string[] = [userPositionId];
+    let currentId = userPositionId;
+    while (parentMap.has(currentId)) {
+      const parentId = parentMap.get(currentId)!;
+      ancestorChain.unshift(parentId);
+      currentId = parentId;
+    }
+
+    // Build the full tree but only include:
+    // 1. Nodes in the ancestor chain
+    // 2. Siblings of nodes in the ancestor chain
+    // 3. All descendants of the user's position
+    const ancestorSet = new Set(ancestorChain);
+
+    // First, build the complete tree with parent-child relationships
+    const fullMap = new Map<string, any>();
+    positions.forEach((p: any) => {
+      const id = p._id?.toString() || p.id || '';
+      fullMap.set(id, { ...p, id, children: [] });
+    });
+
+    positions.forEach((p: any) => {
+      const id = (p._id && p._id.toString && p._id.toString()) || p.id || '';
+      const reportsTo =
+        p.reportsToPositionId &&
+        p.reportsToPositionId.toString &&
+        p.reportsToPositionId.toString();
+      if (reportsTo && fullMap.has(reportsTo)) {
+        fullMap.get(reportsTo).children.push(fullMap.get(id));
+      }
+    });
+
+    // Helper to filter children to only include relevant nodes
+    const filterTree = (node: any, _isOnPath: boolean): any => {
+      const nodeId = node.id || node._id?.toString();
+      const isAncestor = ancestorSet.has(nodeId);
+      const isUserNode = nodeId === userPositionId;
+
+      if (isUserNode) {
+        // Include all descendants of the user's node
+        return { ...node };
+      }
+
+      if (isAncestor) {
+        // For ancestors, include the node but filter children to only show:
+        // - The next ancestor in the chain (which leads to user)
+        // - Siblings of the path (children of this ancestor)
+        const filteredChildren = node.children.map((child: any) => {
+          const childId = child.id || child._id?.toString();
+          if (ancestorSet.has(childId)) {
+            // This child is on the path to user, recurse
+            return filterTree(child, true);
+          } else {
+            // This is a sibling, include it but don't include its descendants
+            return { ...child, children: [] };
+          }
+        });
+        return { ...node, children: filteredChildren };
+      }
+
+      // Not relevant to user's hierarchy
+      return null;
+    };
+
+    // Find the root of the ancestor chain
+    const rootId = ancestorChain[0];
+    const rootNode = fullMap.get(rootId);
+    if (!rootNode) {
+      return [];
+    }
+
+    const filteredRoot = filterTree(rootNode, true);
+    return filteredRoot ? [filteredRoot] : [];
   }
 
   /**

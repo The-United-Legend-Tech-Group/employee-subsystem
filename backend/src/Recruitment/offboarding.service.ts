@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { Types } from 'mongoose';
 import {
   TerminationRequestRepository,
@@ -34,6 +34,7 @@ export class OffboardingService {
     private readonly clearanceChecklistRepository: ClearanceChecklistRepository,
     //   private readonly employeeTerminationResignationRepository: EmployeeTerminationResignationRepository,
     private employeeService: EmployeeService,
+    @Inject(forwardRef(() => AppraisalRecordService))
     private appraisalrecordservice: AppraisalRecordService,
     private notificationService: NotificationService,
     private organizationStructureService: OrganizationStructureService,

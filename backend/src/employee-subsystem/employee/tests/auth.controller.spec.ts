@@ -48,7 +48,11 @@ describe('AuthController', () => {
 
       const result = await controller.login(loginDto, mockResponse);
 
-      expect(result).toEqual({ message: 'Login successful' });
+      expect(result).toEqual({
+        message: 'Login successful',
+        access_token: 'jwt_token',
+        candidateId: 'someId',
+      });
       expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'access_token',
@@ -94,7 +98,11 @@ describe('AuthController', () => {
 
       const result = await controller.employeeLogin(loginDto, mockResponse);
 
-      expect(result).toEqual({ message: 'Login successful' });
+      expect(result).toEqual({
+        message: 'Login successful',
+        access_token: 'jwt_token',
+        employeeId: 'empId',
+      });
       expect(mockAuthService.employeeLogin).toHaveBeenCalledWith(loginDto);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'access_token',

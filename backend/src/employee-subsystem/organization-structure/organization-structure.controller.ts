@@ -87,6 +87,18 @@ export class OrganizationStructureController {
     return this.organizationStructureService.listChangeRequests();
   }
 
+  @Get('requests/pending')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @ApiOperation({ summary: 'List pending structure change requests' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pending change requests',
+    type: [StructureChangeRequest],
+  })
+  async listPendingRequests(): Promise<StructureChangeRequest[]> {
+    return this.organizationStructureService.listPendingChangeRequests();
+  }
+
   @Get('requests/user/:employeeId')
   @UseGuards(AuthGuard)
   @ApiOperation({

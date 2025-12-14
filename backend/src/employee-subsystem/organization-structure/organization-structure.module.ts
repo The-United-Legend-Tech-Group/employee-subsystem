@@ -18,6 +18,8 @@ import { OrganizationStructureService } from './organization-structure.service';
 import { PositionRepository } from './repository/position.repository';
 import { DepartmentRepository } from './repository/department.repository';
 import { PositionAssignmentRepository } from './repository/position-assignment.repository';
+import { StructureApprovalRepository } from './repository/structure-approval.repository';
+import { StructureChangeLogRepository } from './repository/structure-change-log.repository';
 
 import { forwardRef } from '@nestjs/common';
 import { EmployeeModule } from '../employee/employee.module';
@@ -47,7 +49,7 @@ import { EmployeeModule } from '../employee/employee.module';
     }),
   ],
   controllers: [OrganizationStructureController],
-  providers: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository, PositionAssignmentRepository],
-  exports: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository, PositionAssignmentRepository],
+  providers: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository, PositionAssignmentRepository, StructureApprovalRepository, StructureChangeLogRepository],
+  exports: [OrganizationStructureService, PositionRepository, DepartmentRepository, NotificationService, NotificationRepository, PositionAssignmentRepository, StructureApprovalRepository, StructureChangeLogRepository],
 })
 export class OrganizationStructureModule { }

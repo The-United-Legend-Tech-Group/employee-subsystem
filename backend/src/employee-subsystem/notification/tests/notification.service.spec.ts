@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationService } from '../notification.service';
 import { NotificationRepository } from '../repository/notification.repository';
+import { EmployeeProfileRepository } from '../../employee/repository/employee-profile.repository';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { Types } from 'mongoose';
 
@@ -11,8 +12,13 @@ describe('NotificationService', () => {
   const mockNotificationRepository = {
     create: jest.fn(),
     find: jest.fn(),
+    findLatest: jest.fn(),
     updateById: jest.fn(),
     updateMany: jest.fn(),
+  };
+
+  const mockEmployeeProfileRepository = {
+    find: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -22,6 +28,10 @@ describe('NotificationService', () => {
         {
           provide: NotificationRepository,
           useValue: mockNotificationRepository,
+        },
+        {
+          provide: EmployeeProfileRepository,
+          useValue: mockEmployeeProfileRepository,
         },
       ],
     }).compile();
@@ -46,7 +56,7 @@ describe('NotificationService', () => {
 
       const expectedPayload = {
         ...createNotificationDto,
-        recipientId: createNotificationDto.recipientId.map(
+        recipientId: (createNotificationDto.recipientId || []).map(
           (id) => new Types.ObjectId(id),
         ),
         readBy: [],
@@ -90,7 +100,8 @@ describe('NotificationService', () => {
         }
       ];
 
-      mockNotificationRepository.find.mockResolvedValue(notifications);
+
+      mockNotificationRepository.findLatest.mockResolvedValue(notifications);
 
       const result = await service.findByRecipientId(userId);
 

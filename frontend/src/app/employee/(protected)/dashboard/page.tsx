@@ -21,7 +21,6 @@ import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 
 // Icons
-import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';

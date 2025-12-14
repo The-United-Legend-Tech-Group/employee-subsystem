@@ -12,14 +12,9 @@ import {
   StructureChangeRequest,
   StructureChangeRequestDocument,
 } from './models/structure-change-request.schema';
-import {
-  StructureApproval,
-  StructureApprovalDocument,
-} from './models/structure-approval.schema';
-import {
-  StructureChangeLog,
-  StructureChangeLogDocument,
-} from './models/structure-change-log.schema';
+import { StructureApprovalRepository } from './repository/structure-approval.repository';
+import { StructureChangeLog } from './models/structure-change-log.schema';
+import { StructureChangeLogRepository } from './repository/structure-change-log.repository';
 import {
   StructureRequestStatus,
   ApprovalDecision,
@@ -44,10 +39,8 @@ export class OrganizationStructureService {
     private readonly departmentRepository: DepartmentRepository,
     @InjectModel(StructureChangeRequest.name)
     private readonly changeRequestModel: Model<StructureChangeRequestDocument>,
-    @InjectModel(StructureApproval.name)
-    private readonly structureApprovalModel: Model<StructureApprovalDocument>,
-    @InjectModel(StructureChangeLog.name)
-    private readonly changeLogModel: Model<StructureChangeLogDocument>,
+    private readonly structureApprovalRepository: StructureApprovalRepository,
+    private readonly structureChangeLogRepository: StructureChangeLogRepository,
     @InjectModel(EmployeeProfile.name)
     private readonly employeeModel: Model<EmployeeProfileDocument>,
     @InjectModel(PositionAssignment.name)
@@ -106,14 +99,13 @@ export class OrganizationStructureService {
         ? new Types.ObjectId(approverEmployeeId)
         : updated.submittedByEmployeeId;
 
-      const approvalRecord = new this.structureApprovalModel({
+      const savedApproval = await this.structureApprovalRepository.create({
         changeRequestId: updated._id,
         approverEmployeeId: approverIdToUse,
         decision: ApprovalDecision.APPROVED,
         decidedAt: new Date(),
         comments: comment,
       });
-      const savedApproval = await approvalRecord.save();
       console.log(
         '[OrganizationStructure] approveChangeRequest - created structure approval record:',
         savedApproval._id.toString(),
@@ -136,7 +128,7 @@ export class OrganizationStructureService {
 
     // Create structure change log
     try {
-      const log = new this.changeLogModel({
+      const savedLog = await this.structureChangeLogRepository.create({
         action: ChangeLogAction.UPDATED,
         entityType: 'StructureChangeRequest',
         entityId: updated._id,
@@ -145,9 +137,8 @@ export class OrganizationStructureService {
           : (updated.submittedByEmployeeId as any),
         summary: 'Change request approved',
         beforeSnapshot: existing,
-        afterSnapshot: updated.toObject ? updated.toObject() : updated,
+        afterSnapshot: (updated.toObject ? updated.toObject() : updated) as unknown as Record<string, unknown>,
       });
-      const savedLog = await log.save();
       console.log(
         '[OrganizationStructure] approveChangeRequest - created change log:',
         savedLog._id.toString(),
@@ -211,7 +202,7 @@ export class OrganizationStructureService {
 
     // Create structure change log for rejection
     try {
-      const log = new this.changeLogModel({
+      const savedLog = await this.structureChangeLogRepository.create({
         action: ChangeLogAction.UPDATED,
         entityType: 'StructureChangeRequest',
         entityId: updated._id,
@@ -220,9 +211,8 @@ export class OrganizationStructureService {
           : (updated.submittedByEmployeeId as any),
         summary: 'Change request rejected',
         beforeSnapshot: existing,
-        afterSnapshot: updated.toObject ? updated.toObject() : updated,
+        afterSnapshot: (updated.toObject ? updated.toObject() : updated) as unknown as Record<string, unknown>,
       });
-      const savedLog = await log.save();
       console.log(
         '[OrganizationStructure] rejectChangeRequest - created change log:',
         savedLog._id.toString(),
@@ -863,11 +853,7 @@ export class OrganizationStructureService {
    * Get structure change logs
    */
   async getChangeLogs(): Promise<StructureChangeLog[]> {
-    return this.changeLogModel
-      .find()
-      .populate('performedByEmployeeId', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .exec();
+    return this.structureChangeLogRepository.findAllWithPerformer();
   }
 }
 

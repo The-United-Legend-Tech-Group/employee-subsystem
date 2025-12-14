@@ -19,6 +19,13 @@ describe('OrganizationStructureService notifications', () => {
         }),
       }),
     }),
+    findById: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ firstName: 'Test', lastName: 'User' }),
+        }),
+      }),
+    }),
   };
 
   const mockPositionAssignmentModel: any = {};
@@ -55,24 +62,23 @@ describe('OrganizationStructureService notifications', () => {
       exec: jest.fn().mockResolvedValue(null),
     });
 
-    // Mock constructor behavior for structureApprovalModel
-    const mockStructureApprovalConstructor: any = function (this: any, payload: any) {
-      Object.assign(this, payload);
-      this.save = jest.fn().mockResolvedValue({ ...payload, _id: 'approval-1' });
-    } as any;
+    // Mock repository for structureApprovalRepository
+    const mockStructureApprovalRepository: any = {
+      create: jest.fn().mockResolvedValue({ _id: 'approval-1' }),
+    };
 
-    // Mock change log model
-    const mockChangeLogModel: any = function (this: any, payload: any) {
-      Object.assign(this, payload);
-      this.save = jest.fn().mockResolvedValue({ ...payload, _id: 'log-1' });
-    } as any;
+    // Mock repository for structureChangeLogRepository
+    const mockStructureChangeLogRepository: any = {
+      create: jest.fn().mockResolvedValue({ _id: 'log-1' }),
+      findAllWithPerformer: jest.fn().mockResolvedValue([]),
+    };
 
     service = new OrganizationStructureService(
       mockPositionRepository,
       mockDepartmentRepository,
       changeRequestModel as any,
-      mockStructureApprovalConstructor,
-      mockChangeLogModel,
+      mockStructureApprovalRepository,
+      mockStructureChangeLogRepository,
       mockEmployeeModel as any,
       mockPositionAssignmentModel as any,
       mockNotificationService,
@@ -118,6 +124,7 @@ describe('OrganizationStructureService notifications', () => {
     const updated = {
       _id: 'req-2',
       requestNumber: 'SCR-456',
+      requestType: 'NEW_POSITION',
       targetDepartmentId: { toString: () => 'dep-1' }
     } as any;
 

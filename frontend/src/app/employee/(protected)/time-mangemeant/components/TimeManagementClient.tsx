@@ -38,6 +38,7 @@ import {
   ShiftDefinition,
   TimeException,
 } from "./types";
+import { decryptData } from "@/common/utils/encryption";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 const LINE_MANAGER_KEYS = ["lineManagerId", "managerId", "supervisorId"];
@@ -245,13 +246,75 @@ export default function TimeManagementClient({
   React.useEffect(() => {
     let isMounted = true;
 
+    const resolveEmployeeId = async (): Promise<string | null> => {
+      // Try direct employeeId
+      const raw = window.localStorage.getItem("employeeId");
+      const isHex24 = (v: string) => /^[a-fA-F0-9]{24}$/.test(v);
+      if (raw && isHex24(raw)) return raw;
+
+      // If looks like encrypted payload (JSON with iv/data), attempt decrypt using access token
+      const token = window.localStorage.getItem("access_token") || "";
+      if (raw && token) {
+        try {
+          const maybeObj = JSON.parse(raw);
+          if (
+            maybeObj &&
+            typeof maybeObj === "object" &&
+            "iv" in maybeObj &&
+            "data" in maybeObj
+          ) {
+            const decrypted = await decryptData(raw, token);
+            if (decrypted && isHex24(decrypted)) return decrypted;
+          }
+        } catch (_e) {
+          // not JSON, skip
+        }
+      }
+
+      // Try parsed object forms
+      const tryKeys = ["employee", "user", "profile"];
+      for (const key of tryKeys) {
+        const val = window.localStorage.getItem(key);
+        if (!val) continue;
+        try {
+          const obj = JSON.parse(val);
+          if (obj && typeof obj === "object") {
+            if (typeof obj.employeeId === "string" && isHex24(obj.employeeId)) {
+              return obj.employeeId;
+            }
+            if (obj._id && typeof obj._id === "string" && isHex24(obj._id)) {
+              return obj._id;
+            }
+            if (obj.id && typeof obj.id === "string" && isHex24(obj.id)) {
+              return obj.id;
+            }
+          }
+        } catch (_e) {
+          // ignore JSON parse errors
+        }
+      }
+
+      // Fallback: if raw exists and looks like quoted or wrapped, attempt to strip quotes
+      if (raw) {
+        const stripped = raw.replace(/[^a-fA-F0-9]/g, "");
+        if (isHex24(stripped)) return stripped;
+      }
+      return null;
+    };
+
     const load = async () => {
       try {
         const token = window.localStorage.getItem("access_token");
-        const employeeId = window.localStorage.getItem("employeeId");
+        const employeeId = await resolveEmployeeId();
 
         if (!token || !employeeId) {
-          router.push("/employee/login");
+          // Do not hard-redirect; surface an error and stop loading
+          setError(
+            !token
+              ? "Not authenticated: missing access token. Please log in."
+              : "Missing employee identity. Please ensure your profile is loaded."
+          );
+          setLoading(false);
           return;
         }
 
@@ -331,6 +394,7 @@ export default function TimeManagementClient({
               throw new Error(`Failed to fetch attendance: ${res.status}`);
             return res.json();
           }),
+          // Only fetch time exceptions if endpoint exists in backend
           secureFetch<TimeException[]>(
             `/time/exceptions/employee/${employeeId}`,
             [],

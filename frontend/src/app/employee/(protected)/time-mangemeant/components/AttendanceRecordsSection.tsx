@@ -190,8 +190,7 @@ export default function AttendanceRecordsSection({
         }
       }
       // If neither date nor time provided, isoTime remains undefined (use server current time)
-
-      await onPunchRecord(employeeId, punchType, isoTime);
+      // Submit a single punch record to the backend
       await onPunchRecord(employeeId, punchType, isoTime);
       handleClosePunchDialog();
     } catch (error) {

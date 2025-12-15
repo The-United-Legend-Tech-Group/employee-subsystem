@@ -175,10 +175,10 @@ function ShiftAssignmentsSection({
                   const assignmentScope = assignment.employeeId
                     ? "Employee"
                     : assignment.departmentId
-                      ? "Department"
-                      : assignment.positionId
-                        ? "Position"
-                        : "Unknown";
+                    ? "Department"
+                    : assignment.positionId
+                    ? "Position"
+                    : "Unknown";
 
                   const assignmentTarget =
                     assignment.employeeId ||
@@ -208,8 +208,8 @@ function ShiftAssignmentsSection({
                               assignmentScope === "Employee"
                                 ? "primary"
                                 : assignmentScope === "Department"
-                                  ? "secondary"
-                                  : "default"
+                                ? "secondary"
+                                : "default"
                             }
                             variant="outlined"
                           />
@@ -292,12 +292,13 @@ function ShiftAssignmentsSection({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         shifts={shifts}
+        scheduleRules={scheduleRules as any}
         onSuccess={handleModalSuccess}
       />
     </Box>
   );
 }
 
-ShiftAssignmentsSection.displayName = 'ShiftAssignmentsSection';
+ShiftAssignmentsSection.displayName = "ShiftAssignmentsSection";
 
 export default React.memo(ShiftAssignmentsSection);

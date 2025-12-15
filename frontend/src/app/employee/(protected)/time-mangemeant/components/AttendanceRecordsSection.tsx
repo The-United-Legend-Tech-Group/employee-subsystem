@@ -15,6 +15,7 @@ import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -115,11 +116,68 @@ export default function AttendanceRecordsSection({
     dateRange: "all",
   });
 
+  const [employeeInput, setEmployeeInput] = React.useState("");
+  const [nameInput, setNameInput] = React.useState("");
+  const [domainInput, setDomainInput] = React.useState("");
+  const [localRecords, setLocalRecords] = React.useState<
+    AttendanceRecord[] | null
+  >(null);
+  const [localLoading, setLocalLoading] = React.useState(false);
+  const [localError, setLocalError] = React.useState("");
+  const [localInfo, setLocalInfo] = React.useState("");
+  const [searchDialogOpen, setSearchDialogOpen] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<any[]>([]);
+
+  const fetchEmployee = React.useMemo(
+    () =>
+      useAttendanceFetch(
+        setLocalLoading,
+        setLocalError,
+        setLocalInfo,
+        setLocalRecords,
+        () => employeeInput
+      ),
+    [employeeInput]
+  );
+
+  const importCsv = React.useMemo(
+    () => useCsvImport(setLocalLoading, setLocalError, setLocalInfo),
+    []
+  );
+
+  const searchByNameDomain = React.useMemo(
+    () =>
+      useEmployeeSearch(
+        setLocalLoading,
+        setLocalError,
+        setLocalInfo,
+        setSearchResults,
+        setSearchDialogOpen,
+        () => nameInput,
+        () => domainInput,
+        (id: string) => setEmployeeInput(id),
+        () => fetchEmployee()
+      ),
+    [nameInput, domainInput, fetchEmployee]
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const last = window.localStorage.getItem("last_employee_id");
+    if (last && last !== employeeInput) {
+      setEmployeeInput(last);
+      // fire and forget; don't await to keep UI responsive
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchEmployee();
+    }
+  }, []);
+
   const sortedRecords = React.useMemo(() => {
-    return attendanceRecords
+    const base = localRecords !== null ? localRecords : attendanceRecords;
+    return base
       .slice()
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [attendanceRecords]);
+  }, [attendanceRecords, localRecords]);
 
   const activeFiltersCount = React.useMemo(() => {
     let count = 0;
@@ -228,25 +286,111 @@ export default function AttendanceRecordsSection({
                   <Typography variant="subtitle1" fontWeight="bold">
                     Attendance records
                   </Typography>
-                  {pagination && (
+                  {(localRecords !== null || pagination) && (
                     <Chip
-                      label={`${pagination.total} total`}
+                      label={`${
+                        localRecords !== null
+                          ? localRecords.length
+                          : pagination?.total ?? 0
+                      } total`}
                       size="small"
                       color="primary"
                       variant="outlined"
                     />
                   )}
                 </Stack>
-                {onPunchRecord && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    size="small"
+                    label="Employee ID"
+                    value={employeeInput}
+                    onChange={(e) => setEmployeeInput(e.target.value)}
+                    placeholder="6929b38042db6408754efdde"
+                    sx={{ minWidth: 260 }}
+                    helperText="Enter ID (empty = fetch all)"
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                        await fetchEmployee();
+                      }
+                    }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Name"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder="e.g. John or Doe"
+                    sx={{ minWidth: 180 }}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                        await searchByNameDomain();
+                      }
+                    }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Domain"
+                    value={domainInput}
+                    onChange={(e) => setDomainInput(e.target.value)}
+                    placeholder="e.g. company.com"
+                    sx={{ minWidth: 180 }}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                        await searchByNameDomain();
+                      }
+                    }}
+                  />
                   <Button
-                    variant="contained"
-                    startIcon={<AccessTimeIcon />}
-                    onClick={handleOpenPunchDialog}
+                    variant="outlined"
+                    onClick={fetchEmployee}
+                    disabled={localLoading}
                   >
-                    Record Punch
+                    {localLoading ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1 }} /> Loading
+                      </>
+                    ) : (
+                      "Fetch"
+                    )}
                   </Button>
-                )}
+                  <Button
+                    variant="outlined"
+                    onClick={searchByNameDomain}
+                    disabled={localLoading}
+                  >
+                    {localLoading ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1 }} /> Searching
+                      </>
+                    ) : (
+                      "Search"
+                    )}
+                  </Button>
+                  <Button
+                    variant="text"
+                    onClick={importCsv}
+                    disabled={localLoading}
+                    title="Import server CSV (backend/data/punches.csv)"
+                  >
+                    Import CSV
+                  </Button>
+                  {onPunchRecord && (
+                    <Button
+                      variant="contained"
+                      startIcon={<AccessTimeIcon />}
+                      onClick={handleOpenPunchDialog}
+                    >
+                      Record Punch
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
+
+              {localError && <Alert severity="error">{localError}</Alert>}
+              {localInfo && <Alert severity="success">{localInfo}</Alert>}
 
               {/* Filters Component */}
               <AttendanceFilters
@@ -473,6 +617,239 @@ export default function AttendanceRecordsSection({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Employee Search Results Dialog */}
+      <Dialog
+        open={searchDialogOpen}
+        onClose={() => setSearchDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Select Employee</DialogTitle>
+        <DialogContent>
+          {searchResults.length === 0 ? (
+            <Alert severity="info">No matching employees found.</Alert>
+          ) : (
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              {searchResults.map((e) => (
+                <Card
+                  key={e._id}
+                  variant="outlined"
+                  sx={{ cursor: "pointer" }}
+                  onClick={async () => {
+                    setEmployeeInput(e._id);
+                    setSearchDialogOpen(false);
+                    await fetchEmployee();
+                  }}
+                >
+                  <CardContent sx={{ py: 1.5 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        {e.firstName} {e.lastName}
+                      </Typography>
+                      {e.employeeNumber && (
+                        <Chip size="small" label={e.employeeNumber} />
+                      )}
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {e.email || "no-email"}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                      <Chip
+                        size="small"
+                        label={e.position?.title || "No Position"}
+                        variant="outlined"
+                      />
+                      <Chip
+                        size="small"
+                        label={e.department?.name || "No Department"}
+                        variant="outlined"
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSearchDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
+}
+
+async function getAuthHeader() {
+  if (typeof window === "undefined") return {} as Record<string, string>;
+  const token = window.localStorage.getItem("access_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function getApiBase() {
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
+}
+
+// Fetch helper bound to component via closure
+// Placed after component to avoid re-creating utilities per render
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function useAttendanceFetch(
+  setLocalLoading: (v: boolean) => void,
+  setLocalError: (v: string) => void,
+  setLocalInfo: (v: string) => void,
+  setLocalRecords: (r: AttendanceRecord[] | null) => void,
+  getEmployeeInput: () => string
+) {
+  return async function fetchEmployee() {
+    setLocalError("");
+    setLocalInfo("");
+    const id = getEmployeeInput();
+    setLocalLoading(true);
+    try {
+      const apiUrl = getApiBase();
+      const headers = await getAuthHeader();
+      const endpoint = id
+        ? `${apiUrl}/time/attendance/records/${id}`
+        : `${apiUrl}/time/attendance/records?limit=50`;
+      const res = await fetch(endpoint, { headers });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      const payload = await res.json();
+      const rows = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : payload?.data || [];
+      setLocalRecords(rows as AttendanceRecord[]);
+      if (typeof window !== "undefined" && id) {
+        window.localStorage.setItem("last_employee_id", id);
+      }
+    } catch (err: any) {
+      setLocalError(err?.message || "Failed to fetch");
+      setLocalRecords([]);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+}
+
+function useCsvImport(
+  setLocalLoading: (v: boolean) => void,
+  setLocalError: (v: string) => void,
+  setLocalInfo: (v: string) => void
+) {
+  return async function importCsv() {
+    setLocalError("");
+    setLocalInfo("");
+    setLocalLoading(true);
+    try {
+      const apiUrl = getApiBase();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader()),
+      };
+      const res = await fetch(`${apiUrl}/time/attendance/import-csv`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      const payload = await res.json();
+      setLocalInfo(`Imported ${payload?.imported ?? 0} record(s) from CSV`);
+    } catch (err: any) {
+      setLocalError(err?.message || "Failed to import CSV");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+}
+
+// Search employees by name (backend search) and optional domain (client filter)
+function useEmployeeSearch(
+  setLocalLoading: (v: boolean) => void,
+  setLocalError: (v: string) => void,
+  setLocalInfo: (v: string) => void,
+  setSearchResults: (list: any[]) => void,
+  setSearchDialogOpen: (v: boolean) => void,
+  getNameInput: () => string,
+  getDomainInput: () => string,
+  setEmployeeId: (id: string) => void,
+  fetchEmployee: () => Promise<void>
+) {
+  return async function searchByNameDomain() {
+    setLocalError("");
+    setLocalInfo("");
+    setSearchResults([]);
+    const name = (getNameInput() || "").trim();
+    const domain = (getDomainInput() || "").trim().toLowerCase();
+    if (!name && !domain) {
+      setLocalError("Enter a name or a domain to search");
+      return;
+    }
+    setLocalLoading(true);
+    try {
+      const apiUrl = getApiBase();
+      const headers = await getAuthHeader();
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "50");
+      if (name) params.set("search", name);
+      const res = await fetch(`${apiUrl}/employee?${params.toString()}`, {
+        headers,
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      const payload = await res.json();
+      let items: any[] = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload)
+        ? payload
+        : [];
+      if (domain) {
+        items = items.filter((e) => {
+          const email = (e.email || "").toLowerCase();
+          const at = email.indexOf("@");
+          const d = at >= 0 ? email.slice(at + 1) : "";
+          return (
+            d === domain ||
+            d.endsWith(`.${domain}`) ||
+            email.includes(`@${domain}`)
+          );
+        });
+      }
+
+      if (items.length === 0) {
+        setLocalError("No matching employees found");
+        setSearchResults([]);
+        setSearchDialogOpen(true);
+        return;
+      }
+
+      if (items.length === 1) {
+        const only = items[0];
+        setEmployeeId(only._id);
+        await fetchEmployee();
+        setLocalInfo(
+          `Loaded attendance for ${only.firstName} ${only.lastName} (${
+            only.employeeNumber || only._id
+          })`
+        );
+        return;
+      }
+
+      setSearchResults(items);
+      setSearchDialogOpen(true);
+    } catch (err: any) {
+      setLocalError(err?.message || "Search failed");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
 }

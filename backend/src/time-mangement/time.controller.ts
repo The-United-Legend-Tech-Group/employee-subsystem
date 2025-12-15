@@ -31,7 +31,7 @@ export class TimeController {
     private readonly shiftService: ShiftService,
     private readonly shiftAssignmentService: ShiftAssignmentService,
     private readonly attendanceService: AttendanceService,
-  ) { }
+  ) {}
 
   @Get('shift-types')
   @ApiOperation({ summary: 'List shift types' })
@@ -91,7 +91,9 @@ export class TimeController {
   }
 
   @Get('shifts/assignments')
-  @ApiOperation({ summary: 'Get all shift assignments with optional date filtering' })
+  @ApiOperation({
+    summary: 'Get all shift assignments with optional date filtering',
+  })
   @ApiQuery({ name: 'start', required: false, description: 'Start date (ISO)' })
   @ApiQuery({ name: 'end', required: false, description: 'End date (ISO)' })
   getAllShiftAssignments(
@@ -173,6 +175,52 @@ export class TimeController {
   @ApiOperation({ summary: 'Record a clock in/out punch for an employee' })
   recordPunch(@Body() dto: PunchDto) {
     return this.attendanceService.punch(dto as any);
+  }
+
+  @Post('attendance/import-csv')
+  @ApiOperation({
+    summary: 'Import punches from a CSV file on server (path in body)',
+  })
+  importFromCsv(@Body() body?: { path?: string }) {
+    // If client omits path, default to common locations. The service will try multiple candidates.
+    const provided = body && body.path ? body.path : 'backend/data/punches.csv';
+    return this.attendanceService.importPunchesFromCsv(provided);
+  }
+
+  @Get('attendance/records')
+  @ApiOperation({
+    summary: 'Get all attendance records (all employees) with filters',
+  })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'hasMissedPunch', required: false })
+  @ApiQuery({ name: 'finalisedForPayroll', required: false })
+  getAllAttendanceRecords(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('hasMissedPunch') hasMissedPunch?: string,
+    @Query('finalisedForPayroll') finalisedForPayroll?: string,
+  ) {
+    return this.attendanceService.getAllAttendanceRecords(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      page ? parseInt(page, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined,
+      hasMissedPunch === 'true'
+        ? true
+        : hasMissedPunch === 'false'
+          ? false
+          : undefined,
+      finalisedForPayroll === 'true'
+        ? true
+        : finalisedForPayroll === 'false'
+          ? false
+          : undefined,
+    );
   }
 
   @Get('attendance/records/:employeeId')

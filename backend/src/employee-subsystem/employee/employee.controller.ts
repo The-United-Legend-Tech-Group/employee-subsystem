@@ -35,6 +35,17 @@ export class EmployeeController {
     return this.employeeService.findAll(Number(page), Number(limit), search);
   }
 
+  @Get('s')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get all employees (unpaginated, for dropdowns)' })
+  @ApiResponse({ status: 200, description: 'List of all employees' })
+  async findAllEmployees() {
+    // Call findAll with a large limit to get all employees
+    const result = await this.employeeService.findAll(1, 10000);
+    // Return just the items array for simpler consumption
+    return result.items;
+  }
+
   @Post('onboard')
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)

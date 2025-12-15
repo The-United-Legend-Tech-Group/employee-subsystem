@@ -243,6 +243,41 @@ export default function TimeManagementClient({
     []
   );
 
+  // Load static data (shifts, rules, holidays) - only on mount and refresh
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadStaticData = async () => {
+      try {
+        const token = window.localStorage.getItem("access_token");
+        if (!token) return;
+
+        const fetchOptions: FetchOptions = { token };
+
+        const [shiftsRes, rulesRes, holidaysRes] = await Promise.all([
+          secureFetch<ShiftDefinition[]>(`/time/shifts`, [], fetchOptions),
+          secureFetch<ScheduleRule[]>(`/time/schedule-rules`, [], fetchOptions),
+          secureFetch<HolidayDefinition[]>(`/time/holidays`, [], fetchOptions),
+        ]);
+
+        if (!isMounted) return;
+
+        setShiftDefinitions(coerceArray<ShiftDefinition>(shiftsRes));
+        setScheduleRules(coerceArray<ScheduleRule>(rulesRes));
+        setHolidays(coerceArray<HolidayDefinition>(holidaysRes));
+      } catch (err) {
+        console.error("Failed to load static time management data", err);
+      }
+    };
+
+    loadStaticData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]); // Only refresh when user clicks refresh
+
+  // Load dynamic data (attendance, corrections, assignments)
   React.useEffect(() => {
     let isMounted = true;
 
@@ -302,13 +337,12 @@ export default function TimeManagementClient({
       return null;
     };
 
-    const load = async () => {
+    const loadDynamicData = async () => {
       try {
         const token = window.localStorage.getItem("access_token");
         const employeeId = await resolveEmployeeId();
 
         if (!token || !employeeId) {
-          // Do not hard-redirect; surface an error and stop loading
           setError(
             !token
               ? "Not authenticated: missing access token. Please log in."
@@ -366,24 +400,18 @@ export default function TimeManagementClient({
         }
 
         const [
-          shiftsRes,
           assignmentsRes,
-          rulesRes,
-          holidaysRes,
           attendanceRes,
           exceptionsRes,
           historyRes,
           pendingRes,
           payrollRes,
         ] = await Promise.all([
-          secureFetch<ShiftDefinition[]>(`/time/shifts`, [], fetchOptions),
           secureFetch<ShiftAssignment[]>(
             `/time/shifts/employee/${employeeId}?start=${startRange.toISOString()}&end=${endRange.toISOString()}`,
             [],
             fetchOptions
           ),
-          secureFetch<ScheduleRule[]>(`/time/schedule-rules`, [], fetchOptions),
-          secureFetch<HolidayDefinition[]>(`/time/holidays`, [], fetchOptions),
           fetch(
             `${API_BASE}/time/attendance/records/${employeeId}?${attendanceParams}`,
             {
@@ -394,7 +422,6 @@ export default function TimeManagementClient({
               throw new Error(`Failed to fetch attendance: ${res.status}`);
             return res.json();
           }),
-          // Only fetch time exceptions if endpoint exists in backend
           secureFetch<TimeException[]>(
             `/time/exceptions/employee/${employeeId}`,
             [],
@@ -407,10 +434,10 @@ export default function TimeManagementClient({
           ),
           managerId
             ? secureFetch<CorrectionRequest[]>(
-                `/time/corrections/pending/${managerId}`,
-                [],
-                fetchOptions
-              )
+              `/time/corrections/pending/${managerId}`,
+              [],
+              fetchOptions
+            )
             : Promise.resolve([]),
           secureFetch<CorrectionRequest[]>(
             `/time/corrections/approved/payroll`,
@@ -421,10 +448,7 @@ export default function TimeManagementClient({
 
         if (!isMounted) return;
 
-        setShiftDefinitions(coerceArray<ShiftDefinition>(shiftsRes));
         setShiftAssignments(coerceArray<ShiftAssignment>(assignmentsRes));
-        setScheduleRules(coerceArray<ScheduleRule>(rulesRes));
-        setHolidays(coerceArray<HolidayDefinition>(holidaysRes));
 
         // Handle paginated attendance response
         if (
@@ -445,7 +469,6 @@ export default function TimeManagementClient({
             }
           );
         } else {
-          // Fallback for non-paginated response
           setAttendanceRecords(coerceArray<AttendanceRecord>(attendanceRes));
         }
 
@@ -465,7 +488,7 @@ export default function TimeManagementClient({
       }
     };
 
-    load();
+    loadDynamicData();
 
     return () => {
       isMounted = false;
@@ -724,6 +747,7 @@ export default function TimeManagementClient({
               shifts={shiftDefinitions}
               scheduleRules={scheduleRules}
               loading={loading}
+              onRefresh={handleRefresh}
             />
           )}
 

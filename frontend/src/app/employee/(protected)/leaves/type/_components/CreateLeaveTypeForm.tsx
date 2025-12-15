@@ -241,22 +241,22 @@ export default function CreateLeaveTypeForm({ onCreated }: Props) {
           </Typography>
           <Grid container spacing={2} columns={12}>
             <Grid size={{ xs: 12 }}>
-              <TextField
-                select
+        <TextField
+          select
                 fullWidth
                 size="small"
-                label="Attachment Type"
-                value={form.attachmentType}
-                onChange={(e) => onChange('attachmentType', e.target.value)}
-                required
-              >
-                <MenuItem value="">(None)</MenuItem>
-                {attachmentTypeOptions.map((opt) => (
+          label="Attachment Type"
+          value={form.attachmentType}
+          onChange={(e) => onChange('attachmentType', e.target.value)}
+          required
+        >
+          <MenuItem value="">(None)</MenuItem>
+          {attachmentTypeOptions.map((opt) => (
                   <MenuItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </MenuItem>
-                ))}
-              </TextField>
+          ))}
+        </TextField>
             </Grid>
             <Grid size={{ xs: 12 }}>
               <FormControlLabel

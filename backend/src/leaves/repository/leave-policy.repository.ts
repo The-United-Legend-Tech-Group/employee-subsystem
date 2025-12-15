@@ -16,17 +16,16 @@ export class LeavePolicyRepository extends BaseRepository<LeavePolicyDocument> {
   }
 
   async findActivePolicies(): Promise<LeavePolicyDocument[]> {
-    return this.model.find({ isActive: true }).exec();
+    return this.model.find().exec();
   }
 
   async findByLeaveTypeId(leaveTypeId: string): Promise<LeavePolicyDocument | null> {
-    return this.model.findOne({ leaveTypeId, isActive: true }).exec();
+    return this.model.findOne({ leaveTypeId}).exec();
   }
 
   async findByApplicableTo(applicableTo: string[]): Promise<LeavePolicyDocument[]> {
     return this.model.find({
       applicableTo: { $in: applicableTo },
-      isActive: true
     }).exec();
   }
 }

@@ -116,15 +116,15 @@ const leavesSubItems = [
 
   },
   {
-    text: "Entitlement Management",
+    text: "Leave Type Management",
     icon: <BeachAccessRoundedIcon />,
-    path: "/employee/performance/disputes",
-
+    path: "/employee/leaves/type",
   },
   {
-    text: "Leave Type Management",
+    text: "Entitlement Management",
     icon: <PlaylistAddCheckRoundedIcon />,
-    path: "/employee/leaves/type",
+    path: "/employee/leaves/entitlement",
+
   },
 ];
 
@@ -172,9 +172,9 @@ export default function MenuContent() {
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
 
     // Leaves submenu highlight
-    if (text === 'Policy Handling' && pathname === '/employee/leaves/policy') return true;
-    if (text === 'Entitlement Management' && pathname === '/employee/performance/disputes') return true;
-    if (text === 'Leave Type Management' && pathname === '/employee/performance/disputes') return true;
+    if (text === 'Policy Management' && pathname === '/employee/leaves/policy') return true;
+    if (text === 'Entitlement Management' && pathname === '/employee/leaves/entitlement') return true;
+    if (text === 'Leave Type Management' && pathname === '/employee/leaves/type') return true;
     return false;
   };
 
@@ -268,7 +268,7 @@ export default function MenuContent() {
             {leavesSubItems.map((item, index) => (
               <ListItem key={index} disablePadding sx={{ display: "block" }}>
                 <ListItemButton
-                  sx={{ pl: 4 }}
+                
                   selected={isSelected(item.text)}
                   onClick={() => handleNavigation(item.text, item.path)}
                 >

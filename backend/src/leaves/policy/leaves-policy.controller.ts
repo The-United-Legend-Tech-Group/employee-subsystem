@@ -71,8 +71,8 @@ export class LeavesPolicyController {
   async configureLeaveSettings(
     @Param('leaveTypeId') leaveTypeId: string,
     @Body() settings: ConfigureSettingsDto,
-  ): Promise<LeavePolicy> {
-    return this.leavesService.configureLeaveSettings(leaveTypeId, settings);
+  ): Promise<void> {
+    await this.leavesService.configureLeaveSettings(leaveTypeId, settings);
   }
 
   @Get('leave-settings/:leaveTypeId')
@@ -399,6 +399,17 @@ export class LeavesPolicyController {
   @ApiResponse({ status: 200, description: 'All leave policies retrieved successfully' })
   async managePolicy(): Promise<LeavePolicy[]> {
     return this.leavesService.managePolicy();
+  }
+
+  // Delete leave policy by ID
+  @Delete('policies/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete leave policy by ID' })
+  @ApiParam({ name: 'id', description: 'Leave policy ID' })
+  @ApiResponse({ status: 204, description: 'Leave policy deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Leave policy not found' })
+  async deletePolicy(@Param('id') id: string): Promise<void> {
+    await this.leavesService.deletePolicy(id);
   }
 
   // Get leave/vacation type by code

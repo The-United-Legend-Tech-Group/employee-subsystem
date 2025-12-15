@@ -115,7 +115,7 @@ export default function ManagePoliciesList() {
     if (!deleteId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/leaves/leave-settings/${deleteId}`, {
+      const res = await fetch(`${API_BASE}/leaves/policies/${deleteId}`, {
         method: 'DELETE',
       });
 

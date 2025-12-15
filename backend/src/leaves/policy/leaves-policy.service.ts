@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { LeavePolicy } from '../models/leave-policy.schema';
 import { LeaveEntitlement } from '../models/leave-entitlement.schema';
@@ -46,10 +46,14 @@ export class LeavesPolicyService {
 
   // REQ-001: Initiate a leave policy
   async initiatePolicy(dto: InitiatePolicyDto): Promise<LeavePolicy> {
-    return this.leavePolicyRepository.create({
+    const leaveType = await this.leaveTypeRepository.findById(dto.leaveTypeId);
+    if (!leaveType) throw new NotFoundException('Leave type not found');
+    if (await this.leavePolicyRepository.findByLeaveTypeId(leaveType._id.toString())) throw new BadRequestException('Policy already exists for this leave type');
+    const policy = await this.leavePolicyRepository.create({
       ...dto,
-      leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
+      leaveTypeId: leaveType._id,
     });
+    return policy;
   }
 
  // REQ-001: Manage All Policies
@@ -103,18 +107,15 @@ export class LeavesPolicyService {
   async configureLeaveSettings(
     leaveTypeId: string,
     settings: ConfigureSettingsDto,
-  ): Promise<LeavePolicy> {
+  ): Promise<void> {
     const policy = await this.leavePolicyRepository.update(
       { leaveTypeId },
       { ...settings },
-      { upsert: true },
     );
 
     if (!policy) {
       throw new NotFoundException('Failed to create or update leave policy');
     }
-
-    return policy;
   }
 
   async getLeaveSettings(leaveTypeId: string): Promise<LeavePolicy> {
@@ -329,6 +330,11 @@ export class LeavesPolicyService {
   async deleteLeaveType(id: string): Promise<void> {
     const deleted = await this.leaveTypeRepository.deleteById(id);
     if (!deleted) throw new NotFoundException('Leave type not found');
+  }
+
+  async deletePolicy(id: string): Promise<void> {
+    const deleted = await this.leavePolicyRepository.deleteById(id);
+    if (!deleted) throw new NotFoundException('Leave policy not found');
   }
 
   // REQ-007: Set Eligibility Rules

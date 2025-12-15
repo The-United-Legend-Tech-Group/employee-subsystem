@@ -7,7 +7,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Alert,
   Stack,
   Button,
   IconButton,
@@ -25,6 +24,8 @@ import {
 import Grid from '@mui/material/Grid';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -142,6 +143,7 @@ export default function LeaveTypeList() {
       load();
     } catch (err: any) {
       setSaveError(err?.message ?? 'Failed to update leave type');
+      setTimeout(() => setSaveError(null), 5000);
     }
   }
 
@@ -226,7 +228,14 @@ export default function LeaveTypeList() {
         </Tooltip>
       </Stack>
 
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+          <CancelOutlinedIcon color="error" fontSize="small" />
+          <Typography variant="body2" color="error">
+            {error}
+          </Typography>
+        </Stack>
+      )}
 
       <List
         dense
@@ -491,11 +500,12 @@ export default function LeaveTypeList() {
               </Grid>
             </Box>
 
-            {saveError && <Alert severity="error">{saveError}</Alert>}
-
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
               <Button variant="outlined" onClick={closeDialog}>Cancel</Button>
               <Button variant="contained" onClick={handleSave}>Save</Button>
+              {saveError && (
+                <CancelOutlinedIcon color="error" fontSize="medium" />
+              )}
             </Stack>
           </Stack>
         </DialogContent>

@@ -26,7 +26,7 @@ export default function LeaveTypePage() {
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Create new leave types and manage existing ones.
-        </Typography>
+      </Typography>
       </Box>
 
       <Grid container spacing={2} columns={12} sx={{ alignItems: 'stretch' }}>
@@ -48,8 +48,8 @@ export default function LeaveTypePage() {
           >
             <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
               Create Leave Type
-            </Typography>
-            <CreateLeaveTypeForm />
+      </Typography>
+          <CreateLeaveTypeForm />
           </Paper>
         </Grid>
 
@@ -72,7 +72,7 @@ export default function LeaveTypePage() {
             <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
               Existing Leave Types
             </Typography>
-            <LeaveTypeList />
+          <LeaveTypeList />
           </Paper>
         </Grid>
       </Grid>

@@ -26,6 +26,9 @@ import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BeachAccessRoundedIcon from "@mui/icons-material/BeachAccessRounded";
+import PlaylistAddCheckRoundedIcon from "@mui/icons-material/PlaylistAddCheckRounded";
+import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import { usePathname, useRouter } from "next/navigation";
 
 const mainListItems = [
@@ -105,6 +108,26 @@ const performanceSubItems = [
   },
 ];
 
+const leavesSubItems = [
+  {
+    text: "Policy Handling",
+    icon: <ListAltRoundedIcon />,
+    path: "/employee/leaves/policy",
+
+  },
+  {
+    text: "Entitlement Management",
+    icon: <BeachAccessRoundedIcon />,
+    path: "/employee/performance/disputes",
+
+  },
+  {
+    text: "Leave Type Management",
+    icon: <PlaylistAddCheckRoundedIcon />,
+    path: "/employee/performance/disputes",
+  },
+];
+
 const secondaryListItems = [
   { text: "Settings", icon: <SettingsRoundedIcon /> },
   { text: "About", icon: <InfoRoundedIcon /> },
@@ -115,9 +138,11 @@ export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
   const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [leavesOpen, setLeavesOpen] = useState(false);
 
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
+  const isLeavesPath = pathname.startsWith("/employee/leaves");
 
   const visibleListItems = mainListItems.filter((item) => {
     if (isCandidate && item.text === "Team") return false;
@@ -145,6 +170,11 @@ export default function MenuContent() {
     if (text === 'My Assigned Appraisals' && pathname === '/employee/performance/manager-assignments') return true;
     if (text === 'My Performance Records' && pathname === '/employee/performance/my-records') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
+
+    // Leaves submenu highlight
+    if (text === 'Policy Handling' && pathname === '/employee/leaves/policy') return true;
+    if (text === 'Entitlement Management' && pathname === '/employee/performance/disputes') return true;
+    if (text === 'Leave Type Management' && pathname === '/employee/performance/disputes') return true;
     return false;
   };
 
@@ -205,6 +235,37 @@ export default function MenuContent() {
         <Collapse in={performanceOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             {performanceSubItems.map((item, index) => (
+              <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                <ListItemButton
+                  sx={{ pl: 4 }}
+                  selected={isSelected(item.text)}
+                  onClick={() => handleNavigation(item.text, item.path)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
+
+        {/* Leaves Dropdown (routes will be wired later) */}
+        <ListItem disablePadding sx={{ display: "block" }}>
+          <ListItemButton
+            selected={isLeavesPath}
+            onClick={() => setLeavesOpen(!leavesOpen)}
+          >
+            <ListItemIcon>
+              <BeachAccessRoundedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Leaves HR_ADMIN" />
+            {leavesOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </ListItemButton>
+        </ListItem>
+
+        <Collapse in={leavesOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {leavesSubItems.map((item, index) => (
               <ListItem key={index} disablePadding sx={{ display: "block" }}>
                 <ListItemButton
                   sx={{ pl: 4 }}

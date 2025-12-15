@@ -49,10 +49,52 @@ export class LeavesPolicyService {
     });
   }
 
-  // REQ-001: Manage All Policies
+ // REQ-001: Manage All Policies
   async managePolicy(): Promise<LeavePolicy[]> {
-    return this.leavePolicyRepository.find();
+    // return plain objects and enrich with leave type code-derived name: "<code> Policy"
+    const docs = await this.leavePolicyRepository.find();
+    const policies = docs.map((d) => (d.toObject ? d.toObject() : d)) as any[];
+
+    // Safely resolve leave type codes; ignore any invalid ObjectIds
+    let leaveTypeMap = new Map<string, any>();
+    try {
+      const leaveTypeIds = [
+        ...new Set(
+          policies
+            .map((p) => p.leaveTypeId?.toString?.() ?? p.leaveTypeId)
+            .filter((id) => id && Types.ObjectId.isValid(id)),
+        ),
+      ];
+
+      if (leaveTypeIds.length > 0) {
+        const leaveTypes = await this.leaveTypeRepository.find({
+          _id: { $in: leaveTypeIds },
+        });
+        leaveTypeMap = new Map(
+          leaveTypes.map((lt: any) => {
+            const obj = lt.toObject ? lt.toObject() : lt;
+            return [obj._id.toString(), obj];
+          }),
+        );
+      }
+    } catch (err) {
+      // If lookup fails, continue without enrichment
+      console.error('managePolicy: leave type lookup failed', err);
+    }
+
+    return policies.map((p) => {
+      const lt = p.leaveTypeId
+        ? leaveTypeMap.get(p.leaveTypeId.toString?.() ?? p.leaveTypeId)
+        : null;
+      const code = lt?.code;
+      return {
+        ...p,
+        leaveTypeCode: code,
+        name: code ? `${code} Policy` : p.name ?? 'Policy',
+      };
+    });
   }
+
 
   // REQ-003: Configure Leave Settings
   async configureLeaveSettings(

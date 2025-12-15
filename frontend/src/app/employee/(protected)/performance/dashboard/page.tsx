@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -10,8 +10,11 @@ import {
   Alert,
   Container,
   Skeleton,
+  Grid,
+  useTheme,
 } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { PieChart } from '@mui/x-charts/PieChart';
 
 interface DepartmentPerformanceStats {
   departmentId: string;
@@ -30,6 +33,7 @@ interface DashboardStats {
 }
 
 export default function PerformanceDashboard() {
+  const theme = useTheme();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,10 +42,9 @@ export default function PerformanceDashboard() {
     const fetchStats = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-        console.log('Fetching stats from:', `${apiUrl}/performance/dashboard/stats`);
-        // No Authorization header needed as the endpoint is public
         const response = await fetch(`${apiUrl}/performance/dashboard/stats`, {
-          credentials: 'include'
+          // headers: { 'Authorization': ... } if needed, but per original code it wasn't?
+          // Original code comment: "No Authorization header needed as the endpoint is public"
         });
 
         if (!response.ok) {
@@ -62,51 +65,28 @@ export default function PerformanceDashboard() {
     fetchStats();
   }, []);
 
+  const aggregatedStats = useMemo(() => {
+    if (!stats || !stats.departmentStats) return { completed: 0, inProgress: 0, notStarted: 0 };
+    return stats.departmentStats.reduce(
+      (acc, curr) => ({
+        completed: acc.completed + curr.completedAppraisals,
+        inProgress: acc.inProgress + curr.inProgressAppraisals,
+        notStarted: acc.notStarted + curr.notStartedAppraisals,
+      }),
+      { completed: 0, inProgress: 0, notStarted: 0 }
+    );
+  }, [stats]);
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" gutterBottom>
           <Skeleton width={300} />
         </Typography>
-
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} mb={4}>
-          <Box flex={1}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  <Skeleton width="60%" />
-                </Typography>
-                <Typography variant="h3">
-                  <Skeleton width="40%" />
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box flex={1}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  <Skeleton width="60%" />
-                </Typography>
-                <Typography variant="h3">
-                  <Skeleton width="40%" />
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
+          <Skeleton variant="rectangular" height={200} width="100%" />
         </Stack>
-
-        <Typography variant="h5" gutterBottom>
-          <Skeleton width={200} />
-        </Typography>
-        <Box sx={{ height: 500, width: '100%' }}>
-          <Stack spacing={1}>
-            <Skeleton variant="rectangular" height={52} />
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} variant="rectangular" height={52} />
-            ))}
-          </Stack>
-        </Box>
+        <Skeleton variant="rectangular" height={400} />
       </Container>
     );
   }
@@ -131,11 +111,17 @@ export default function PerformanceDashboard() {
       type: 'number',
       width: 150,
       valueFormatter: (value: any) => {
-        if (value == null) {
-          return '';
-        }
+        if (value == null) return '';
         return `${Number(value).toFixed(1)}%`;
       },
+      renderCell: (params) => {
+        const val = Number(params.value || 0);
+        return (
+          <Box sx={{ color: val >= 100 ? 'success.main' : val >= 50 ? 'warning.main' : 'error.main', fontWeight: 'bold' }}>
+            {val.toFixed(1)}%
+          </Box>
+        )
+      }
     },
   ];
 
@@ -144,56 +130,99 @@ export default function PerformanceDashboard() {
     ...dept,
   })) || [];
 
+  const pieData = [
+    { id: 0, value: aggregatedStats.completed, label: 'Completed', color: theme.palette.success.main },
+    { id: 1, value: aggregatedStats.inProgress, label: 'In Progress', color: theme.palette.info.main },
+    { id: 2, value: aggregatedStats.notStarted, label: 'Not Started', color: theme.palette.grey[400] },
+  ];
+
   return (
-    <Container maxWidth="lg" sx={{ height: '100%', display: 'flex', flexDirection: 'column', py: 4, overflow: 'hidden' }}>
-      <Typography variant="h4" gutterBottom>
+    <Container maxWidth="xl" sx={{ height: '100%', display: 'flex', flexDirection: 'column', py: 4 }}>
+      <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ mb: 4 }}>
         Performance Dashboard
       </Typography>
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} mb={4}>
-        <Box flex={1}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Overall Completion Rate
-              </Typography>
-              <Typography variant="h3" color="primary">
-                {stats?.overallCompletionRate ? stats.overallCompletionRate.toFixed(1) : '0.0'}%
-              </Typography>
-            </CardContent>
+      <Grid container spacing={3} mb={4}>
+        {/* Left Side: Pie Chart */}
+        <Grid size={{ xs: 12, md: 7, lg: 6 }}>
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', p: 2 }}>
+            <Typography variant="h6" gutterBottom fontWeight="bold" textAlign="center">
+              Overall Completion Status
+            </Typography>
+            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 250 }}>
+              {stats?.totalAppraisals === 0 ? (
+                <Typography color="text.secondary">No appraisals to display</Typography>
+              ) : (
+                <PieChart
+                  series={[
+                    {
+                      data: pieData,
+                      highlightScope: { fade: 'global', highlight: 'item' },
+                      faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                      innerRadius: 60,
+                      paddingAngle: 2,
+                      cornerRadius: 4,
+                    },
+                  ]}
+                  height={250}
+                  slotProps={{
+                    legend: {
+                      position: { vertical: 'middle', horizontal: 'end' },
+                    }
+                  }}
+                />
+              )}
+            </Box>
           </Card>
-        </Box>
-        <Box flex={1}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Total Appraisals
-              </Typography>
-              <Typography variant="h3">
-                {stats?.totalAppraisals || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Stack>
+        </Grid>
 
-      <Typography variant="h5" gutterBottom>
+        {/* Right Side: Summary Cards */}
+        <Grid size={{ xs: 12, md: 5, lg: 6 }}>
+          <Stack spacing={3} height="100%">
+            <Card sx={{ flex: 1, display: 'flex', alignItems: 'center', p: 2 }}>
+              <CardContent sx={{ width: '100%' }}>
+                <Typography color="textSecondary" variant="subtitle2" gutterBottom>
+                  Overall Completion Rate
+                </Typography>
+                <Typography variant="h2" color="primary.main" fontWeight="bold">
+                  {stats?.overallCompletionRate ? stats.overallCompletionRate.toFixed(1) : '0.0'}%
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card sx={{ flex: 1, display: 'flex', alignItems: 'center', p: 2 }}>
+              <CardContent sx={{ width: '100%' }}>
+                <Typography color="textSecondary" variant="subtitle2" gutterBottom>
+                  Total Appraisals
+                </Typography>
+                <Typography variant="h2" fontWeight="bold">
+                  {stats?.totalAppraisals || 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ mt: 2, mb: 2 }}>
         Department Breakdown
       </Typography>
-      <Box sx={{ width: '100%', height: 370 }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 5,
+      <Box sx={{ width: '100%', height: 400 }}>
+        <Card variant="outlined">
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 5,
+                },
               },
-            },
-          }}
-          pageSizeOptions={[5, 10, 25]}
-          disableRowSelectionOnClick
-        />
+            }}
+            pageSizeOptions={[5, 10, 25]}
+            disableRowSelectionOnClick
+            sx={{ border: 'none' }}
+          />
+        </Card>
       </Box>
     </Container>
   );

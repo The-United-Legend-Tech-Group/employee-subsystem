@@ -44,7 +44,7 @@ export default function NavbarBreadcrumbs() {
         // Specific overrides
         if (value === 'member-details') title = 'Member Details';
         if (value === '(protected)') return null; // Should not appear but just in case
-        if (value === 'dashboard') return null; // Avoid duplicate Dashboard since it's the root
+        if (value === 'dashboard' && index === 0) return null; // Avoid duplicate Dashboard since it's the root
 
         // Hide IDs if they are long strings (simple heuristic)
         if (value.length > 20 || (value.match(/\d/) && value.length > 10)) {

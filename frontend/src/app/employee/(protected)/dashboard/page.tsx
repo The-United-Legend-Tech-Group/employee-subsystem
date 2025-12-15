@@ -50,6 +50,7 @@ interface LatestAppraisal {
 }
 
 import OrganizationHierarchy from './OrganizationHierarchy';
+import PerformanceOverview from './PerformanceOverview';
 import { decryptData } from '../../../../common/utils/encryption';
 
 export default function EmployeeDashboard(props: { disableCustomTheme?: boolean }) {
@@ -299,6 +300,9 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                         </TableContainer>
                     </CardContent>
                 </Card>
+
+                {/* Performance Overview Section */}
+                <PerformanceOverview />
 
                 {/* Organization Hierarchy Section */}
                 <OrganizationHierarchy />

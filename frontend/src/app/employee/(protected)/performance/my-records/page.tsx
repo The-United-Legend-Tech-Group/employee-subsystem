@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     Box,
     Container,
@@ -15,19 +15,30 @@ import {
     Divider,
     List,
     ListItem,
-    ListItemText,
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    Stack,
+    IconButton,
+    Tooltip,
+    useTheme
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import HistoryIcon from '@mui/icons-material/History';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { LineChart } from '@mui/x-charts/LineChart';
+import { BarChart } from '@mui/x-charts/BarChart';
+
 import { decryptData } from '../../../../../common/utils/encryption';
 import { AppraisalRecord } from '../../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
 export default function MyPerformanceRecordsPage() {
+    const theme = useTheme();
     const [records, setRecords] = useState<AppraisalRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,23 +49,17 @@ export default function MyPerformanceRecordsPage() {
 
     const fetchRecords = async () => {
         try {
-            console.log('Fetching performance records...');
             const token = localStorage.getItem('access_token');
             const encryptedEmployeeId = localStorage.getItem('employeeId');
-            console.log('Token exists:', !!token);
-            console.log('Encrypted ID exists:', !!encryptedEmployeeId);
 
             if (!token || !encryptedEmployeeId) {
                 throw new Error('Authentication details missing');
             }
 
             const employeeId = await decryptData(encryptedEmployeeId, token);
-            console.log('Decrypted Employee ID:', employeeId);
-
             if (!employeeId) throw new Error('Failed to decrypt employee ID');
 
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
-            console.log('Fetching from URL:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -62,17 +67,19 @@ export default function MyPerformanceRecordsPage() {
                 },
             });
 
-            console.log('Response status:', response.status);
-
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Error response:', errorText);
                 throw new Error(`Failed to fetch performance records: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log('Records fetched:', data);
-            setRecords(data);
+            // Sort records by date (assuming updatedAt or similar represents the timeline)
+            const sortedData = data.sort((a: any, b: any) => {
+                const dateA = new Date(a.hrPublishedAt || a.updatedAt).getTime();
+                const dateB = new Date(b.hrPublishedAt || b.updatedAt).getTime();
+                return dateA - dateB;
+            });
+            setRecords(sortedData);
         } catch (err: any) {
             console.error('Fetch error:', err);
             setError(err.message || 'An error occurred');
@@ -81,10 +88,30 @@ export default function MyPerformanceRecordsPage() {
         }
     };
 
+    // Prepare chart data
+    const chartData = useMemo(() => {
+        if (records.length === 0) return null;
+
+        const labels = records.map(r => {
+            const date = new Date((r as any).hrPublishedAt || (r as any).updatedAt);
+            return r.cycleName || date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        });
+        const scores = records.map(r => r.totalScore || 0);
+
+        // For breakdown chart, take the latest record
+        const latestRecord = records[records.length - 1];
+        const latestRatings = latestRecord.ratings.map(r => ({
+            label: r.title,
+            value: r.ratingValue
+        }));
+
+        return { labels, scores, latestRatings, latestRecord };
+    }, [records]);
+
     if (loading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-                <CircularProgress />
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+                <CircularProgress size={60} thickness={4} />
             </Box>
         );
     }
@@ -92,140 +119,324 @@ export default function MyPerformanceRecordsPage() {
     if (error) {
         return (
             <Container maxWidth="lg" sx={{ mt: 4 }}>
-                <Alert severity="error">{error}</Alert>
+                <Alert severity="error" variant="filled">{error}</Alert>
             </Container>
         );
     }
 
+    if (records.length === 0) {
+        return (
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Typography variant="h4" gutterBottom fontWeight="bold">My Performance</Typography>
+                <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 2, bgcolor: 'background.paper' }}>
+                    <AssessmentIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2, opacity: 0.5 }} />
+                    <Typography variant="h6" color="text.secondary">
+                        No finalized performance records found yet.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Once your manager completes and publishes an appraisal, it will appear here.
+                    </Typography>
+                </Paper>
+            </Container>
+        );
+    }
+
+    const { latestRecord } = chartData!;
+
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                My Performance Records
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-                View your finalized performance ratings, feedback, and development notes.
+        <Container maxWidth="xl" sx={{ mt: 4, mb: 8 }}>
+            <Box mb={5}>
+                <Typography variant="h4" fontWeight="800" gutterBottom sx={{ letterSpacing: '-0.02em' }}>
+                    Performance Overview
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Track your professional growth, review feedback, and analyze your performance history.
+                </Typography>
+            </Box>
+
+            {/* Summary Stats */}
+            <Grid container spacing={3} mb={5}>
+                <Grid size={{ xs: 12, md: 4 }}>
+                    <SummaryCard
+                        title="Latest Score"
+                        value={latestRecord?.totalScore?.toFixed(1) || 'N/A'}
+                        subtitle={latestRecord?.overallRatingLabel || 'No Rating'}
+                        icon={<TrendingUpIcon />}
+                        color={theme.palette.primary.main}
+                    />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                    <SummaryCard
+                        title="Total Reviews"
+                        value={records.length}
+                        subtitle="Completed Cycles"
+                        icon={<HistoryIcon />}
+                        color={theme.palette.secondary.main}
+                    />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                    <SummaryCard
+                        title="Last Review"
+                        value={new Date((latestRecord as any).hrPublishedAt || (latestRecord as any).updatedAt).toLocaleDateString()}
+                        subtitle="Date Finalized"
+                        icon={<AssessmentIcon />}
+                        color={theme.palette.success.main}
+                    />
+                </Grid>
+            </Grid>
+
+            {/* Charts Section */}
+            <Grid container spacing={4} mb={6}>
+                <Grid size={{ xs: 12, lg: 7 }}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            borderRadius: 3,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="h6" fontWeight="bold">Performance History</Typography>
+                            <Tooltip title="Trend of your total scores over time">
+                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                        </Box>
+                        <Box sx={{ flexGrow: 1, minHeight: 300, width: '100%' }}>
+                            <LineChart
+                                xAxis={[{ data: chartData!.labels, scaleType: 'point' }]}
+                                series={[
+                                    {
+                                        data: chartData!.scores,
+                                        area: true,
+                                        color: theme.palette.primary.main,
+                                        showMark: true,
+                                    },
+                                ]}
+                                height={300}
+                                margin={{ left: 30, right: 10, top: 10, bottom: 30 }}
+                            />
+                        </Box>
+                    </Paper>
+                </Grid>
+                <Grid size={{ xs: 12, lg: 5 }}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            borderRadius: 3,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        <Box mb={2}>
+                            <Typography variant="h6" fontWeight="bold">Latest Skill Breakdown</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                From: {chartData!.latestRecord.cycleName || 'Latest Review'}
+                            </Typography>
+                        </Box>
+                        <Box sx={{ flexGrow: 1, minHeight: 300, width: '100%' }}>
+                            <BarChart
+                                dataset={chartData!.latestRatings}
+                                yAxis={[{ scaleType: 'band', dataKey: 'label' }]}
+                                series={[{ dataKey: 'value', label: 'Score', color: theme.palette.secondary.main }]}
+                                layout="horizontal"
+                                height={300}
+                                margin={{ left: 100, right: 10, top: 10, bottom: 30 }}
+                                hideLegend
+                            />
+                        </Box>
+                    </Paper>
+                </Grid>
+            </Grid>
+
+            <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+                Detailed Records ({records.length})
             </Typography>
 
-            {records.length === 0 ? (
-                <Paper sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography>No finalized performance records found.</Typography>
-                </Paper>
-            ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {records.map((record) => (
-                        <PerformanceRecordCard key={record._id} record={record} />
-                    ))}
-                </Box>
-            )}
+            <Stack spacing={3}>
+                {records.slice().reverse().map((record) => (
+                    <PerformanceRecordCard key={record._id} record={record} />
+                ))}
+            </Stack>
         </Container>
     );
 }
 
+function SummaryCard({ title, value, subtitle, icon, color }: any) {
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                p: 3,
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2
+            }}
+        >
+            <Box
+                sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    bgcolor: alpha(color, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: color
+                }}
+            >
+                {React.cloneElement(icon, { fontSize: 'large' })}
+            </Box>
+            <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight="600" textTransform="uppercase">
+                    {title}
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" sx={{ my: 0.5 }}>
+                    {value}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {subtitle}
+                </Typography>
+            </Box>
+        </Paper>
+    );
+}
+
 function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
-    // Helper to format date
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString();
+        return new Date(dateString).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     };
 
-    // Accessing properties that might not be in the strict interface but are in the API response
     const publishedDate = (record as any).hrPublishedAt || (record as any).updatedAt;
 
     return (
-        <Card elevation={3}>
-            <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                    <Typography variant="h6" component="div">
-                        Appraisal Record
+        <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+            <Box
+                sx={{
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                    p: 2,
+                    px: 3,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider'
+                }}
+            >
+                <Box>
+                    <Typography variant="h6" fontWeight="bold">
+                        {record.cycleName || 'Performance Appraisal'}
                     </Typography>
-                    <Chip
-                        label={record.overallRatingLabel || 'No Rating'}
-                        color={record.overallRatingLabel ? 'primary' : 'default'}
-                    />
+                    <Typography variant="body2" color="text.secondary">
+                        Finalized on {formatDate(publishedDate)}
+                    </Typography>
                 </Box>
+                <Chip
+                    label={record.overallRatingLabel || 'No Rating'}
+                    color={record.overallRatingLabel ? 'primary' : 'default'}
+                    sx={{ fontWeight: 'bold' }}
+                />
+            </Box>
 
-                <Grid container spacing={2} mb={3}>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography variant="subtitle2" color="text.secondary">Total Score</Typography>
-                        <Typography variant="body1">{record.totalScore ?? 'N/A'}</Typography>
+            <CardContent sx={{ p: 3 }}>
+                <Grid container spacing={4} alignItems="center">
+                    <Grid size={{ xs: 12, md: 3 }}>
+                        <Box textAlign="center" sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                            <Typography variant="overline" color="text.secondary">Total Score</Typography>
+                            <Typography variant="h3" fontWeight="bold" color="primary.main">
+                                {record.totalScore ?? '-'}
+                            </Typography>
+                        </Box>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography variant="subtitle2" color="text.secondary">Date Finalized</Typography>
-                        <Typography variant="body1">{formatDate(publishedDate)}</Typography>
+
+                    <Grid size={{ xs: 12, md: 9 }}>
+                        <Box mb={2}>
+                            <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="text.primary">Manager's Summary</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                "{record.managerSummary || 'No summary provided.'}"
+                            </Typography>
+                        </Box>
+
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" fontWeight="bold" color="success.main" display="block" gutterBottom>
+                                    STRENGTHS
+                                </Typography>
+                                <Typography variant="body2">
+                                    {record.strengths || 'None listed.'}
+                                </Typography>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" fontWeight="bold" color="error.main" display="block" gutterBottom>
+                                    AREAS FOR IMPROVEMENT
+                                </Typography>
+                                <Typography variant="body2">
+                                    {record.improvementAreas || 'None listed.'}
+                                </Typography>
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </Grid>
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: 3 }} />
 
-                <Typography variant="h6" gutterBottom>Manager Feedback</Typography>
-
-                <Box mb={2}>
-                    <Typography variant="subtitle2" color="primary">Summary</Typography>
-                    <Typography variant="body2" paragraph>
-                        {record.managerSummary || 'No summary provided.'}
-                    </Typography>
-                </Box>
-
-
-
-                <Grid container spacing={2} mb={2}>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: (theme) => alpha(theme.palette.success.main, 0.08) }}>
-                            <Typography variant="subtitle2" color="success.main" gutterBottom>Strengths</Typography>
-                            <Typography variant="body2">
-                                {record.strengths || 'None listed.'}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: (theme) => alpha(theme.palette.error.main, 0.08) }}>
-                            <Typography variant="subtitle2" color="error.main" gutterBottom>Areas for Improvement</Typography>
-                            <Typography variant="body2">
-                                {record.improvementAreas || 'None listed.'}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                </Grid>
-
-                <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <Typography>Detailed Ratings</Typography>
+                <Accordion elevation={0} disableGutters sx={{ '&:before': { display: 'none' } }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0 }}>
+                        <Typography fontWeight="600">View Detailed Ratings</Typography>
                     </AccordionSummary>
-                    <AccordionDetails>
-                        <List>
+                    <AccordionDetails sx={{ px: 0 }}>
+                        <List disablePadding>
                             {record.ratings.map((rating, index) => (
-                                <React.Fragment key={index}>
-                                    <ListItem alignItems="flex-start">
-                                        <ListItemText
-                                            primary={
-                                                <Box display="flex" justifyContent="space-between" flexWrap="wrap">
-                                                    <Typography variant="subtitle1" sx={{ mr: 2 }}>{rating.title}</Typography>
-                                                    <Chip size="small" label={`Rating: ${rating.ratingValue}`} />
-                                                </Box>
-                                            }
-                                            secondary={
-                                                <Box component="span">
-                                                    {rating.ratingLabel && (
-                                                        <Typography
-                                                            component="span"
-                                                            variant="body2"
-                                                            color="text.primary"
-                                                            display="block"
-                                                        >
-                                                            {rating.ratingLabel}
-                                                        </Typography>
-                                                    )}
-                                                    {rating.comments && (
-                                                        <Typography component="span" variant="body2" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                                            <strong>Comment:</strong> {rating.comments}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            }
-                                        />
-                                    </ListItem>
-                                    {index < record.ratings.length - 1 && <Divider component="li" />}
-                                </React.Fragment>
+                                <ListItem
+                                    key={index}
+                                    sx={{
+                                        py: 2,
+                                        borderBottom: index < record.ratings.length - 1 ? '1px solid' : 'none',
+                                        borderColor: 'divider'
+                                    }}
+                                >
+                                    <Grid container spacing={2} alignItems="flex-start">
+                                        <Grid size={{ xs: 12, sm: 4 }}>
+                                            <Typography variant="subtitle2" fontWeight="bold">{rating.title}</Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 2 }}>
+                                            <Chip
+                                                label={rating.ratingValue}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ minWidth: 40, fontWeight: 'bold' }}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            {rating.ratingLabel && (
+                                                <Typography variant="body2" fontWeight="500" gutterBottom>
+                                                    {rating.ratingLabel}
+                                                </Typography>
+                                            )}
+                                            {rating.comments && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {rating.comments}
+                                                </Typography>
+                                            )}
+                                        </Grid>
+                                    </Grid>
+                                </ListItem>
                             ))}
                         </List>
                     </AccordionDetails>

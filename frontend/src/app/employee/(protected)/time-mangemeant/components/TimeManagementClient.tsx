@@ -408,7 +408,7 @@ export default function TimeManagementClient({
           payrollRes,
         ] = await Promise.all([
           secureFetch<ShiftAssignment[]>(
-            `/time/shifts/employee/${employeeId}?start=${startRange.toISOString()}&end=${endRange.toISOString()}`,
+            `/time/shifts/assignments?start=${startRange.toISOString()}&end=${endRange.toISOString()}`,
             [],
             fetchOptions
           ),

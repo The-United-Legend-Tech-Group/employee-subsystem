@@ -31,7 +31,7 @@ export class TimeController {
     private readonly shiftService: ShiftService,
     private readonly shiftAssignmentService: ShiftAssignmentService,
     private readonly attendanceService: AttendanceService,
-  ) {}
+  ) { }
 
   @Get('shift-types')
   @ApiOperation({ summary: 'List shift types' })
@@ -88,6 +88,17 @@ export class TimeController {
       dto.ids,
       dto.status as any,
     );
+  }
+
+  @Get('shifts/assignments')
+  @ApiOperation({ summary: 'Get all shift assignments with optional date filtering' })
+  @ApiQuery({ name: 'start', required: false, description: 'Start date (ISO)' })
+  @ApiQuery({ name: 'end', required: false, description: 'End date (ISO)' })
+  getAllShiftAssignments(
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    return this.shiftAssignmentService.getAllShiftAssignments(start, end);
   }
 
   @Get('shifts/employee/:employeeId')

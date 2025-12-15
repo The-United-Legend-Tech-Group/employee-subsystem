@@ -17,8 +17,12 @@ import { StructureChangeRequest } from './models/structure-change-request.schema
 import { CreateStructureChangeRequestDto } from './dto/create-structure-change-request.dto';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { CreatePositionDto } from './dto/create-position.dto';
+import { CreatePositionAssignmentDto } from './dto/create-position-assignment.dto';
 import { Position } from './models/position.schema';
 import { Department } from './models/department.schema';
+import { PositionAssignment } from './models/position-assignment.schema';
+import { StructureChangeLog } from './models/structure-change-log.schema';
+
 import { AuthGuard } from '../../common/guards/authentication.guard';
 import { authorizationGuard } from '../../common/guards/authorization.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -29,7 +33,7 @@ import { SystemRole } from '../employee/enums/employee-profile.enums';
 export class OrganizationStructureController {
   constructor(
     private readonly organizationStructureService: OrganizationStructureService,
-  ) {}
+  ) { }
 
   @Get('positions/open')
   @UseGuards(AuthGuard, authorizationGuard)
@@ -56,12 +60,36 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getOrganizationHierarchy();
   }
 
+  @Get('hierarchy/user/:employeeId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get user hierarchy subtree rooted at their position' })
+  @ApiResponse({
+    status: 200,
+    description: 'User hierarchy subtree',
+    type: [Object],
+  })
+  async getUserHierarchy(@Param('employeeId') employeeId: string): Promise<any[]> {
+    return this.organizationStructureService.getUserHierarchy(employeeId);
+  }
+
+  @Get('requests')
+  @UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.DEPARTMENT_HEAD)
+  @ApiOperation({
+    summary: 'List all structure change requests (System Admin)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All change requests',
+    type: [StructureChangeRequest],
+  })
+  async listRequests(): Promise<StructureChangeRequest[]> {
+    return this.organizationStructureService.listChangeRequests();
+  }
+
   @Get('requests/pending')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.SYSTEM_ADMIN)
-  @ApiOperation({
-    summary: 'List pending structure change requests (System Admin)',
-  })
+  @ApiOperation({ summary: 'List pending structure change requests' })
   @ApiResponse({
     status: 200,
     description: 'Pending change requests',
@@ -71,9 +99,25 @@ export class OrganizationStructureController {
     return this.organizationStructureService.listPendingChangeRequests();
   }
 
+  @Get('requests/user/:employeeId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'List structure change requests submitted by a specific employee',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Change requests for the employee',
+    type: [StructureChangeRequest],
+  })
+  async listRequestsByEmployee(
+    @Param('employeeId') employeeId: string,
+  ): Promise<StructureChangeRequest[]> {
+    return this.organizationStructureService.listChangeRequestsByEmployee(employeeId);
+  }
+
   @Get('requests/:id')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.SYSTEM_ADMIN)
+  //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({
     summary: 'Get a single structure change request by id (System Admin)',
   })
@@ -88,18 +132,18 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getChangeRequestById(id);
   }
 
-    @Post('requests/:id/approve')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.SYSTEM_ADMIN)
-    @ApiOperation({ summary: 'Approve a structure change request (System Admin)' })
-    @ApiResponse({ status: 200, description: 'Approved change request', type: StructureChangeRequest })
-    async approveRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
-        return this.organizationStructureService.approveChangeRequest(id, body?.comment);
-    }
+  @Post('requests/:id/approve')
+  @UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({ summary: 'Approve a structure change request (System Admin)' })
+  @ApiResponse({ status: 200, description: 'Approved change request', type: StructureChangeRequest })
+  async approveRequest(@Param('id') id: string, @Body() body: { comment?: string }): Promise<StructureChangeRequest> {
+    return this.organizationStructureService.approveChangeRequest(id, body?.comment);
+  }
 
   @Post('requests/:id/reject')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.SYSTEM_ADMIN)
+  // @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({ summary: 'Reject a structure change request (System Admin)' })
   async rejectRequest(
     @Param('id') id: string,
@@ -113,7 +157,7 @@ export class OrganizationStructureController {
 
   @Post('requests')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.DEPARTMENT_HEAD)
+  //@Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Submit a structure change request (Managers)' })
   @ApiResponse({
     status: 201,
@@ -126,9 +170,11 @@ export class OrganizationStructureController {
     return this.organizationStructureService.submitChangeRequest(dto);
   }
 
+
+
   @Get('managers/:managerId/team')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.DEPARTMENT_HEAD)
+  //@Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({
     summary: "Get a manager's team structure and reporting lines (Managers)",
   })
@@ -139,6 +185,21 @@ export class OrganizationStructureController {
   })
   async getManagerTeam(@Param('managerId') managerId: string): Promise<any> {
     return this.organizationStructureService.getManagerTeamStructure(managerId);
+  }
+
+  @Post('assignments')
+  @UseGuards(AuthGuard, authorizationGuard)
+  // @Roles(SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
+  @ApiOperation({ summary: 'Assign an employee to a position' })
+  @ApiResponse({
+    status: 201,
+    description: 'Created position assignment',
+    type: PositionAssignment,
+  })
+  async assignPosition(
+    @Body() dto: CreatePositionAssignmentDto,
+  ): Promise<PositionAssignment> {
+    return this.organizationStructureService.assignPosition(dto);
   }
 
   @Patch('positions/:id/deactivate')
@@ -249,4 +310,30 @@ export class OrganizationStructureController {
   ): Promise<any> {
     return this.organizationStructureService.updateDepartment(id, dto as any);
   }
+
+  @Get('change-logs')
+  @UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({ summary: 'Get structure change logs (System Admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of structure change logs',
+    type: [StructureChangeLog],
+  })
+  async getChangeLogs(): Promise<StructureChangeLog[]> {
+    return this.organizationStructureService.getChangeLogs();
+  }
+
+  @Get('approvals')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @ApiOperation({ summary: 'Get structure approvals (System Admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of structure approvals with details',
+    type: [Object],
+  })
+  async getApprovals(): Promise<any[]> {
+    return this.organizationStructureService.getApprovals();
+  }
 }
+

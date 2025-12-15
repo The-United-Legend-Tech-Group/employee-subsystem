@@ -28,6 +28,12 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
+    // Check if email exists in employee profiles
+    const employeeEmailExists = await this.employeeProfileRepository.checkEmailExists(personalEmail);
+    if (employeeEmailExists) {
+      throw new ConflictException('Email already in use by an employee');
+    }
+
     const existingNationalId = await this.candidateRepository.findByNationalId(nationalId);
     if (existingNationalId) {
       throw new ConflictException('National ID already registered');

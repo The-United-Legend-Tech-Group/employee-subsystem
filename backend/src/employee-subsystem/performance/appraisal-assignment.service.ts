@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppraisalAssignmentRepository } from './repository/appraisal-assignment.repository';
+import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
+import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
 import { GetAssignmentsQueryDto, BulkAssignDto, AppraisalProgressQueryDto, SendReminderDto } from './dto/appraisal-assignment.dto';
 import { AppraisalAssignmentStatus } from './enums/performance.enums';
 import { AppraisalAssignment } from './models/appraisal-assignment.schema';
@@ -17,6 +19,8 @@ export class AppraisalAssignmentService {
         private readonly appraisalAssignmentRepository: AppraisalAssignmentRepository,
         private readonly notificationService: NotificationService,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
+        private readonly appraisalTemplateRepository: AppraisalTemplateRepository,
+        private readonly appraisalCycleRepository: AppraisalCycleRepository,
     ) { }
 
     async getAssignmentsByManager(
@@ -75,6 +79,12 @@ export class AppraisalAssignmentService {
 
         const created = await this.appraisalAssignmentRepository.insertMany(docs as any);
 
+        // Fetch template and cycle details for notification
+        const template = await this.appraisalTemplateRepository.findOne({ _id: dto.templateId });
+        const cycle = await this.appraisalCycleRepository.findOne({ _id: dto.cycleId });
+        const templateName = template ? template.name : dto.templateId;
+        const cycleName = cycle ? cycle.name : dto.cycleId;
+
         // Send notifications to employees and managers
         for (const c of created) {
             try {
@@ -84,7 +94,7 @@ export class AppraisalAssignmentService {
                     type: 'Alert',
                     deliveryType: recipients.length > 1 ? 'MULTICAST' : 'UNICAST',
                     title: 'Appraisal Assigned',
-                    message: `Appraisal assigned using template ${dto.templateId} for cycle ${dto.cycleId}`,
+                    message: `Appraisal assigned using template ${templateName} for cycle ${cycleName}`,
                     relatedEntityId: c._id?.toString(),
                     relatedModule: 'Performance',
                 };

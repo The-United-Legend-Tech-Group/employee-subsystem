@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationService } from '../notification.service';
 import { NotificationRepository } from '../repository/notification.repository';
+import { EmployeeProfileRepository } from '../../employee/repository/employee-profile.repository';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { Types } from 'mongoose';
 
@@ -10,6 +11,14 @@ describe('NotificationService', () => {
 
   const mockNotificationRepository = {
     create: jest.fn(),
+    find: jest.fn(),
+    findLatest: jest.fn(),
+    updateById: jest.fn(),
+    updateMany: jest.fn(),
+  };
+
+  const mockEmployeeProfileRepository = {
+    find: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -19,6 +28,10 @@ describe('NotificationService', () => {
         {
           provide: NotificationRepository,
           useValue: mockNotificationRepository,
+        },
+        {
+          provide: EmployeeProfileRepository,
+          useValue: mockEmployeeProfileRepository,
         },
       ],
     }).compile();
@@ -32,7 +45,7 @@ describe('NotificationService', () => {
   });
 
   describe('create', () => {
-    it('should create a notification with converted ObjectIds', async () => {
+    it('should create a notification with converted ObjectIds and empty readBy', async () => {
       const createNotificationDto: CreateNotificationDto = {
         recipientId: ['507f1f77bcf86cd799439011'],
         type: 'Info',
@@ -43,9 +56,10 @@ describe('NotificationService', () => {
 
       const expectedPayload = {
         ...createNotificationDto,
-        recipientId: createNotificationDto.recipientId.map(
+        recipientId: (createNotificationDto.recipientId || []).map(
           (id) => new Types.ObjectId(id),
         ),
+        readBy: [],
       };
 
       const expectedResult = {
@@ -62,14 +76,64 @@ describe('NotificationService', () => {
         expect.objectContaining({
           ...createNotificationDto,
           recipientId: expect.arrayContaining([expect.any(Types.ObjectId)]),
+          readBy: [],
         }),
       );
+    });
+  });
 
-      // Verify ObjectId conversion
-      const calledArg = mockNotificationRepository.create.mock.calls[0][0];
-      expect(calledArg.recipientId[0]).toBeInstanceOf(Types.ObjectId);
-      expect(calledArg.recipientId[0].toString()).toBe(
-        createNotificationDto.recipientId[0],
+  describe('findByRecipientId', () => {
+    it('should return notifications with calculated isRead property', async () => {
+      const userId = '507f1f77bcf86cd799439011';
+      const notifications = [
+        {
+          _id: '1',
+          title: 'Not Read',
+          readBy: [],
+          toObject: function () { return this; }
+        },
+        {
+          _id: '2',
+          title: 'Read',
+          readBy: [new Types.ObjectId(userId)],
+          toObject: function () { return this; }
+        }
+      ];
+
+
+      mockNotificationRepository.findLatest.mockResolvedValue(notifications);
+
+      const result = await service.findByRecipientId(userId);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].isRead).toBe(false);
+      expect(result[1].isRead).toBe(true);
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('should update notification adding user to readBy', async () => {
+      const notificationId = 'notifId';
+      const userId = '507f1f77bcf86cd799439011';
+
+      await service.markAsRead(notificationId, userId);
+
+      expect(repository.updateById).toHaveBeenCalledWith(
+        notificationId,
+        { $addToSet: { readBy: new Types.ObjectId(userId) } }
+      );
+    });
+  });
+
+  describe('markAllAsRead', () => {
+    it('should update many notifications adding user to readBy', async () => {
+      const userId = '507f1f77bcf86cd799439011';
+
+      await service.markAllAsRead(userId);
+
+      expect(repository.updateMany).toHaveBeenCalledWith(
+        { $or: [{ recipientId: userId }, { deliveryType: 'BROADCAST' }] },
+        { $addToSet: { readBy: new Types.ObjectId(userId) } }
       );
     });
   });

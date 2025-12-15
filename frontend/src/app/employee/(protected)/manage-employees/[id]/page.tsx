@@ -185,7 +185,7 @@ function EmployeeDetailsContent() {
                         <Paper sx={{ px: 2, py: 1 }}>
                             <Typography variant="overline">Full-time</Typography>
                             <Typography variant="body1" sx={{ mb: 1 }}>
-                                {employee.isFullTime ? 'Yes' : 'Yes'}
+                                {employee.isFullTime ? 'Yes' : 'No'}
                             </Typography>
                         </Paper>
                     </Grid>

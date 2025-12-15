@@ -1,13 +1,9 @@
-import { Controller, Get, Query, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Post, Body } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppraisalAssignmentService } from './appraisal-assignment.service';
 import { GetAssignmentsQueryDto } from './dto/appraisal-assignment.dto';
 import { AppraisalAssignment } from './models/appraisal-assignment.schema';
 import { BulkAssignDto, AppraisalProgressQueryDto, SendReminderDto } from './dto/appraisal-assignment.dto';
-import { AuthGuard } from '../../common/guards/authentication.guard';
-import { authorizationGuard } from '../../common/guards/authorization.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @ApiTags('Performance - Appraisal Assignments')
 @Controller('performance/assignments')
@@ -17,8 +13,6 @@ export class AppraisalAssignmentController {
     ) { }
 
     @Get()
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Get appraisal assignments for a manager' })
     @ApiResponse({
         status: 200,
@@ -32,8 +26,6 @@ export class AppraisalAssignmentController {
     }
 
     @Post('bulk')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Bulk assign appraisal templates to employees' })
     @ApiResponse({ status: 201, description: 'Assignments created', type: [AppraisalAssignment] })
     async bulkAssign(@Body() dto: BulkAssignDto): Promise<AppraisalAssignment[]> {
@@ -41,8 +33,6 @@ export class AppraisalAssignmentController {
     }
 
     @Get('progress')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Monitor appraisal progress' })
     @ApiResponse({
         status: 200,
@@ -56,8 +46,6 @@ export class AppraisalAssignmentController {
     }
 
     @Post('reminders')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Send reminders for pending appraisals' })
     @ApiResponse({ status: 201, description: 'Reminders sent' })
     async sendReminders(@Body() dto: SendReminderDto): Promise<void> {

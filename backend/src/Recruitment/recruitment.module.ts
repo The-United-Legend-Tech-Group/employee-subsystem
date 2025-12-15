@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RecruitmentController } from './recruitment.controller';
 import { RecruitmentService } from './recruitment.service';
@@ -97,7 +97,7 @@ import { OrganizationStructureModule } from '../employee-subsystem/organization-
     // Module imports
     EmployeeModule,
     NotificationModule,
-    PerformanceModule,
+    forwardRef(() => PerformanceModule),
     OrganizationStructureModule,
     LeavesModule,
   ],

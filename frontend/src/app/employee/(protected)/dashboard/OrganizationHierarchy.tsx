@@ -9,7 +9,11 @@ import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
-import { useTheme } from '@mui/material/styles';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import { alpha, useTheme } from '@mui/material/styles';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
 
 interface HierarchyNode {
     _id: string;
@@ -23,7 +27,8 @@ interface HierarchyNode {
 }
 
 // Helper to generate a consistent color from a string (e.g., departmentId)
-const stringToColor = (string: string) => {
+const stringToColor = (string: string | undefined | null) => {
+    if (!string) return '#666666'; // Default gray for undefined/null
     let hash = 0;
     for (let i = 0; i < string.length; i++) {
         hash = string.charCodeAt(i) + ((hash << 5) - hash);
@@ -43,24 +48,28 @@ const hasDescendant = (node: HierarchyNode, targetId?: string | null): boolean =
     return node.children?.some(child => hasDescendant(child, targetId)) || false;
 };
 
-// Helper to compact the tree: limits siblings to 3, distributing excess as children of the first 3
+// Helper to compact the tree: limits siblings to create a roughly square shape
 const compactTree = (node: HierarchyNode): HierarchyNode => {
-    // Shallow clone to avoid mutating original data structure in place if strictly necessary, 
-    // but here we are producing a new view structure.
+    // Shallow clone to avoid mutating original data structure
     const newNode = { ...node, children: node.children ? [...node.children] : [] };
 
-    if (newNode.children.length > 3) {
-        const visible = newNode.children.slice(0, 3);
-        const excess = newNode.children.slice(3);
+    // "Squarify" logic:
+    // We want the number of direct children (columns) to be roughly the square root of the total children,
+    // so that the tree grows downwards as much as it grows sideways.
+    // Minimum 3 columns to keep it looking like a tree for small numbers.
+    const limit = Math.max(3, Math.ceil(Math.sqrt(newNode.children.length)));
+
+    if (newNode.children.length > limit) {
+        const visible = newNode.children.slice(0, limit);
+        const excess = newNode.children.slice(limit);
 
         // Distribute excess nodes under the visible ones in round-robin fashion
         excess.forEach((excessNode, i) => {
-            const targetIndex = i % 3;
+            const targetIndex = i % limit;
             // Ensure target has children array
             if (!visible[targetIndex].children) {
                 visible[targetIndex].children = [];
             }
-            // Add excess node to target's children
             visible[targetIndex].children.push(excessNode);
         });
 
@@ -213,52 +222,34 @@ const OrgChartNode = React.memo(({ node, currentPositionId }: { node: HierarchyN
 });
 
 export default function OrganizationHierarchy() {
+    const theme = useTheme();
     const [hierarchy, setHierarchy] = React.useState<HierarchyNode[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [currentPositionId, setCurrentPositionId] = React.useState<string | null>(null);
+    const [currentEmployeeId, setCurrentEmployeeId] = React.useState<string | null>(null);
+    const [userInfoLoaded, setUserInfoLoaded] = React.useState(false);
+    const [scale, setScale] = React.useState(1);
+    const [showMyHierarchy, setShowMyHierarchy] = React.useState(true);
 
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const contentRef = React.useRef<HTMLDivElement>(null);
+
+    // Fetch user profile info on mount
     React.useEffect(() => {
-        const fetchData = async () => {
-            let token: string | null = null;
-            let apiUrl: string | undefined = undefined;
-
+        const fetchUserInfo = async () => {
             try {
-                token = localStorage.getItem('access_token');
-                apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-
-                if (!token) {
-                    throw new Error('Authentication details missing');
-                }
-
-                // 1. Fetch Hierarchy
-                const hierarchyRes = await fetch(`${apiUrl}/organization-structure/hierarchy`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!hierarchyRes.ok) throw new Error('Failed to fetch hierarchy data');
-                const hierarchyData = await hierarchyRes.json();
-
-                // Apply compaction to all root nodes
-                const compactedData = hierarchyData.map((root: HierarchyNode) => compactTree(root));
-                setHierarchy(compactedData);
-                setLoading(false); // Show hierarchy immediately
-
-            } catch (err) {
-                console.error('Error fetching hierarchy:', err);
-                setError('Failed to load organization hierarchy.');
-                setLoading(false);
-                return; // Stop if hierarchy fails
-            }
-
-            // 2. Fetch User Profile (Background)
-            try {
+                const token = localStorage.getItem('access_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const encryptedEmployeeId = localStorage.getItem('employeeId');
+
                 if (encryptedEmployeeId && token) {
                     const { decryptData } = await import('../../../../common/utils/encryption');
                     const employeeId = await decryptData(encryptedEmployeeId, token);
 
                     if (employeeId) {
+                        setCurrentEmployeeId(employeeId);
+
                         const profileRes = await fetch(`${apiUrl}/employee/${employeeId}`, {
                             headers: { 'Authorization': `Bearer ${token}` }
                         });
@@ -275,33 +266,130 @@ export default function OrganizationHierarchy() {
                     }
                 }
             } catch (e) {
-                console.warn('Failed to fetch user position for centering', e);
+                console.warn('Failed to fetch user info', e);
+            } finally {
+                setUserInfoLoaded(true);
             }
         };
 
-        fetchData();
+        fetchUserInfo();
     }, []);
 
-    // Effect to scroll to the current position node
+    // Fetch hierarchy data based on toggle state
     React.useEffect(() => {
-        if (!loading && currentPositionId && hierarchy.length > 0) {
-            // Small timeout to ensure DOM is rendered
-            const timer = setTimeout(() => {
-                const element = document.getElementById(`node-${currentPositionId}`);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                    // Optional: Add a highlight effect class temporarily
-                    element.style.transition = 'box-shadow 0.5s ease';
-                    element.style.boxShadow = '0 0 0 4px rgba(25, 118, 210, 0.3)'; // primary.main with opacity
-
-                    setTimeout(() => {
-                        element.style.boxShadow = '';
-                    }, 2000);
-                }
-            }, 500);
-            return () => clearTimeout(timer);
+        // Wait for user info to load when in My Hierarchy mode
+        if (showMyHierarchy && !userInfoLoaded) {
+            return;
         }
-    }, [loading, currentPositionId, hierarchy]);
+
+        const fetchHierarchy = async () => {
+            // Only show loading on initial load, not on toggle (preserves scroll position)
+            if (hierarchy.length === 0) {
+                setLoading(true);
+            }
+            setError(null);
+
+            try {
+                const token = localStorage.getItem('access_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+
+                if (!token) {
+                    throw new Error('Authentication details missing');
+                }
+
+                let url = `${apiUrl}/organization-structure/hierarchy`;
+
+                // If showing my hierarchy and we have the current employee ID, use the user hierarchy endpoint
+                if (showMyHierarchy && currentEmployeeId) {
+                    url = `${apiUrl}/organization-structure/hierarchy/user/${currentEmployeeId}`;
+                }
+
+                const hierarchyRes = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!hierarchyRes.ok) throw new Error('Failed to fetch hierarchy data');
+                const hierarchyData = await hierarchyRes.json();
+
+                // Both endpoints now return the same format - array of root nodes
+                const dataToProcess: HierarchyNode[] = Array.isArray(hierarchyData) ? hierarchyData : [];
+
+                // Apply compaction to all root nodes
+                const compactedData = dataToProcess.map((root: HierarchyNode) => compactTree(root));
+                setHierarchy(compactedData);
+                setLoading(false);
+
+            } catch (err) {
+                console.error('Error fetching hierarchy:', err);
+                setError('Failed to load organization hierarchy.');
+                setLoading(false);
+            }
+        };
+
+        fetchHierarchy();
+    }, [showMyHierarchy, currentEmployeeId, userInfoLoaded]);
+
+    // Effect to calculate and update scale
+    React.useLayoutEffect(() => {
+        if (loading || !hierarchy.length) return;
+
+        const handleResize = () => {
+            if (containerRef.current && contentRef.current) {
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const contentRect = contentRef.current.getBoundingClientRect();
+
+                // Reset scale to 1 to get true content dimensions first (if needed, but simpler to just measure scrollWidth/scrollHeight)
+
+                const contentWidth = contentRef.current.scrollWidth;
+                const contentHeight = contentRef.current.scrollHeight;
+                const containerWidth = containerRect.width;
+                const containerHeight = containerRect.height;
+
+                // Add some padding to the available space calculation to prevent edge-touching
+                const paddingX = 40;
+                const paddingY = 40;
+
+                const scaleX = (containerWidth - paddingX) / contentWidth;
+                const scaleY = (containerHeight - paddingY) / contentHeight;
+
+                // We only want to scale down, not up (keep max scale at 1)
+                // Also choose the smaller scale to fit both dimensions
+                const newScale = Math.min(scaleX, scaleY, 1);
+
+                setScale(newScale);
+            }
+        };
+
+        // Initial check
+        // We need a slight delay or resize observer to wait for render
+        const timer = setTimeout(handleResize, 100);
+
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+
+        if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+        }
+
+        // Also observe content changes if possible, or just rely on hierarchy changes re-triggering this
+        if (contentRef.current) {
+            resizeObserver.observe(contentRef.current);
+        }
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
+            clearTimeout(timer);
+        };
+    }, [loading, hierarchy]);
+
+
+    // Effect to scroll to the current position node (modified to account for scale if needed, or just relying on visual centering)
+    // with Auto-Zoom, scrolling might not be needed if it fits, but if we zoomed out, everything is visible.
+    // If we are zoomed out, we don't really need to scroll.
 
     if (loading) {
         return (
@@ -318,6 +406,35 @@ export default function OrganizationHierarchy() {
     }
 
     if (!hierarchy || hierarchy.length === 0) {
+        // Show specific message when My Hierarchy is empty
+        if (showMyHierarchy) {
+            return (
+                <Card
+                    elevation={0}
+                    sx={{
+                        mt: 4,
+                        width: '100%',
+                        height: 'calc(100vh - 200px)',
+                        minHeight: 500,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                    }}
+                >
+                    <Typography variant="h6" color="text.secondary" sx={{ textAlign: 'center' }}>
+                        You are not in a Department yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                        Contact your HR administrator to be assigned to a department.
+                    </Typography>
+                </Card>
+            );
+        }
         return (
             <Alert severity="info" sx={{ mt: 2 }}>No organization structure found.</Alert>
         );
@@ -326,33 +443,106 @@ export default function OrganizationHierarchy() {
     return (
         <Card
             elevation={0}
+            ref={containerRef}
             sx={(theme) => ({
                 mt: 4,
                 width: '100%',
-                overflowX: 'auto',
+                height: 'calc(100vh - 200px)', // Fixed height to allow zooming behavior
+                minHeight: 500,
+                overflow: 'hidden',
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 1,
                 bgcolor: 'background.paper',
+                display: 'flex',
+                flexDirection: 'column', // Stack header and content
                 ...theme.applyStyles('light', {
                     backgroundImage: 'linear-gradient(to top right, rgba(255,255,255,0.8), rgba(255,255,255,0.5))',
                     backdropFilter: 'blur(8px)',
                 }),
             })}
         >
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="h6" gutterBottom component="div" sx={{ mb: 2, fontWeight: 700, color: 'text.primary' }}>
-                    Organization Structure
-                </Typography>
-                <Box sx={{
+            {/* Toggle Switch */}
+            <Box
+                sx={{
                     display: 'flex',
                     justifyContent: 'center',
-                    alignItems: 'flex-start',
-                    minWidth: 'fit-content',
-                    gap: 2,
-                    p: 1,
-                    pb: 4
-                }}>
+                    alignItems: 'center',
+                    py: 1.5,
+                }}
+            >
+                <ToggleButtonGroup
+                    value={showMyHierarchy ? 'my' : 'company'}
+                    exclusive
+                    onChange={(e, newValue) => {
+                        if (newValue !== null) {
+                            setShowMyHierarchy(newValue === 'my');
+                        }
+                    }}
+                    aria-label="hierarchy view"
+                    sx={{
+                        bgcolor: 'background.paper',
+                        borderRadius: '24px',
+                        boxShadow: theme.shadows[3],
+                        p: 0.5,
+                        gap: 0.5,
+                        '& .MuiToggleButton-root': {
+                            borderRadius: '20px',
+                            border: 'none',
+                            px: 2,
+                            py: 0.5,
+                            transition: 'all 0.2s',
+                            color: 'text.secondary',
+                            '&.Mui-selected': {
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                boxShadow: theme.shadows[2],
+                                '&:hover': {
+                                    bgcolor: 'primary.dark',
+                                }
+                            },
+                            '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            }
+                        },
+                    }}
+                    size="small"
+                >
+                    <ToggleButton value="company" aria-label="company hierarchy">
+                        <BusinessRoundedIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">Company</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="my" aria-label="my hierarchy">
+                        <AccountTreeRoundedIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">My Hierarchy</Typography>
+                    </ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    width: '100%',
+                    position: 'relative'
+                }}
+            >
+                <Box
+                    ref={contentRef}
+                    sx={{
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'center center',
+                        transition: 'transform 0.3s ease',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start',
+                        width: 'fit-content',
+                        p: 2,
+                    }}
+                >
                     {hierarchy.map((rootNode) => (
                         <OrgChartNode
                             key={rootNode._id}
@@ -361,7 +551,7 @@ export default function OrganizationHierarchy() {
                         />
                     ))}
                 </Box>
-            </CardContent>
+            </Box>
         </Card>
     );
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -30,6 +30,9 @@ import { AppraisalAssignmentService } from './appraisal-assignment.service';
 import { NotificationModule } from '../notification/notification.module';
 import { EmployeeModule } from '../employee/employee.module';
 import { TimeMangementModule } from '../../time-mangement/timemangment.module';
+import { RecruitmentModule } from '../../Recruitment/recruitment.module';
+import { ContractRepository } from '../../Recruitment/repositories/implementations/contract.repository';
+import { Contract, ContractSchema } from '../../Recruitment/models/contract.schema';
 
 @Module({
   imports: [
@@ -40,11 +43,13 @@ import { TimeMangementModule } from '../../time-mangement/timemangment.module';
       { name: AppraisalAssignment.name, schema: AppraisalAssignmentSchema },
       { name: AppraisalDispute.name, schema: AppraisalDisputeSchema },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
+      { name: Contract.name, schema: ContractSchema },
     ]),
     OrganizationStructureModule,
     NotificationModule,
     EmployeeModule,
     TimeMangementModule,
+    forwardRef(() => RecruitmentModule),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -75,6 +80,7 @@ import { TimeMangementModule } from '../../time-mangement/timemangment.module';
     AppraisalRecordService,
     AppraisalDisputeRepository,
     AppraisalDisputeService,
+    ContractRepository,
   ],
   exports: [MongooseModule, AppraisalRecordService],
 })

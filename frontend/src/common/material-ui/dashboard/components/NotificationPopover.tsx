@@ -20,6 +20,7 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import MenuButton from './MenuButton';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface Notification {
     _id: string;
@@ -125,6 +126,25 @@ export default function NotificationPopover() {
         }
     };
 
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const handleViewAll = () => {
+        handleClose(); // Close the popover
+        if (!pathname) return;
+
+        let basePath = '';
+        if (pathname.includes('/employee')) {
+            basePath = '/employee';
+        } else if (pathname.includes('/candidate')) {
+            basePath = '/candidate';
+        }
+
+        if (basePath) {
+            router.push(`${basePath}/notifications`);
+        }
+    };
+
     return (
         <React.Fragment>
             <MenuButton
@@ -154,10 +174,12 @@ export default function NotificationPopover() {
                 PaperProps={{
                     sx: {
                         mt: 1.5,
-                        width: 360,
+                        width: 420,
                         overflow: 'visible',
                         filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                         borderRadius: 3, // More rounded popover
+                        border: '1px solid',
+                        borderColor: 'divider',
                         '&:before': {
                             content: '""',
                             display: 'block',
@@ -169,6 +191,9 @@ export default function NotificationPopover() {
                             bgcolor: 'background.paper',
                             transform: 'translateY(-50%) rotate(45deg)',
                             zIndex: 0,
+                            borderTop: '1px solid',
+                            borderLeft: '1px solid',
+                            borderColor: 'divider',
                         },
                     },
                 }}
@@ -258,7 +283,12 @@ export default function NotificationPopover() {
                         )}
                     </Box>
                     <Box sx={{ p: 1, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ cursor: 'pointer', '&:hover': { color: 'text.primary' } }}>
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            onClick={handleViewAll}
+                            sx={{ cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
+                        >
                             View all notifications
                         </Typography>
                     </Box>

@@ -2,6 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class OvertimeRecordDto {
   @ApiProperty()
+  attendanceId: string;
+
+  @ApiProperty()
   employeeId: string;
 
   @ApiProperty()

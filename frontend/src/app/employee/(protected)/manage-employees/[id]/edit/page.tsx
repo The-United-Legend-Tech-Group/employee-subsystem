@@ -4,10 +4,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import Grid from '@mui/material/Grid';
 import PageContainer from '../../../../../../common/material-ui/crud-dashboard/components/PageContainer';
 import EmployeeEditForm from '../EmployeeEditForm';
-import EmployeeRoleForm from './EmployeeRoleForm';
 import DialogsProvider from '../../../../../../common/material-ui/crud-dashboard/hooks/useDialogs/DialogsProvider';
 import NotificationsProvider from '../../../../../../common/material-ui/crud-dashboard/hooks/useNotifications/NotificationsProvider';
 
@@ -107,15 +105,6 @@ function EmployeeEditContent() {
             ]}
         >
             <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid size={{ xs: 12 }}>
-                        <EmployeeRoleForm
-                            employeeId={employee._id}
-                            currentRoles={employee.roles || []}
-                            onUpdate={fetchEmployee}
-                        />
-                    </Grid>
-                </Grid>
                 <EmployeeEditForm employee={employee} onUpdate={fetchEmployee} />
             </Box>
         </PageContainer>

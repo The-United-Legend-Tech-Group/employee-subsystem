@@ -7,8 +7,12 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import ProfileCard from './components/ProfileCard';
 import ContactCard from './components/ContactCard';
+import SubmitRequestTab from './components/SubmitRequestTab';
+import MyRequestsTab from './components/MyRequestsTab';
 import { decryptData } from '../../../../common/utils/encryption';
 
 interface Address {
@@ -37,6 +41,8 @@ export default function SettingsPage() {
     const [error, setError] = React.useState<string | null>(null);
     const [success, setSuccess] = React.useState<string | null>(null);
     const [profile, setProfile] = React.useState<EmployeeProfile | null>(null);
+    const [employeeId, setEmployeeId] = React.useState<string | null>(null);
+    const [activeTab, setActiveTab] = React.useState(0);
 
     // Form States
     const [biography, setBiography] = React.useState('');
@@ -63,10 +69,11 @@ export default function SettingsPage() {
             }
 
             try {
-                const employeeId = await decryptData(encryptedEmployeeId, token);
-                if (!employeeId) throw new Error('Decryption failed');
+                const id = await decryptData(encryptedEmployeeId, token);
+                if (!id) throw new Error('Decryption failed');
+                setEmployeeId(id);
 
-                const res = await fetch(`${apiUrl}/employee/${employeeId}`, {
+                const res = await fetch(`${apiUrl}/employee/${id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -169,37 +176,55 @@ export default function SettingsPage() {
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-            <Grid container spacing={2} columns={12}>
-                {/* Profile Picture & Bio */}
-                <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-                    <ProfileCard
-                        profile={profile}
-                        profilePictureUrl={profilePictureUrl}
-                        setProfilePictureUrl={setProfilePictureUrl}
-                        biography={biography}
-                        setBiography={setBiography}
-                        setError={setError}
-                    />
-                </Grid>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
+                    <Tab label="Profile Settings" />
+                    <Tab label="New Request" />
+                    <Tab label="My Requests" />
+                </Tabs>
+            </Box>
 
-                {/* Contact Information */}
-                <Grid size={{ xs: 12, md: 8, lg: 9 }}>
-                    <ContactCard
-                        saving={saving}
-                        handleSaveProfile={handleSaveProfile}
-                        mobilePhone={mobilePhone}
-                        setMobilePhone={setMobilePhone}
-                        homePhone={homePhone}
-                        setHomePhone={setHomePhone}
-                        streetAddress={streetAddress}
-                        setStreetAddress={setStreetAddress}
-                        city={city}
-                        setCity={setCity}
-                        country={country}
-                        setCountry={setCountry}
-                    />
+            {activeTab === 0 && (
+                <Grid container spacing={2} columns={12}>
+                    {/* Profile Picture & Bio */}
+                    <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+                        <ProfileCard
+                            profile={profile}
+                            profilePictureUrl={profilePictureUrl}
+                            setProfilePictureUrl={setProfilePictureUrl}
+                            biography={biography}
+                            setBiography={setBiography}
+                            setError={setError}
+                        />
+                    </Grid>
+
+                    {/* Contact Information */}
+                    <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+                        <ContactCard
+                            saving={saving}
+                            handleSaveProfile={handleSaveProfile}
+                            mobilePhone={mobilePhone}
+                            setMobilePhone={setMobilePhone}
+                            homePhone={homePhone}
+                            setHomePhone={setHomePhone}
+                            streetAddress={streetAddress}
+                            setStreetAddress={setStreetAddress}
+                            city={city}
+                            setCity={setCity}
+                            country={country}
+                            setCountry={setCountry}
+                        />
+                    </Grid>
                 </Grid>
-            </Grid>
+            )}
+
+            {activeTab === 1 && (
+                <SubmitRequestTab employeeId={employeeId} />
+            )}
+
+            {activeTab === 2 && (
+                <MyRequestsTab employeeId={employeeId} />
+            )}
         </Box>
     );
 }

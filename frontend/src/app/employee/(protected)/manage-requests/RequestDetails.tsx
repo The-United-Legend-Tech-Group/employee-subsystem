@@ -7,6 +7,7 @@ import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
+import Skeleton from '@mui/material/Skeleton';
 
 interface ProfileChangeRequest {
     _id: string;
@@ -44,6 +45,7 @@ export default function RequestDetails({ request, onApprove, onReject }: Request
             setFetchedEmployee(null);
             setShowRejectInput(false);
             setRejectReason('');
+            handleFetchEmployee();
         }
     }, [request]);
 
@@ -111,24 +113,30 @@ export default function RequestDetails({ request, onApprove, onReject }: Request
                 <Divider />
 
                 <Box>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                            Employee
-                        </Typography>
-                        {!fetchedEmployee && (
-                            <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={handleFetchEmployee}
-                                disabled={fetchingEmployee}
-                                sx={{ textTransform: 'none', py: 0 }}
-                            >
-                                {fetchingEmployee ? 'Loading...' : 'View Details'}
-                            </Button>
-                        )}
-                    </Stack>
+                    <Typography variant="subtitle2" color="text.secondary" mb={1}>
+                        Employee
+                    </Typography>
 
-                    {fetchedEmployee && (
+                    {fetchingEmployee ? (
+                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
+                            <Stack spacing={2}>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={4}>
+                                    <Box flex={1}>
+                                        <Skeleton variant="text" width="30%" height={20} />
+                                        <Skeleton variant="text" width="70%" height={24} />
+                                    </Box>
+                                    <Box flex={1}>
+                                        <Skeleton variant="text" width="40%" height={20} />
+                                        <Skeleton variant="text" width="60%" height={24} />
+                                    </Box>
+                                </Stack>
+                                <Box>
+                                    <Skeleton variant="text" width="25%" height={20} />
+                                    <Skeleton variant="text" width="80%" height={24} />
+                                </Box>
+                            </Stack>
+                        </Paper>
+                    ) : fetchedEmployee && (
                         <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
                             <Stack spacing={2}>
                                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={4}>

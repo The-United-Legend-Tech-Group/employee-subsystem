@@ -6,6 +6,8 @@ export type StructureApprovalDocument = HydratedDocument<StructureApproval>;
 
 @Schema({ collection: 'structure_approvals', timestamps: true })
 export class StructureApproval {
+  _id: Types.ObjectId;
+
   @Prop({
     type: Types.ObjectId,
     ref: 'StructureChangeRequest',

@@ -35,4 +35,12 @@ export class CandidateRepository extends BaseRepository<CandidateDocument> {
       .sort({ candidateNumber: -1 })
       .exec();
   }
+
+  /**
+   * Check if an email already exists in the candidate collection.
+   */
+  async checkEmailExists(email: string): Promise<boolean> {
+    const existing = await this.model.findOne({ personalEmail: email }).exec();
+    return !!existing;
+  }
 }

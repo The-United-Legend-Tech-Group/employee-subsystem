@@ -55,6 +55,8 @@ export default function AssignEmployeeForm({
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
     const [selectedEmployeeId, setSelectedEmployeeId] = React.useState<string | null>(null);
+    const [startDate, setStartDate] = React.useState<string>(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = React.useState<string>('');
 
     // Debounce search
     const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('');
@@ -113,7 +115,7 @@ export default function AssignEmployeeForm({
     };
 
     const handleAssign = async () => {
-        if (!selectedEmployeeId) return;
+        if (!selectedEmployeeId || !startDate) return;
 
         setSubmitting(true);
         setError(null);
@@ -121,13 +123,20 @@ export default function AssignEmployeeForm({
             const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-            const response = await fetch(`${apiUrl}/employee/${selectedEmployeeId}/position`, {
-                method: 'PATCH',
+            const payload = {
+                employeeId: selectedEmployeeId,
+                positionId,
+                startDate,
+                endDate: endDate || undefined
+            };
+
+            const response = await fetch(`${apiUrl}/organization-structure/assignments`, {
+                method: 'POST', // Changed from PATCH
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ positionId })
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
@@ -223,6 +232,26 @@ export default function AssignEmployeeForm({
                     </List>
                 </Paper>
 
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                        label="Start Date"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        required
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                        label="End Date (Optional)"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </Box>
+
                 <Stack direction="row" spacing={2} justifyContent="flex-end">
                     <Button
                         variant="outlined"
@@ -235,7 +264,7 @@ export default function AssignEmployeeForm({
                     <Button
                         variant="contained"
                         onClick={handleAssign}
-                        disabled={!selectedEmployeeId || submitting}
+                        disabled={!selectedEmployeeId || !startDate || submitting}
                         sx={{ textTransform: 'none' }}
                     >
                         {submitting ? 'Assigning...' : 'Assign Employee'}

@@ -23,6 +23,8 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -49,6 +51,8 @@ type TimeExceptionsSectionProps = {
   employeeId: string;
   lineManagerId: string;
   onCreated?: () => void; // trigger parent refresh
+  onApprove?: (id: string) => Promise<void>;
+  onReject?: (id: string, reason?: string) => Promise<void>;
 };
 
 const EXCEPTION_TYPE_LABELS: Record<TimeExceptionType, string> = {
@@ -79,6 +83,8 @@ export default function TimeExceptionsSection({
   employeeId,
   lineManagerId,
   onCreated,
+  onApprove,
+  onReject,
 }: TimeExceptionsSectionProps) {
   const theme = useTheme();
 
@@ -461,6 +467,8 @@ export default function TimeExceptionsSection({
                       <TableCell>Type</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Reason</TableCell>
+                      <TableCell align="right">Manager</TableCell>
+                      <TableCell>Notes</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -480,6 +488,118 @@ export default function TimeExceptionsSection({
                             />
                           </TableCell>
                           <TableCell>{ex.reason || "-"}</TableCell>
+                          <TableCell align="right" sx={{ minWidth: 160 }}>
+                            {(ex.status === TimeExceptionStatus.OPEN ||
+                              ex.status === TimeExceptionStatus.PENDING) && (
+                              <Stack
+                                direction="row"
+                                spacing={0.5}
+                                justifyContent="flex-end"
+                              >
+                                <Tooltip title="Approve">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="success"
+                                      onClick={async () => {
+                                        try {
+                                          if (onApprove) {
+                                            await onApprove(ex._id);
+                                          } else {
+                                            const API_URL =
+                                              typeof window !== "undefined" &&
+                                              process.env.NEXT_PUBLIC_API_URL
+                                                ? process.env
+                                                    .NEXT_PUBLIC_API_URL
+                                                : "http://localhost:50000";
+                                            await fetch(
+                                              `${API_URL}/time/corrections/${ex._id}/approve`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                  lineManagerId,
+                                                }),
+                                              }
+                                            );
+                                          }
+                                          onCreated?.();
+                                        } catch (e) {
+                                          console.error("Approve failed", e);
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircleOutlineIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title="Reject">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={async () => {
+                                        const note = prompt(
+                                          "Optional rejection note:"
+                                        );
+                                        try {
+                                          if (onReject) {
+                                            await onReject(
+                                              ex._id,
+                                              note || undefined
+                                            );
+                                          } else {
+                                            const API_URL =
+                                              typeof window !== "undefined" &&
+                                              process.env.NEXT_PUBLIC_API_URL
+                                                ? process.env
+                                                    .NEXT_PUBLIC_API_URL
+                                                : "http://localhost:50000";
+                                            await fetch(
+                                              `${API_URL}/time/corrections/${ex._id}/reject`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                  lineManagerId,
+                                                  reason: note || undefined,
+                                                }),
+                                              }
+                                            );
+                                          }
+                                          onCreated?.();
+                                        } catch (e) {
+                                          console.error("Reject failed", e);
+                                        }
+                                      }}
+                                    >
+                                      {/* Using a simple X via Unicode is not ideal; keep Close icon semantics */}
+                                      {/* For a compact X look, we can still use outlined cancel icon */}
+                                      <WarningAmberIcon
+                                        fontSize="small"
+                                        color="error"
+                                      />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </Stack>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ maxWidth: 240 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              noWrap
+                            >
+                              {ex.managerNotes || "—"}
+                            </Typography>
+                          </TableCell>
                         </TableRow>
                       );
                     })}

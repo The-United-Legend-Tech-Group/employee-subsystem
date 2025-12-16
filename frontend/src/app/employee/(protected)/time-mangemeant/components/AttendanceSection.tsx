@@ -280,18 +280,17 @@ export default function AttendanceSection({
                             {row.correctionType
                               ? row.correctionType.toLowerCase()
                               : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {formatDuration(row.durationMinutes)}
-                          </TableCell>
-                          <TableCell>
                             <Chip
-                              size="small"
                               label={formatStatus(row.status)}
                               color={
-                                STATUS_COLORS[row.status || ""] || "default"
+                                row.status === "APPROVED"
+                                  ? "success"
+                                  : row.status === "REJECTED"
+                                  ? "error"
+                                  : "default"
                               }
-                              variant="outlined"
+                              size="small"
+                              sx={{ ml: 1, fontWeight: 600 }}
                             />
                           </TableCell>
                           <TableCell>{row.lineManagerId || "—"}</TableCell>

@@ -17,6 +17,8 @@ import Skeleton from "@mui/material/Skeleton";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Snackbar from "@mui/material/Snackbar";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -129,6 +131,8 @@ export default function AttendanceRecordsSection({
   const [localInfo, setLocalInfo] = React.useState("");
   const [searchDialogOpen, setSearchDialogOpen] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [infoSnackOpen, setInfoSnackOpen] = React.useState(false);
+  const [errorSnackOpen, setErrorSnackOpen] = React.useState(false);
 
   // Manual correction dialog state
   const [manualDialogOpen, setManualDialogOpen] = React.useState(false);
@@ -185,6 +189,14 @@ export default function AttendanceRecordsSection({
     }
   }, []);
 
+  React.useEffect(() => {
+    if (localInfo) setInfoSnackOpen(true);
+  }, [localInfo]);
+
+  React.useEffect(() => {
+    if (localError) setErrorSnackOpen(true);
+  }, [localError]);
+
   const sortedRecords = React.useMemo(() => {
     const base = localRecords !== null ? localRecords : attendanceRecords;
     return base
@@ -236,7 +248,9 @@ export default function AttendanceRecordsSection({
         : null);
 
     if (!employeeId) {
-      alert("Employee ID not found");
+      // Use toast instead of blocking alert
+      setLocalError("Employee ID not found");
+      setErrorSnackOpen(true);
       return;
     }
     setSubmitting(true);
@@ -247,6 +261,13 @@ export default function AttendanceRecordsSection({
       if (punchDate && punchDate.trim()) {
         // User specified a date
         const timeValue = punchTime && punchTime.trim() ? punchTime : "00:00";
+        // Basic HH:MM validation
+        const hhmmOk = /^([01]?\d|2[0-3]):[0-5]\d$/.test(timeValue);
+        if (!hhmmOk) {
+          setLocalError("Enter time in HH:MM (24h) format");
+          setErrorSnackOpen(true);
+          return;
+        }
         const dateTimeStr = `${punchDate}T${timeValue}`;
         const date = new Date(dateTimeStr);
         if (!isNaN(date.getTime())) {
@@ -254,6 +275,12 @@ export default function AttendanceRecordsSection({
         }
       } else if (punchTime && punchTime.trim()) {
         // User only specified time, use today's date
+        const hhmmOk = /^([01]?\d|2[0-3]):[0-5]\d$/.test(punchTime.trim());
+        if (!hhmmOk) {
+          setLocalError("Enter time in HH:MM (24h) format");
+          setErrorSnackOpen(true);
+          return;
+        }
         const today = new Date().toISOString().split("T")[0];
         const dateTimeStr = `${today}T${punchTime}`;
         const date = new Date(dateTimeStr);
@@ -264,6 +291,9 @@ export default function AttendanceRecordsSection({
       // If neither date nor time provided, isoTime remains undefined (use server current time)
       // Submit a single punch record to the backend
       await onPunchRecord(employeeId, punchType, isoTime);
+      // Success toast
+      setLocalInfo("Punch recorded successfully");
+      setInfoSnackOpen(true);
       handleClosePunchDialog();
       onRefresh?.();
     } catch (error) {
@@ -274,7 +304,8 @@ export default function AttendanceRecordsSection({
         error instanceof Error
           ? error.message
           : "Failed to record punch. Please try again.";
-      alert(errorMessage);
+      setLocalError(errorMessage);
+      setErrorSnackOpen(true);
     } finally {
       setSubmitting(false);
     }
@@ -396,9 +427,10 @@ export default function AttendanceRecordsSection({
           ) : (
             <Stack spacing={3}>
               <Stack
-                direction="row"
+                direction={{ xs: "column", md: "row" }}
                 justifyContent="space-between"
-                alignItems="center"
+                alignItems={{ xs: "flex-start", md: "center" }}
+                spacing={2}
               >
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Typography variant="subtitle1" fontWeight="bold">
@@ -417,14 +449,30 @@ export default function AttendanceRecordsSection({
                     />
                   )}
                 </Stack>
-                <Stack direction="row" spacing={1} alignItems="center">
+                {/* Controls toolbar */}
+                <Stack
+                  direction={{ xs: "column", lg: "row" }}
+                  spacing={1.5}
+                  alignItems={{ xs: "stretch", lg: "center" }}
+                  flexWrap="wrap"
+                  sx={{
+                    gap: 1.5,
+                    "& .MuiTextField-root": {
+                      minWidth: { xs: "100%", sm: 180 },
+                    },
+                    "& .MuiButton-root": {
+                      height: 40,
+                    },
+                  }}
+                >
                   <TextField
                     size="small"
                     label="Employee ID"
+                    aria-label="Employee ID"
                     value={employeeInput}
                     onChange={(e) => setEmployeeInput(e.target.value)}
                     placeholder="6929b38042db6408754efdde"
-                    sx={{ minWidth: 260 }}
+                    sx={{ minWidth: { xs: "100%", sm: 240 } }}
                     helperText="Enter ID (empty = fetch all)"
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
@@ -436,10 +484,11 @@ export default function AttendanceRecordsSection({
                   <TextField
                     size="small"
                     label="Name"
+                    aria-label="Employee Name"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     placeholder="e.g. John or Doe"
-                    sx={{ minWidth: 180 }}
+                    sx={{ minWidth: { xs: "100%", sm: 180 } }}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         (e.target as HTMLInputElement).blur();
@@ -450,10 +499,11 @@ export default function AttendanceRecordsSection({
                   <TextField
                     size="small"
                     label="Domain"
+                    aria-label="Email Domain"
                     value={domainInput}
                     onChange={(e) => setDomainInput(e.target.value)}
                     placeholder="e.g. company.com"
-                    sx={{ minWidth: 180 }}
+                    sx={{ minWidth: { xs: "100%", sm: 180 } }}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter") {
                         (e.target as HTMLInputElement).blur();
@@ -464,6 +514,8 @@ export default function AttendanceRecordsSection({
                   <Button
                     variant="outlined"
                     onClick={fetchEmployee}
+                    aria-label="Fetch Attendance Records"
+                    size="small"
                     disabled={localLoading}
                   >
                     {localLoading ? (
@@ -477,6 +529,8 @@ export default function AttendanceRecordsSection({
                   <Button
                     variant="outlined"
                     onClick={searchByNameDomain}
+                    aria-label="Search Employees"
+                    size="small"
                     disabled={localLoading}
                   >
                     {localLoading ? (
@@ -490,23 +544,42 @@ export default function AttendanceRecordsSection({
                   <Button
                     variant="text"
                     onClick={importCsv}
+                    aria-label="Import CSV"
+                    size="small"
                     disabled={localLoading}
                     title="Import server CSV (backend/data/punches.csv)"
                   >
                     Import CSV
                   </Button>
                   {onPunchRecord && (
-                    <Button
-                      variant="contained"
-                      startIcon={<AccessTimeIcon />}
-                      onClick={handleOpenPunchDialog}
-                    >
-                      Record Punch
-                    </Button>
+                    <Tooltip title="Record a manual punch">
+                      <span>
+                        <Button
+                          variant="contained"
+                          startIcon={<AccessTimeIcon />}
+                          onClick={handleOpenPunchDialog}
+                          aria-label="Open Record Punch Dialog"
+                          size="small"
+                          disabled={localLoading}
+                        >
+                          Record Punch
+                        </Button>
+                      </span>
+                    </Tooltip>
                   )}
-                  <Button variant="outlined" onClick={openManualDialog}>
-                    Manual Correction
-                  </Button>
+                  <Tooltip title="Submit a manual attendance correction">
+                    <span>
+                      <Button
+                        variant="outlined"
+                        onClick={openManualDialog}
+                        aria-label="Open Manual Correction Dialog"
+                        size="small"
+                        disabled={localLoading}
+                      >
+                        Manual Correction
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </Stack>
               </Stack>
 
@@ -683,6 +756,7 @@ export default function AttendanceRecordsSection({
               <Select
                 value={punchType}
                 label="Punch Type"
+                aria-label="Punch Type"
                 onChange={(e) => setPunchType(e.target.value as PunchType)}
               >
                 <MenuItem value={PunchType.IN}>Clock In</MenuItem>
@@ -694,6 +768,7 @@ export default function AttendanceRecordsSection({
               fullWidth
               label="Date (optional)"
               type="date"
+              aria-label="Punch Date"
               value={punchDate}
               onChange={(e) => setPunchDate(e.target.value)}
               helperText="Leave empty to use today's date"
@@ -706,6 +781,7 @@ export default function AttendanceRecordsSection({
               fullWidth
               label="Time (optional)"
               type="time"
+              aria-label="Punch Time"
               value={punchTime}
               onChange={(e) => setPunchTime(e.target.value)}
               helperText="Leave empty to use current time"
@@ -897,6 +973,36 @@ export default function AttendanceRecordsSection({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Toasts */}
+      <Snackbar
+        open={infoSnackOpen}
+        autoHideDuration={3000}
+        onClose={() => setInfoSnackOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setInfoSnackOpen(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {localInfo}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={errorSnackOpen}
+        autoHideDuration={4000}
+        onClose={() => setErrorSnackOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setErrorSnackOpen(false)}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {localError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

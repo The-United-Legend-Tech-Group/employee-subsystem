@@ -593,7 +593,7 @@ export default function TimeExceptionsSection({
                               color="text.secondary"
                               noWrap
                             >
-                              {ex.managerNotes || "—"}
+                              {ex.reason || "—"}
                             </Typography>
                           </TableCell>
                         </TableRow>

@@ -26,10 +26,26 @@ export default function Search() {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load user roles on client side
   useEffect(() => {
     setUserRoles(getUserRoles());
+  }, []);
+
+  // Keyboard shortcut: Ctrl+F to focus search bar
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // Combine all menu items and filter based on roles and search query
@@ -110,18 +126,19 @@ export default function Search() {
     <ClickAwayListener onClickAway={handleClickAway}>
       <Box sx={{ position: 'relative' }}>
         <FormControl
-          sx={{ width: { xs: '100%', md: '25ch' } }}
+          sx={{ width: { xs: '100%', md: '32ch' } }}
           variant="outlined"
           ref={anchorRef}
         >
           <OutlinedInput
             size="small"
             id="search"
-            placeholder="Search pages…"
+            placeholder="Search pages… (Ctrl+F)"
             value={searchQuery}
             onChange={handleSearchChange}
             onKeyDown={handleKeyDown}
             onFocus={() => searchQuery.length > 0 && setIsOpen(true)}
+            inputRef={inputRef}
             sx={{ flexGrow: 1 }}
             startAdornment={
               <InputAdornment position="start" sx={{ color: 'text.primary' }}>

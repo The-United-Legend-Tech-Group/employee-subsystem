@@ -31,6 +31,8 @@ import PlaylistAddCheckRoundedIcon from "@mui/icons-material/PlaylistAddCheckRou
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import { usePathname, useRouter } from "next/navigation";
 import { getUserRoles } from "../../../utils/cookie-utils";
+import { CalendarViewDay } from "@mui/icons-material";
+
 
 // Type definition for menu items
 export interface MenuItem {
@@ -42,10 +44,6 @@ export interface MenuItem {
 
 export const mainListItems: MenuItem[] = [
   { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard", roles: [] },
-import { CalendarViewDay } from "@mui/icons-material";
-
-const mainListItems = [
-  { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard" },
   {
     text: "Calendar",
     icon: <CalendarMonthRoundedIcon />,

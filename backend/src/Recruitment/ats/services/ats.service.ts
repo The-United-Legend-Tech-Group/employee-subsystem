@@ -97,7 +97,9 @@ export class AtsService {
         throw new NotFoundException('CV record not found');
       }
 
-      this.logger.log(`CV file path: ${cvRecord.storageUrl}, MIME: ${cvRecord.mimeType}`);
+      this.logger.log(
+        `CV file path: ${cvRecord.storageUrl}, MIME: ${cvRecord.mimeType}`,
+      );
 
       // Extract text from file
       const extractedText = await this.textExtractionService.extractText(
@@ -106,7 +108,9 @@ export class AtsService {
       );
 
       if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the CV. The file may be empty or contain only images.');
+        throw new Error(
+          'No text could be extracted from the CV. The file may be empty or contain only images.',
+        );
       }
 
       // Store extracted text
@@ -132,7 +136,9 @@ export class AtsService {
       // Update with results
       await this.cvRecordRepository.updateAnalysis(cvRecordId, score, analysis);
 
-      this.logger.log(`CV analysis completed successfully. Final Score: ${score}`);
+      this.logger.log(
+        `CV analysis completed successfully. Final Score: ${score}`,
+      );
     } catch (error) {
       this.logger.error(`CV processing failed: ${error.message}`, error.stack);
       await this.cvRecordRepository.updateStatus(

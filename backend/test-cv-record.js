@@ -29,7 +29,10 @@ async function checkFailedCV() {
       console.log('MIME Type:', failedCV[0].mimeType);
       console.log('Uploaded At:', failedCV[0].createdAt);
       console.log('Processed At:', failedCV[0].processedAt);
-      console.log('\nExtracted Text Length:', failedCV[0].extractedText?.length || 0);
+      console.log(
+        '\nExtracted Text Length:',
+        failedCV[0].extractedText?.length || 0,
+      );
       console.log('Has Analysis:', !!failedCV[0].analysis);
       console.log('Score:', failedCV[0].score);
       console.log('============================\n');
@@ -38,16 +41,21 @@ async function checkFailedCV() {
     }
 
     // Also check all CV records
-    const allCVs = await cvRecords.find({}).sort({ createdAt: -1 }).limit(5).toArray();
+    const allCVs = await cvRecords
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
     console.log('\n===== RECENT CVs (Last 5) =====');
     allCVs.forEach((cv, idx) => {
-      console.log(`${idx + 1}. ${cv.filename} - Status: ${cv.status} - Score: ${cv.score || 'N/A'}`);
+      console.log(
+        `${idx + 1}. ${cv.filename} - Status: ${cv.status} - Score: ${cv.score || 'N/A'}`,
+      );
       if (cv.errorMessage) {
         console.log(`   Error: ${cv.errorMessage}`);
       }
     });
     console.log('==============================\n');
-
   } catch (error) {
     console.error('Error:', error);
   } finally {

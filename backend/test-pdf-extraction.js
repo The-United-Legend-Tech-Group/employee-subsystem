@@ -8,10 +8,10 @@ async function testPDF() {
     console.log('Reading PDF file:', filePath);
     const dataBuffer = await fs.readFile(filePath);
     console.log('File read successfully. Size:', dataBuffer.length, 'bytes');
-    
+
     console.log('Parsing PDF...');
     const data = await pdf(dataBuffer);
-    
+
     console.log('\n=== PDF EXTRACTION SUCCESSFUL ===');
     console.log('Text length:', data.text.length, 'characters');
     console.log('Number of pages:', data.numpages);

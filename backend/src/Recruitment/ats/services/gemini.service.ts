@@ -26,24 +26,32 @@ export class GeminiService {
   ): Promise<CVAnalysisResult> {
     try {
       if (!cvText || cvText.trim().length < 50) {
-        throw new Error('CV text is too short for meaningful analysis (minimum 50 characters)');
+        throw new Error(
+          'CV text is too short for meaningful analysis (minimum 50 characters)',
+        );
       }
 
       const prompt = this.buildAnalysisPrompt(cvText, jobDescription);
 
-      this.logger.log(`Sending CV to Gemini for analysis... (${cvText.length} chars)`);
+      this.logger.log(
+        `Sending CV to Gemini for analysis... (${cvText.length} chars)`,
+      );
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
 
       this.logger.log(`Received response from Gemini (${text.length} chars)`);
-      this.logger.debug(`Gemini response preview: ${text.substring(0, 200)}...`);
+      this.logger.debug(
+        `Gemini response preview: ${text.substring(0, 200)}...`,
+      );
 
       // Parse the JSON response
       const analysis = this.parseGeminiResponse(text);
 
       if (!analysis.overallScore) {
-        this.logger.warn('Gemini did not return an overall score, using fallback');
+        this.logger.warn(
+          'Gemini did not return an overall score, using fallback',
+        );
         analysis.overallScore = 50;
       }
 
@@ -51,16 +59,25 @@ export class GeminiService {
     } catch (error) {
       this.logger.error('Error analyzing CV with Gemini:', error);
       this.logger.error('Error details:', error.message, error.stack);
-      
+
       // Check for specific error types
       if (error.message?.includes('API key')) {
-        throw new Error('Google Gemini API key is invalid or expired. Please check your API configuration.');
+        throw new Error(
+          'Google Gemini API key is invalid or expired. Please check your API configuration.',
+        );
       } else if (error.message?.includes('quota')) {
-        throw new Error('Google Gemini API quota exceeded. Please try again later.');
-      } else if (error.message?.includes('network') || error.message?.includes('ENOTFOUND')) {
-        throw new Error('Network error: Unable to reach Google Gemini API. Please check your internet connection.');
+        throw new Error(
+          'Google Gemini API quota exceeded. Please try again later.',
+        );
+      } else if (
+        error.message?.includes('network') ||
+        error.message?.includes('ENOTFOUND')
+      ) {
+        throw new Error(
+          'Network error: Unable to reach Google Gemini API. Please check your internet connection.',
+        );
       }
-      
+
       throw new Error(`Gemini analysis failed: ${error.message}`);
     }
   }

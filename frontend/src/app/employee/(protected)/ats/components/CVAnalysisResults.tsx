@@ -133,33 +133,26 @@ export default function CVAnalysisResults({
               CV Analysis Failed
             </Typography>
             <Typography variant="body2">
-              {errorMessage || "An error occurred during CV processing. Please try uploading again."}
+              {errorMessage ||
+                "An error occurred during CV processing. Please try uploading again."}
             </Typography>
           </Alert>
-          
+
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             <strong>Common issues:</strong>
           </Typography>
           <List dense>
             <ListItem>
-              <ListItemText 
-                primary="• File format not supported (use PDF, DOCX, or TXT)"
-              />
+              <ListItemText primary="• File format not supported (use PDF, DOCX, or TXT)" />
             </ListItem>
             <ListItem>
-              <ListItemText 
-                primary="• File is corrupted or password-protected"
-              />
+              <ListItemText primary="• File is corrupted or password-protected" />
             </ListItem>
             <ListItem>
-              <ListItemText 
-                primary="• CV contains no extractable text (scanned images)"
-              />
+              <ListItemText primary="• CV contains no extractable text (scanned images)" />
             </ListItem>
             <ListItem>
-              <ListItemText 
-                primary="• API rate limit exceeded - please wait a moment"
-              />
+              <ListItemText primary="• API rate limit exceeded - please wait a moment" />
             </ListItem>
           </List>
         </CardContent>

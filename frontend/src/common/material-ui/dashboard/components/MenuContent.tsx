@@ -29,7 +29,15 @@ import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
 import { usePathname, useRouter } from "next/navigation";
 import { getUserRoles } from "../../../utils/cookie-utils";
 
-const mainListItems = [
+// Type definition for menu items
+export interface MenuItem {
+  text: string;
+  icon: React.ReactElement;
+  path?: string;
+  roles?: string[];
+}
+
+export const mainListItems: MenuItem[] = [
   { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard", roles: [] },
   {
     text: "Calendar",
@@ -54,7 +62,7 @@ const mainListItems = [
   { text: 'Organization Changes', icon: <AssignmentRoundedIcon />, path: '/employee/manage-structure-requests' },
 ];
 
-const performanceSubItems = [
+export const performanceSubItems: MenuItem[] = [
   {
     text: "Dashboard",
     icon: <DashboardRoundedIcon />,

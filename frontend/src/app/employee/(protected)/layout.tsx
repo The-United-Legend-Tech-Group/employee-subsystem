@@ -120,11 +120,11 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                         sx={{
                             zIndex: 1100,
                             width: '100%',
-                            bgcolor: 'black',
-                            px: 3,
-                            py: 1,
+                            bgcolor: 'background.default',
+                            px: 3, //CHANGE HERE
+                            py: 0.5, //CHANGE HERE
                             mt: { xs: 8, md: 0 },
-                            mb: 2,
+                            mb: 1, //CHANGE HERE
                             flexShrink: 0,
                         }}
                     >

@@ -30,7 +30,7 @@ export default function NavbarBreadcrumbs() {
       separator={<NavigateNextRoundedIcon fontSize="small" />}
     >
       <Link component={NextLink} href="/employee/dashboard" underline="hover" color="inherit">
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" sx={{ color: 'text.secondary' }}>
           Dashboard
         </Typography>
       </Link>
@@ -57,7 +57,7 @@ export default function NavbarBreadcrumbs() {
           </Typography>
         ) : (
           <Link key={to} component={NextLink} href={to} underline="hover" color="inherit">
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" sx={{ color: 'text.secondary' }}>
               {title}
             </Typography>
           </Link>

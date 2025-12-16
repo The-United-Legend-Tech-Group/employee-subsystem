@@ -314,6 +314,7 @@ function SummaryCard({ title, value, subtitle, icon, color }: any) {
 }
 
 function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
+    const theme = useTheme();
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString(undefined, {
@@ -396,49 +397,74 @@ function PerformanceRecordCard({ record }: { record: AppraisalRecord }) {
 
                 <Divider sx={{ my: 3 }} />
 
-                <Accordion elevation={0} disableGutters sx={{ '&:before': { display: 'none' } }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0 }}>
+                <Accordion
+                    elevation={0}
+                    disableGutters
+                    sx={{
+                        '&:before': { display: 'none' },
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderRadius: '12px !important',
+                        overflow: 'hidden',
+                        '&.Mui-expanded': {
+                            borderRadius: '12px !important',
+                            margin: 0
+                        }
+                    }}
+                >
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
                         <Typography fontWeight="600">View Detailed Ratings</Typography>
                     </AccordionSummary>
-                    <AccordionDetails sx={{ px: 0 }}>
-                        <List disablePadding>
+                    <AccordionDetails sx={{ px: 0, bgcolor: 'transparent' }}>
+                        <Stack spacing={0} divider={<Divider />}>
                             {record.ratings.map((rating, index) => (
-                                <ListItem
-                                    key={index}
-                                    sx={{
-                                        py: 2,
-                                        borderBottom: index < record.ratings.length - 1 ? '1px solid' : 'none',
-                                        borderColor: 'divider'
-                                    }}
-                                >
-                                    <Grid container spacing={2} alignItems="flex-start">
-                                        <Grid size={{ xs: 12, sm: 4 }}>
-                                            <Typography variant="subtitle2" fontWeight="bold">{rating.title}</Typography>
-                                        </Grid>
-                                        <Grid size={{ xs: 12, sm: 2 }}>
-                                            <Chip
-                                                label={rating.ratingValue}
-                                                size="small"
-                                                variant="outlined"
-                                                sx={{ minWidth: 40, fontWeight: 'bold' }}
-                                            />
-                                        </Grid>
-                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                <Box key={index} sx={{ py: 2.5, px: 2 }}>
+                                    <Grid container spacing={3} alignItems="center">
+                                        <Grid size={{ xs: 12, md: 3 }}>
+                                            <Typography variant="subtitle2" fontWeight="bold" color="text.primary" fontSize="0.95rem">
+                                                {rating.title}
+                                            </Typography>
                                             {rating.ratingLabel && (
-                                                <Typography variant="body2" fontWeight="500" gutterBottom>
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                                     {rating.ratingLabel}
                                                 </Typography>
                                             )}
-                                            {rating.comments && (
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {rating.comments}
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 2 }}>
+                                            <Chip
+                                                label={rating.ratingValue}
+                                                color={rating.ratingValue >= 3 ? 'success' : 'warning'}
+                                                variant="filled"
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 'bold',
+                                                    minWidth: 40,
+                                                    height: 28,
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, md: 7 }}>
+                                            {rating.comments ? (
+                                                <Box sx={{
+                                                    p: 1.5,
+                                                    borderRadius: 2,
+                                                    bgcolor: alpha(theme.palette.text.primary, 0.05),
+                                                    border: '1px solid',
+                                                    borderColor: 'divider'
+                                                }}>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                                        "{rating.comments}"
+                                                    </Typography>
+                                                </Box>
+                                            ) : (
+                                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                                                    No comments.
                                                 </Typography>
                                             )}
                                         </Grid>
                                     </Grid>
-                                </ListItem>
+                                </Box>
                             ))}
-                        </List>
+                        </Stack>
                     </AccordionDetails>
                 </Accordion>
             </CardContent>

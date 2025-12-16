@@ -9,7 +9,11 @@ import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
-import { useTheme } from '@mui/material/styles';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import { alpha, useTheme } from '@mui/material/styles';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
 
 interface HierarchyNode {
     _id: string;
@@ -23,7 +27,8 @@ interface HierarchyNode {
 }
 
 // Helper to generate a consistent color from a string (e.g., departmentId)
-const stringToColor = (string: string) => {
+const stringToColor = (string: string | undefined | null) => {
+    if (!string) return '#666666'; // Default gray for undefined/null
     let hash = 0;
     for (let i = 0; i < string.length; i++) {
         hash = string.charCodeAt(i) + ((hash << 5) - hash);
@@ -217,56 +222,34 @@ const OrgChartNode = React.memo(({ node, currentPositionId }: { node: HierarchyN
 });
 
 export default function OrganizationHierarchy() {
+    const theme = useTheme();
     const [hierarchy, setHierarchy] = React.useState<HierarchyNode[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [currentPositionId, setCurrentPositionId] = React.useState<string | null>(null);
+    const [currentEmployeeId, setCurrentEmployeeId] = React.useState<string | null>(null);
+    const [userInfoLoaded, setUserInfoLoaded] = React.useState(false);
     const [scale, setScale] = React.useState(1);
+    const [showMyHierarchy, setShowMyHierarchy] = React.useState(true);
 
     const containerRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
 
+    // Fetch user profile info on mount
     React.useEffect(() => {
-        const fetchData = async () => {
-            let token: string | null = null;
-            let apiUrl: string | undefined = undefined;
-
+        const fetchUserInfo = async () => {
             try {
-                token = localStorage.getItem('access_token');
-                apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-
-                if (!token) {
-                    throw new Error('Authentication details missing');
-                }
-
-                // 1. Fetch Hierarchy
-                const hierarchyRes = await fetch(`${apiUrl}/organization-structure/hierarchy`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!hierarchyRes.ok) throw new Error('Failed to fetch hierarchy data');
-                const hierarchyData = await hierarchyRes.json();
-
-                // Apply compaction to all root nodes
-                const compactedData = hierarchyData.map((root: HierarchyNode) => compactTree(root));
-                setHierarchy(compactedData);
-                setLoading(false); // Show hierarchy immediately
-
-            } catch (err) {
-                console.error('Error fetching hierarchy:', err);
-                setError('Failed to load organization hierarchy.');
-                setLoading(false);
-                return; // Stop if hierarchy fails
-            }
-
-            // 2. Fetch User Profile (Background)
-            try {
+                const token = localStorage.getItem('access_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const encryptedEmployeeId = localStorage.getItem('employeeId');
+
                 if (encryptedEmployeeId && token) {
                     const { decryptData } = await import('../../../../common/utils/encryption');
                     const employeeId = await decryptData(encryptedEmployeeId, token);
 
                     if (employeeId) {
+                        setCurrentEmployeeId(employeeId);
+
                         const profileRes = await fetch(`${apiUrl}/employee/${employeeId}`, {
                             headers: { 'Authorization': `Bearer ${token}` }
                         });
@@ -283,12 +266,68 @@ export default function OrganizationHierarchy() {
                     }
                 }
             } catch (e) {
-                console.warn('Failed to fetch user position for centering', e);
+                console.warn('Failed to fetch user info', e);
+            } finally {
+                setUserInfoLoaded(true);
             }
         };
 
-        fetchData();
+        fetchUserInfo();
     }, []);
+
+    // Fetch hierarchy data based on toggle state
+    React.useEffect(() => {
+        // Wait for user info to load when in My Hierarchy mode
+        if (showMyHierarchy && !userInfoLoaded) {
+            return;
+        }
+
+        const fetchHierarchy = async () => {
+            // Only show loading on initial load, not on toggle (preserves scroll position)
+            if (hierarchy.length === 0) {
+                setLoading(true);
+            }
+            setError(null);
+
+            try {
+                const token = localStorage.getItem('access_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+
+                if (!token) {
+                    throw new Error('Authentication details missing');
+                }
+
+                let url = `${apiUrl}/organization-structure/hierarchy`;
+
+                // If showing my hierarchy and we have the current employee ID, use the user hierarchy endpoint
+                if (showMyHierarchy && currentEmployeeId) {
+                    url = `${apiUrl}/organization-structure/hierarchy/user/${currentEmployeeId}`;
+                }
+
+                const hierarchyRes = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!hierarchyRes.ok) throw new Error('Failed to fetch hierarchy data');
+                const hierarchyData = await hierarchyRes.json();
+
+                // Both endpoints now return the same format - array of root nodes
+                const dataToProcess: HierarchyNode[] = Array.isArray(hierarchyData) ? hierarchyData : [];
+
+                // Apply compaction to all root nodes
+                const compactedData = dataToProcess.map((root: HierarchyNode) => compactTree(root));
+                setHierarchy(compactedData);
+                setLoading(false);
+
+            } catch (err) {
+                console.error('Error fetching hierarchy:', err);
+                setError('Failed to load organization hierarchy.');
+                setLoading(false);
+            }
+        };
+
+        fetchHierarchy();
+    }, [showMyHierarchy, currentEmployeeId, userInfoLoaded]);
 
     // Effect to calculate and update scale
     React.useLayoutEffect(() => {
@@ -367,6 +406,35 @@ export default function OrganizationHierarchy() {
     }
 
     if (!hierarchy || hierarchy.length === 0) {
+        // Show specific message when My Hierarchy is empty
+        if (showMyHierarchy) {
+            return (
+                <Card
+                    elevation={0}
+                    sx={{
+                        mt: 4,
+                        width: '100%',
+                        height: 'calc(100vh - 200px)',
+                        minHeight: 500,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                    }}
+                >
+                    <Typography variant="h6" color="text.secondary" sx={{ textAlign: 'center' }}>
+                        You are not in a Department yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                        Contact your HR administrator to be assigned to a department.
+                    </Typography>
+                </Card>
+            );
+        }
         return (
             <Alert severity="info" sx={{ mt: 2 }}>No organization structure found.</Alert>
         );
@@ -394,7 +462,62 @@ export default function OrganizationHierarchy() {
                 }),
             })}
         >
-
+            {/* Toggle Switch */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    py: 1.5,
+                }}
+            >
+                <ToggleButtonGroup
+                    value={showMyHierarchy ? 'my' : 'company'}
+                    exclusive
+                    onChange={(e, newValue) => {
+                        if (newValue !== null) {
+                            setShowMyHierarchy(newValue === 'my');
+                        }
+                    }}
+                    aria-label="hierarchy view"
+                    sx={{
+                        bgcolor: 'background.paper',
+                        borderRadius: '24px',
+                        boxShadow: theme.shadows[3],
+                        p: 0.5,
+                        gap: 0.5,
+                        '& .MuiToggleButton-root': {
+                            borderRadius: '20px',
+                            border: 'none',
+                            px: 2,
+                            py: 0.5,
+                            transition: 'all 0.2s',
+                            color: 'text.secondary',
+                            '&.Mui-selected': {
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                boxShadow: theme.shadows[2],
+                                '&:hover': {
+                                    bgcolor: 'primary.dark',
+                                }
+                            },
+                            '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            }
+                        },
+                    }}
+                    size="small"
+                >
+                    <ToggleButton value="company" aria-label="company hierarchy">
+                        <BusinessRoundedIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">Company</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="my" aria-label="my hierarchy">
+                        <AccountTreeRoundedIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">My Hierarchy</Typography>
+                    </ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
 
             <Box
                 sx={{

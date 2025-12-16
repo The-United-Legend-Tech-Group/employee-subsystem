@@ -21,6 +21,15 @@ import { ShiftAssignmentRepository } from '../../time-mangement/repository/shift
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
 import { DepartmentRepository } from '../organization-structure/repository/department.repository';
 
+interface AnalyticsContext {
+  employeesMap: Map<string, any>;
+  departmentsMap: Map<string, any>;
+  shiftAssignmentsMap: Map<string, any[]>;
+  shiftsMap: Map<string, any>;
+  holidays: any[];
+  attendanceRecords: any[];
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -30,34 +39,31 @@ export class AnalyticsService {
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly employeeProfileRepo: EmployeeProfileRepository,
     private readonly departmentRepo: DepartmentRepository,
-  ) {}
+  ) { }
 
   /**
-   * Generate overtime report for HR/Payroll officers
-   * Shows employees who worked overtime, linking to shift schedules and holidays
+   * Helper: Load all necessary context data in a single batch operation
    */
-  async getOvertimeReport(
-    filters: OvertimeReportFilterDto,
-  ): Promise<OvertimeReportDto> {
-    // Determine date range
-    const { startDate, endDate } = this.calculateDateRange(
-      filters.startDate,
-      filters.endDate,
-      filters.month,
-      filters.year,
-    );
-
+  private async loadContext(
+    startDate: Date,
+    endDate: Date,
+    employeeId?: string,
+    departmentId?: string,
+  ): Promise<AnalyticsContext> {
     // Build query for attendance records
     const query: any = {
       date: { $gte: startDate, $lte: endDate },
-      finalisedForPayroll: true,
     };
 
-    if (filters.employeeId) {
-      query.employeeId = filters.employeeId;
+    if (employeeId) {
+      query.employeeId = employeeId;
     }
 
     // Get attendance records
+    // Note: We don't filter by department here because it requires joining with employee profile
+    // We fetch broader attendance set and filter in memory if needed, or we accepted that
+    // standard mongo usage without $lookup implies fetching then filtering.
+    // For specific employeeId filter it is efficient.
     const attendanceRecords = await this.attendanceRepo.find(query);
 
     // Get all holidays in the period
@@ -67,40 +73,153 @@ export class AnalyticsService {
       active: true,
     } as any);
 
+    // === BATCH FETCH: Pre-load all required data upfront ===
+    const employeeIds = [
+      ...new Set(attendanceRecords.map((r: any) => r.employeeId.toString())),
+    ];
+
+    // Batch fetch all employees
+    const employeesMap = new Map<string, any>();
+    if (employeeIds.length > 0) {
+      await Promise.all(
+        employeeIds.map(async (id) => {
+          const emp = await this.employeeProfileRepo.findById(id);
+          if (emp) employeesMap.set(id, emp);
+        }),
+      );
+    }
+
+    // Filter attendance records by department if needed (post-fetch filter)
+    // This is necessary because the attendance record doesn't store departmentId directly usually
+    let filteredAttendance = attendanceRecords;
+    if (departmentId) {
+      filteredAttendance = attendanceRecords.filter((record: any) => {
+        const emp = employeesMap.get(record.employeeId.toString());
+        return emp && emp.primaryDepartmentId?.toString() === departmentId;
+      });
+    }
+
+    // Refine employee list based on filtered attendance
+    const filteredEmployeeIds = [
+      ...new Set(filteredAttendance.map((r: any) => r.employeeId.toString())),
+    ];
+
+    // Batch fetch all departments
+    const departmentIds = [
+      ...new Set(
+        [...employeesMap.values()]
+          .filter((e) => e.primaryDepartmentId)
+          .map((e) => e.primaryDepartmentId.toString()),
+      ),
+    ];
+    const departmentsMap = new Map<string, any>();
+    if (departmentIds.length > 0) {
+      await Promise.all(
+        departmentIds.map(async (id) => {
+          const dept = await this.departmentRepo.findById(id);
+          if (dept) departmentsMap.set(id, dept);
+        }),
+      );
+    }
+
+    // Batch fetch all shift assignments for the period
+    const shiftAssignmentsMap = new Map<string, any[]>();
+    if (filteredEmployeeIds.length > 0) {
+      await Promise.all(
+        filteredEmployeeIds.map(async (empId) => {
+          const assignments =
+            await this.shiftAssignmentRepo.findByEmployeeAndTerm(
+              empId,
+              startDate,
+              endDate,
+            );
+          if (assignments && assignments.length > 0) {
+            shiftAssignmentsMap.set(empId, assignments);
+          }
+        }),
+      );
+    }
+
+    // Batch fetch all shifts
+    const shiftIds = [
+      ...new Set(
+        [...shiftAssignmentsMap.values()]
+          .flat()
+          .map((sa: any) => sa.shiftId.toString()),
+      ),
+    ];
+    const shiftsMap = new Map<string, any>();
+    if (shiftIds.length > 0) {
+      await Promise.all(
+        shiftIds.map(async (id) => {
+          const shift = await this.shiftRepo.findById(id);
+          if (shift) shiftsMap.set(id, shift);
+        }),
+      );
+    }
+
+    return {
+      employeesMap,
+      departmentsMap,
+      shiftAssignmentsMap,
+      shiftsMap,
+      holidays,
+      attendanceRecords: filteredAttendance,
+    };
+  }
+
+  /**
+   * Generate overtime report for HR/Payroll officers
+   * Shows employees who worked overtime, linking to shift schedules and holidays
+   */
+  async getOvertimeReport(
+    filters: OvertimeReportFilterDto,
+    context?: AnalyticsContext,
+  ): Promise<OvertimeReportDto> {
+    // Determine date range
+    const { startDate, endDate } = this.calculateDateRange(
+      filters.startDate,
+      filters.endDate,
+      filters.month,
+      filters.year,
+    );
+
+    // Use provided context or load new one
+    const ctx = context || await this.loadContext(startDate, endDate, filters.employeeId, filters.departmentId);
+
+    // === PROCESS RECORDS using cached data ===
     const overtimeRecords: OvertimeRecordDto[] = [];
     let totalOvertimeHours = 0;
 
-    for (const record of attendanceRecords) {
-      const employeeId = (record as any).employeeId.toString();
+    for (const record of ctx.attendanceRecords) {
+      // Skip if not finalised for payroll (specific to overtime report requirement)
+      if (!(record as any).finalisedForPayroll) continue;
 
-      // Get employee profile
-      const employee = await this.employeeProfileRepo.findById(employeeId);
+      const employeeId = (record as any).employeeId.toString();
+      const employee = ctx.employeesMap.get(employeeId);
       if (!employee) continue;
 
-      // Apply department filter if provided
+      // Note: department filter is already applied in loadContext if passed,
+      // but we check again if context was passed in externally without specific department filter logic (safe guard)
       if (
         filters.departmentId &&
-        (employee as any).primaryDepartmentId?.toString() !==
-          filters.departmentId
+        employee.primaryDepartmentId?.toString() !== filters.departmentId
       ) {
         continue;
       }
 
-      // Get shift assignment for this date
-      const shiftAssignments =
-        await this.shiftAssignmentRepo.findByEmployeeAndTerm(
-          employeeId,
-          (record as any).date,
-          (record as any).date,
-        );
+      // Get shift assignment for this date from cache
+      const allAssignments = ctx.shiftAssignmentsMap.get(employeeId) || [];
+      const recordDate = new Date((record as any).date);
+      const shiftAssignment = allAssignments.find((sa: any) => {
+        const saStart = new Date(sa.startDate);
+        const saEnd = new Date(sa.endDate);
+        return recordDate >= saStart && recordDate <= saEnd;
+      });
 
-      if (!shiftAssignments || shiftAssignments.length === 0) continue;
+      if (!shiftAssignment) continue;
 
-      const shiftAssignment = shiftAssignments[0];
-      const shift = await this.shiftRepo.findById(
-        (shiftAssignment as any).shiftId.toString(),
-      );
-
+      const shift = ctx.shiftsMap.get(shiftAssignment.shiftId.toString());
       if (!shift) continue;
 
       // Calculate expected shift duration
@@ -132,29 +251,27 @@ export class AnalyticsService {
         totalOvertimeHours += overtimeHours;
 
         // Check if date is a holiday
-        const recordDate = new Date((record as any).date);
-        const isHoliday = holidays.some((h: any) => {
+        const isHoliday = ctx.holidays.some((h: any) => {
           const holidayStart = new Date(h.startDate);
           const holidayEnd = h.endDate ? new Date(h.endDate) : holidayStart;
           return recordDate >= holidayStart && recordDate <= holidayEnd;
         });
 
         const holidayType = isHoliday
-          ? holidays.find((h: any) => {
-              const holidayStart = new Date(h.startDate);
-              const holidayEnd = h.endDate ? new Date(h.endDate) : holidayStart;
-              return recordDate >= holidayStart && recordDate <= holidayEnd;
-            })?.type
+          ? ctx.holidays.find((h: any) => {
+            const holidayStart = new Date(h.startDate);
+            const holidayEnd = h.endDate
+              ? new Date(h.endDate)
+              : holidayStart;
+            return recordDate >= holidayStart && recordDate <= holidayEnd;
+          })?.type
           : undefined;
 
-        // Get department name
-        let departmentName = 'Unknown';
-        if ((employee as any).primaryDepartmentId) {
-          const dept = await this.departmentRepo.findById(
-            (employee as any).primaryDepartmentId.toString(),
-          );
-          departmentName = dept?.name || 'Unknown';
-        }
+        // Get department name from cache
+        const departmentName = employee.primaryDepartmentId
+          ? ctx.departmentsMap.get(employee.primaryDepartmentId.toString())?.name ||
+          'Unknown'
+          : 'Unknown';
 
         // Get actual clock in/out times
         const punches = (record as any).punches || [];
@@ -162,6 +279,7 @@ export class AnalyticsService {
         const clockOut = punches.find((p: any) => p.type === 'OUT')?.time;
 
         overtimeRecords.push({
+          attendanceId: (record as any)._id,
           employeeId,
           employeeName: `${employee.firstName} ${employee.lastName}`,
           department: departmentName,
@@ -171,7 +289,7 @@ export class AnalyticsService {
           shiftEndTime: shift.endTime,
           actualClockIn: clockIn,
           actualClockOut: clockOut,
-          wasApproved: !shift.requiresApprovalForOvertime, // If doesn't require approval, consider it approved
+          wasApproved: !shift.requiresApprovalForOvertime,
           isHoliday,
           holidayType,
         });
@@ -195,6 +313,7 @@ export class AnalyticsService {
    */
   async getExceptionAttendanceReport(
     filters: ExceptionReportFilterDto,
+    context?: AnalyticsContext,
   ): Promise<ExceptionReportDto> {
     // Determine date range
     const { startDate, endDate } = this.calculateDateRange(
@@ -204,59 +323,47 @@ export class AnalyticsService {
       filters.year,
     );
 
-    // Build query
-    const query: any = {
-      date: { $gte: startDate, $lte: endDate },
-      $or: [{ hasMissedPunch: true }, { exceptionIds: { $ne: [] } }],
-    };
+    // Use provided context or load new one
+    const ctx = context || await this.loadContext(startDate, endDate, filters.employeeId, filters.departmentId);
 
-    if (filters.employeeId) {
-      query.employeeId = filters.employeeId;
-    }
-
-    // Get attendance records with exceptions
-    const attendanceRecords = await this.attendanceRepo.find(query);
-
-    // Get holidays for the period
-    const holidays = await this.holidayRepo.find({
-      startDate: { $lte: endDate } as any,
-      $or: [{ endDate: null }, { endDate: { $gte: startDate } }],
-      active: true,
-    } as any);
-
+    // === PROCESS RECORDS using cached data ===
     const exceptionRecords: ExceptionRecordDto[] = [];
 
-    for (const record of attendanceRecords) {
-      const employeeId = (record as any).employeeId.toString();
+    for (const record of ctx.attendanceRecords) {
+      // Exception logic filtering: hasMissedPunch OR exceptionIds assigned
+      if (!(record as any).hasMissedPunch && ((record as any).exceptionIds?.length || 0) === 0) {
+        // BUT wait, original logic was:
+        // $or: [{ hasMissedPunch: true }, { exceptionIds: { $ne: [] } }]
+        // So we must skip records that don't match this criteria
+        continue;
+      }
 
-      // Get employee profile
-      const employee = await this.employeeProfileRepo.findById(employeeId);
+      const employeeId = (record as any).employeeId.toString();
+      const employee = ctx.employeesMap.get(employeeId);
       if (!employee) continue;
 
       // Apply department filter
       if (
         filters.departmentId &&
-        (employee as any).primaryDepartmentId?.toString() !==
-          filters.departmentId
+        employee.primaryDepartmentId?.toString() !== filters.departmentId
       ) {
         continue;
       }
 
-      // Get shift assignment
-      const shiftAssignments =
-        await this.shiftAssignmentRepo.findByEmployeeAndTerm(
-          employeeId,
-          (record as any).date,
-          (record as any).date,
-        );
+      // Get shift assignment from cache
+      const recordDate = new Date((record as any).date);
+      const allAssignments = ctx.shiftAssignmentsMap.get(employeeId) || [];
+      const shiftAssignment = allAssignments.find((sa: any) => {
+        const saStart = new Date(sa.startDate);
+        const saEnd = new Date(sa.endDate);
+        return recordDate >= saStart && recordDate <= saEnd;
+      });
 
       let shiftName = 'Not Assigned';
       let expectedWorkMinutes = 0;
 
-      if (shiftAssignments && shiftAssignments.length > 0) {
-        const shift = await this.shiftRepo.findById(
-          (shiftAssignments[0] as any).shiftId.toString(),
-        );
+      if (shiftAssignment) {
+        const shift = ctx.shiftsMap.get(shiftAssignment.shiftId.toString());
         if (shift) {
           shiftName = shift.name;
           const shiftStartParts = shift.startTime.split(':');
@@ -273,8 +380,7 @@ export class AnalyticsService {
       }
 
       // Check if date is weekly rest day
-      const recordDate = new Date((record as any).date);
-      const isWeeklyRest = holidays.some((h: any) => {
+      const isWeeklyRest = ctx.holidays.some((h: any) => {
         if (h.type !== 'WEEKLY_REST') return false;
         const holidayStart = new Date(h.startDate);
         const holidayEnd = h.endDate ? new Date(h.endDate) : holidayStart;
@@ -307,14 +413,11 @@ export class AnalyticsService {
         }
       }
 
-      // Get department name
-      let departmentName = 'Unknown';
-      if ((employee as any).primaryDepartmentId) {
-        const dept = await this.departmentRepo.findById(
-          (employee as any).primaryDepartmentId.toString(),
-        );
-        departmentName = dept?.name || 'Unknown';
-      }
+      // Get department name from cache
+      const departmentName = employee.primaryDepartmentId
+        ? ctx.departmentsMap.get(employee.primaryDepartmentId.toString())?.name ||
+        'Unknown'
+        : 'Unknown';
 
       exceptionRecords.push({
         employeeId,
@@ -340,6 +443,66 @@ export class AnalyticsService {
       records: exceptionRecords,
     };
   }
+
+  /**
+   * Get compliance summary efficiently by loading context once
+   */
+  async getComplianceSummary(
+    month?: number,
+    year?: number,
+    departmentId?: string,
+  ) {
+    const { startDate, endDate } = this.calculateDateRange(undefined, undefined, month, year);
+
+    // Load context ONCE
+    const context = await this.loadContext(startDate, endDate, undefined, departmentId);
+
+    const overtimeFilters: OvertimeReportFilterDto = {
+      month,
+      year,
+      departmentId,
+    };
+
+    const exceptionFilters: ExceptionReportFilterDto = {
+      month,
+      year,
+      departmentId,
+    };
+
+    // Pass context to report methods
+    const [overtimeReport, exceptionReport] = await Promise.all([
+      this.getOvertimeReport(overtimeFilters, context),
+      this.getExceptionAttendanceReport(exceptionFilters, context),
+    ]);
+
+    return {
+      generatedAt: new Date(),
+      period: {
+        month,
+        year,
+      },
+      departmentId: departmentId || 'All Departments',
+      summary: {
+        totalOvertimeRecords: overtimeReport.totalRecords,
+        totalOvertimeHours: overtimeReport.totalOvertimeHours,
+        totalExceptionRecords: exceptionReport.totalRecords,
+        missedPunchCount: exceptionReport.records.filter(
+          (r) => r.hasMissedPunch,
+        ).length,
+        weeklyRestViolations: exceptionReport.records.filter(
+          (r) => r.isWeeklyRest,
+        ).length,
+        pendingCorrections: exceptionReport.records.filter(
+          (r) => r.hasCorrectionRequest,
+        ).length,
+      },
+      overtimeTop5: overtimeReport.records
+        .sort((a, b) => b.overtimeHours - a.overtimeHours)
+        .slice(0, 5),
+      exceptionTop5: exceptionReport.records.slice(0, 5),
+    };
+  }
+
 
   /**
    * Export report in different formats (JSON, CSV, Excel)

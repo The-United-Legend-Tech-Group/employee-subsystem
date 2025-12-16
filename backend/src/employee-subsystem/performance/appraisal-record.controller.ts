@@ -1,13 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppraisalRecordService } from './appraisal-record.service';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
 import { AppraisalRecord } from './models/appraisal-record.schema';
-import { AuthGuard } from '../../common/guards/authentication.guard';
-import { authorizationGuard } from '../../common/guards/authorization.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @ApiTags('Performance - Appraisal Records')
 @Controller('performance/records')
@@ -17,7 +13,6 @@ export class AppraisalRecordController {
     ) { }
 
     @Get(':id')
-    @UseGuards(AuthGuard)
     @ApiOperation({ summary: 'Get appraisal record by ID' })
     @ApiResponse({
         status: 200,
@@ -29,8 +24,6 @@ export class AppraisalRecordController {
     }
 
     @Patch(':id')
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Update appraisal record ratings and feedback' })
     @ApiResponse({
         status: 200,
@@ -45,8 +38,6 @@ export class AppraisalRecordController {
     }
 
     @Post()
-    @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Create a new appraisal record (manager submission)' })
     @ApiResponse({
         status: 201,
@@ -58,7 +49,6 @@ export class AppraisalRecordController {
     }
 
     @Get('employee/:employeeProfileId/final')
-    @UseGuards(AuthGuard)
     @ApiOperation({ summary: 'Get finalized appraisal records for an employee' })
     @ApiResponse({
         status: 200,
@@ -68,5 +58,28 @@ export class AppraisalRecordController {
         @Param('employeeProfileId') employeeProfileId: string,
     ): Promise<any[]> {
         return this.appraisalRecordService.getFinalizedRecordsForEmployee(employeeProfileId);
+    }
+
+    @Get('employee/:employeeProfileId/latest-score')
+    @ApiOperation({ summary: 'Get latest appraisal score for an employee' })
+    @ApiResponse({
+        status: 200,
+        description: 'Latest appraisal score and rating label',
+    })
+    async getLatestScoreForEmployee(
+        @Param('employeeProfileId') employeeProfileId: string,
+    ): Promise<{ totalScore: number | null; ratingLabel: string | null; cycleName: string | null }> {
+        return this.appraisalRecordService.getLatestScoreForEmployee(employeeProfileId);
+    }
+
+    @Post(':id/publish')
+    @ApiOperation({ summary: 'Publish an appraisal record (HR action)' })
+    @ApiResponse({
+        status: 200,
+        description: 'The published appraisal record',
+        type: AppraisalRecord,
+    })
+    async publishRecord(@Param('id') id: string): Promise<AppraisalRecord> {
+        return this.appraisalRecordService.publishRecord(id);
     }
 }

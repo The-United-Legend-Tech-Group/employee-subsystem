@@ -26,12 +26,22 @@ interface Position {
     updatedAt: string;
 }
 
+interface Department {
+    _id: string;
+    code: string;
+    name: string;
+}
+
 interface PositionDetailsProps {
     position: Position | null;
     onUpdate: (id: string, data: Partial<Position>) => void;
+    departments: Department[];
+    positions: Position[];
 }
 
-export default function PositionDetails({ position, onUpdate }: PositionDetailsProps) {
+import Autocomplete from '@mui/material/Autocomplete';
+
+export default function PositionDetails({ position, onUpdate, departments, positions }: PositionDetailsProps) {
     const [formData, setFormData] = React.useState({
         title: '',
         description: '',
@@ -176,41 +186,71 @@ export default function PositionDetails({ position, onUpdate }: PositionDetailsP
                                     multiline
                                     rows={1}
                                 />
-                                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3}>
-                                    <TextField
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Reports To Position
+                                    </Typography>
+                                    <Autocomplete
                                         fullWidth
-                                        placeholder="Reports To Position ID"
-                                        name="reportsToPositionId"
-                                        value={formData.reportsToPositionId}
-                                        onChange={handleChange}
-                                        variant="outlined"
-                                        size="small"
-                                        helperText="Optional"
+                                        options={positions}
+                                        getOptionLabel={(option) => `${option.title} (${option.code})`}
+                                        value={positions.find(p => p._id === formData.reportsToPositionId) || null}
+                                        onChange={(event, newValue) => {
+                                            setFormData(prev => ({ ...prev, reportsToPositionId: newValue ? newValue._id : '' }));
+                                        }}
+                                        forcePopupIcon={false}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                fullWidth
+                                                placeholder="Search position..."
+                                                variant="outlined"
+                                                size="small"
+                                                helperText="Optional"
+                                                hiddenLabel
+                                            />
+                                        )}
                                     />
-                                    <TextField
+                                </Box>
+                                <Box sx={{ width: '100%' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Department
+                                    </Typography>
+                                    <Autocomplete
                                         fullWidth
-                                        placeholder="Department ID"
-                                        name="departmentId"
-                                        value={formData.departmentId}
-                                        onChange={handleChange}
-                                        variant="outlined"
-                                        size="small"
+                                        options={departments}
+                                        getOptionLabel={(option) => `${option.name} (${option.code})`}
+                                        value={departments.find(d => d._id === formData.departmentId) || null}
+                                        onChange={(event, newValue) => {
+                                            setFormData(prev => ({ ...prev, departmentId: newValue ? newValue._id : '' }));
+                                        }}
+                                        forcePopupIcon={false}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                fullWidth
+                                                placeholder="Search department..."
+                                                variant="outlined"
+                                                size="small"
+                                                hiddenLabel
+                                            />
+                                        )}
                                     />
-                                </Stack>
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    color={formData.isActive ? 'error' : 'primary'}
-                                    onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
-                                    sx={{ mt: 2, borderRadius: 2, textTransform: 'none' }}
-                                >
-                                    {formData.isActive ? 'Deactivate' : 'Activate'}
-                                </Button>
+                                </Box>
                             </Stack>
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                color={formData.isActive ? 'error' : 'primary'}
+                                onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                sx={{ mt: 2, borderRadius: 2, textTransform: 'none' }}
+                            >
+                                {formData.isActive ? 'Deactivate' : 'Activate'}
+                            </Button>
                         </form>
                     </Box>
                 </Stack>
             </CardContent>
-        </Card>
+        </Card >
     );
 }

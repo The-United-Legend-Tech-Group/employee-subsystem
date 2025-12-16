@@ -43,4 +43,41 @@ export const feedbackCustomizations: Components<Theme> = {
       }),
     },
   },
+  MuiSnackbar: {
+    styleOverrides: {
+      root: {
+        '& .MuiAlert-root': {
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+        },
+        '& .MuiAlert-standardSuccess': {
+          backgroundColor: '#2e7d32',
+          color: '#fff',
+          '& .MuiAlert-icon': {
+            color: '#fff',
+          },
+        },
+        '& .MuiAlert-standardError': {
+          backgroundColor: '#d32f2f',
+          color: '#fff',
+          '& .MuiAlert-icon': {
+            color: '#fff',
+          },
+        },
+        '& .MuiAlert-standardWarning': {
+          backgroundColor: '#ed6c02',
+          color: '#fff',
+          '& .MuiAlert-icon': {
+            color: '#fff',
+          },
+        },
+        '& .MuiAlert-standardInfo': {
+          backgroundColor: '#0288d1',
+          color: '#fff',
+          '& .MuiAlert-icon': {
+            color: '#fff',
+          },
+        },
+      },
+    },
+  },
 };

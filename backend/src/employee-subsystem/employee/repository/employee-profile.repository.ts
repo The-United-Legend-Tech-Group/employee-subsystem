@@ -26,6 +26,47 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
             .exec();
     }
 
+    async findByWorkEmail(email: string): Promise<EmployeeProfileDocument | null> {
+        if (typeof email !== "string") {
+            throw new Error("Invalid email value for lookup.");
+        }
+        return this.model
+            .findOne({ workEmail: { $eq: email } })
+            .exec();
+    }
+
+    /**
+     * Check if an email (personal or work) already exists in the system.
+     * Returns the field name if found, null otherwise.
+     */
+    async checkEmailExists(personalEmail?: string, workEmail?: string): Promise<{ field: string; email: string } | null> {
+        if (personalEmail) {
+            const existingPersonal = await this.model.findOne({
+                $or: [
+                    { personalEmail: { $eq: personalEmail } },
+                    { workEmail: { $eq: personalEmail } }
+                ]
+            }).exec();
+            if (existingPersonal) {
+                return { field: 'personalEmail', email: personalEmail };
+            }
+        }
+
+        if (workEmail) {
+            const existingWork = await this.model.findOne({
+                $or: [
+                    { personalEmail: { $eq: workEmail } },
+                    { workEmail: { $eq: workEmail } }
+                ]
+            }).exec();
+            if (existingWork) {
+                return { field: 'workEmail', email: workEmail };
+            }
+        }
+
+        return null;
+    }
+
     async getTeamSummaryByManagerId(managerId: string) {
         // Find the manager and get their position
         const manager = await this.model
@@ -189,6 +230,8 @@ export class EmployeeProfileRepository extends BaseRepository<EmployeeProfileDoc
         const [items, total] = await Promise.all([
             this.model
                 .find(query)
+                .populate('primaryDepartmentId', '_id name')
+                .populate('primaryPositionId', '_id title')
                 .skip(skip)
                 .limit(limit)
                 .sort({ createdAt: -1 })

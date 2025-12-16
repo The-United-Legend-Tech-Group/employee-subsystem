@@ -27,9 +27,11 @@ import { Candidate, CandidateSchema } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
 
+import { forwardRef } from '@nestjs/common';
+
 @Module({
   imports: [
-    OrganizationStructureModule,
+    forwardRef(() => OrganizationStructureModule),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

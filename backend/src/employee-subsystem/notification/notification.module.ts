@@ -6,6 +6,7 @@ import { NotificationController } from './notification.controller';
 import { NotificationRepository } from './repository/notification.repository';
 
 import { AuthModule } from '../employee/auth.module';
+import { EmployeeModule } from '../employee/employee.module';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -15,9 +16,10 @@ dotenv.config();
       { name: Notification.name, schema: NotificationSchema },
     ]),
     AuthModule,
+    EmployeeModule,
   ],
   providers: [NotificationService, NotificationRepository],
   controllers: [NotificationController],
   exports: [MongooseModule, NotificationService],
 })
-export class NotificationModule {}
+export class NotificationModule { }

@@ -10,6 +10,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LayersIcon from '@mui/icons-material/Layers';
+import SendIcon from '@mui/icons-material/Send';
 import { usePathname } from 'next/navigation';
 import DashboardSidebarContext from '../context/DashboardSidebarContext';
 import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from '../constants';
@@ -139,6 +140,13 @@ export default function DashboardSidebar({
               icon={<PersonIcon />}
               href="/employees"
               selected={pathname?.startsWith('/employees') || pathname === '/'}
+            />
+            <DashboardSidebarPageItem
+              id="compose-notification"
+              title="Compose Notification"
+              icon={<SendIcon />}
+              href="/employee/compose-notification"
+              selected={pathname === '/employee/compose-notification'}
             />
             <DashboardSidebarDividerItem />
             <DashboardSidebarHeaderItem>Example items</DashboardSidebarHeaderItem>

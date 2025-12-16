@@ -14,7 +14,7 @@ export class PerformanceDashboardService {
 
     async getDashboardStats(cycleId?: string): Promise<DashboardStatsDto> {
         const filter: any = {};
-        if (cycleId) {
+        if (cycleId && Types.ObjectId.isValid(cycleId)) {
             filter.cycleId = new Types.ObjectId(cycleId);
         }
 

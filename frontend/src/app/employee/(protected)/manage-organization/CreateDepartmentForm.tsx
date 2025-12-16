@@ -140,7 +140,7 @@ export default function CreateDepartmentForm({ positions = [], onSuccess, onCanc
                 </Box>
                 <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                        Department Head
+                        Department Head (Make sure to create or select a position)
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Autocomplete
@@ -161,21 +161,21 @@ export default function CreateDepartmentForm({ positions = [], onSuccess, onCanc
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
-                                    placeholder="Optional: Select department head"
+                                    placeholder="Select department head"
                                     fullWidth
                                     size="small"
                                     hiddenLabel
                                 />
                             )}
                         />
-                        <Button
+                        {/* <Button
                             variant="outlined"
                             onClick={() => setOpen((prev) => !prev)}
                             onMouseDown={(e) => e.preventDefault()}
                             sx={{ minWidth: 40, minHeight: 10, p: 0, borderColor: 'rgba(0, 0, 0, 0.23)' }}
                         >
                             <ArrowDropDownIcon />
-                        </Button>
+                        </Button> */}
                     </Box>
                 </Box>
                 <FormControlLabel

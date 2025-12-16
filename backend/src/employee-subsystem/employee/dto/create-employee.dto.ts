@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import {
@@ -57,11 +58,13 @@ export class CreateEmployeeDto {
 
   @ApiPropertyOptional({ enum: Gender })
   @IsOptional()
+  @ValidateIf((o) => o.gender !== '')
   @IsEnum(Gender)
   gender?: Gender;
 
   @ApiPropertyOptional({ enum: MaritalStatus })
   @IsOptional()
+  @ValidateIf((o) => o.maritalStatus !== '')
   @IsEnum(MaritalStatus)
   maritalStatus?: MaritalStatus;
 

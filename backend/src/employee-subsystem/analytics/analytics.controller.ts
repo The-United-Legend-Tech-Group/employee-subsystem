@@ -18,7 +18,7 @@ import {
 @ApiTags('analytics')
 @Controller('analytics')
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(private readonly analyticsService: AnalyticsService) { }
 
   @Get('overtime-report')
   @ApiOperation({
@@ -217,48 +217,8 @@ export class AnalyticsController {
     @Query('year') year?: number,
     @Query('departmentId') departmentId?: string,
   ) {
-    const overtimeFilters: OvertimeReportFilterDto = {
-      month,
-      year,
-      departmentId,
-    };
+    return this.analyticsService.getComplianceSummary(month, year, departmentId);
 
-    const exceptionFilters: ExceptionReportFilterDto = {
-      month,
-      year,
-      departmentId,
-    };
 
-    const [overtimeReport, exceptionReport] = await Promise.all([
-      this.analyticsService.getOvertimeReport(overtimeFilters),
-      this.analyticsService.getExceptionAttendanceReport(exceptionFilters),
-    ]);
-
-    return {
-      generatedAt: new Date(),
-      period: {
-        month,
-        year,
-      },
-      departmentId: departmentId || 'All Departments',
-      summary: {
-        totalOvertimeRecords: overtimeReport.totalRecords,
-        totalOvertimeHours: overtimeReport.totalOvertimeHours,
-        totalExceptionRecords: exceptionReport.totalRecords,
-        missedPunchCount: exceptionReport.records.filter(
-          (r) => r.hasMissedPunch,
-        ).length,
-        weeklyRestViolations: exceptionReport.records.filter(
-          (r) => r.isWeeklyRest,
-        ).length,
-        pendingCorrections: exceptionReport.records.filter(
-          (r) => r.hasCorrectionRequest,
-        ).length,
-      },
-      overtimeTop5: overtimeReport.records
-        .sort((a, b) => b.overtimeHours - a.overtimeHours)
-        .slice(0, 5),
-      exceptionTop5: exceptionReport.records.slice(0, 5),
-    };
   }
 }

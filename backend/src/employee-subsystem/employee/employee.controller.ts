@@ -157,6 +157,15 @@ export class EmployeeController {
     );
   }
 
+  @Get(':id/correction-requests')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get employee correction requests' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiResponse({ status: 200, description: 'List of correction requests' })
+  async getEmployeeCorrectionRequests(@Param('id') id: string) {
+    return this.employeeService.getEmployeeProfileChangeRequests(id);
+  }
+
   @Post(':id/roles')
   //@UseGuards(AuthGuard)
   //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)

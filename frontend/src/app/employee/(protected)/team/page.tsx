@@ -17,6 +17,8 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import TableRowsRoundedIcon from '@mui/icons-material/TableRowsRounded';
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import StructureRequestForm from './StructureRequestForm';
 
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -46,7 +48,7 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
     const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
     const [manager, setManager] = React.useState<TeamMember | null>(null);
     const [hoveredMember, setHoveredMember] = React.useState<TeamMember | null>(null);
-    const [viewMode, setViewMode] = React.useState<'orbit' | 'table'>('orbit');
+    const [viewMode, setViewMode] = React.useState<'orbit' | 'table' | 'submit'>('orbit');
     // Search and Filter Logic
     const [searchQuery, setSearchQuery] = React.useState('');
 
@@ -253,6 +255,10 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                             router.push('/employee/team/summary');
                             return;
                         }
+                        if (newView === 'submit') {
+                            router.push('/employee/structure-request');
+                            return;
+                        }
                         if (newView !== null) {
                             setViewMode(newView);
                         }
@@ -297,6 +303,10 @@ export default function TeamPage(props: { disableCustomTheme?: boolean }) {
                     <ToggleButton value="summary" aria-label="summary view">
                         <AssessmentRoundedIcon fontSize="small" sx={{ mr: 1 }} />
                         <Typography variant="caption" fontWeight="bold">Summary</Typography>
+                    </ToggleButton>
+                    <ToggleButton value="submit" aria-label="manage requests">
+                        <AddCircleOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="caption" fontWeight="bold">Manage Requests</Typography>
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>

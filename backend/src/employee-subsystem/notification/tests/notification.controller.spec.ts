@@ -12,6 +12,8 @@ describe('NotificationController', () => {
   const mockNotificationService = {
     create: jest.fn(),
     findByRecipientId: jest.fn(),
+    markAsRead: jest.fn(),
+    markAllAsRead: jest.fn(),
   };
 
 
@@ -86,6 +88,31 @@ describe('NotificationController', () => {
 
       expect(result).toEqual(expectedResult);
       expect(service.findByRecipientId).toHaveBeenCalledWith('user123');
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('should call service.markAsRead', async () => {
+      const req = { user: { sub: 'user123' } };
+      const id = 'notifId';
+
+      mockNotificationService.markAsRead = jest.fn().mockResolvedValue({});
+
+      await controller.markAsRead(req, id);
+
+      expect(service.markAsRead).toHaveBeenCalledWith(id, 'user123');
+    });
+  });
+
+  describe('markAllAsRead', () => {
+    it('should call service.markAllAsRead', async () => {
+      const req = { user: { sub: 'user123' } };
+
+      mockNotificationService.markAllAsRead = jest.fn().mockResolvedValue({});
+
+      await controller.markAllAsRead(req);
+
+      expect(service.markAllAsRead).toHaveBeenCalledWith('user123');
     });
   });
 });

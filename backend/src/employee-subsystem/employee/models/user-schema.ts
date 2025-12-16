@@ -45,7 +45,7 @@ export class UserProfileBase {
   dateOfBirth?: Date;
 
   // Contact
-  @Prop({ type: String, unique: true, sparse: true })
+  @Prop({ type: String })
   personalEmail?: string;
 
   @Prop({ type: String })

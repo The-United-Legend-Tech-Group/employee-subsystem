@@ -102,7 +102,12 @@ export default function InitiatePolicyForm() {
       setLoadingTypes(true);
       setTypesError(null);
       try {
-        const res = await fetch(`${API_BASE}/leaves/leave-types`);
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(`${API_BASE}/leaves/leave-types`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
         const data = await res.json();
         setLeaveTypes(Array.isArray(data) ? data : []);
@@ -155,9 +160,13 @@ export default function InitiatePolicyForm() {
         payload.eligibility = eligibility;
       }
 
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/initiate-policy`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);

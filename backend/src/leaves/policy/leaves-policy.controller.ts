@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,11 +35,12 @@ import { AnnualResetDto } from '../dtos/annual-reset.dto';
 import { AssignPersonalizedEntitlementDto } from '../dtos/personalized-entitlement.dto';
 import { ConfigureLeaveParametersDto } from '../dtos/configure-leave-parameters.dto';
 import { LeaveCategory } from '../models/leave-category.schema';
-
+import { AuthGuard } from '../../common/guards/authentication.guard';
 
 
 @ApiTags('Leaves Policy')
 @Controller('leaves')
+@UseGuards(AuthGuard)
 export class LeavesPolicyController {
   constructor(private readonly leavesService: LeavesPolicyService) {}
 

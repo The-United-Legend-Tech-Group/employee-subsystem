@@ -126,6 +126,7 @@ export default function CalendarPage() {
     setConfigSuccess(null);
     setConfigLoading(true);
     try {
+      const token = localStorage.getItem('access_token');
       const payload = {
         year: Number(configForm.year),
         holidays: configForm.holidays,
@@ -138,7 +139,10 @@ export default function CalendarPage() {
 
       const res = await fetch(`${API_BASE}/leaves/configure`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
       });
 
@@ -183,7 +187,12 @@ export default function CalendarPage() {
     setHolidayOptionsLoading(true);
     setHolidayOptionsError(null);
     try {
-      const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         throw new Error(`Failed to load holidays for year ${year} (${res.status})`);
       }
@@ -210,7 +219,12 @@ export default function CalendarPage() {
     setViewHolidayOptionsLoading(true);
     setViewHolidayOptionsError(null);
     try {
-      const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         throw new Error(`Failed to load holidays for year ${year} (${res.status})`);
       }
@@ -236,7 +250,12 @@ export default function CalendarPage() {
     setViewBlockedPeriodsLoading(true);
     setViewBlockedPeriodsError(null);
     try {
-      const res = await fetch(`${API_BASE}/leaves/calendar/blocked-periods/${numericYear}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/calendar/blocked-periods/${numericYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         throw new Error(`Failed to load blocked periods for year ${year} (${res.status})`);
       }
@@ -261,7 +280,12 @@ export default function CalendarPage() {
     setCalendar(null);
     setViewLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/leaves/calendar/${viewYear}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/calendar/${viewYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         if (res.status === 404) {
           setViewError(`No calendar found for year ${viewYear}`);
@@ -290,8 +314,12 @@ export default function CalendarPage() {
     setSyncResult(null);
     setSyncLoading(true);
     try {
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/calendar/sync-holidays/${targetYear}`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (!res.ok) {
@@ -325,8 +353,12 @@ export default function CalendarPage() {
     setSyncResult(null);
     setAutoSyncLoading(true);
     try {
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/calendar/auto-sync-holidays`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (!res.ok) {
@@ -355,7 +387,7 @@ export default function CalendarPage() {
     >
       <Box sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={600} gutterBottom>
-          Calendar Maintenance
+          Calendar Management
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Configure leave calendars, manage holidays, and sync with Time Management.

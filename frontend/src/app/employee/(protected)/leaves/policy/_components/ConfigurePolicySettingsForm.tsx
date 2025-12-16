@@ -105,11 +105,15 @@ export default function ConfigurePolicySettingsForm(props: Props) {
         roundingRule: settings.roundingRule,
         expiryAfterMonths: toNumber(settings.expiryAfterMonths),
       };
+      const token = localStorage.getItem('access_token');
       const res = await fetch(
         `${API_BASE}/leaves/configure-settings/${leaveTypeId}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify(payload),
         }
       );

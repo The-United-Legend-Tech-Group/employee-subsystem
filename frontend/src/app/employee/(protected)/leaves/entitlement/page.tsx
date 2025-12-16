@@ -90,7 +90,6 @@ export default function EntitlementPage() {
     leaveTypeId: '',
     overrideYearlyEntitlement: '',
     extraDays: '',
-    hrUserId: '',
     adjustmentType: 'add',
     reason: '',
   });
@@ -115,7 +114,6 @@ export default function EntitlementPage() {
     adjustmentType: 'add',
     amount: '',
     reason: '',
-    hrUserId: '',
   });
   const [adjustmentLoading, setAdjustmentLoading] = useState(false);
   const [adjustmentSuccess, setAdjustmentSuccess] = useState<string | null>(null);
@@ -149,6 +147,19 @@ export default function EntitlementPage() {
     const n = Number(value);
     return Number.isNaN(n) ? undefined : n;
   }
+
+  // Helper to decode JWT token and get current user ID
+  const getCurrentUserId = () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.sub || payload.userId || payload.employeeId;
+    } catch (err) {
+      console.error('Failed to decode token:', err);
+      return null;
+    }
+  };
 
   function getAdjustmentColor(type: string) {
     switch (type) {
@@ -184,7 +195,12 @@ export default function EntitlementPage() {
     setLeaveTypesLoading(true);
     setLeaveTypesError(null);
     try {
-      const res = await fetch(`${API_BASE}/leaves/leave-types`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/leave-types`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
       const data = await res.json();
       setLeaveTypes(Array.isArray(data) ? data : []);
@@ -256,9 +272,15 @@ export default function EntitlementPage() {
     setRecalcSuccess(null);
     setRecalcLoading(true);
     try {
+      const token = localStorage.getItem('access_token');
       const res = await fetch(
         `${API_BASE}/leaves/update-entitlement-internal/${recalcForm.employeeId}/${recalcForm.leaveTypeId}`,
-        { method: 'PATCH' }
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       setRecalcSuccess('Entitlement recalculated and updated successfully');
@@ -286,10 +308,17 @@ export default function EntitlementPage() {
     setPersonalizedSuccess(null);
     setPersonalizedLoading(true);
     try {
+      const currentUserId = getCurrentUserId();
+      if (!currentUserId) {
+        setPersonalizedError('Unable to identify current user. Please log in again.');
+        setPersonalizedLoading(false);
+        return;
+      }
+
       const payload: any = {
         employeeId: personalizedForm.employeeId,
         leaveTypeId: personalizedForm.leaveTypeId,
-        hrUserId: personalizedForm.hrUserId,
+        hrUserId: currentUserId,
         adjustmentType: personalizedForm.adjustmentType,
         reason: personalizedForm.reason,
       };
@@ -299,9 +328,13 @@ export default function EntitlementPage() {
       if (override !== undefined) payload.overrideYearlyEntitlement = override;
       if (extra !== undefined) payload.extraDays = extra;
 
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/personalized-entitlement`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
       });
 
@@ -333,9 +366,13 @@ export default function EntitlementPage() {
       if (annualResetForm.employeeIds.length > 0) payload.employeeIds = annualResetForm.employeeIds;
       if (annualResetForm.leaveTypeIds.length > 0) payload.leaveTypeIds = annualResetForm.leaveTypeIds;
 
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/execute-annual-reset`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
       });
 
@@ -366,18 +403,29 @@ export default function EntitlementPage() {
     setAdjustmentSuccess(null);
     setAdjustmentLoading(true);
     try {
+      const currentUserId = getCurrentUserId();
+      if (!currentUserId) {
+        setAdjustmentError('Unable to identify current user. Please log in again.');
+        setAdjustmentLoading(false);
+        return;
+      }
+
       const payload = {
         employeeId: adjustmentForm.employeeId,
         leaveTypeId: adjustmentForm.leaveTypeId,
         adjustmentType: adjustmentForm.adjustmentType,
         amount: Number(adjustmentForm.amount),
         reason: adjustmentForm.reason,
-        hrUserId: adjustmentForm.hrUserId,
+        hrUserId: currentUserId,
       };
 
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/manual-adjustment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
       });
 
@@ -408,7 +456,12 @@ export default function EntitlementPage() {
     setAdjustments([]);
     setHistoryLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/leaves/adjustment-history/${historyEmployeeId}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/adjustment-history/${historyEmployeeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         if (res.status === 404) {
           setHistoryError(`No adjustment history found for employee: ${historyEmployeeId}`);
@@ -437,7 +490,12 @@ export default function EntitlementPage() {
     setEntitlements([]);
     setEntitlementsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/leaves/leave-entitlements/${entitlementsEmployeeId}`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/leave-entitlements/${entitlementsEmployeeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         if (res.status === 404) {
           setEntitlementsError(`No entitlements found for employee: ${entitlementsEmployeeId}`);
@@ -466,7 +524,7 @@ export default function EntitlementPage() {
     >
       <Box sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={600} gutterBottom>
-          Entitlement Maintenance
+          Entitlement Management
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Manage leave entitlements, adjustments, and annual resets.
@@ -662,18 +720,6 @@ export default function EntitlementPage() {
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="HR User ID"
-                        value={personalizedForm.hrUserId}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({ ...f, hrUserId: e.target.value }))
-                        }
-                        required
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
                       <FormControl fullWidth size="small">
                         <InputLabel id="personalized-adjustmentType-label">
                           Adjustment Type
@@ -706,8 +752,7 @@ export default function EntitlementPage() {
                           setPersonalizedForm((f) => ({ ...f, reason: e.target.value }))
                         }
                         required
-                        multiline
-                        minRows={3}
+
                         fullWidth
                         size="small"
                       />
@@ -952,16 +997,6 @@ export default function EntitlementPage() {
                     value={adjustmentForm.amount}
                     onChange={(e) =>
                       setAdjustmentForm((f) => ({ ...f, amount: e.target.value }))
-                    }
-                    required
-                    fullWidth
-                    size="small"
-                  />
-                  <TextField
-                    label="HR User ID"
-                    value={adjustmentForm.hrUserId}
-                    onChange={(e) =>
-                      setAdjustmentForm((f) => ({ ...f, hrUserId: e.target.value }))
                     }
                     required
                     fullWidth

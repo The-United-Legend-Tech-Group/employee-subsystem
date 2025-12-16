@@ -75,7 +75,12 @@ export default function ManagePoliciesList() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/leaves/policies`);
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${API_BASE}/leaves/policies`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
       setPolicies(Array.isArray(data) ? data : []);
@@ -115,8 +120,12 @@ export default function ManagePoliciesList() {
     if (!deleteId) return;
 
     try {
+      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/policies/${deleteId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (!res.ok) throw new Error('Failed to delete policy');

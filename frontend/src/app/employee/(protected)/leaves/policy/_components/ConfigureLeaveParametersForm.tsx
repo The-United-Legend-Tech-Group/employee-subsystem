@@ -86,11 +86,15 @@ export default function ConfigureLeaveParametersForm({
         approvalFlowRoles: form.approvalFlowRoles,
       };
 
+      const token = localStorage.getItem('access_token');
       const res = await fetch(
         `${API_BASE}/leaves/configure-leave-parameters/${leaveTypeId}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify(payload),
         },
       );

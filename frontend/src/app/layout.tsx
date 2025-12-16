@@ -4,6 +4,14 @@ import CssBaseline from '@mui/material/CssBaseline';
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import AppTheme from '../common/material-ui/shared-theme/AppTheme';
 import ModeSwitch from '@/components/ModeSwitch';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: {
+    template: 'Arcana - %s',
+    default: 'Arcana',
+  },
+};
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (

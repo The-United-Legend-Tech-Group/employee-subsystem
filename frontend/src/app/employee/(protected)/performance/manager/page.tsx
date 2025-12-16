@@ -86,16 +86,32 @@ export default function ManagerAssignmentsPage() {
             field: 'status',
             headerName: 'Status',
             width: 150,
-            renderCell: (params: GridRenderCellParams<Row, string>) => (
-                <Chip
-                    label={params.value}
-                    color={
-                        params.value === AppraisalAssignmentStatus.ACKNOWLEDGED ? 'success' :
-                            params.value === AppraisalAssignmentStatus.IN_PROGRESS ? 'primary' : 'default'
-                    }
-                    size="small"
-                />
-            )
+            renderCell: (params: GridRenderCellParams<Row, string>) => {
+                let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+                switch (params.value) {
+                    case AppraisalAssignmentStatus.PUBLISHED:
+                    case AppraisalAssignmentStatus.ACKNOWLEDGED:
+                        color = 'success';
+                        break;
+                    case AppraisalAssignmentStatus.SUBMITTED:
+                        color = 'warning';
+                        break;
+                    case AppraisalAssignmentStatus.IN_PROGRESS:
+                        color = 'primary';
+                        break;
+                    case AppraisalAssignmentStatus.NOT_STARTED:
+                    default:
+                        color = 'default';
+                        break;
+                }
+                return (
+                    <Chip
+                        label={params.value?.replace(/_/g, ' ')}
+                        color={color}
+                        size="small"
+                    />
+                );
+            }
         },
         {
             field: 'assignedAt',

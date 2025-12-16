@@ -43,6 +43,7 @@ export interface CreateAppraisalCycleDto {
     endDate: string;
     managerDueDate?: string;
     employeeAcknowledgementDueDate?: string;
+    status: AppraisalCycleStatus;
 }
 
 export type UpdateAppraisalCycleDto = Partial<CreateAppraisalCycleDto> & {

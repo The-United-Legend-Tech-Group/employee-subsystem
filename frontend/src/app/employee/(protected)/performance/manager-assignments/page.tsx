@@ -19,6 +19,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useRouter } from 'next/navigation';
 import { decryptData } from '@/common/utils/encryption';
 import { AppraisalAssignment } from '../assignments/types';
+import { AppraisalAssignmentStatus } from '@/types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -126,16 +127,35 @@ export default function ManagerAssignmentsPage() {
             field: 'status',
             headerName: 'Status',
             width: 150,
-            renderCell: (params: GridRenderCellParams) => (
-                <Chip
-                    label={params.value as string}
-                    color={
-                        params.value === 'COMPLETED' ? 'success' :
-                            params.value === 'IN_PROGRESS' ? 'warning' : 'default'
-                    }
-                    size="small"
-                />
-            )
+            renderCell: (params: GridRenderCellParams) => {
+                let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+                const status = params.value as string;
+
+                // Check against enum values or string literals for robustness
+                switch (status) {
+                    case AppraisalAssignmentStatus.PUBLISHED:
+                    case AppraisalAssignmentStatus.ACKNOWLEDGED:
+                        color = 'success';
+                        break;
+                    case AppraisalAssignmentStatus.SUBMITTED:
+                        color = 'warning';
+                        break;
+                    case AppraisalAssignmentStatus.IN_PROGRESS:
+                        color = 'primary';
+                        break;
+                    case AppraisalAssignmentStatus.NOT_STARTED:
+                    default:
+                        color = 'default';
+                        break;
+                }
+                return (
+                    <Chip
+                        label={status?.replace(/_/g, ' ')}
+                        color={color}
+                        size="small"
+                    />
+                );
+            }
         },
         {
             field: 'dueDate',

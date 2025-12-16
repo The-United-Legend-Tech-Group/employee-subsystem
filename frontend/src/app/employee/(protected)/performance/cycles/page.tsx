@@ -48,6 +48,7 @@ export default function AppraisalCyclesPage() {
         endDate: '',
         managerDueDate: '',
         employeeAcknowledgementDueDate: '',
+        status: AppraisalCycleStatus.PLANNED,
     });
 
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -101,6 +102,7 @@ export default function AppraisalCyclesPage() {
                 endDate: cycle.endDate.split('T')[0],
                 managerDueDate: cycle.managerDueDate ? cycle.managerDueDate.split('T')[0] : '',
                 employeeAcknowledgementDueDate: cycle.employeeAcknowledgementDueDate ? cycle.employeeAcknowledgementDueDate.split('T')[0] : '',
+                status: cycle.status,
             });
         } else {
             setEditingCycle(null);
@@ -112,6 +114,7 @@ export default function AppraisalCyclesPage() {
                 endDate: '',
                 managerDueDate: '',
                 employeeAcknowledgementDueDate: '',
+                status: AppraisalCycleStatus.PLANNED,
             });
         }
         setOpenDialog(true);
@@ -403,6 +406,23 @@ export default function AppraisalCyclesPage() {
                                     />
                                 </Box>
                             </Stack>
+                            <Box sx={{ width: '100%' }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Status</Typography>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    hiddenLabel
+                                    name="status"
+                                    value={formData.status}
+                                    onChange={handleInputChange}
+                                >
+                                    {Object.values(AppraisalCycleStatus).map((status) => (
+                                        <MenuItem key={status} value={status}>
+                                            {status}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Box>
                         </Stack>
                     </Box>
                 </DialogContent>
@@ -440,6 +460,6 @@ export default function AppraisalCyclesPage() {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Container>
+        </Container >
     );
 }

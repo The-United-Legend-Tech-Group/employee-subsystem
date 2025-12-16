@@ -28,7 +28,7 @@ import { AppraisalRecord } from '../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-export default function PerformanceOverview() {
+export default function PerformanceOverview({ employeeId: propEmployeeId }: { employeeId?: string }) {
     const theme = useTheme();
     const router = useRouter();
     const [records, setRecords] = useState<AppraisalRecord[]>([]);
@@ -37,20 +37,24 @@ export default function PerformanceOverview() {
 
     useEffect(() => {
         fetchRecords();
-    }, []);
+    }, [propEmployeeId]);
 
     const fetchRecords = async () => {
         try {
             const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !encryptedEmployeeId) {
-                // Fail silently or just don't fetch if auth is missing (dashboard might handle redirect)
-                return;
+            let employeeId = propEmployeeId;
+
+            if (!employeeId) {
+                const encryptedEmployeeId = localStorage.getItem('employeeId');
+                if (!token || !encryptedEmployeeId) {
+                    // Fail silently or just don't fetch if auth is missing (dashboard might handle redirect)
+                    return;
+                }
+                employeeId = await decryptData(encryptedEmployeeId, token);
             }
 
-            const employeeId = await decryptData(encryptedEmployeeId, token);
-            if (!employeeId) throw new Error('Failed to decrypt employee ID');
+            if (!employeeId) throw new Error('Failed to resolve employee ID');
 
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
 

@@ -13,16 +13,15 @@ import {
   Select,
   MenuItem,
   Chip,
-  IconButton,
   CircularProgress,
   Divider,
   Card,
   CardContent,
   Tabs,
   Tab,
+  Autocomplete,
+  Checkbox,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 
@@ -33,6 +32,19 @@ const adjustmentOptions = [
   { value: 'deduct', label: 'Deduct' },
   { value: 'encashment', label: 'Encashment' },
 ];
+
+type EmployeeOption = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  employeeNumber?: string;
+};
+
+type LeaveTypeOption = {
+  _id: string;
+  code: string;
+  name: string;
+};
 
 type Adjustment = {
   _id: string;
@@ -92,8 +104,6 @@ export default function EntitlementPage() {
     employeeIds: [] as string[],
     leaveTypeIds: [] as string[],
   });
-  const [newEmployeeId, setNewEmployeeId] = useState('');
-  const [newLeaveTypeId, setNewLeaveTypeId] = useState('');
   const [annualResetLoading, setAnnualResetLoading] = useState(false);
   const [annualResetSuccess, setAnnualResetSuccess] = useState<string | null>(null);
   const [annualResetError, setAnnualResetError] = useState<string | null>(null);
@@ -128,6 +138,11 @@ export default function EntitlementPage() {
     'recalc',
   );
 
+  // Shared leave types (one fetch)
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeOption[]>([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
+  const [leaveTypesError, setLeaveTypesError] = useState<string | null>(null);
+
   // Helper Functions
   function toNumber(value: string | number) {
     if (value === '' || value === undefined || value === null) return undefined;
@@ -147,6 +162,92 @@ export default function EntitlementPage() {
         return 'default';
     }
   }
+
+  function getEmployeeLabel(emp: EmployeeOption) {
+    if (!emp) return '';
+    return emp.employeeNumber || emp._id;
+  }
+
+  function getLeaveTypeLabel(lt: LeaveTypeOption) {
+    if (!lt) return '';
+    if (lt.code && lt.name) return `${lt.code} — ${lt.name}`;
+    return lt.code || lt.name || lt._id;
+  }
+
+  function ensureLeaveTypeOption(id: string) {
+    if (!id) return null;
+    return leaveTypes.find((lt) => lt._id === id) ?? { _id: id, code: id, name: id } as LeaveTypeOption;
+  }
+
+  async function loadLeaveTypes() {
+    if (!API_BASE) return;
+    setLeaveTypesLoading(true);
+    setLeaveTypesError(null);
+    try {
+      const res = await fetch(`${API_BASE}/leaves/leave-types`);
+      if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
+      const data = await res.json();
+      setLeaveTypes(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setLeaveTypesError(err?.message ?? 'Failed to load leave types');
+    } finally {
+      setLeaveTypesLoading(false);
+    }
+  }
+
+  function useEmployeeLookup() {
+    const [options, setOptions] = React.useState<EmployeeOption[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const load = React.useCallback(async (search = '') => {
+      if (!API_BASE) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('access_token');
+        const query = new URLSearchParams();
+        if (search) query.append('search', search);
+        query.append('limit', '50');
+
+        const res = await fetch(`${API_BASE}/employee?${query.toString()}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+
+        if (!res.ok) throw new Error(`Failed to load employees (${res.status})`);
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.items || data.data || [];
+        setOptions(items);
+      } catch (err: any) {
+        setError(err?.message ?? 'Failed to load employees');
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    React.useEffect(() => {
+      load();
+    }, [load]);
+
+    const ensureOption = React.useCallback(
+      (id: string) => {
+        if (!id) return null;
+        return options.find((e) => e._id === id) ?? { _id: id } as EmployeeOption;
+      },
+      [options],
+    );
+
+    return { options, loading, error, load, ensureOption };
+  }
+
+  React.useEffect(() => {
+    loadLeaveTypes();
+  }, []);
+
+  const autoNoIcons = {
+    popupIndicator: { sx: { display: 'none' } },
+    clearIndicator: { sx: { display: 'none' } },
+  } as const;
 
   // Entitlement Recalc Handlers
   async function handleRecalcSubmit(e: React.FormEvent) {
@@ -170,6 +271,13 @@ export default function EntitlementPage() {
       setRecalcLoading(false);
     }
   }
+
+  const recalcEmployees = useEmployeeLookup();
+  const personalizedEmployees = useEmployeeLookup();
+  const annualResetEmployees = useEmployeeLookup();
+  const adjustmentEmployees = useEmployeeLookup();
+  const historyEmployees = useEmployeeLookup();
+  const entitlementEmployees = useEmployeeLookup();
 
   // Assign Personalized Entitlement Handlers
   async function handlePersonalizedSubmit(e: React.FormEvent) {
@@ -214,28 +322,6 @@ export default function EntitlementPage() {
   }
 
   // Annual Reset Handlers
-  function addEmployeeId() {
-    if (newEmployeeId.trim()) {
-      setAnnualResetForm((f) => ({ ...f, employeeIds: [...f.employeeIds, newEmployeeId.trim()] }));
-      setNewEmployeeId('');
-    }
-  }
-
-  function removeEmployeeId(index: number) {
-    setAnnualResetForm((f) => ({ ...f, employeeIds: f.employeeIds.filter((_, i) => i !== index) }));
-  }
-
-  function addLeaveTypeId() {
-    if (newLeaveTypeId.trim()) {
-      setAnnualResetForm((f) => ({ ...f, leaveTypeIds: [...f.leaveTypeIds, newLeaveTypeId.trim()] }));
-      setNewLeaveTypeId('');
-    }
-  }
-
-  function removeLeaveTypeId(index: number) {
-    setAnnualResetForm((f) => ({ ...f, leaveTypeIds: f.leaveTypeIds.filter((_, i) => i !== index) }));
-  }
-
   async function handleAnnualResetSubmit(e: React.FormEvent) {
     e.preventDefault();
     setAnnualResetError(null);
@@ -422,22 +508,47 @@ export default function EntitlementPage() {
               </Typography>
               <Box component="form" onSubmit={handleRecalcSubmit}>
                 <Stack spacing={2}>
-                  <TextField
-                    label="Employee ID"
-                    value={recalcForm.employeeId}
-                    onChange={(e) => setRecalcForm((f) => ({ ...f, employeeId: e.target.value }))}
-                    required
-                    fullWidth
-                    size="small"
+                  <Autocomplete
+                    options={recalcEmployees.options}
+                    loading={recalcEmployees.loading}
+                    getOptionLabel={getEmployeeLabel}
+                    value={recalcEmployees.ensureOption(recalcForm.employeeId)}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    onChange={(_, value) =>
+                      setRecalcForm((f) => ({ ...f, employeeId: value?._id ?? '' }))
+                    }
+                    onInputChange={(_, value) => recalcEmployees.load(value)}
+                    slotProps={autoNoIcons}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Employee"
+                        required
+                        fullWidth
+                        size="small"
+                        helperText={
+                          recalcEmployees.error ?? 'Search by employee number or name'
+                        }
+                      />
+                    )}
                   />
                   <TextField
-                    label="Leave Type ID"
+                    label="Leave Type"
+                    select
                     value={recalcForm.leaveTypeId}
                     onChange={(e) => setRecalcForm((f) => ({ ...f, leaveTypeId: e.target.value }))}
                     required
                     fullWidth
                     size="small"
-                  />
+                    helperText={leaveTypesError ?? 'Choose the leave type'}
+                    disabled={leaveTypesLoading || !leaveTypes.length}
+                  >
+                    {leaveTypes.map((lt) => (
+                      <MenuItem key={lt._id} value={lt._id}>
+                        {getLeaveTypeLabel(lt)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <Button
                     variant="contained"
                     type="submit"
@@ -477,20 +588,33 @@ export default function EntitlementPage() {
               <Box component="form" onSubmit={handlePersonalizedSubmit}>
                 <Grid container spacing={2} columns={12}>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Employee ID"
-                        value={personalizedForm.employeeId}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({ ...f, employeeId: e.target.value }))
+                      <Autocomplete
+                        options={personalizedEmployees.options}
+                        loading={personalizedEmployees.loading}
+                        getOptionLabel={getEmployeeLabel}
+                        value={personalizedEmployees.ensureOption(personalizedForm.employeeId)}
+                        isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                        onChange={(_, value) =>
+                          setPersonalizedForm((f) => ({ ...f, employeeId: value?._id ?? '' }))
                         }
-                        required
-                        fullWidth
-                        size="small"
+                        onInputChange={(_, value) => personalizedEmployees.load(value)}
+                        slotProps={autoNoIcons}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Employee"
+                            required
+                            fullWidth
+                            size="small"
+                            helperText={personalizedEmployees.error ?? 'Search by employee number or name'}
+                          />
+                        )}
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
-                        label="Leave Type ID"
+                        label="Leave Type"
+                        select
                         value={personalizedForm.leaveTypeId}
                         onChange={(e) =>
                           setPersonalizedForm((f) => ({ ...f, leaveTypeId: e.target.value }))
@@ -498,7 +622,15 @@ export default function EntitlementPage() {
                         required
                         fullWidth
                         size="small"
-                      />
+                        helperText={leaveTypesError ?? 'Choose the leave type'}
+                        disabled={leaveTypesLoading || !leaveTypes.length}
+                      >
+                        {leaveTypes.map((lt) => (
+                          <MenuItem key={lt._id} value={lt._id}>
+                            {getLeaveTypeLabel(lt)}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
@@ -632,74 +764,86 @@ export default function EntitlementPage() {
                     helperText="Leave empty to use current year"
                     size="small"
                   />
-                    <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Employee IDs (Optional - leave empty for all employees)
-                    </Typography>
-                    <Stack direction="row" spacing={1} mb={1}>
+                  <Autocomplete
+                    multiple
+                    options={annualResetEmployees.options}
+                    loading={annualResetEmployees.loading}
+                    getOptionLabel={getEmployeeLabel}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    value={annualResetForm.employeeIds
+                      .map((id) => annualResetEmployees.ensureOption(id))
+                      .filter((v): v is EmployeeOption => Boolean(v))}
+                    onChange={(_, values) =>
+                      setAnnualResetForm((f) => ({ ...f, employeeIds: values.map((v) => v._id) }))
+                    }
+                    onInputChange={(_, value) => annualResetEmployees.load(value)}
+                    slotProps={autoNoIcons}
+                    renderTags={() => null}
+                    renderInput={(params) => (
                       <TextField
+                        {...params}
+                        label="Employees (optional)"
+                        placeholder={
+                          annualResetForm.employeeIds.length
+                            ? `${annualResetForm.employeeIds.length} selected`
+                            : 'Leave empty for all employees'
+                        }
                         size="small"
-                        placeholder="Employee ID"
-                        value={newEmployeeId}
-                        onChange={(e) => setNewEmployeeId(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addEmployeeId();
-                          }
+                            helperText={annualResetEmployees.error ?? 'Select employees by number or name'}
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: null,
                         }}
-                        sx={{ flex: 1 }}
                       />
-                      <IconButton onClick={addEmployeeId} color="primary">
-                        <AddIcon />
-                      </IconButton>
-                    </Stack>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                      {annualResetForm.employeeIds.map((id, idx) => (
-                        <Chip
-                          key={idx}
-                          label={id}
-                          onDelete={() => removeEmployeeId(idx)}
-                          deleteIcon={<DeleteIcon />}
-                          size="small"
-                        />
-                      ))}
-                    </Stack>
-                    </Box>
-                    <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Leave Type IDs (Optional - leave empty for all leave types)
-                    </Typography>
-                    <Stack direction="row" spacing={1} mb={1}>
+                    )}
+                  />
+                  <Autocomplete
+                    multiple
+                    options={leaveTypes}
+                    loading={leaveTypesLoading}
+                    getOptionLabel={getLeaveTypeLabel}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    value={annualResetForm.leaveTypeIds
+                      .map((id) => ensureLeaveTypeOption(id))
+                      .filter((v): v is LeaveTypeOption => Boolean(v))}
+                    onChange={(_, values) =>
+                      setAnnualResetForm((f) => ({ ...f, leaveTypeIds: values.map((v) => v._id) }))
+                    }
+                    slotProps={autoNoIcons}
+                    renderTags={() => null}
+                    renderOption={(props, option, { selected }) => (
+                      <li {...props}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Checkbox
+                            checked={selected}
+                            size="small"
+                          />
+                          <Typography variant="body2">
+                            {getLeaveTypeLabel(option)}
+                          </Typography>
+                        </Stack>
+                      </li>
+                    )}
+                    renderInput={(params) => (
                       <TextField
+                        {...params}
+                        label="Leave Types (optional)"
+                        placeholder=" "
                         size="small"
-                        placeholder="Leave Type ID"
-                        value={newLeaveTypeId}
-                        onChange={(e) => setNewLeaveTypeId(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addLeaveTypeId();
-                          }
+                        helperText={leaveTypesError ?? 'Select leave types'}
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: annualResetForm.leaveTypeIds.length
+                            ? (
+                              <Typography variant="body2" color="text.primary" sx={{ pl: 1 }}>
+                                {annualResetForm.leaveTypeIds.length} selected
+                              </Typography>
+                            )
+                            : null,
                         }}
-                        sx={{ flex: 1 }}
                       />
-                      <IconButton onClick={addLeaveTypeId} color="primary">
-                        <AddIcon />
-                      </IconButton>
-                    </Stack>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                      {annualResetForm.leaveTypeIds.map((id, idx) => (
-                        <Chip
-                          key={idx}
-                          label={id}
-                          onDelete={() => removeLeaveTypeId(idx)}
-                          deleteIcon={<DeleteIcon />}
-                          size="small"
-                        />
-                      ))}
-                    </Stack>
-                    </Box>
+                    )}
+                  />
                     <Button
                       variant="contained"
                       type="submit"
@@ -743,18 +887,31 @@ export default function EntitlementPage() {
               </Typography>
               <Box component="form" onSubmit={handleAdjustmentSubmit}>
                 <Stack spacing={2}>
-                  <TextField
-                    label="Employee ID"
-                    value={adjustmentForm.employeeId}
-                    onChange={(e) =>
-                      setAdjustmentForm((f) => ({ ...f, employeeId: e.target.value }))
+                  <Autocomplete
+                    options={adjustmentEmployees.options}
+                    loading={adjustmentEmployees.loading}
+                    getOptionLabel={getEmployeeLabel}
+                    value={adjustmentEmployees.ensureOption(adjustmentForm.employeeId)}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    onChange={(_, value) =>
+                      setAdjustmentForm((f) => ({ ...f, employeeId: value?._id ?? '' }))
                     }
-                    required
-                    fullWidth
-                    size="small"
+                    onInputChange={(_, value) => adjustmentEmployees.load(value)}
+                    slotProps={autoNoIcons}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Employee"
+                        required
+                        fullWidth
+                        size="small"
+                        helperText={adjustmentEmployees.error ?? 'Search by employee number or name'}
+                      />
+                    )}
                   />
                   <TextField
-                    label="Leave Type ID"
+                    label="Leave Type"
+                    select
                     value={adjustmentForm.leaveTypeId}
                     onChange={(e) =>
                       setAdjustmentForm((f) => ({ ...f, leaveTypeId: e.target.value }))
@@ -762,7 +919,15 @@ export default function EntitlementPage() {
                     required
                     fullWidth
                     size="small"
-                  />
+                    helperText={leaveTypesError ?? 'Choose the leave type'}
+                    disabled={leaveTypesLoading || !leaveTypes.length}
+                  >
+                    {leaveTypes.map((lt) => (
+                      <MenuItem key={lt._id} value={lt._id}>
+                        {getLeaveTypeLabel(lt)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                   <FormControl fullWidth size="small">
                     <InputLabel id="adjustment-adjustmentType-label">Adjustment Type</InputLabel>
                     <Select
@@ -850,13 +1015,25 @@ export default function EntitlementPage() {
               </Typography>
               <Stack spacing={2}>
                 <Stack direction="row" spacing={1}>
-                  <TextField
-                    label="Employee ID"
-                    value={historyEmployeeId}
-                    onChange={(e) => setHistoryEmployeeId(e.target.value)}
-                    size="small"
+                  <Autocomplete
+                    options={historyEmployees.options}
+                    loading={historyEmployees.loading}
+                    getOptionLabel={getEmployeeLabel}
+                    value={historyEmployees.ensureOption(historyEmployeeId)}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    onChange={(_, value) => setHistoryEmployeeId(value?._id ?? '')}
+                    onInputChange={(_, value) => historyEmployees.load(value)}
+                    slotProps={autoNoIcons}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Employee"
+                        size="small"
+                        placeholder="Enter employee"
+                        helperText={historyEmployees.error}
+                      />
+                    )}
                     sx={{ flex: 1 }}
-                    placeholder="Enter Employee ID"
                   />
                   <Button variant="outlined" onClick={handleLoadHistory} disabled={historyLoading || !historyEmployeeId.trim()}>
                     {historyLoading ? <CircularProgress size={20} /> : 'Load'}
@@ -938,13 +1115,25 @@ export default function EntitlementPage() {
               </Typography>
               <Stack spacing={2}>
                 <Stack direction="row" spacing={1}>
-                  <TextField
-                    label="Employee ID"
-                    value={entitlementsEmployeeId}
-                    onChange={(e) => setEntitlementsEmployeeId(e.target.value)}
-                    size="small"
+                  <Autocomplete
+                    options={entitlementEmployees.options}
+                    loading={entitlementEmployees.loading}
+                    getOptionLabel={getEmployeeLabel}
+                    value={entitlementEmployees.ensureOption(entitlementsEmployeeId)}
+                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                    onChange={(_, value) => setEntitlementsEmployeeId(value?._id ?? '')}
+                    onInputChange={(_, value) => entitlementEmployees.load(value)}
+                    slotProps={autoNoIcons}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Employee"
+                        size="small"
+                        placeholder="Enter employee"
+                        helperText={entitlementEmployees.error}
+                      />
+                    )}
                     sx={{ flex: 1 }}
-                    placeholder="Enter Employee ID"
                   />
                   <Button variant="outlined" onClick={handleLoadEntitlements} disabled={entitlementsLoading || !entitlementsEmployeeId.trim()}>
                     {entitlementsLoading ? <CircularProgress size={20} /> : 'Load'}

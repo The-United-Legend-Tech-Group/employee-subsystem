@@ -30,6 +30,7 @@ import BeachAccessRoundedIcon from "@mui/icons-material/BeachAccessRounded";
 import PlaylistAddCheckRoundedIcon from "@mui/icons-material/PlaylistAddCheckRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import { usePathname, useRouter } from "next/navigation";
+import { CalendarViewDay } from "@mui/icons-material";
 
 const mainListItems = [
   { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard" },
@@ -126,6 +127,12 @@ const leavesSubItems = [
     path: "/employee/leaves/entitlement",
 
   },
+  {
+    text: "Calendar Management",
+    icon: <CalendarViewDay/>,
+    path: "/employee/leaves/calendar",
+
+  },
 ];
 
 const secondaryListItems = [
@@ -175,6 +182,7 @@ export default function MenuContent() {
     if (text === 'Policy Management' && pathname === '/employee/leaves/policy') return true;
     if (text === 'Entitlement Management' && pathname === '/employee/leaves/entitlement') return true;
     if (text === 'Leave Type Management' && pathname === '/employee/leaves/type') return true;
+    if (text === 'Calendar Management' && pathname === '/employee/leaves/calendar') return true;
     return false;
   };
 

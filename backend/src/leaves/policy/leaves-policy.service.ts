@@ -462,8 +462,47 @@ export class LeavesPolicyService {
 
   // Optional helper → get calendar by year
   async getCalendarByYear(year: number) {
-    const calendars = await this.calendarRepository.findByYear(year);
-    return calendars || null;
+    const calendar = await this.calendarRepository.findByYear(year);
+    return calendar || null;
+  }
+
+  /**
+   * Get blocked periods for a specific year from the Leaves Calendar.
+   * This is read-only and does not modify any data.
+   */
+  async getBlockedPeriodsForYear(year: number) {
+    const calendars = await this.calendarRepository.findBlockedPeriodsByYear(year);
+    if (!calendars || calendars.length === 0) {
+      return [];
+    }
+
+    // Flatten blocked periods across any calendars found for that year
+    return calendars.flatMap((cal) => cal.blockedPeriods || []);
+  }
+
+  /**
+   * Get holidays from time-management for a specific year without mutating the calendar.
+   * Used by UI to display holiday names when configuring calendars.
+   */
+  async getHolidaysForYear(year: number) {
+    const holidays = await this.attendanceService.getHolidays();
+
+    if (!holidays || !Array.isArray(holidays)) {
+      return [];
+    }
+
+    const yearHolidays = holidays.filter((holiday: any) => {
+      const holidayYear = new Date(holiday.startDate).getFullYear();
+      return holidayYear === year && holiday.active;
+    });
+
+    return yearHolidays.map((h: any) => ({
+      id: h._id,
+      name: h.name,
+      startDate: h.startDate,
+      endDate: h.endDate,
+      type: h.type,
+    }));
   }
 
   /**

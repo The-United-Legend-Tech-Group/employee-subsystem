@@ -255,6 +255,30 @@ export class LeavesPolicyController {
     return this.leavesService.getCalendarByYear(year);
   }
 
+  // Get holidays from Time Management for a specific year (read-only)
+  @Get('calendar/holidays/:year')
+  @ApiOperation({
+    summary: 'List holidays from Time Management for a specific year',
+    description: 'Returns holiday details (id, name, dates, type) for the given year without modifying the calendar',
+  })
+  @ApiParam({ name: 'year', description: 'Target year for holiday lookup' })
+  @ApiResponse({ status: 200, description: 'Holidays loaded successfully' })
+  async getHolidaysForYear(@Param('year') year: number) {
+    return this.leavesService.getHolidaysForYear(year);
+  }
+
+  // Get blocked periods for a specific year (read-only)
+  @Get('calendar/blocked-periods/:year')
+  @ApiOperation({
+    summary: 'List blocked periods for a calendar year',
+    description: 'Returns blocked periods (from, to, reason) stored in the Leaves Calendar for the given year',
+  })
+  @ApiParam({ name: 'year', description: 'Target year for blocked periods lookup' })
+  @ApiResponse({ status: 200, description: 'Blocked periods loaded successfully' })
+  async getBlockedPeriodsForYear(@Param('year') year: number) {
+    return this.leavesService.getBlockedPeriodsForYear(year);
+  }
+
    // Sync holidays from Time Management to Leaves Calendar
    @Post('calendar/sync-holidays/:year')
    @ApiOperation({

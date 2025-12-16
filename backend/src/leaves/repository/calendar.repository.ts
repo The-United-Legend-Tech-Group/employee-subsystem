@@ -19,6 +19,10 @@ export class CalendarRepository extends BaseRepository<CalendarDocument> {
     return this.model.findOne({ year }).exec();
   }
 
+  async findBlockedPeriodsByYear(year: number): Promise<CalendarDocument[]> {
+    return this.model.find({ year }).exec();
+  }
+
   async findHolidays(): Promise<CalendarDocument[]> {
     return this.model.find({ isHoliday: true }).exec();
   }

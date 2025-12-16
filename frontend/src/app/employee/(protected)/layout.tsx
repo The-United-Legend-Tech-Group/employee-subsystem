@@ -106,27 +106,42 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                 <Box
                     component="main"
                     sx={(theme) => ({
+                        display: 'flex',
+                        flexDirection: 'column',
                         flexGrow: 1,
                         backgroundColor: theme.vars
                             ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
                             : alpha(theme.palette.background.default, 1),
-                        overflow: 'auto',
+                        overflow: 'hidden',
                         height: '100vh',
                     })}
                 >
+                    <Box
+                        sx={{
+                            zIndex: 1100,
+                            width: '100%',
+                            bgcolor: 'background.default',
+                            px: 3, //CHANGE HERE
+                            py: 0.5, //CHANGE HERE
+                            mt: { xs: 8, md: 0 },
+                            mb: 1, //CHANGE HERE
+                            flexShrink: 0,
+                        }}
+                    >
+                        {/* Header is universal for this layout */}
+                        <Header notificationPath="/employee/notifications" />
+                    </Box>
+
                     <Stack
                         spacing={2}
                         sx={{
                             alignItems: 'center',
                             mx: 3,
                             pb: 5,
-                            mt: { xs: 8, md: 0 },
-                            height: '100%',
+                            flexGrow: 1,
+                            overflow: 'auto',
                         }}
                     >
-                        {/* Header is universal for this layout */}
-                        <Header notificationPath="/employee/notifications" />
-
                         {/* Page Content */}
                         <Box sx={{ width: '100%', height: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
                             {children}

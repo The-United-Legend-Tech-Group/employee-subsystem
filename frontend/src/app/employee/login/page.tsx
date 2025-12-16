@@ -276,6 +276,7 @@ export default function EmployeeLogin() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: 'include', // Required to send/receive cookies
         body: JSON.stringify(payload),
       });
 

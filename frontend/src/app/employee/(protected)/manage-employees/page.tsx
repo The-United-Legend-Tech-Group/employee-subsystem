@@ -11,7 +11,7 @@ import Skeleton from '@mui/material/Skeleton';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
@@ -33,8 +33,6 @@ import {
 import PageContainer from '../../../../common/material-ui/crud-dashboard/components/PageContainer';
 import DialogsProvider from '../../../../common/material-ui/crud-dashboard/hooks/useDialogs/DialogsProvider';
 import NotificationsProvider from '../../../../common/material-ui/crud-dashboard/hooks/useNotifications/NotificationsProvider';
-import { useDialogs } from '../../../../common/material-ui/crud-dashboard/hooks/useDialogs/useDialogs';
-import useNotifications from '../../../../common/material-ui/crud-dashboard/hooks/useNotifications/useNotifications';
 
 const INITIAL_PAGE_SIZE = 8;
 
@@ -88,8 +86,6 @@ interface Employee {
 
 function EmployeeListContent() {
     const router = useRouter();
-    const dialogs = useDialogs();
-    const notifications = useNotifications();
 
     // Track if component has mounted to prevent SSR state update issues
     const isMounted = React.useRef(false);
@@ -218,42 +214,21 @@ function EmployeeListContent() {
     );
 
     const handleCreateClick = React.useCallback(() => {
-        // Assuming we want to use the onboard page or a new create page
         router.push('/employee/onboard');
     }, [router]);
 
-    const handleRowEdit = React.useCallback(
+    const handleViewDetails = React.useCallback(
         (employee: Employee) => () => {
             router.push(`/employee/manage-employees/${employee.id}`);
         },
         [router],
     );
 
-    const handleRowDelete = React.useCallback(
-        (employee: Employee) => async () => {
-            const confirmed = await dialogs.confirm(
-                `Do you wish to delete ${employee.firstName} ${employee.lastName}?`,
-                {
-                    title: `Delete employee?`,
-                    severity: 'error',
-                    okText: 'Delete',
-                    cancelText: 'Cancel',
-                },
-            );
-
-            if (confirmed) {
-                // TODO: Implement delete API call
-                notifications.show('Delete functionality not yet implemented on backend', {
-                    severity: 'info',
-                    autoHideDuration: 3000,
-                });
-                // After implementation:
-                // await deleteEmployee(employee.id);
-                // notifications.show(...);
-                // loadData();
-            }
+    const handleRowEdit = React.useCallback(
+        (employee: Employee) => () => {
+            router.push(`/employee/manage-employees/${employee.id}/edit`);
         },
-        [dialogs, notifications],
+        [router],
     );
 
     const getStatusColor = (status: string) => {
@@ -280,7 +255,7 @@ function EmployeeListContent() {
                 width: 120,
                 renderCell: (params) => (
                     <Chip
-                        label={params.value}
+                        label={params.value?.toUpperCase()}
                         size="small"
                         variant="outlined"
                         color={getStatusColor(params.value) as any}
@@ -294,21 +269,21 @@ function EmployeeListContent() {
                 align: 'right',
                 getActions: ({ row }) => [
                     <GridActionsCellItem
+                        key="view-item"
+                        icon={<VisibilityIcon />}
+                        label="View Details"
+                        onClick={handleViewDetails(row)}
+                    />,
+                    <GridActionsCellItem
                         key="edit-item"
                         icon={<EditIcon />}
                         label="Edit"
                         onClick={handleRowEdit(row)}
                     />,
-                    <GridActionsCellItem
-                        key="delete-item"
-                        icon={<DeleteIcon />}
-                        label="Delete"
-                        onClick={handleRowDelete(row)}
-                    />,
                 ],
             },
         ],
-        [handleRowEdit, handleRowDelete],
+        [handleViewDetails, handleRowEdit],
     );
 
     const initialState = React.useMemo(

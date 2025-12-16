@@ -18,6 +18,10 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import EngineeringRoundedIcon from '@mui/icons-material/EngineeringRounded';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EmojiEventsRoundedIcon from '@mui/icons-material/EmojiEventsRounded';
+import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
+import EventNoteRoundedIcon from '@mui/icons-material/EventNoteRounded';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { decryptData } from '../../../../../common/utils/encryption';
@@ -35,12 +39,23 @@ interface RoleSummaryItem {
     count: number;
 }
 
+interface PerformanceSummary {
+    averageScore: number | null;
+    topPerformer: { name: string; score: number } | null;
+    totalReviewed: number;
+    totalTeamMembers: number;
+    lastReviewDate: string | null;
+    scoreDistribution: { label: string; count: number }[];
+    memberScores: { employeeId: string; name: string; score: number | null; ratingLabel: string | null }[];
+}
+
 export default function TeamSummaryPage() {
     const router = useRouter();
     const theme = useTheme();
     const [loading, setLoading] = React.useState(true);
     const [summaryData, setSummaryData] = React.useState<TeamSummaryItem[]>([]);
     const [roleData, setRoleData] = React.useState<RoleSummaryItem[]>([]);
+    const [performanceData, setPerformanceData] = React.useState<PerformanceSummary | null>(null);
     const [error, setError] = React.useState<string | null>(null);
 
     const fetchSummary = async () => {
@@ -69,6 +84,15 @@ export default function TeamSummaryPage() {
                 setRoleData(data.roleSummary || []);
             } else {
                 setError('Failed to load team summary.');
+            }
+
+            // Fetch performance summary
+            const perfResponse = await fetch(`${apiUrl}/performance/records/team/${employeeId}/summary`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (perfResponse.ok) {
+                const perfData = await perfResponse.json();
+                setPerformanceData(perfData);
             }
         } catch (err) {
             console.error(err);
@@ -294,6 +318,149 @@ export default function TeamSummaryPage() {
                         </Card>
                     </Grid>
 
+                    {/* Performance Section */}
+                    {performanceData && (
+                        <>
+                            <Grid size={{ xs: 12 }}>
+                                <Typography variant="h5" fontWeight="bold" sx={{ mt: 4, mb: 2 }}>
+                                    Team Performance
+                                </Typography>
+                            </Grid>
+
+                            {/* Performance Metrics Cards */}
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, '&:last-child': { pb: 2 } }}>
+                                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+                                            <TrendingUpIcon fontSize="medium" />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="h5" fontWeight="bold">
+                                                {performanceData.averageScore !== null ? performanceData.averageScore.toFixed(1) : 'N/A'}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight="medium">Avg Team Score</Typography>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, '&:last-child': { pb: 2 } }}>
+                                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.warning.main, 0.1), color: 'warning.main' }}>
+                                            <EmojiEventsRoundedIcon fontSize="medium" />
+                                        </Box>
+                                        <Box sx={{ minWidth: 0 }}>
+                                            <Typography
+                                                variant="h5"
+                                                fontWeight="bold"
+                                                sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                title={performanceData.topPerformer?.name}
+                                            >
+                                                {performanceData.topPerformer?.name || 'N/A'}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                                                Top Performer {performanceData.topPerformer ? `(${performanceData.topPerformer.score.toFixed(1)})` : ''}
+                                            </Typography>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, '&:last-child': { pb: 2 } }}>
+                                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
+                                            <AssessmentRoundedIcon fontSize="medium" />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="h5" fontWeight="bold">
+                                                {performanceData.totalReviewed}/{performanceData.totalTeamMembers}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight="medium">Members Reviewed</Typography>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, '&:last-child': { pb: 2 } }}>
+                                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main' }}>
+                                            <EventNoteRoundedIcon fontSize="medium" />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="h5" fontWeight="bold">
+                                                {performanceData.lastReviewDate ? new Date(performanceData.lastReviewDate).toLocaleDateString() : 'N/A'}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" fontWeight="medium">Last Review</Typography>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Performance Charts */}
+                            <Grid size={{ xs: 12, lg: 6 }}>
+                                <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <Typography variant="h6" fontWeight="bold" gutterBottom>Score Distribution</Typography>
+                                        <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                            {performanceData.scoreDistribution.length > 0 ? (
+                                                <PieChart
+                                                    series={[{
+                                                        data: performanceData.scoreDistribution.map((item, idx) => ({
+                                                            id: idx,
+                                                            value: item.count,
+                                                            label: item.label,
+                                                        })),
+                                                        highlightScope: { fade: 'global', highlight: 'item' },
+                                                        faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                                                        innerRadius: 30,
+                                                        paddingAngle: 2,
+                                                        cornerRadius: 4,
+                                                    }]}
+                                                    height={280}
+                                                    slotProps={{ legend: { hidden: true } as any }}
+                                                    margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                />
+                                            ) : (
+                                                <Typography color="text.secondary">No performance data available</Typography>
+                                            )}
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, lg: 6 }}>
+                                <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <Typography variant="h6" fontWeight="bold" gutterBottom>Team Member Scores</Typography>
+                                        <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                            {performanceData.memberScores.filter(m => m.score !== null).length > 0 ? (
+                                                <BarChart
+                                                    dataset={performanceData.memberScores.filter(m => m.score !== null).slice(0, 8).map(m => ({
+                                                        name: m.name,
+                                                        score: m.score,
+                                                    }))}
+                                                    yAxis={[{ scaleType: 'band', dataKey: 'name' }]}
+                                                    series={[{ dataKey: 'score', label: 'Score', color: theme.palette.secondary.main }]}
+                                                    layout="horizontal"
+                                                    height={280}
+                                                    margin={{ left: 100, right: 10, top: 10, bottom: 30 }}
+                                                    borderRadius={8}
+                                                    slotProps={{ legend: { hidden: true } as any }}
+                                                />
+                                            ) : (
+                                                <Typography color="text.secondary">No performance scores available</Typography>
+                                            )}
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Role Distribution - at end of page */}
                     <Grid size={{ xs: 12 }}>
                         <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
                             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -301,69 +468,20 @@ export default function TeamSummaryPage() {
                                 <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                     {formattedRoleData.length > 0 ? (
                                         <PieChart
-                                            series={[
-                                                {
-                                                    data: formattedRoleData,
-                                                    highlightScope: { fade: 'global', highlight: 'item' },
-                                                    faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
-                                                    innerRadius: 30,
-                                                    paddingAngle: 2,
-                                                    cornerRadius: 4,
-                                                },
-                                            ]}
+                                            series={[{
+                                                data: formattedRoleData,
+                                                highlightScope: { fade: 'global', highlight: 'item' },
+                                                faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                                                innerRadius: 30,
+                                                paddingAngle: 2,
+                                                cornerRadius: 4,
+                                            }]}
                                             height={280}
-                                            slotProps={{
-                                                legend: { hidden: true } as any
-                                            }}
+                                            slotProps={{ legend: { hidden: true } as any }}
                                             margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                         />
                                     ) : (
                                         <Typography color="text.secondary">No data available</Typography>
-                                    )}
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid size={{ xs: 12 }}>
-                        <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                <Typography variant="h6" fontWeight="bold" gutterBottom>Department Overview</Typography>
-                                <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                    {departmentData.length > 0 ? (
-                                        <BarChart
-                                            xAxis={[{ scaleType: 'band', data: departmentData.map(d => d.label) }]}
-                                            series={[{ data: departmentData.map(d => d.value), color: theme.palette.secondary.main }]}
-                                            height={280}
-                                            borderRadius={8}
-                                            margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-                                        />
-                                    ) : (
-                                        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                                            <Typography color="text.secondary">No data available</Typography>
-                                        </Box>
-                                    )}
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    {/* Row 3: Detailed List */}
-                    <Grid size={{ xs: 12 }}>
-                        <Card sx={{ borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                            <CardContent>
-                                <Typography variant="h6" fontWeight="bold" gutterBottom>System Roles</Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    {roleData.map((item, idx) => (
-                                        <Chip
-                                            key={idx}
-                                            label={`${item.role}: ${item.count}`}
-                                            variant="outlined"
-                                            sx={{ p: 1 }}
-                                        />
-                                    ))}
-                                    {roleData.length === 0 && (
-                                        <Typography color="text.secondary" variant="body2">No system roles assigned.</Typography>
                                     )}
                                 </Box>
                             </CardContent>

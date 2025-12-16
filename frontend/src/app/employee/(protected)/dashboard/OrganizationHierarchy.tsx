@@ -11,6 +11,7 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Fade from '@mui/material/Fade';
 import { alpha, useTheme } from '@mui/material/styles';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
@@ -40,6 +41,23 @@ const stringToColor = (string: string | undefined | null) => {
     }
     return color;
 };
+
+// Predefined vibrant color palette for departments
+const DEPARTMENT_COLORS = [
+    '#00BCD4', // Cyan
+    '#9C27B0', // Purple
+    '#FF9800', // Orange
+    '#4CAF50', // Green
+    '#E91E63', // Pink
+    '#2196F3', // Blue
+    '#FF5722', // Deep Orange
+    '#673AB7', // Deep Purple
+    '#009688', // Teal
+    '#FFC107', // Amber
+];
+
+// Get department color by index (cycles through palette)
+const getDepartmentColor = (index: number) => DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length];
 
 // Helper to check if a node contains the target position in its subtree
 const hasDescendant = (node: HierarchyNode, targetId?: string | null): boolean => {
@@ -85,10 +103,11 @@ const compactTree = (node: HierarchyNode): HierarchyNode => {
     return newNode;
 };
 
-const OrgChartNode = React.memo(({ node, currentPositionId }: { node: HierarchyNode; currentPositionId?: string | null }) => {
+const OrgChartNode = React.memo(({ node, currentPositionId, departmentColor }: { node: HierarchyNode; currentPositionId?: string | null; departmentColor?: string }) => {
     const theme = useTheme();
     const isCurrentUser = node._id === currentPositionId;
-    const groupColor = React.useMemo(() => stringToColor(node.departmentId || node._id), [node.departmentId, node._id]);
+    // Use departmentColor if provided, otherwise fall back to stringToColor
+    const groupColor = departmentColor || stringToColor(node.departmentId || node._id);
     const hasChildren = node.children && node.children.length > 0;
 
     return (
@@ -212,7 +231,7 @@ const OrgChartNode = React.memo(({ node, currentPositionId }: { node: HierarchyN
                                 }} />
                             </Box>
 
-                            <OrgChartNode node={child} currentPositionId={currentPositionId} />
+                            <OrgChartNode node={child} currentPositionId={currentPositionId} departmentColor={departmentColor} />
                         </Box>
                     ))}
                 </Box>
@@ -234,6 +253,7 @@ export default function OrganizationHierarchy() {
 
     const containerRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const hasSwitchedMode = React.useRef(false); // Track if user has toggled mode
 
     // Fetch user profile info on mount
     React.useEffect(() => {
@@ -283,10 +303,9 @@ export default function OrganizationHierarchy() {
         }
 
         const fetchHierarchy = async () => {
-            // Only show loading on initial load, not on toggle (preserves scroll position)
-            if (hierarchy.length === 0) {
-                setLoading(true);
-            }
+            // Clear old data and show loading when switching views
+            setHierarchy([]);
+            setLoading(true);
             setError(null);
 
             try {
@@ -328,6 +347,22 @@ export default function OrganizationHierarchy() {
 
         fetchHierarchy();
     }, [showMyHierarchy, currentEmployeeId, userInfoLoaded]);
+
+    // Auto-scroll to component when switching views (not on initial load)
+    React.useEffect(() => {
+        if (!loading && hierarchy.length > 0 && containerRef.current && hasSwitchedMode.current) {
+            // Small delay to ensure fade animation has started
+            const timer = setTimeout(() => {
+                containerRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+                // Reset after scrolling
+                hasSwitchedMode.current = false;
+            }, 150);
+            return () => clearTimeout(timer);
+        }
+    }, [loading, showMyHierarchy, hierarchy.length]);
 
     // Effect to calculate and update scale
     React.useLayoutEffect(() => {
@@ -387,17 +422,9 @@ export default function OrganizationHierarchy() {
     }, [loading, hierarchy]);
 
 
-    // Effect to scroll to the current position node (modified to account for scale if needed, or just relying on visual centering)
     // with Auto-Zoom, scrolling might not be needed if it fits, but if we zoomed out, everything is visible.
     // If we are zoomed out, we don't really need to scroll.
 
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
 
     if (error) {
         return (
@@ -405,7 +432,7 @@ export default function OrganizationHierarchy() {
         );
     }
 
-    if (!hierarchy || hierarchy.length === 0) {
+    if (!loading && (!hierarchy || hierarchy.length === 0)) {
         // Show specific message when My Hierarchy is empty
         if (showMyHierarchy) {
             return (
@@ -447,8 +474,8 @@ export default function OrganizationHierarchy() {
             sx={(theme) => ({
                 mt: 4,
                 width: '100%',
-                height: 'calc(100vh - 200px)', // Fixed height to allow zooming behavior
-                minHeight: 500,
+                height: 'calc(100vh - 100px)', // Larger height to accommodate scrolling
+                minHeight: 600,
                 overflow: 'hidden',
                 border: '1px solid',
                 borderColor: 'divider',
@@ -476,6 +503,7 @@ export default function OrganizationHierarchy() {
                     exclusive
                     onChange={(e, newValue) => {
                         if (newValue !== null) {
+                            hasSwitchedMode.current = true;
                             setShowMyHierarchy(newValue === 'my');
                         }
                     }}
@@ -519,39 +547,151 @@ export default function OrganizationHierarchy() {
                 </ToggleButtonGroup>
             </Box>
 
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    width: '100%',
-                    position: 'relative'
-                }}
-            >
+            {/* Loading State - Inline within card */}
+            <Fade in={loading} timeout={300} unmountOnExit>
                 <Box
-                    ref={contentRef}
                     sx={{
-                        transform: `scale(${scale})`,
-                        transformOrigin: 'center center',
-                        transition: 'transform 0.3s ease',
+                        flexGrow: 1,
                         display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'center',
-                        alignItems: 'flex-start',
-                        width: 'fit-content',
-                        p: 2,
+                        width: '100%',
                     }}
                 >
-                    {hierarchy.map((rootNode) => (
-                        <OrgChartNode
+                    <CircularProgress size={40} />
+                </Box>
+            </Fade>
+
+            {/* Company View - Vertical stacked layout */}
+            <Fade in={!loading && !showMyHierarchy && hierarchy.length > 0} timeout={400} unmountOnExit>
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'auto',
+                        width: '100%',
+                        py: 2,
+                    }}
+                >
+                    {hierarchy.map((rootNode, index) => (
+                        <Box
                             key={rootNode._id}
-                            node={rootNode}
-                            currentPositionId={currentPositionId}
-                        />
+                            sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                py: 3,
+                                px: 2,
+                                mx: 2,
+                                borderRadius: 2,
+                                borderLeft: `4px solid ${getDepartmentColor(index)}`,
+                                bgcolor: alpha(getDepartmentColor(index), 0.05),
+                                ...(index < hierarchy.length - 1 && {
+                                    mb: 3,
+                                }),
+                            }}
+                        >
+                            {/* Department Label */}
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    mb: 2,
+                                    px: 2,
+                                    py: 0.5,
+                                    bgcolor: alpha(getDepartmentColor(index), 0.2),
+                                    color: getDepartmentColor(index),
+                                    borderRadius: 2,
+                                    fontWeight: 600,
+                                    letterSpacing: 0.5,
+                                }}
+                            >
+                                Department {index + 1}
+                            </Typography>
+
+                            {/* Horizontal Scrollable Tree Container */}
+                            <Box
+                                sx={{
+                                    overflowX: 'auto',
+                                    overflowY: 'visible',
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    pb: 1,
+                                    '&::-webkit-scrollbar': {
+                                        height: 6,
+                                    },
+                                    '&::-webkit-scrollbar-track': {
+                                        bgcolor: 'action.hover',
+                                        borderRadius: 3,
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                        bgcolor: 'divider',
+                                        borderRadius: 3,
+                                        '&:hover': {
+                                            bgcolor: 'text.disabled',
+                                        },
+                                    },
+                                }}
+                            >
+                                <Box
+                                    ref={index === 0 ? contentRef : undefined}
+                                    sx={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'flex-start',
+                                        width: 'fit-content',
+                                        minWidth: '100%',
+                                    }}
+                                >
+                                    <OrgChartNode
+                                        node={rootNode}
+                                        currentPositionId={currentPositionId}
+                                        departmentColor={getDepartmentColor(index)}
+                                    />
+                                </Box>
+                            </Box>
+                        </Box>
                     ))}
                 </Box>
-            </Box>
+            </Fade>
+
+            {/* My Hierarchy View - Original centered layout */}
+            <Fade in={!loading && showMyHierarchy && hierarchy.length > 0} timeout={400} unmountOnExit>
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        width: '100%',
+                        position: 'relative'
+                    }}
+                >
+                    <Box
+                        ref={contentRef}
+                        sx={{
+                            transform: `scale(${scale})`,
+                            transformOrigin: 'center center',
+                            transition: 'transform 0.3s ease',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'flex-start',
+                            width: 'fit-content',
+                            p: 2,
+                        }}
+                    >
+                        {hierarchy.map((rootNode) => (
+                            <OrgChartNode
+                                key={rootNode._id}
+                                node={rootNode}
+                                currentPositionId={currentPositionId}
+                            />
+                        ))}
+                    </Box>
+                </Box>
+            </Fade>
         </Card>
     );
 }

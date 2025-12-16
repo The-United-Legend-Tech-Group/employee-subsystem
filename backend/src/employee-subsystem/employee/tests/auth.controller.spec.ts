@@ -89,7 +89,7 @@ describe('AuthController', () => {
         email: 'employee@example.com',
         password: 'password',
       };
-      const authResult = { access_token: 'jwt_token', employeeId: 'empId' };
+      const authResult = { access_token: 'jwt_token', employeeId: 'empId', roles: ['admin'] };
       mockAuthService.employeeLogin.mockResolvedValue(authResult);
 
       const mockResponse = {
@@ -102,6 +102,7 @@ describe('AuthController', () => {
         message: 'Login successful',
         access_token: 'jwt_token',
         employeeId: 'empId',
+        roles: ['admin'],
       });
       expect(mockAuthService.employeeLogin).toHaveBeenCalledWith(loginDto);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -112,6 +113,11 @@ describe('AuthController', () => {
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'employeeid',
         'empId',
+        expect.any(Object),
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'user_roles',
+        JSON.stringify(['admin']),
         expect.any(Object),
       );
     });

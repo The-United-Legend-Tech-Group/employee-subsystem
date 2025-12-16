@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -8,7 +8,6 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import Collapse from "@mui/material/Collapse";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
-import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
@@ -26,10 +25,23 @@ import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
 import BeachAccessRoundedIcon from "@mui/icons-material/BeachAccessRounded";
 import PlaylistAddCheckRoundedIcon from "@mui/icons-material/PlaylistAddCheckRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import { usePathname, useRouter } from "next/navigation";
+import { getUserRoles } from "../../../utils/cookie-utils";
+
+// Type definition for menu items
+export interface MenuItem {
+  text: string;
+  icon: React.ReactElement;
+  path?: string;
+  roles?: string[];
+}
+
+export const mainListItems: MenuItem[] = [
+  { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard", roles: [] },
 import { CalendarViewDay } from "@mui/icons-material";
 
 const mainListItems = [
@@ -39,12 +51,7 @@ const mainListItems = [
     icon: <CalendarMonthRoundedIcon />,
     path: "/employee/calendar",
   },
-  { text: "Team", icon: <PeopleRoundedIcon />, path: "/employee/team" },
-  // {
-  //   text: "Analytics",
-  //   icon: <AnalyticsRoundedIcon />,
-  //   path: "/employee/analytics",
-  // },
+  { text: "Team", icon: <PeopleRoundedIcon />, path: "/employee/team", roles: ["department head"] },
   {
     text: "Time Management",
     icon: <AccessTimeRoundedIcon />,
@@ -53,17 +60,18 @@ const mainListItems = [
   {
     text: "Manage Organization",
     icon: <ApartmentRoundedIcon />,
-    path: "/employee/manage-organization",
+    path: "/employee/manage-organization"
   },
   { text: 'Employee Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests' },
   { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees' },
   { text: 'Compose Notification', icon: <SendTwoToneIcon />, path: '/employee/compose-notification' },
   { text: 'Organization Changes', icon: <AssignmentRoundedIcon />, path: '/employee/manage-structure-requests' },
+
 ];
 
-const performanceSubItems = [
+export const performanceSubItems: MenuItem[] = [
   {
-    text: "Performance Dashboard",
+    text: "Dashboard",
     icon: <DashboardRoundedIcon />,
     path: "/employee/performance/dashboard",
   },
@@ -88,7 +96,7 @@ const performanceSubItems = [
     path: "/employee/performance/monitoring",
   },
   {
-    text: "Manager Appraisal Dashboard",
+    text: "Manager Appraisal",
     icon: <AssignmentRoundedIcon />,
     path: "/employee/performance/manager",
   },
@@ -98,9 +106,14 @@ const performanceSubItems = [
     path: "/employee/performance/manager-assignments",
   },
   {
-    text: "My Performance Records",
+    text: "My Performance",
     icon: <AssessmentRoundedIcon />,
     path: "/employee/performance/my-records",
+  },
+  {
+    text: "Manage Disputes",
+    icon: <GavelRoundedIcon />,
+    path: "/employee/performance/manage-disputes",
   },
   {
     text: "Disputes",
@@ -145,6 +158,14 @@ export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
   const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // Load user roles only on client side to avoid hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+    setUserRoles(getUserRoles());
+  }, []);
   const [leavesOpen, setLeavesOpen] = useState(false);
 
   const isCandidate = pathname.startsWith("/candidate");
@@ -153,6 +174,13 @@ export default function MenuContent() {
 
   const visibleListItems = mainListItems.filter((item) => {
     if (isCandidate && item.text === "Team") return false;
+    // Only apply role-based filtering on client side after hydration
+    if (isClient) {
+      // @ts-ignore
+      if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -163,19 +191,20 @@ export default function MenuContent() {
     if (text === 'Settings' && pathname === '/employee/settings') return true;
     if (text === 'Calendar' && pathname === '/employee/calendar') return true;
     if (text === 'Manage Organization' && pathname === '/employee/manage-organization') return true;
-    if (text === 'Manage Requests') return pathname === '/employee/manage-requests';
+    if (text === 'Employee Requests') return pathname === '/employee/manage-requests';
     if (text === 'Manage Employees') return pathname.startsWith('/employee/manage-employees');
     if (text === 'Compose Notification') return pathname === '/employee/compose-notification';
-    if (text === 'Manage Structure Changes') return pathname === '/employee/manage-structure-requests';
+    if (text === 'Organization Changes') return pathname === '/employee/manage-structure-requests';
     if (text === 'Time Management') return pathname === '/employee/time-mangemeant';
-    if (text === 'Performance Dashboard' && pathname === '/employee/performance/dashboard') return true;
+    if (text === 'Dashboard' && pathname === '/employee/performance/dashboard') return true;
     if (text === 'Performance Templates' && pathname === '/employee/performance/templates') return true;
     if (text === 'Appraisal Cycles' && pathname === '/employee/performance/cycles') return true;
     if (text === 'Appraisal Assignments' && pathname === '/employee/performance/assignments') return true;
     if (text === 'Appraisal Monitoring' && pathname === '/employee/performance/monitoring') return true;
-    if (text === 'Manager Appraisal Dashboard' && pathname === '/employee/performance/manager') return true;
+    if (text === 'Manager Appraisal' && pathname === '/employee/performance/manager') return true;
     if (text === 'My Assigned Appraisals' && pathname === '/employee/performance/manager-assignments') return true;
-    if (text === 'My Performance Records' && pathname === '/employee/performance/my-records') return true;
+    if (text === 'My Performance' && pathname === '/employee/performance/my-records') return true;
+    if (text === 'Manage Disputes' && pathname === '/employee/performance/manage-disputes') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
 
     // Leaves submenu highlight
@@ -203,9 +232,9 @@ export default function MenuContent() {
     if (text === 'Analytics') router.push('/employee/analytics');
     if (text === 'Settings') router.push('/employee/settings');
     if (text === 'Calendar') router.push('/employee/calendar');
-    if (text === 'Manage Structure Changes') router.push('/employee/manage-structure-requests');
+    if (text === 'Organization Changes') router.push('/employee/manage-structure-requests');
     if (text === 'Manage Organization') router.push('/employee/manage-organization'); // Assuming this was already there or handled generally
-    if (text === 'Manage Requests') router.push('/employee/manage-requests');
+    if (text === 'Employee Requests') router.push('/employee/manage-requests');
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Compose Notification') router.push('/employee/compose-notification');
     if (text === 'Time Management') router.push('/employee/time-mangemeant');
@@ -242,18 +271,26 @@ export default function MenuContent() {
 
         <Collapse in={performanceOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            {performanceSubItems.map((item, index) => (
-              <ListItem key={index} disablePadding sx={{ display: "block" }}>
-                <ListItemButton
-                  sx={{ pl: 4 }}
-                  selected={isSelected(item.text)}
-                  onClick={() => handleNavigation(item.text, item.path)}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {performanceSubItems.map((item, index) => {
+              // Only apply role-based filtering on client side after hydration
+              if (isClient) {
+                // @ts-ignore
+                if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+                  return null;
+                }
+              }
+              return (
+                <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                  <ListItemButton
+                    selected={isSelected(item.text)}
+                    onClick={() => handleNavigation(item.text, item.path)}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
           </List>
         </Collapse>
 

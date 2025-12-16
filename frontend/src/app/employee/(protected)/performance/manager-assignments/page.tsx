@@ -10,19 +10,30 @@ import {
     CircularProgress,
     Alert,
     Chip,
+    TextField,
+    InputAdornment,
+    Snackbar,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useRouter } from 'next/navigation';
 import { decryptData } from '@/common/utils/encryption';
 import { AppraisalAssignment } from '../assignments/types';
+import { AppraisalAssignmentStatus } from '@/types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
 export default function ManagerAssignmentsPage() {
     const router = useRouter();
     const [assignments, setAssignments] = useState<AppraisalAssignment[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success',
+    });
 
     useEffect(() => {
         loadAssignments();
@@ -68,7 +79,7 @@ export default function ManagerAssignmentsPage() {
 
     const handlePublish = async (assignment: AppraisalAssignment) => {
         if (!assignment.latestAppraisalId) {
-            alert('No appraisal record found to publish.');
+            setSnackbar({ open: true, message: 'No appraisal record found to publish.', severity: 'error' });
             return;
         }
 
@@ -87,43 +98,68 @@ export default function ManagerAssignmentsPage() {
 
             // Refresh list
             loadAssignments();
-            alert('Appraisal published successfully');
+            setSnackbar({ open: true, message: 'Appraisal published successfully', severity: 'success' });
         } catch (error) {
             console.error(error);
-            alert('Error publishing appraisal');
+            setSnackbar({ open: true, message: 'Error publishing appraisal', severity: 'error' });
         }
     };
 
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
     const columns: GridColDef[] = [
-        { 
-            field: 'employeeProfileId', 
-            headerName: 'Employee', 
-            width: 200,
-            valueGetter: (params: any) => {
-                if (params && typeof params === 'object' && 'firstName' in params) {
-                    return `${params.firstName} ${params.lastName}`;
+        {
+            field: 'employeeProfileId',
+            headerName: 'Employee',
+            flex: 1,
+            minWidth: 200,
+            valueGetter: (value: any, row: any) => {
+                const profile = row.employeeProfileId;
+                if (profile && typeof profile === 'object' && 'firstName' in profile) {
+                    return `${profile.firstName} ${profile.lastName}`;
                 }
-                return params; 
+                return 'Unknown';
             }
         },
-        { 
-            field: 'status', 
-            headerName: 'Status', 
+        {
+            field: 'status',
+            headerName: 'Status',
             width: 150,
-            renderCell: (params: GridRenderCellParams) => (
-                <Chip 
-                    label={params.value as string} 
-                    color={
-                        params.value === 'COMPLETED' ? 'success' : 
-                        params.value === 'IN_PROGRESS' ? 'warning' : 'default'
-                    } 
-                    size="small" 
-                />
-            )
+            renderCell: (params: GridRenderCellParams) => {
+                let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+                const status = params.value as string;
+
+                // Check against enum values or string literals for robustness
+                switch (status) {
+                    case AppraisalAssignmentStatus.PUBLISHED:
+                    case AppraisalAssignmentStatus.ACKNOWLEDGED:
+                        color = 'success';
+                        break;
+                    case AppraisalAssignmentStatus.SUBMITTED:
+                        color = 'warning';
+                        break;
+                    case AppraisalAssignmentStatus.IN_PROGRESS:
+                        color = 'primary';
+                        break;
+                    case AppraisalAssignmentStatus.NOT_STARTED:
+                    default:
+                        color = 'default';
+                        break;
+                }
+                return (
+                    <Chip
+                        label={status?.replace(/_/g, ' ')}
+                        color={color}
+                        size="small"
+                    />
+                );
+            }
         },
-        { 
-            field: 'dueDate', 
-            headerName: 'Due Date', 
+        {
+            field: 'dueDate',
+            headerName: 'Due Date',
             width: 150,
             valueGetter: (value: any, row: any) => {
                 if (value) return value;
@@ -138,36 +174,51 @@ export default function ManagerAssignmentsPage() {
             }
         },
         {
-            field: 'actions',
-            headerName: 'Actions',
-            width: 250,
+            field: 'evaluateAction',
+            headerName: 'Evaluate',
+            width: 140,
+            sortable: false,
+            align: 'right',
+            headerAlign: 'right',
             renderCell: (params: GridRenderCellParams) => {
                 const status = params.row.status;
                 const isPublished = status === 'PUBLISHED' || status === 'ACKNOWLEDGED';
-                const isSubmitted = status === 'SUBMITTED';
+
+                if (isPublished) return null;
 
                 return (
-                    <Box display="flex" gap={1} sx={{ mt: 1 }}>
-                        {!isPublished && (
-                            <Button
-                                variant="contained"
-                                size="small"
-                                onClick={() => router.push(`/employee/performance/appraisal/${params.row._id}`)}
-                            >
-                                Evaluate
-                            </Button>
-                        )}
-                        {isSubmitted && (
-                            <Button
-                                variant="outlined"
-                                color="secondary"
-                                size="small"
-                                onClick={() => handlePublish(params.row)}
-                            >
-                                Publish
-                            </Button>
-                        )}
-                    </Box>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => router.push(`/employee/performance/appraisal/${params.row._id}`)}
+                    >
+                        Evaluate
+                    </Button>
+                );
+            },
+        },
+        {
+            field: 'publishAction',
+            headerName: 'Publish',
+            width: 140,
+            sortable: false,
+            align: 'right',
+            headerAlign: 'right',
+            renderCell: (params: GridRenderCellParams) => {
+                const status = params.row.status;
+                const isSubmitted = status === 'SUBMITTED';
+
+                if (!isSubmitted) return null;
+
+                return (
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        onClick={() => handlePublish(params.row)}
+                    >
+                        Publish
+                    </Button>
                 );
             },
         },
@@ -181,33 +232,68 @@ export default function ManagerAssignmentsPage() {
         );
     }
 
+    const filteredAssignments = assignments.filter((assignment) => {
+        const profile = assignment.employeeProfileId as any;
+        const firstName = profile?.firstName || '';
+        const lastName = profile?.lastName || '';
+        const fullName = `${firstName} ${lastName}`.toLowerCase();
+        return fullName.includes(searchQuery.toLowerCase());
+    });
+
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" gutterBottom>
                 My Assigned Appraisals
             </Typography>
-            
+
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
 
+            <TextField
+                placeholder="Search employees..."
+                variant="outlined"
+                size="small"
+                fullWidth
+                sx={{ mb: 2, backgroundColor: 'background.paper' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <SearchIcon color="action" />
+                        </InputAdornment>
+                    ),
+                }}
+            />
+
             <Paper sx={{ width: '100%', overflow: 'hidden' }}>
                 <DataGrid
-                    rows={assignments}
+                    rows={filteredAssignments}
                     columns={columns}
                     getRowId={(row) => row._id}
                     initialState={{
                         pagination: {
-                            paginationModel: { page: 0, pageSize: 10 },
+                            paginationModel: { page: 0, pageSize: 6 },
                         },
                     }}
-                    pageSizeOptions={[5, 10, 25]}
+                    pageSizeOptions={[6, 10, 25]}
                     autoHeight
                     disableRowSelectionOnClick
                 />
             </Paper>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 }

@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "ATS - CV Analysis API",
+    "_postman_id": "ats-cv-analysis-collection",
+    "description": "API collection for testing the ATS CV Analysis module",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload CV",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "/path/to/cv.pdf",
+              "description": "CV file (PDF, DOCX, TXT)"
+            },
+            {
+              "key": "candidateId",
+              "value": "{{candidateId}}",
+              "type": "text",
+              "disabled": true,
+              "description": "Optional: Candidate MongoDB ID"
+            },
+            {
+              "key": "applicationId",
+              "value": "{{applicationId}}",
+              "type": "text",
+              "disabled": true,
+              "description": "Optional: Application MongoDB ID"
+            },
+            {
+              "key": "jobDescription",
+              "value": "Looking for a senior software engineer with 5+ years of experience in React, Node.js, and TypeScript. Strong problem-solving skills required.",
+              "type": "text",
+              "disabled": true,
+              "description": "Optional: Job description for relevance scoring"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/upload?uploadedBy={{uploadedBy}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "upload"],
+          "query": [
+            {
+              "key": "uploadedBy",
+              "value": "{{uploadedBy}}",
+              "description": "Required: Employee ID who is uploading"
+            }
+          ]
+        },
+        "description": "Upload a CV file for AI-powered analysis"
+      },
+      "response": []
+    },
+    {
+      "name": "Get CV Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/{{cvRecordId}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "{{cvRecordId}}", "status"]
+        },
+        "description": "Check the processing status of a CV"
+      },
+      "response": []
+    },
+    {
+      "name": "Get CV Analysis",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/{{cvRecordId}}/analysis",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "{{cvRecordId}}", "analysis"]
+        },
+        "description": "Get complete AI analysis results including score and suggestions"
+      },
+      "response": []
+    },
+    {
+      "name": "Get CVs by Candidate",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/candidate/{{candidateId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "candidate", "{{candidateId}}"]
+        },
+        "description": "Get all CV records for a specific candidate"
+      },
+      "response": []
+    },
+    {
+      "name": "Get CVs by Application",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/application/{{applicationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "application", "{{applicationId}}"]
+        },
+        "description": "Get all CV records for a specific job application"
+      },
+      "response": []
+    },
+    {
+      "name": "Get All CVs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats?limit=50&skip=0",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "50",
+              "description": "Number of records to return"
+            },
+            {
+              "key": "skip",
+              "value": "0",
+              "description": "Number of records to skip for pagination"
+            }
+          ]
+        },
+        "description": "Get paginated list of all CV records"
+      },
+      "response": []
+    },
+    {
+      "name": "Re-analyze CV",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jobDescription\": \"Updated job description for re-analysis\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/{{cvRecordId}}/reanalyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "{{cvRecordId}}", "reanalyze"]
+        },
+        "description": "Re-run analysis on a CV with an updated job description"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete CV",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/recruitment/ats/{{cvRecordId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["recruitment", "ats", "{{cvRecordId}}"]
+        },
+        "description": "Permanently delete a CV record and its file"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:50000",
+      "type": "string"
+    },
+    {
+      "key": "cvRecordId",
+      "value": "",
+      "type": "string",
+      "description": "CV Record MongoDB ID (copy from upload response)"
+    },
+    {
+      "key": "uploadedBy",
+      "value": "",
+      "type": "string",
+      "description": "Employee ID who is uploading the CV"
+    },
+    {
+      "key": "candidateId",
+      "value": "",
+      "type": "string",
+      "description": "Candidate MongoDB ID"
+    },
+    {
+      "key": "applicationId",
+      "value": "",
+      "type": "string",
+      "description": "Application MongoDB ID"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     Box,
     Button,
@@ -8,13 +8,14 @@ import {
     Paper,
     Typography,
     TextField,
-    MenuItem,
     Stack,
     Autocomplete,
     CircularProgress,
     Snackbar,
     Alert,
+    InputAdornment,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
 import { AppraisalCycle } from '../cycles/types';
 import { AppraisalTemplate } from '../templates/types';
@@ -43,6 +44,7 @@ export default function AppraisalAssignmentsPage() {
         message: '',
         severity: 'success',
     });
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         setIsMounted(true);
@@ -91,24 +93,32 @@ export default function AppraisalAssignmentsPage() {
         }
 
         setAssigning(true);
-        // setMessage(null); // No longer needed
 
         try {
-            const items: BulkAssignItemDto[] = selectedIds.map((id) => {
+            // Build items and track which employees have valid departments
+            const validItems: BulkAssignItemDto[] = [];
+            let skippedCount = 0;
+
+            selectedIds.forEach((id) => {
                 const emp = employees.find(e => e._id === id);
+
+                // Check if employee has a valid department (not 'N/A' and has _id)
+                // The API returns department.name as 'N/A' and _id as null when employee has no department
+                const deptId = emp?.department?._id;
+                const hasDepartment = emp?.department?.name && emp.department.name !== 'N/A' && deptId;
+
+                if (!hasDepartment) {
+                    skippedCount++;
+                    return; // Skip this employee - no valid department
+                }
+
                 const item: BulkAssignItemDto = {
                     employeeProfileId: id.toString(),
                     managerProfileId: selectedManager._id,
+                    departmentId: deptId,
                 };
 
-                // Optional: send departmentId and positionId if they exist
-                if (emp?.primaryDepartmentId) {
-                    const deptId = typeof emp.primaryDepartmentId === 'string'
-                        ? emp.primaryDepartmentId
-                        : emp.primaryDepartmentId._id;
-                    if (deptId) item.departmentId = deptId;
-                }
-
+                // Send positionId if it exists
                 if (emp?.primaryPositionId) {
                     const posId = typeof emp.primaryPositionId === 'string'
                         ? emp.primaryPositionId
@@ -116,13 +126,23 @@ export default function AppraisalAssignmentsPage() {
                     if (posId) item.positionId = posId;
                 }
 
-                return item;
+                validItems.push(item);
             });
+
+            // If no valid employees to assign, show error
+            if (validItems.length === 0) {
+                setSnackbar({
+                    open: true,
+                    message: `All ${skippedCount} selected employee(s) are missing department information and cannot be assigned.`,
+                    severity: 'error'
+                });
+                return;
+            }
 
             const dto: BulkAssignDto = {
                 cycleId: selectedCycleId,
                 templateId: selectedTemplateId,
-                items: items,
+                items: validItems,
             };
 
             const response = await fetch(`${API_URL}/performance/assignments/bulk`, {
@@ -139,7 +159,13 @@ export default function AppraisalAssignmentsPage() {
                 const errorText = await response.text();
                 throw new Error(`Failed to bulk assign: ${response.status} ${response.statusText} - ${errorText}`);
             }
-            setSnackbar({ open: true, message: `Successfully assigned appraisal to ${items.length} employees.`, severity: 'success' });
+
+            // Build success message
+            let message = `Successfully assigned appraisal to ${validItems.length} employee(s).`;
+            if (skippedCount > 0) {
+                message += ` Skipped ${skippedCount} employee(s) missing department information.`;
+            }
+            setSnackbar({ open: true, message, severity: 'success' });
             setSelectionModel({ type: 'include', ids: new Set() });
         } catch (error: any) {
             console.error('Failed to assign', error);
@@ -160,12 +186,51 @@ export default function AppraisalAssignmentsPage() {
             valueGetter: (value: any, row: any) => row?.department?.name || row?.primaryDepartmentId?.name || 'N/A'
         },
         {
+            field: 'departmentManager',
+            headerName: 'Department Manager',
+            width: 180,
+            valueGetter: (value: any, row: any) => {
+                const manager = row?.department?.manager;
+                return manager ? `${manager.firstName} ${manager.lastName}` : 'N/A';
+            }
+        },
+        {
             field: 'position',
             headerName: 'Position',
             width: 150,
             valueGetter: (value: any, row: any) => row?.position?.title || row?.primaryPositionId?.title || 'N/A'
         },
     ];
+
+    // Helper to check if employee has valid department
+    const hasValidDepartment = (emp: Employee) =>
+        emp.department?.name && emp.department.name !== 'N/A' && emp.department._id;
+
+    // Filter by search and sort: valid departments first, N/A at the end
+    const sortedFilteredEmployees = useMemo(() => {
+        let filtered = employees;
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = employees.filter(emp =>
+                emp.firstName?.toLowerCase().includes(query) ||
+                emp.lastName?.toLowerCase().includes(query) ||
+                emp.email?.toLowerCase().includes(query) ||
+                emp.department?.name?.toLowerCase().includes(query) ||
+                emp.position?.title?.toLowerCase().includes(query)
+            );
+        }
+
+        // Sort: valid departments first, N/A at the end
+        return [...filtered].sort((a, b) => {
+            const aValid = hasValidDepartment(a);
+            const bValid = hasValidDepartment(b);
+            if (aValid && !bValid) return -1;
+            if (!aValid && bValid) return 1;
+            return 0;
+        });
+    }, [employees, searchQuery]);
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -178,56 +243,87 @@ export default function AppraisalAssignmentsPage() {
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
                     <Box flex={1}>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>Appraisal Cycle</Typography>
-                        <TextField
-                            select
-                            fullWidth
-                            hiddenLabel
-                            value={selectedCycleId}
-                            onChange={(e) => setSelectedCycleId(e.target.value)}
-                        >
-                            {cycles.map((cycle) => (
-                                <MenuItem key={cycle._id} value={cycle._id}>
-                                    {cycle.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
+                        <Autocomplete
+                            options={cycles}
+                            getOptionLabel={(option) => option.name}
+                            value={cycles.find((c) => c._id === selectedCycleId) || null}
+                            onChange={(event, newValue) => setSelectedCycleId(newValue ? newValue._id : '')}
+                            popupIcon={null}
+                            sx={{
+                                '& .MuiAutocomplete-endAdornment': {
+                                    display: 'none',
+                                },
+                            }}
+                            renderInput={(params) => <TextField {...params} hiddenLabel fullWidth />}
+                        />
                     </Box>
                     <Box flex={1}>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>Appraisal Template</Typography>
-                        <TextField
-                            select
-                            fullWidth
-                            hiddenLabel
-                            value={selectedTemplateId}
-                            onChange={(e) => setSelectedTemplateId(e.target.value)}
-                        >
-                            {templates.map((template) => (
-                                <MenuItem key={template._id} value={template._id}>
-                                    {template.name}
-                                </MenuItem>
-                            ))}
-                        </TextField>
+                        <Autocomplete
+                            options={templates}
+                            getOptionLabel={(option) => option.name}
+                            value={templates.find((t) => t._id === selectedTemplateId) || null}
+                            onChange={(event, newValue) => setSelectedTemplateId(newValue ? newValue._id : '')}
+                            popupIcon={null}
+                            sx={{
+                                '& .MuiAutocomplete-endAdornment': {
+                                    display: 'none',
+                                },
+                            }}
+                            renderInput={(params) => <TextField {...params} hiddenLabel fullWidth />}
+                        />
                     </Box>
                     <Box flex={1}>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>Select Manager</Typography>
                         <Autocomplete
                             options={managers}
                             getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.email})`}
-                            value={selectedManager}
+                            value={selectedManager || null}
                             onChange={(event, newValue) => setSelectedManager(newValue)}
+                            popupIcon={null}
                             renderInput={(params) => <TextField {...params} hiddenLabel fullWidth />}
+                            sx={{
+                                '& .MuiAutocomplete-endAdornment': {
+                                    display: 'none',
+                                },
+                            }}
                         />
                     </Box>
                 </Stack>
             </Paper>
 
-            <Paper sx={{ width: '100%', mb: 3 }}>
+            <Box sx={{ width: '100%', mb: 3 }}>
+                <TextField
+                    placeholder="Search employees..."
+                    size="small"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    sx={{ mb: 2, width: 300 }}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
                 {isMounted && (
                     <DataGrid
-                        rows={Array.isArray(employees) ? employees : []}
+                        rows={Array.isArray(sortedFilteredEmployees) ? sortedFilteredEmployees : []}
                         columns={columns}
                         getRowId={(row) => row._id}
                         checkboxSelection
+                        isRowSelectable={(params) => {
+                            // Disable selection for employees without a valid department
+                            if (!params.row) return false;
+                            return params.row.department?.name && params.row.department.name !== 'N/A' && params.row.department._id;
+                        }}
+                        getRowClassName={(params) => {
+                            // Add grey styling for employees without valid department
+                            if (!params.row) return '';
+                            const hasValid = params.row.department?.name && params.row.department.name !== 'N/A' && params.row.department._id;
+                            return hasValid ? '' : 'row-disabled';
+                        }}
                         onRowSelectionModelChange={(newSelection) => {
                             setSelectionModel(newSelection);
                         }}
@@ -239,9 +335,18 @@ export default function AppraisalAssignmentsPage() {
                             },
                         }}
                         pageSizeOptions={[5, 10, 25, 50]}
+                        sx={{
+                            '& .row-disabled': {
+                                backgroundColor: 'action.disabledBackground',
+                                opacity: 0.6,
+                                '& .MuiDataGrid-cellCheckbox': {
+                                    opacity: 0.5,
+                                },
+                            },
+                        }}
                     />
                 )}
-            </Paper>
+            </Box>
             <Box display="flex" justifyContent="flex-end">
                 <Button
                     variant="contained"

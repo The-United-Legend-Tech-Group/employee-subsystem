@@ -14,7 +14,7 @@ import { SystemRole } from '../employee/enums/employee-profile.enums';
 @ApiTags('Performance - Appraisal Disputes')
 @Controller('performance/disputes')
 export class AppraisalDisputeController {
-  constructor(private readonly disputeService: AppraisalDisputeService) {}
+  constructor(private readonly disputeService: AppraisalDisputeService) { }
 
   @Post()
   @UseGuards(AuthGuard)
@@ -31,6 +31,15 @@ export class AppraisalDisputeController {
   @ApiResponse({ status: 200, description: 'Open disputes', type: [AppraisalDispute] })
   async findOpen() {
     return this.disputeService.findOpen();
+  }
+
+  @Get('history')
+  @UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN)
+  @ApiOperation({ summary: 'List resolved or rejected disputes (History)' })
+  @ApiResponse({ status: 200, description: 'Resolved/Rejected disputes', type: [AppraisalDispute] })
+  async findHistory() {
+    return this.disputeService.findHistory();
   }
 
   @Get(':id')

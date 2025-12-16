@@ -279,15 +279,34 @@ export default function EmployeeEditForm({ employee, onUpdate }: EmployeeEditFor
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+            <Snackbar
+                open={!!error}
+                autoHideDuration={6000}
+                onClose={() => setError('')}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={() => setError('')}
+                    severity="error"
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {error}
+                </Alert>
+            </Snackbar>
 
             <Snackbar
                 open={!!success}
-                autoHideDuration={4000}
+                autoHideDuration={6000}
                 onClose={() => setSuccess('')}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
-                <Alert onClose={() => setSuccess('')} severity="success" sx={{ width: '100%' }}>
+                <Alert
+                    onClose={() => setSuccess('')}
+                    severity="success"
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
                     {success}
                 </Alert>
             </Snackbar>
@@ -400,6 +419,7 @@ export default function EmployeeEditForm({ employee, onUpdate }: EmployeeEditFor
                     <EmployeeRoleForm
                         employeeId={employee._id}
                         currentRoles={employee.roles || []}
+                        currentPermissions={employee.permissions || []}
                         onUpdate={onUpdate}
                     />
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>

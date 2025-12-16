@@ -82,4 +82,14 @@ export class AppraisalRecordController {
     async publishRecord(@Param('id') id: string): Promise<AppraisalRecord> {
         return this.appraisalRecordService.publishRecord(id);
     }
+
+    @Get('team/:managerId/summary')
+    @ApiOperation({ summary: 'Get team performance summary for a manager' })
+    @ApiResponse({
+        status: 200,
+        description: 'Team performance summary with aggregated scores and distribution',
+    })
+    async getTeamPerformanceSummary(@Param('managerId') managerId: string): Promise<any> {
+        return this.appraisalRecordService.getTeamPerformanceSummary(managerId);
+    }
 }

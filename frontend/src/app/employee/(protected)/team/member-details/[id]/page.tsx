@@ -27,6 +27,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkIcon from '@mui/icons-material/Work';
+import PerformanceOverview from '../../../dashboard/PerformanceOverview';
 
 interface Employee {
     _id: string;
@@ -43,6 +44,13 @@ interface Employee {
     profilePictureUrl?: string;
     department?: { name: string };
     position?: { title: string };
+    biography?: string;
+    supervisor?: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        fullName: string;
+    };
 }
 
 export default function MemberDetailsPage() {
@@ -176,11 +184,23 @@ export default function MemberDetailsPage() {
                                         {employee.department?.name || 'Department'}
                                     </Typography>
                                 </Stack>
-                                <Chip
-                                    label={employee.status}
-                                    color={getStatusColor(employee.status) as any}
-                                    sx={{ fontWeight: 'bold' }}
-                                />
+                                <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+                                    <Chip
+                                        label={employee.status}
+                                        color={getStatusColor(employee.status) as any}
+                                        sx={{ fontWeight: 'bold' }}
+                                    />
+                                    {/* Biography - inline with status */}
+                                    {employee.biography && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ fontStyle: 'italic' }}
+                                        >
+                                            "{employee.biography}"
+                                        </Typography>
+                                    )}
+                                </Stack>
                             </Box>
                         </Stack>
                     </CardContent>
@@ -223,6 +243,25 @@ export default function MemberDetailsPage() {
                                     <Typography variant="body1">{employee.employeeNumber}</Typography>
                                 </Box>
                                 <Box>
+                                    <Typography variant="caption" color="text.secondary">Supervisor</Typography>
+                                    {employee.supervisor ? (
+                                        <Typography
+                                            variant="body1"
+                                            sx={{
+                                                color: 'primary.main',
+                                                textDecoration: 'none',
+                                                cursor: 'pointer',
+                                                '&:hover': { textDecoration: 'underline' }
+                                            }}
+                                            onClick={() => router.push(`/employee/team/member-details/${employee.supervisor?._id}`)}
+                                        >
+                                            {employee.supervisor.fullName}
+                                        </Typography>
+                                    ) : (
+                                        <Typography variant="body1">N/A</Typography>
+                                    )}
+                                </Box>
+                                <Box>
                                     <Typography variant="caption" color="text.secondary">Date of Hire</Typography>
                                     <Typography variant="body1">
                                         {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : '-'}
@@ -233,7 +272,11 @@ export default function MemberDetailsPage() {
                         </CardContent>
                     </Card>
                 </Stack>
+
+
+                {/* Performance Overview */}
+                <PerformanceOverview employeeId={params.id as string} />
             </Stack>
-        </Box>
+        </Box >
     );
 }

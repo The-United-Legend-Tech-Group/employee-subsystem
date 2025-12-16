@@ -6,12 +6,13 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
 
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 enum SystemRole {
     DEPARTMENT_EMPLOYEE = 'department employee',
@@ -31,22 +32,22 @@ enum SystemRole {
 interface EmployeeRoleFormProps {
     employeeId: string;
     currentRoles: string[];
+    currentPermissions?: string[];
     onUpdate: () => void;
 }
 
-export default function EmployeeRoleForm({ employeeId, currentRoles, onUpdate }: EmployeeRoleFormProps) {
+export default function EmployeeRoleForm({ employeeId, currentRoles, currentPermissions = [], onUpdate }: EmployeeRoleFormProps) {
     const [roles, setRoles] = React.useState<string[]>(currentRoles || []);
+    const [permissions, setPermissions] = React.useState<string[]>(currentPermissions || []);
     const [loading, setLoading] = React.useState(false);
     const [message, setMessage] = React.useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [open, setOpen] = React.useState(false);
 
     React.useEffect(() => {
         setRoles(currentRoles || []);
-    }, [currentRoles]);
+        setPermissions(currentPermissions || []);
+    }, [currentRoles, currentPermissions]);
 
-    const toggleOpen = () => {
-        setOpen((prev) => !prev);
-    };
+
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -55,21 +56,20 @@ export default function EmployeeRoleForm({ employeeId, currentRoles, onUpdate }:
         try {
             const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-
             const response = await fetch(`${apiUrl}/employee/${employeeId}/roles`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ roles })
+                body: JSON.stringify({ roles, permissions })
             });
 
             if (!response.ok) {
                 throw new Error('Failed to update roles');
             }
 
-            setMessage({ type: 'success', text: 'Roles updated successfully' });
+            setMessage({ type: 'success', text: 'Roles and permissions updated successfully' });
             onUpdate();
         } catch (error) {
             setMessage({ type: 'error', text: 'Error updating roles' });
@@ -80,71 +80,174 @@ export default function EmployeeRoleForm({ employeeId, currentRoles, onUpdate }:
     };
 
     return (
-        <Paper elevation={0} variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                System Roles
-            </Typography>
+        <>
+            <Paper elevation={0} variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                    System Roles
+                </Typography>
 
-            {message && (
-                <Alert severity={message.type} sx={{ mb: 3 }}>
-                    {message.text}
-                </Alert>
-            )}
+                <form onSubmit={(e) => e.preventDefault()}>
+                    <Grid container spacing={3} alignItems="flex-start">
+                        {/* Current Roles Display */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', height: '100%' }}>
+                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                    Current Roles
+                                </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    {currentRoles.length > 0 ? (
+                                        currentRoles.map((role, index) => (
+                                            <Chip
+                                                key={index}
+                                                label={role}
+                                                color="primary"
+                                                variant="filled"
+                                                size="medium"
+                                            />
+                                        ))
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                            No roles assigned
+                                        </Typography>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Grid>
 
-            <Grid container spacing={2} alignItems="flex-start">
-                <Grid size={{ xs: 12 }}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                        Assigned Roles
-                    </Typography>
-                    <Grid container spacing={2} alignItems="stretch">
-                        <Grid size={{ xs: 12, md: 8 }} sx={{ display: 'flex' }}>
+                        {/* Current Permissions Display */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', height: '100%' }}>
+                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                    Current Permissions
+                                </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                    {currentPermissions.length > 0 ? (
+                                        currentPermissions.map((permission, index) => (
+                                            <Chip
+                                                key={index}
+                                                label={permission}
+                                                color="secondary"
+                                                variant="filled"
+                                                size="medium"
+                                            />
+                                        ))
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                            No permissions assigned
+                                        </Typography>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Grid>
+
+                        {/* Role Selection */}
+                        <Grid size={{ xs: 12 }}>
+                            <Box sx={{ mb: 1 }}>
+                                <Typography variant="subtitle1" fontWeight={500}>
+                                    Modify Roles
+                                </Typography>
+                            </Box>
                             <Autocomplete
                                 multiple
-                                open={open}
-                                onOpen={() => setOpen(true)}
-                                onClose={() => setOpen(false)}
+                                fullWidth
                                 options={Object.values(SystemRole)}
                                 value={roles}
                                 onChange={(event, newValue) => {
                                     setRoles(newValue);
                                 }}
-                                forcePopupIcon={false}
-                                sx={{ flexGrow: 1 }}
-                                renderTags={(value: readonly string[], getTagProps) =>
-                                    value.map((option: string, index: number) => {
-                                        const { key, ...tagProps } = getTagProps({ index });
-                                        return (
-                                            <Chip variant="outlined" label={option} key={key} {...tagProps} />
-                                        );
-                                    })
-                                }
+                                slotProps={{
+                                    chip: {
+                                        variant: 'outlined',
+                                    } as any,
+                                }}
+                                sx={{
+                                    '& .MuiAutocomplete-inputRoot': {
+                                        alignItems: 'center',
+                                        minHeight: '56px',
+                                    },
+                                }}
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
+                                        placeholder="Select roles to assign"
                                     />
                                 )}
                             />
-                            <Button
-                                variant="outlined"
-                                onClick={toggleOpen}
-                                sx={{ ml: 1, minWidth: 0, px: 1, borderColor: 'rgba(0, 0, 0, 0.23)' }}
-                            >
-                                <ArrowDropDownIcon />
-                            </Button>
                         </Grid>
-                        <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex' }}>
+
+                        {/* Permissions Selection */}
+                        <Grid size={{ xs: 12 }}>
+                            <Box sx={{ mb: 1 }}>
+                                <Typography variant="subtitle1" fontWeight={500}>
+                                    Modify Permissions (Press enter to add)
+                                </Typography>
+                            </Box>
+                            <Stack spacing={2}>
+                                {/* Display permission chips */}
+                                {permissions.length > 0 && (
+                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                        {permissions.map((permission, index) => (
+                                            <Chip
+                                                key={index}
+                                                label={permission}
+                                                variant="outlined"
+                                                onDelete={() => {
+                                                    setPermissions(permissions.filter((_, i) => i !== index));
+                                                }}
+                                            />
+                                        ))}
+                                    </Stack>
+                                )}
+                                {/* Input field */}
+                                <TextField
+                                    fullWidth
+                                    placeholder="Type permission and press Enter to add"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const input = e.target as HTMLInputElement;
+                                            const value = input.value.trim();
+                                            if (value && !permissions.includes(value)) {
+                                                setPermissions([...permissions, value]);
+                                                input.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                            </Stack>
+                        </Grid>
+
+                        {/* Submit Button */}
+                        <Grid size={{ xs: 12 }}>
                             <Button
                                 variant="contained"
                                 onClick={handleSubmit}
                                 disabled={loading}
-                                sx={{ height: '100%', px: 4, width: { xs: '100%', md: 'auto' } }}
+                                size="large"
+                                sx={{ px: 4 }}
                             >
-                                {loading ? <CircularProgress size={24} /> : 'Update Roles'}
+                                {loading ? <CircularProgress size={24} /> : 'Update Roles & Permissions'}
                             </Button>
                         </Grid>
                     </Grid>
-                </Grid>
-            </Grid>
-        </Paper>
+                </form>
+            </Paper>
+
+            <Snackbar
+                open={!!message}
+                autoHideDuration={6000}
+                onClose={() => setMessage(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={() => setMessage(null)}
+                    severity={message?.type || 'info'}
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {message?.text}
+                </Alert>
+            </Snackbar>
+        </>
     );
 }

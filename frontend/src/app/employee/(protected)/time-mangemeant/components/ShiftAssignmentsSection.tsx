@@ -15,8 +15,11 @@ import Skeleton from "@mui/material/Skeleton";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
+import Button from "@mui/material/Button";
+import AddIcon from "@mui/icons-material/Add";
 
 import SectionHeading from "./SectionHeading";
+import AssignShiftModal from "./AssignShiftModal";
 import {
   ScheduleRule,
   SectionDefinition,
@@ -41,6 +44,7 @@ type ShiftAssignmentsSectionProps = {
   shifts: ShiftDefinition[];
   scheduleRules: ScheduleRule[];
   loading: boolean;
+  onRefresh?: () => void;
 };
 
 function formatDate(value?: string) {
@@ -62,13 +66,16 @@ function getShiftExtras(definition?: ShiftDefinition) {
   };
 }
 
-export default function ShiftAssignmentsSection({
+function ShiftAssignmentsSection({
   section,
   assignments,
   shifts,
   scheduleRules,
   loading,
+  onRefresh,
 }: ShiftAssignmentsSectionProps) {
+  const [modalOpen, setModalOpen] = React.useState(false);
+
   const shiftLookup = React.useMemo(() => {
     const map = new Map<string, ShiftDefinition>();
     shifts.forEach((shift) => map.set(shift._id, shift));
@@ -109,9 +116,31 @@ export default function ShiftAssignmentsSection({
       });
   }, [assignments, shiftLookup, scheduleLookup]);
 
+  const handleModalSuccess = () => {
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
   return (
     <Box>
-      <SectionHeading {...section} />
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        spacing={2}
+        sx={{ mb: 2 }}
+      >
+        <SectionHeading {...section} />
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setModalOpen(true)}
+          disabled={loading}
+        >
+          Assign Shift
+        </Button>
+      </Stack>
       <Card variant="outlined">
         <CardContent>
           {loading ? (
@@ -259,6 +288,17 @@ export default function ShiftAssignmentsSection({
           )}
         </CardContent>
       </Card>
+      <AssignShiftModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        shifts={shifts}
+        scheduleRules={scheduleRules as any}
+        onSuccess={handleModalSuccess}
+      />
     </Box>
   );
 }
+
+ShiftAssignmentsSection.displayName = "ShiftAssignmentsSection";
+
+export default React.memo(ShiftAssignmentsSection);

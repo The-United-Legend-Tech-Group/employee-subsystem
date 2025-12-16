@@ -89,23 +89,30 @@ export class EmployeeService {
 
     // upsert assignment
     const existing = await this.employeeSystemRoleRepository.findOne({
-      employeeProfileId: employeeId,
+      employeeProfileId: new Types.ObjectId(employeeId),
     });
-    const payload = {
-      employeeProfileId: employeeId,
-      roles,
-      permissions,
-      isActive: true,
-    } as any;
 
     if (existing) {
-      return this.employeeSystemRoleRepository.update(
-        { _id: existing._id },
-        { $set: payload },
+      // Update existing record using updateById with $set operator
+      return await this.employeeSystemRoleRepository.updateById(
+        existing._id.toString(),
+        {
+          $set: {
+            roles,
+            permissions,
+            isActive: true,
+          }
+        } as any,
       );
     }
 
-    return this.employeeSystemRoleRepository.create(payload);
+    // Create new record
+    return await this.employeeSystemRoleRepository.create({
+      employeeProfileId: new Types.ObjectId(employeeId),
+      roles,
+      permissions,
+      isActive: true,
+    });
   }
 
   async updateContactInfo(
@@ -293,6 +300,7 @@ export class EmployeeService {
       // Re-use logic or manual lookup if populates failed (common in this codebase's mixed patterns)
       let positionTitle = 'N/A';
       let departmentName = 'N/A';
+      let departmentId: string | null = null;
 
       if (doc.primaryPositionId) {
         // Try to fetch if not populated
@@ -306,11 +314,43 @@ export class EmployeeService {
 
       if (doc.primaryDepartmentId) {
         const Department = this.employeeProfileModel.db.model('Department');
+        let dept: any;
+
         if (doc.primaryDepartmentId.name) {
           departmentName = doc.primaryDepartmentId.name;
+          departmentId = doc.primaryDepartmentId._id?.toString() || doc.primaryDepartmentId.toString();
+          // We need the full department object to get headPositionId if it wasn't populated fully
+          if (!doc.primaryDepartmentId.headPositionId) {
+            dept = await Department.findById(departmentId).select('headPositionId').lean<{ headPositionId?: Types.ObjectId }>().exec();
+          } else {
+            dept = doc.primaryDepartmentId;
+          }
         } else {
-          const dept = await Department.findById(doc.primaryDepartmentId).select('name').lean<{ name: string }>().exec();
-          if (dept) departmentName = dept.name;
+          dept = await Department.findById(doc.primaryDepartmentId).select('name headPositionId').lean<{ name: string; _id: Types.ObjectId, headPositionId?: Types.ObjectId }>().exec();
+          if (dept) {
+            departmentName = dept.name;
+            departmentId = dept._id.toString();
+          }
+        }
+
+        // Fetch manager if we have a headPositionId
+        if (dept?.headPositionId) {
+          const headPosId = dept.headPositionId.toString();
+          // Find the employee who holds this position
+          // We use the ID directly in the query
+          const manager = await this.employeeProfileModel.findOne({
+            primaryPositionId: new Types.ObjectId(headPosId)
+          })
+            .select('firstName lastName')
+            .lean<{ firstName: string; lastName: string }>()
+            .exec();
+
+          if (manager) {
+            (doc as any).departmentManager = {
+              firstName: manager.firstName,
+              lastName: manager.lastName
+            };
+          }
         }
       }
 
@@ -321,7 +361,11 @@ export class EmployeeService {
         email: doc.personalEmail, // or workEmail
         employeeNumber: doc.employeeNumber,
         position: { title: positionTitle },
-        department: { name: departmentName },
+        department: {
+          name: departmentName,
+          _id: departmentId,
+          manager: (doc as any).departmentManager
+        },
         status: doc.status
       };
     }));
@@ -383,7 +427,7 @@ export class EmployeeService {
 
     // Update related system roles isActive flag
     await this.employeeSystemRoleRepository.update(
-      { employeeProfileId: id },
+      { employeeProfileId: new Types.ObjectId(id) },
       { $set: { isActive } },
     );
 
@@ -493,7 +537,7 @@ export class EmployeeService {
     }
 
     const systemRole = await this.employeeSystemRoleRepository.findOne({
-      employeeProfileId: employeeId,
+      employeeProfileId: new Types.ObjectId(employeeId),
     } as any);
 
     // Return combined view; omit any sensitive fields if present
@@ -524,6 +568,28 @@ export class EmployeeService {
         if (dept) {
           profileObj.department = { name: dept.name, _id: dept._id };
         }
+      }
+    }
+
+    // Populate supervisor info
+    if (profileObj.supervisorPositionId) {
+      // Handle case where it might be populated or just an ID
+      const supPosId = (profileObj.supervisorPositionId._id || profileObj.supervisorPositionId).toString();
+
+      const supervisor = await this.employeeProfileModel.findOne({
+        primaryPositionId: new Types.ObjectId(supPosId)
+      })
+        .select('firstName lastName _id')
+        .lean<{ _id: Types.ObjectId; firstName: string; lastName: string }>()
+        .exec();
+
+      if (supervisor) {
+        profileObj.supervisor = {
+          _id: supervisor._id.toString(),
+          firstName: supervisor.firstName,
+          lastName: supervisor.lastName,
+          fullName: `${supervisor.firstName} ${supervisor.lastName}`
+        };
       }
     }
 

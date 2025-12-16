@@ -10,12 +10,14 @@ import { RegisterCandidateDto } from './dto/register-candidate.dto';
 import { Candidate } from './models/candidate.schema';
 import { CandidateRepository } from './repository/candidate.repository';
 import { EmployeeProfileRepository } from './repository/employee-profile.repository';
+import { EmployeeSystemRoleRepository } from './repository/employee-system-role.repository';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly candidateRepository: CandidateRepository,
     private readonly employeeProfileRepository: EmployeeProfileRepository,
+    private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
     private readonly jwtService: JwtService,
   ) { }
 
@@ -79,7 +81,7 @@ export class AuthService {
     };
   }
 
-  async employeeLogin(loginDto: LoginCandidateDto): Promise<{ access_token: string; employeeId: string }> {
+  async employeeLogin(loginDto: LoginCandidateDto): Promise<{ access_token: string; employeeId: string; roles: string[] }> {
     const { email, password } = loginDto;
 
     const employee = await this.employeeProfileRepository.findByEmail(email);
@@ -92,10 +94,27 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: employee._id, email: employee.personalEmail };
+    // // Fetch employee system roles
+    // console.log('🔍 Looking for system role with employeeProfileId:', employee._id);
+    // console.log('🔍 employeeProfileId type:', typeof employee._id);
+    // console.log('🔍 employeeProfileId as string:', employee._id.toString());
+
+    // Note: The database stores employeeProfileId as a string, not ObjectId
+    // So we need to convert to string for the query
+    const employeeSystemRole = await this.employeeSystemRoleRepository.findByEmployeeProfileId(
+      employee._id.toString()
+    );
+
+    console.log('🔍 Found system role:', employeeSystemRole);
+
+    const roles = employeeSystemRole ? employeeSystemRole.roles : [];
+    console.log('🔍 Extracted roles:', roles);
+
+    const payload = { sub: employee._id, email: employee.personalEmail, roles };
     return {
       access_token: this.jwtService.sign(payload),
       employeeId: employee._id.toString(),
+      roles,
     };
   }
 

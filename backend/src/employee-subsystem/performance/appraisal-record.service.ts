@@ -14,6 +14,7 @@ import { TerminationInitiation } from '../../Recruitment/enums/termination-initi
 import { CandidateRepository } from '../employee/repository/candidate.repository';
 import { ContractRepository } from '../../Recruitment/repositories/implementations/contract.repository';
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
+import { EmployeeStatus } from '../employee/enums/employee-profile.enums';
 
 @Injectable()
 export class AppraisalRecordService {
@@ -187,7 +188,7 @@ export class AppraisalRecordService {
         // Check if this triggers a termination review (3rd minimum-score appraisal)
         await this.checkAndTriggerTerminationReview(
             record.employeeProfileId.toString(),
-            totalScore,
+            id,
             record.templateId.toString(),
         );
 
@@ -393,7 +394,7 @@ export class AppraisalRecordService {
         // Check if this triggers a termination review (3rd minimum-score appraisal)
         await this.checkAndTriggerTerminationReview(
             createDto.employeeProfileId,
-            totalScore,
+            created._id.toString(),
             createDto.templateId,
         );
 
@@ -469,11 +470,11 @@ export class AppraisalRecordService {
      */
     private async checkAndTriggerTerminationReview(
         employeeProfileId: string,
-        newRecordTotalScore: number,
+        currentRecordId: string,
         templateId: string,
     ): Promise<void> {
         try {
-            this.logger.log(`[TerminationCheck] Starting check for employee ${employeeProfileId}, totalScore: ${newRecordTotalScore}, templateId: ${templateId}`);
+            this.logger.log(`[TerminationCheck] Starting check for employee ${employeeProfileId}, currentRecordId: ${currentRecordId}, templateId: ${templateId}`);
 
             // Fetch template to get minimum score
             const template = await this.appraisalTemplateRepository.findOne({ _id: templateId });
@@ -485,26 +486,37 @@ export class AppraisalRecordService {
             const minScore = template.ratingScale.min;
             this.logger.log(`[TerminationCheck] Template ratingScale.min: ${minScore}`);
 
-            // Get all HR_PUBLISHED records for this employee
+            // Check current record
+            let currentIsMin = false;
+            const currentRecord = await this.appraisalRecordRepository.findOne({ _id: currentRecordId });
+            if (currentRecord && this.isMinimumScoreRecord(currentRecord, minScore)) {
+                currentIsMin = true;
+                this.logger.log(`[TerminationCheck] Current record ${currentRecordId} is minimum-score`);
+            } else {
+                this.logger.log(`[TerminationCheck] Current record ${currentRecordId} is NOT minimum-score`);
+            }
+
+            // Get all HR_PUBLISHED records for this employee (excluding current if it happened to be published)
             const existingRecords = await this.appraisalRecordRepository.find({
                 employeeProfileId,
                 status: AppraisalRecordStatus.HR_PUBLISHED,
+                _id: { $ne: currentRecordId }
             });
 
-            this.logger.log(`[TerminationCheck] Found ${existingRecords.length} HR_PUBLISHED records for employee`);
+            this.logger.log(`[TerminationCheck] Found ${existingRecords.length} historical HR_PUBLISHED records`);
 
             // Count how many have all ratings at minimum score
-            // A record is "minimum-score" if all its non-GOALS ratings are at the minimum value
-            let minScoreCount = 0;
+            let minScoreCount = currentIsMin ? 1 : 0;
+
             for (const record of existingRecords) {
                 const isMinScore = this.isMinimumScoreRecord(record, minScore);
                 if (isMinScore) {
                     minScoreCount++;
-                    this.logger.log(`[TerminationCheck] Record ${(record as any)._id} is minimum-score`);
+                    this.logger.log(`[TerminationCheck] Historical record ${(record as any)._id} is minimum-score`);
                 }
             }
 
-            this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} has ${minScoreCount} minimum-score appraisals (threshold: 3)`);
+            this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} has ${minScoreCount} total minimum-score appraisals (threshold: 3)`);
 
             // If 3 or more minimum-score appraisals, trigger termination review
             if (minScoreCount >= 3) {
@@ -524,6 +536,20 @@ export class AppraisalRecordService {
                     this.logger.log(`[TerminationCheck] Notification sent to employee ${employeeProfileId}`);
                 } catch (notifError) {
                     this.logger.error(`[TerminationCheck] Failed to send notification:`, notifError);
+                }
+
+                // Update employee status to SUSPENDED
+                try {
+                    await this.employeeProfileRepository.updateById(
+                        employeeProfileId,
+                        {
+                            status: EmployeeStatus.SUSPENDED,
+                            statusEffectiveFrom: new Date(),
+                        }
+                    );
+                    this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} status updated to SUSPENDED due to repeated poor performance.`);
+                } catch (statusError) {
+                    this.logger.error(`[TerminationCheck] Failed to update employee status to SUSPENDED:`, statusError);
                 }
 
                 // Try to get contract ID and initiate termination review
@@ -548,6 +574,8 @@ export class AppraisalRecordService {
                 } catch (termError) {
                     this.logger.error(`[TerminationCheck] Failed to initiate termination review:`, termError);
                 }
+            } else {
+                this.logger.log(`[TerminationCheck] Threshold NOT met (${minScoreCount} < 3). No action taken.`);
             }
         } catch (error) {
             // Log error but don't fail the main operation
@@ -572,5 +600,113 @@ export class AppraisalRecordService {
 
         // A record is minimum-score if ALL rated criteria are at the minimum
         return scoredRatings.every((r: any) => r.ratingValue === minScore);
+    }
+
+    /**
+     * Get team performance summary for a manager.
+     * Returns aggregated performance data for all team members.
+     */
+    async getTeamPerformanceSummary(managerId: string): Promise<{
+        averageScore: number | null;
+        topPerformer: { name: string; score: number } | null;
+        totalReviewed: number;
+        totalTeamMembers: number;
+        lastReviewDate: Date | null;
+        scoreDistribution: { label: string; count: number }[];
+        memberScores: { employeeId: string; name: string; score: number | null; ratingLabel: string | null }[];
+    }> {
+        // Get team members
+        const teamMembers = await this.employeeProfileRepository.getTeamMembersByManagerId(managerId);
+
+        if (!teamMembers || teamMembers.length === 0) {
+            return {
+                averageScore: null,
+                topPerformer: null,
+                totalReviewed: 0,
+                totalTeamMembers: 0,
+                lastReviewDate: null,
+                scoreDistribution: [],
+                memberScores: [],
+            };
+        }
+
+        const memberScores: { employeeId: string; name: string; score: number | null; ratingLabel: string | null }[] = [];
+        const scoreDistributionMap = new Map<string, number>();
+        let totalScore = 0;
+        let reviewedCount = 0;
+        let topPerformer: { name: string; score: number } | null = null;
+        let lastReviewDate: Date | null = null;
+
+        for (const member of teamMembers) {
+            const employeeId = (member as any)._id.toString();
+            const name = `${(member as any).firstName || ''} ${(member as any).lastName || ''}`.trim() || 'Unknown';
+
+            // Get latest score for this employee
+            const scoreData = await this.getLatestScoreForEmployee(employeeId);
+
+            memberScores.push({
+                employeeId,
+                name,
+                score: scoreData.totalScore,
+                ratingLabel: scoreData.ratingLabel,
+            });
+
+            if (scoreData.totalScore !== null) {
+                totalScore += scoreData.totalScore;
+                reviewedCount++;
+
+                // Track top performer
+                if (!topPerformer || scoreData.totalScore > topPerformer.score) {
+                    topPerformer = { name, score: scoreData.totalScore };
+                }
+
+                // Track score distribution by rating label
+                if (scoreData.ratingLabel) {
+                    const currentCount = scoreDistributionMap.get(scoreData.ratingLabel) || 0;
+                    scoreDistributionMap.set(scoreData.ratingLabel, currentCount + 1);
+                }
+            }
+        }
+
+        // Get the last review date from the most recent record
+        if (reviewedCount > 0) {
+            const allRecords = await this.appraisalRecordRepository.find({
+                employeeProfileId: { $in: teamMembers.map((m: any) => m._id.toString()) },
+                status: AppraisalRecordStatus.HR_PUBLISHED,
+            });
+
+            if (allRecords.length > 0) {
+                const sortedRecords = allRecords.sort((a, b) => {
+                    const dateA = a.hrPublishedAt ? new Date(a.hrPublishedAt).getTime() : 0;
+                    const dateB = b.hrPublishedAt ? new Date(b.hrPublishedAt).getTime() : 0;
+                    return dateB - dateA;
+                });
+                lastReviewDate = sortedRecords[0].hrPublishedAt || null;
+            }
+        }
+
+        // Convert score distribution map to array
+        const scoreDistribution = Array.from(scoreDistributionMap.entries()).map(([label, count]) => ({
+            label,
+            count,
+        }));
+
+        // Sort member scores by score descending (null scores at end)
+        memberScores.sort((a, b) => {
+            if (a.score === null && b.score === null) return 0;
+            if (a.score === null) return 1;
+            if (b.score === null) return -1;
+            return b.score - a.score;
+        });
+
+        return {
+            averageScore: reviewedCount > 0 ? Math.round((totalScore / reviewedCount) * 100) / 100 : null,
+            topPerformer,
+            totalReviewed: reviewedCount,
+            totalTeamMembers: teamMembers.length,
+            lastReviewDate,
+            scoreDistribution,
+            memberScores,
+        };
     }
 }

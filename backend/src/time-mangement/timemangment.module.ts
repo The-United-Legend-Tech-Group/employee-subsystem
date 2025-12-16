@@ -41,6 +41,11 @@ import {
 } from './models/attendance-correction-request.schema';
 
 import { Holiday, HolidaySchema } from './models/holiday.schema';
+import {
+  TimeException,
+  TimeExceptionSchema,
+} from './models/time-exception.schema';
+import { TimeExceptionRepository } from './repository/time-exception.repository';
 @Module({
   imports: [
     DatabaseModule,
@@ -59,6 +64,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
       { name: ShiftType.name, schema: ShiftTypeSchema },
       { name: Shift.name, schema: ShiftSchema },
       { name: ScheduleRule.name, schema: ScheduleRuleSchema },
+      { name: TimeException.name, schema: TimeExceptionSchema },
     ]),
   ],
   controllers: [TimeController],
@@ -78,6 +84,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     HolidayRepository,
     AttendanceRepository,
     AttendanceCorrectionRepository,
+    TimeExceptionRepository,
   ],
   exports: [
     MongooseModule,
@@ -92,6 +99,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     HolidayRepository,
     AttendanceRepository,
     AttendanceCorrectionRepository,
+    TimeExceptionRepository,
     ApprovalWorkflowService,
     PermissionDurationConfigService,
     ApprovalWorkflowRepository,

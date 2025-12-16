@@ -267,6 +267,16 @@ export default function StructureRequestPage() {
                                     forcePopupIcon={false}
                                     id="employee-search-autocomplete"
                                     renderInput={(params) => <TextField {...params} size="small" placeholder="Search by name or ID" />}
+                                    renderOption={(props, option) => {
+                                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={option._id || option.id} {...otherProps}>
+                                                {`${option.firstName} ${option.lastName} (${option.employeeNumber})`}
+                                            </li>
+                                        );
+                                    }}
+                                    isOptionEqualToValue={(option, value) => (option._id || option.id) === (value._id || value.id)}
                                 />
                             </Box>
                         )}
@@ -282,6 +292,16 @@ export default function StructureRequestPage() {
                                     forcePopupIcon={false}
                                     id="target-department-autocomplete"
                                     renderInput={(params) => <TextField {...params} size="small" placeholder="Select Department" />}
+                                    renderOption={(props, option) => {
+                                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={option._id || option.id} {...otherProps}>
+                                                {option.name}
+                                            </li>
+                                        );
+                                    }}
+                                    isOptionEqualToValue={(option, value) => (option._id || option.id) === (value._id || value.id)}
                                 />
                             </Box>
                         )}
@@ -297,6 +317,16 @@ export default function StructureRequestPage() {
                                     forcePopupIcon={false}
                                     id="target-position-autocomplete"
                                     renderInput={(params) => <TextField {...params} size="small" placeholder="Select Position" />}
+                                    renderOption={(props, option) => {
+                                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                        const { key, ...otherProps } = props;
+                                        return (
+                                            <li key={option._id || option.id} {...otherProps}>
+                                                {`${option.title} (${option.code})`}
+                                            </li>
+                                        );
+                                    }}
+                                    isOptionEqualToValue={(option, value) => (option._id || option.id) === (value._id || value.id)}
                                 />
                             </Box>
                         )}

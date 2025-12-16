@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from '../../../common/repository/base.repository';
 import {
   EmployeeSystemRole,
@@ -17,9 +17,25 @@ export class EmployeeSystemRoleRepository extends BaseRepository<EmployeeSystemR
   }
 
   async findByEmployeeProfileId(employeeProfileId: any): Promise<EmployeeSystemRoleDocument | null> {
-    //console.log('🔍 [Repository] Searching with employeeProfileId:', employeeProfileId);
-    const result = await this.model.findOne({ employeeProfileId }).exec();
-    //console.log('🔍 [Repository] Search result:', result);
+    // Handle both string and ObjectId storage formats
+    // Some records have employeeProfileId as string, some as ObjectId
+    const stringId = typeof employeeProfileId === 'string'
+      ? employeeProfileId
+      : employeeProfileId.toString();
+
+    let objectId: Types.ObjectId | null = null;
+    try {
+      objectId = new Types.ObjectId(stringId);
+    } catch {
+      // Invalid ObjectId format, only query with string
+    }
+
+    // Query with $or to match either string or ObjectId format
+    const query = objectId
+      ? { $or: [{ employeeProfileId: stringId }, { employeeProfileId: objectId }] }
+      : { employeeProfileId: stringId };
+
+    const result = await this.model.findOne(query).exec();
     return result;
   }
 

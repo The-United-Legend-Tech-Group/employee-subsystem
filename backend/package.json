@@ -18,8 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed:time": "ts-node -r tsconfig-paths/register src/time-mangement/seeds/seed.ts",
-    "seed:all": "ts-node -r tsconfig-paths/register database/seed.ts"
+    "seed:time": "ts-node -r tsconfig-paths/register src/database/time-seedpunch.ts",
+    "seed:all": "ts-node -r tsconfig-paths/register src/database/seed.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

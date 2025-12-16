@@ -56,6 +56,7 @@ type AttendanceRecordsSectionProps = {
     type: PunchType,
     time?: string
   ) => Promise<void>;
+  onRefresh?: () => void;
   pagination?: PaginationInfo;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
@@ -101,6 +102,7 @@ export default function AttendanceRecordsSection({
   attendanceRecords,
   loading,
   onPunchRecord,
+  onRefresh,
   pagination,
   onPageChange,
   onPageSizeChange,
@@ -127,6 +129,17 @@ export default function AttendanceRecordsSection({
   const [localInfo, setLocalInfo] = React.useState("");
   const [searchDialogOpen, setSearchDialogOpen] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
+
+  // Manual correction dialog state
+  const [manualDialogOpen, setManualDialogOpen] = React.useState(false);
+  const [selectedRecordId, setSelectedRecordId] = React.useState<string>("");
+  const [manualReason, setManualReason] = React.useState("");
+  const [manualPunches, setManualPunches] = React.useState<
+    { type: PunchType; time: string }[]
+  >([{ type: PunchType.IN, time: "" }]);
+  const [manualSubmitting, setManualSubmitting] = React.useState(false);
+  const [manualError, setManualError] = React.useState<string>("");
+  const [manualSuccess, setManualSuccess] = React.useState<string>("");
 
   const fetchEmployee = React.useMemo(
     () =>
@@ -215,11 +228,12 @@ export default function AttendanceRecordsSection({
 
   const handleSubmitPunch = async () => {
     if (!onPunchRecord) return;
-
+    // Prefer selected employee from input (manager use-case), fallback to self
     const employeeId =
-      typeof window !== "undefined"
+      (employeeInput && employeeInput.trim()) ||
+      (typeof window !== "undefined"
         ? window.localStorage.getItem("employeeId")
-        : null;
+        : null);
 
     if (!employeeId) {
       alert("Employee ID not found");
@@ -251,6 +265,7 @@ export default function AttendanceRecordsSection({
       // Submit a single punch record to the backend
       await onPunchRecord(employeeId, punchType, isoTime);
       handleClosePunchDialog();
+      onRefresh?.();
     } catch (error) {
       console.error("Failed to record punch:", error);
 
@@ -262,6 +277,109 @@ export default function AttendanceRecordsSection({
       alert(errorMessage);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openManualDialog = () => {
+    setManualDialogOpen(true);
+    setManualError("");
+    setManualSuccess("");
+    setSelectedRecordId("");
+    setManualReason("");
+    setManualPunches([{ type: PunchType.IN, time: "" }]);
+  };
+
+  const closeManualDialog = () => {
+    if (manualSubmitting) return;
+    setManualDialogOpen(false);
+  };
+
+  const addManualPunchRow = () => {
+    setManualPunches((rows) => [
+      ...rows,
+      { type: rows.length % 2 === 0 ? PunchType.IN : PunchType.OUT, time: "" },
+    ]);
+  };
+
+  const updateManualPunch = (
+    idx: number,
+    field: "type" | "time",
+    value: any
+  ) => {
+    setManualPunches((rows) =>
+      rows.map((r, i) => (i === idx ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const removeManualPunch = (idx: number) => {
+    setManualPunches((rows) => rows.filter((_, i) => i !== idx));
+  };
+
+  const submitManualCorrection = async () => {
+    setManualError("");
+    setManualSuccess("");
+    const targetEmployeeId =
+      (employeeInput && employeeInput.trim()) ||
+      (typeof window !== "undefined"
+        ? window.localStorage.getItem("employeeId")
+        : null);
+
+    if (!targetEmployeeId) {
+      setManualError("Employee ID not found");
+      return;
+    }
+    if (!selectedRecordId) {
+      setManualError("Please select an attendance record (date)");
+      return;
+    }
+    const normalized = manualPunches
+      .map((p) => {
+        if (!p.time) return null;
+        const dateFromRecord =
+          sortedRecords.find((r) => r._id === selectedRecordId)?.date ||
+          new Date().toISOString().split("T")[0];
+        const dateTimeStr = `${dateFromRecord.split("T")[0]}T${p.time}`;
+        const d = new Date(dateTimeStr);
+        return isNaN(d.getTime())
+          ? null
+          : { type: p.type, time: d.toISOString() };
+      })
+      .filter(Boolean) as { type: PunchType; time: string }[];
+
+    if (normalized.length === 0) {
+      setManualError("Enter at least one valid punch time");
+      return;
+    }
+
+    try {
+      setManualSubmitting(true);
+      const apiUrl = getApiBase();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader()),
+      } as Record<string, string>;
+      const res = await fetch(`${apiUrl}/time/attendance/corrections`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          employeeId: targetEmployeeId,
+          attendanceRecord: selectedRecordId,
+          punches: normalized,
+          reason: manualReason || "Manual attendance correction",
+          source: "MANUAL",
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      setManualSuccess("Manual attendance correction submitted successfully.");
+      onRefresh?.();
+      setTimeout(() => setManualDialogOpen(false), 900);
+    } catch (err: any) {
+      setManualError(err?.message || "Failed to submit manual correction");
+    } finally {
+      setManualSubmitting(false);
     }
   };
 
@@ -386,6 +504,9 @@ export default function AttendanceRecordsSection({
                       Record Punch
                     </Button>
                   )}
+                  <Button variant="outlined" onClick={openManualDialog}>
+                    Manual Correction
+                  </Button>
                 </Stack>
               </Stack>
 
@@ -674,6 +795,106 @@ export default function AttendanceRecordsSection({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSearchDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manual Attendance Correction Dialog */}
+      <Dialog
+        open={manualDialogOpen}
+        onClose={closeManualDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Manual Attendance Correction</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Date (attendance record)</InputLabel>
+              <Select
+                label="Date (attendance record)"
+                value={selectedRecordId}
+                onChange={(e) => setSelectedRecordId(e.target.value as string)}
+              >
+                {sortedRecords.slice(0, 60).map((r) => (
+                  <MenuItem key={r._id} value={r._id}>
+                    {formatDate(r.date)} — {formatDuration(r.totalWorkMinutes)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Typography variant="subtitle2">Punches to add</Typography>
+            <Stack spacing={1}>
+              {manualPunches.map((p, idx) => (
+                <Stack
+                  key={idx}
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems="center"
+                >
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Type</InputLabel>
+                    <Select
+                      value={p.type}
+                      label="Type"
+                      onChange={(e) =>
+                        updateManualPunch(
+                          idx,
+                          "type",
+                          e.target.value as PunchType
+                        )
+                      }
+                    >
+                      <MenuItem value={PunchType.IN}>Clock In</MenuItem>
+                      <MenuItem value={PunchType.OUT}>Clock Out</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    type="time"
+                    size="small"
+                    label="Time"
+                    value={p.time}
+                    onChange={(e) =>
+                      updateManualPunch(idx, "time", e.target.value)
+                    }
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <Button
+                    color="error"
+                    onClick={() => removeManualPunch(idx)}
+                    disabled={manualPunches.length <= 1}
+                  >
+                    Remove
+                  </Button>
+                </Stack>
+              ))}
+              <Button onClick={addManualPunchRow}>Add Punch</Button>
+            </Stack>
+
+            <TextField
+              label="Reason"
+              fullWidth
+              multiline
+              minRows={2}
+              value={manualReason}
+              onChange={(e) => setManualReason(e.target.value)}
+            />
+
+            {manualError && <Alert severity="error">{manualError}</Alert>}
+            {manualSuccess && <Alert severity="success">{manualSuccess}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeManualDialog} disabled={manualSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submitManualCorrection}
+            disabled={manualSubmitting}
+            variant="contained"
+          >
+            {manualSubmitting ? "Submitting..." : "Submit"}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

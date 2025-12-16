@@ -367,4 +367,23 @@ export class TimeController {
   ) {
     return this.attendanceService.approveAndApplyCorrection(id, dto.approverId);
   }
+
+  @Get('exceptions/employee/:employeeId')
+  @ApiOperation({ summary: 'List time exceptions for an employee' })
+  @ApiQuery({ name: 'status', required: false })
+  getEmployeeTimeExceptions(
+    @Param('employeeId') employeeId: string,
+    @Query('status') status?: string,
+  ) {
+    return this.attendanceService.getTimeExceptionsForEmployee(
+      employeeId,
+      status,
+    );
+  }
+
+  @Get('corrections/debug/all')
+  @ApiOperation({ summary: 'DEBUG: Get all corrections in database' })
+  async getAllCorrectionsDebug() {
+    return this.attendanceService.getAllCorrectionsDebug();
+  }
 }

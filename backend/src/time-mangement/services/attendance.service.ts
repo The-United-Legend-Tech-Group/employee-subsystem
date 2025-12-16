@@ -12,6 +12,7 @@ import { CreateAttendanceCorrectionDto } from '../dto/create-attendance-correcti
 import { SubmitCorrectionEssDto } from '../dto/submit-correction-ess.dto';
 import { ApproveRejectCorrectionDto } from '../dto/approve-reject-correction.dto';
 import { AttendanceCorrectionRepository } from '../repository/attendance-correction.repository';
+import { TimeExceptionRepository } from '../repository/time-exception.repository';
 import { HolidayRepository } from '../repository/holiday.repository';
 import { ApprovalWorkflowService } from '../services/approval-workflow.service';
 import { ShiftAssignmentRepository } from '../repository/shift-assignment.repository';
@@ -34,6 +35,7 @@ export class AttendanceService {
     private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
     private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
+    private readonly timeExceptionRepo?: TimeExceptionRepository,
   ) {}
 
   private csvImportedOnce = false;
@@ -65,6 +67,41 @@ export class AttendanceService {
       minutesLate,
       gracePeriodApplied,
       deductedMinutes,
+    };
+  }
+
+  async getTimeExceptionsForEmployee(employeeId: string, status?: string) {
+    if (!this.timeExceptionRepo)
+      throw new NotFoundException('TimeException repository not available');
+    return this.timeExceptionRepo.findByEmployee(employeeId, status as any);
+  }
+
+  async getAllCorrectionsDebug() {
+    if (!this.attendanceCorrectionRepo)
+      throw new Error('AttendanceCorrectionRepository not available');
+
+    const all = await this.attendanceCorrectionRepo.find({});
+    console.log(
+      '\ud83d\udd0d DEBUG: All corrections in database:',
+      all?.length || 0,
+    );
+    all?.forEach((correction: any, idx: number) => {
+      console.log(`Correction ${idx + 1}:`, {
+        _id: correction._id,
+        employeeId: correction.employeeId,
+        employeeIdType: typeof correction.employeeId,
+        status: correction.status,
+        reason: correction.reason,
+        lineManagerId: correction.lineManagerId,
+        durationMinutes: correction.durationMinutes,
+        correctionType: correction.correctionType,
+        appliesFromDate: correction.appliesFromDate,
+        createdAt: correction.createdAt,
+      });
+    });
+    return {
+      total: all?.length || 0,
+      corrections: all,
     };
   }
 

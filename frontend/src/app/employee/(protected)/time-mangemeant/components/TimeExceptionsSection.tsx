@@ -33,6 +33,7 @@ import {
   TimeExceptionStatus,
   TimeExceptionType,
   SectionDefinition,
+  SubmitCorrectionEssDto,
 } from "./types";
 
 /**
@@ -81,95 +82,301 @@ export default function TimeExceptionsSection({
 }: TimeExceptionsSectionProps) {
   const theme = useTheme();
 
+  // Log props on mount and when they change
+  React.useEffect(() => {
+    console.log("📋 TimeExceptionsSection Props:", {
+      employeeId,
+      lineManagerId,
+      hasOnCreated: !!onCreated,
+      exceptionsCount: exceptions.length,
+    });
+  }, [employeeId, lineManagerId, onCreated, exceptions.length]);
+
   // ---------------- Dialog state ----------------
   const [openDialog, setOpenDialog] = React.useState(false);
   const [date, setDate] = React.useState("");
-  const [durationMinutes, setDurationMinutes] = React.useState<number>(0);
-  const [correctionType, setCorrectionType] = React.useState<'ADD' | 'DEDUCT'>('ADD');
+  const [durationMinutes, setDurationMinutes] = React.useState<number>(15);
+  const [correctionType, setCorrectionType] = React.useState<"ADD" | "DEDUCT">(
+    "ADD"
+  );
   const [reason, setReason] = React.useState("");
+  const [touched, setTouched] = React.useState({
+    date: false,
+    reason: false,
+    duration: false,
+  });
 
-  const [attendanceRecordId, setAttendanceRecordId] = React.useState<string | null>(null);
+  const [attendanceRecordId, setAttendanceRecordId] = React.useState<
+    string | null
+  >(null);
   const [fetchingRecord, setFetchingRecord] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
 
+  // Validation
+  const validateForm = React.useCallback(() => {
+    const errors: string[] = [];
+
+    if (!employeeId)
+      errors.push("Employee ID is missing. Please refresh the page.");
+    if (!date) errors.push("Date is required");
+    if (!reason || reason.trim().length < 10)
+      errors.push("Reason must be at least 10 characters");
+    if (!durationMinutes || durationMinutes <= 0)
+      errors.push("Duration must be greater than 0");
+    if (durationMinutes > 480)
+      errors.push("Duration cannot exceed 8 hours (480 minutes)");
+    // Note: lineManagerId will be set to employeeId if not provided (self-approval or auto-routing)
+
+    // Date validation - cannot be future date
+    if (date) {
+      const selectedDate = new Date(date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (selectedDate > today) {
+        errors.push("Cannot submit correction for future dates");
+      }
+    }
+
+    // Only check attendance record if date is set and not currently fetching
+    if (date && !fetchingRecord && !attendanceRecordId) {
+      errors.push("Valid attendance record is required for the selected date");
+    }
+
+    return errors;
+  }, [
+    date,
+    reason,
+    durationMinutes,
+    attendanceRecordId,
+    lineManagerId,
+    fetchingRecord,
+  ]);
+
+  const isFormValid = React.useMemo(() => {
+    return validateForm().length === 0;
+  }, [validateForm]);
+
   // Fetch attendance record when date changes
   React.useEffect(() => {
-    if (!date) return;
+    if (!date) {
+      setAttendanceRecordId(null);
+      return;
+    }
 
     const fetchRecord = async () => {
       try {
         setFetchingRecord(true);
         setError(null);
 
+        const API_URL =
+          typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
+            ? process.env.NEXT_PUBLIC_API_URL
+            : "http://localhost:50000";
+
+        // Build an explicit full-day time window to avoid timezone mismatches
+        const startOfDay = new Date(`${date}T00:00:00`);
+        const endOfDay = new Date(`${date}T23:59:59.999`);
+        const startISO = startOfDay.toISOString();
+        const endISO = endOfDay.toISOString();
+
+        console.log("🔍 Fetching attendance for:", {
+          employeeId,
+          date,
+          startISO,
+          endISO,
+          url: `${API_URL}/time/attendance/records/${employeeId}?startDate=${encodeURIComponent(
+            startISO
+          )}&endDate=${encodeURIComponent(endISO)}&limit=1&page=1`,
+        });
+
         const res = await fetch(
-          `/api/time/attendance/records/${employeeId}?startDate=${date}&endDate=${date}`
+          `${API_URL}/time/attendance/records/${employeeId}?startDate=${encodeURIComponent(
+            startISO
+          )}&endDate=${encodeURIComponent(endISO)}&limit=1&page=1`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
         );
 
-        if (!res.ok) throw new Error('Failed to fetch attendance record');
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("❌ Attendance record fetch failed:", {
+            status: res.status,
+            statusText: res.statusText,
+            error: errorText,
+          });
+          throw new Error(`Failed to fetch attendance record: ${res.status}`);
+        }
 
         const data = await res.json();
-        const record = data?.data?.[0] || data?.[0];
+        console.log("✅ Attendance record response:", {
+          data,
+          dataType: Array.isArray(data) ? "array" : typeof data,
+          length: Array.isArray(data) ? data.length : "N/A",
+          hasData: data?.data ? "yes" : "no",
+          hasRecords: data?.records ? "yes" : "no",
+        });
+
+        // Handle different response formats
+        let record = null as any;
+        if (Array.isArray(data)) {
+          record = data[0];
+        } else if (data?.data) {
+          // Primary expected shape from backend: { data: AttendanceRecord[]; pagination: {...} }
+          if (Array.isArray(data.data)) {
+            record = data.data.find((r: any) => !!r?._id) || data.data[0];
+          } else if (data.data?._id) {
+            record = data.data;
+          } else if (Array.isArray(data.data?.records)) {
+            record =
+              data.data.records.find((r: any) => !!r?._id) ||
+              data.data.records[0];
+          } else if (Array.isArray(data.data?.docs)) {
+            record =
+              data.data.docs.find((r: any) => !!r?._id) || data.data.docs[0];
+          } else if (Array.isArray(data.data?.items)) {
+            record =
+              data.data.items.find((r: any) => !!r?._id) || data.data.items[0];
+          }
+        } else if (Array.isArray((data as any)?.records)) {
+          record =
+            (data as any).records.find((r: any) => !!r?._id) ||
+            (data as any).records[0];
+        } else if ((data as any)?._id) {
+          record = data;
+        }
+
+        // Fallback: recursively search for first object that looks like an AttendanceRecord
+        if (!record) {
+          const seen = new Set<any>();
+          const stack: any[] = [data];
+          while (stack.length) {
+            const node = stack.pop();
+            if (!node || typeof node !== "object" || seen.has(node)) continue;
+            seen.add(node);
+            if (Array.isArray(node)) {
+              for (const item of node) stack.push(item);
+              continue;
+            }
+            // Heuristic: has _id and either date or punches/totalWorkMinutes
+            if (
+              node._id &&
+              (node.date || node.punches || node.totalWorkMinutes !== undefined)
+            ) {
+              record = node;
+              break;
+            }
+            for (const key of Object.keys(node)) stack.push((node as any)[key]);
+          }
+        }
+
+        console.log("🔍 Extracted record:", record);
 
         if (!record?._id) {
           setAttendanceRecordId(null);
-          setError('No attendance record found for selected date');
+          setError(
+            "No attendance record found for this date. Please ensure you have punched in/out on this date."
+          );
         } else {
           setAttendanceRecordId(record._id);
+          setError(null);
         }
       } catch (e: any) {
+        console.error("Error fetching attendance record:", e);
         setAttendanceRecordId(null);
-        setError(e.message || 'Error fetching attendance record');
+        setError(
+          e.message || "Error fetching attendance record. Please try again."
+        );
       } finally {
         setFetchingRecord(false);
       }
     };
 
-    fetchRecord();
+    // Debounce the fetch
+    const timeoutId = setTimeout(fetchRecord, 300);
+    return () => clearTimeout(timeoutId);
   }, [date, employeeId]);
 
   const handleSubmit = async () => {
-    if (!attendanceRecordId) return;
+    // Mark all fields as touched
+    setTouched({ date: true, reason: true, duration: true });
+
+    // Validate form
+    const errors = validateForm();
+    if (errors.length > 0) {
+      setError(errors[0]);
+      return;
+    }
 
     try {
       setSubmitting(true);
       setError(null);
       setSuccess(null);
 
-      const res = await fetch('/api/time/corrections/submit-ess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeId,
-          attendanceRecord: attendanceRecordId,
-          durationMinutes,
-          reason,
-          lineManagerId,
-          correctionType,
-          appliesFromDate: date,
-        }),
+      const payload: SubmitCorrectionEssDto = {
+        employeeId,
+        attendanceRecord: attendanceRecordId!,
+        durationMinutes,
+        reason: reason.trim(),
+        lineManagerId: lineManagerId || employeeId, // Fallback to self if no manager set
+        correctionType,
+        appliesFromDate: date,
+      };
+
+      const API_URL =
+        typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
+          ? process.env.NEXT_PUBLIC_API_URL
+          : "http://localhost:50000";
+      const res = await fetch(`${API_URL}/time/corrections/submit-ess`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorMessage = "Submission failed";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || errorText;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
 
-      setSuccess('Correction request submitted successfully and sent to your manager.');
+      setSuccess(
+        "Correction request submitted successfully and sent to your manager."
+      );
       onCreated?.();
 
       // keep dialog open briefly to show confirmation
       setTimeout(() => {
         setOpenDialog(false);
-        setDate('');
+        setDate("");
         setDurationMinutes(15);
-        setReason('');
+        setReason("");
         setAttendanceRecordId(null);
         setSuccess(null);
-      }, 1200);
+        setTouched({ date: false, reason: false, duration: false });
+      }, 1500);
     } catch (e: any) {
-      setError(e.message || 'Submission failed');
+      setError(e.message || "Submission failed");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDialogClose = () => {
+    if (submitting) return;
+    setOpenDialog(false);
+    setError(null);
+    setSuccess(null);
+    setTouched({ date: false, reason: false, duration: false });
   };
 
   const sortedExceptions = React.useMemo(() => {
@@ -190,7 +397,7 @@ export default function TimeExceptionsSection({
     <Box>
       <SectionHeading {...section} />
 
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
         <Button variant="contained" onClick={() => setOpenDialog(true)}>
           Request attendance correction
         </Button>
@@ -202,18 +409,44 @@ export default function TimeExceptionsSection({
             <Skeleton height={200} />
           ) : (
             <Stack spacing={3}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <Box sx={{ flex: 1, p: 2, borderRadius: 2, bgcolor: theme.palette.warning.main + '15' }}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.warning.main + "15",
+                  }}
+                >
                   <WarningAmberIcon color="warning" />
                   <Typography variant="h5" fontWeight="bold">
-                    {exceptions.filter(e => e.status === TimeExceptionStatus.OPEN || e.status === TimeExceptionStatus.PENDING).length}
+                    {
+                      exceptions.filter(
+                        (e) =>
+                          e.status === TimeExceptionStatus.OPEN ||
+                          e.status === TimeExceptionStatus.PENDING
+                      ).length
+                    }
                   </Typography>
                   <Typography variant="body2">Open / Pending</Typography>
                 </Box>
-                <Box sx={{ flex: 1, p: 2, borderRadius: 2, bgcolor: theme.palette.success.main + '15' }}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.success.main + "15",
+                  }}
+                >
                   <CheckCircleOutlineIcon color="success" />
                   <Typography variant="h5" fontWeight="bold">
-                    {exceptions.filter(e => e.status === TimeExceptionStatus.APPROVED || e.status === TimeExceptionStatus.RESOLVED).length}
+                    {
+                      exceptions.filter(
+                        (e) =>
+                          e.status === TimeExceptionStatus.APPROVED ||
+                          e.status === TimeExceptionStatus.RESOLVED
+                      ).length
+                    }
                   </Typography>
                   <Typography variant="body2">Resolved</Typography>
                 </Box>
@@ -231,15 +464,22 @@ export default function TimeExceptionsSection({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {sortedExceptions.map(ex => {
+                    {sortedExceptions.map((ex) => {
                       const cfg = EXCEPTION_STATUS_CONFIG[ex.status];
                       return (
                         <TableRow key={ex._id}>
-                          <TableCell>{EXCEPTION_TYPE_LABELS[ex.type]}</TableCell>
                           <TableCell>
-                            <Chip size="small" label={cfg.label} color={cfg.color} variant="outlined" />
+                            {EXCEPTION_TYPE_LABELS[ex.type]}
                           </TableCell>
-                          <TableCell>{ex.reason || '-'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={cfg.label}
+                              color={cfg.color}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>{ex.reason || "-"}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -252,7 +492,12 @@ export default function TimeExceptionsSection({
       </Card>
 
       {/* ESS Correction Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={handleDialogClose}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Attendance Correction Request</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -261,23 +506,46 @@ export default function TimeExceptionsSection({
               label="Date"
               InputLabelProps={{ shrink: true }}
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setTouched((prev) => ({ ...prev, date: true }));
+              }}
               required
+              error={touched.date && !date}
+              helperText={touched.date && !date ? "Date is required" : ""}
+              inputProps={{
+                max: new Date().toISOString().split("T")[0],
+              }}
             />
 
             <TextField
               type="number"
               label="Duration (minutes)"
               value={durationMinutes}
-              onChange={e => setDurationMinutes(Number(e.target.value))}
+              onChange={(e) => {
+                setDurationMinutes(Number(e.target.value));
+                setTouched((prev) => ({ ...prev, duration: true }));
+              }}
               required
+              error={
+                touched.duration &&
+                (durationMinutes <= 0 || durationMinutes > 480)
+              }
+              helperText={
+                touched.duration && durationMinutes <= 0
+                  ? "Duration must be greater than 0"
+                  : touched.duration && durationMinutes > 480
+                  ? "Duration cannot exceed 480 minutes (8 hours)"
+                  : "Maximum 480 minutes (8 hours)"
+              }
+              inputProps={{ min: 1, max: 480, step: 15 }}
             />
 
             <TextField
               select
               label="Correction Type"
               value={correctionType}
-              onChange={e => setCorrectionType(e.target.value as any)}
+              onChange={(e) => setCorrectionType(e.target.value as any)}
             >
               <MenuItem value="ADD">Add minutes</MenuItem>
               <MenuItem value="DEDUCT">Deduct minutes</MenuItem>
@@ -288,24 +556,54 @@ export default function TimeExceptionsSection({
               multiline
               rows={3}
               value={reason}
-              onChange={e => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                setTouched((prev) => ({ ...prev, reason: true }));
+              }}
               required
+              error={touched.reason && (!reason || reason.trim().length < 10)}
+              helperText={
+                touched.reason && !reason
+                  ? "Reason is required"
+                  : touched.reason && reason.trim().length < 10
+                  ? `Reason must be at least 10 characters (${
+                      reason.trim().length
+                    }/10)`
+                  : `${reason.trim().length} characters`
+              }
             />
 
-            {fetchingRecord && <Alert severity="info">Checking attendance record…</Alert>}
-            {attendanceRecordId && !error && (
-              <Alert severity="success">Attendance record found ✔</Alert>
+            {fetchingRecord && (
+              <Alert severity="info" icon={<CircularProgress size={20} />}>
+                Checking attendance record…
+              </Alert>
+            )}
+            {!fetchingRecord && attendanceRecordId && (
+              <Alert severity="success">
+                ✓ Attendance record found for this date
+              </Alert>
+            )}
+            {!fetchingRecord && date && !attendanceRecordId && error && (
+              <Alert severity="warning">
+                {error}
+                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                  Tip: Make sure you have punched in/out on this date before
+                  requesting a correction.
+                </Typography>
+              </Alert>
             )}
             {success && <Alert severity="success">{success}</Alert>}
-            {error && <Alert severity="error">{error}</Alert>}
+            {error && !date && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} disabled={submitting}>Cancel</Button>
+          <Button onClick={handleDialogClose} disabled={submitting}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={!attendanceRecordId || !reason || durationMinutes <= 0 || submitting}
+            disabled={!isFormValid || submitting}
             startIcon={submitting ? <CircularProgress size={16} /> : null}
           >
             Submit

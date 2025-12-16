@@ -16,6 +16,12 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
 import { alpha, useTheme } from "@mui/material/styles";
 
 import PendingActionsRoundedIcon from "@mui/icons-material/PendingActionsRounded";
@@ -24,17 +30,25 @@ import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import SummarizeRoundedIcon from "@mui/icons-material/SummarizeRounded";
 
 import SectionHeading from "./SectionHeading";
-import { CorrectionRequest, SectionDefinition } from "./types";
+import {
+  CorrectionRequest,
+  CorrectionRequestStatus,
+  SectionDefinition,
+} from "./types";
 
 const STATUS_COLORS: Record<
   string,
   "default" | "success" | "warning" | "error" | "info"
 > = {
-  APPROVED: "success",
-  SUBMITTED: "info",
+  // CorrectionRequestStatus enum values
+  [CorrectionRequestStatus.SUBMITTED]: "info",
+  [CorrectionRequestStatus.IN_REVIEW]: "warning",
+  [CorrectionRequestStatus.APPROVED]: "success",
+  [CorrectionRequestStatus.REJECTED]: "error",
+  [CorrectionRequestStatus.ESCALATED]: "error",
+  // Legacy/alternative status values
   PENDING: "info",
   REVIEW: "warning",
-  REJECTED: "error",
   RETURNED: "warning",
 };
 
@@ -43,6 +57,16 @@ function formatDate(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString();
+}
+
+function formatStatus(status?: string) {
+  if (!status) return "N/A";
+  return status
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function formatDuration(minutes?: number) {
@@ -60,6 +84,8 @@ type AttendanceSectionProps = {
   pending: CorrectionRequest[];
   loading: boolean;
   managerQueueEnabled: boolean;
+  lineManagerId?: string;
+  onRefresh?: () => void;
 };
 
 export default function AttendanceSection({
@@ -68,6 +94,8 @@ export default function AttendanceSection({
   pending,
   loading,
   managerQueueEnabled,
+  lineManagerId,
+  onRefresh,
 }: AttendanceSectionProps) {
   const recentHistory = React.useMemo(() => history.slice(0, 5), [history]);
 
@@ -124,6 +152,77 @@ export default function AttendanceSection({
       },
     ];
   }, [history.length, approvedCount, rejectedCount, pending.length]);
+
+  const [reviewingId, setReviewingId] = React.useState<string | null>(null);
+  const [rejectDialogId, setRejectDialogId] = React.useState<string | null>(
+    null
+  );
+  const [rejectReason, setRejectReason] = React.useState<string>("");
+  const [actionError, setActionError] = React.useState<string>("");
+
+  async function authHeaders() {
+    if (typeof window === "undefined") return {} as Record<string, string>;
+    const token = window.localStorage.getItem("access_token");
+    return token
+      ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+      : { "Content-Type": "application/json" };
+  }
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
+
+  const handleApprove = async (id: string) => {
+    if (!lineManagerId) return;
+    setActionError("");
+    setReviewingId(id);
+    try {
+      const res = await fetch(`${apiBase}/time/corrections/${id}/review`, {
+        method: "PATCH",
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          approverId: lineManagerId,
+          decision: "APPROVED",
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      onRefresh?.();
+    } catch (e: any) {
+      setActionError(e?.message || "Approval failed");
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const handleRejectConfirm = async () => {
+    const id = rejectDialogId;
+    if (!id || !lineManagerId) return;
+    setActionError("");
+    setReviewingId(id);
+    try {
+      const res = await fetch(`${apiBase}/time/corrections/${id}/review`, {
+        method: "PATCH",
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          approverId: lineManagerId,
+          decision: "REJECTED",
+          rejectionReason: rejectReason,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Status ${res.status}`);
+      }
+      setRejectDialogId(null);
+      setRejectReason("");
+      onRefresh?.();
+    } catch (e: any) {
+      setActionError(e?.message || "Rejection failed");
+    } finally {
+      setReviewingId(null);
+    }
+  };
 
   return (
     <Box>
@@ -188,7 +287,7 @@ export default function AttendanceSection({
                           <TableCell>
                             <Chip
                               size="small"
-                              label={row.status || "N/A"}
+                              label={formatStatus(row.status)}
                               color={
                                 STATUS_COLORS[row.status || ""] || "default"
                               }
@@ -223,6 +322,11 @@ export default function AttendanceSection({
                     >
                       Manager approval queue
                     </Typography>
+                    {actionError && (
+                      <Alert severity="error" sx={{ mb: 1 }}>
+                        {actionError}
+                      </Alert>
+                    )}
                     {pendingQueue.length === 0 ? (
                       <Alert severity="success">
                         Your queue is clear. All submitted corrections are up to
@@ -237,6 +341,7 @@ export default function AttendanceSection({
                             <TableCell>Type</TableCell>
                             <TableCell>Duration</TableCell>
                             <TableCell>Status</TableCell>
+                            <TableCell align="right">Actions</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -259,12 +364,46 @@ export default function AttendanceSection({
                               <TableCell>
                                 <Chip
                                   size="small"
-                                  label={row.status || "SUBMITTED"}
+                                  label={formatStatus(
+                                    row.status ||
+                                      CorrectionRequestStatus.SUBMITTED
+                                  )}
                                   color={
                                     STATUS_COLORS[row.status || ""] || "info"
                                   }
                                   variant="filled"
                                 />
+                              </TableCell>
+                              <TableCell align="right">
+                                <Stack
+                                  direction="row"
+                                  spacing={1}
+                                  justifyContent="flex-end"
+                                >
+                                  <Chip
+                                    label={
+                                      reviewingId === row._id
+                                        ? "Approving…"
+                                        : "Approve"
+                                    }
+                                    color="success"
+                                    onClick={() => handleApprove(row._id)}
+                                    disabled={
+                                      !lineManagerId || reviewingId === row._id
+                                    }
+                                  />
+                                  <Chip
+                                    label="Reject"
+                                    color="error"
+                                    onClick={() => {
+                                      setRejectDialogId(row._id);
+                                      setRejectReason("");
+                                    }}
+                                    disabled={
+                                      !lineManagerId || reviewingId === row._id
+                                    }
+                                  />
+                                </Stack>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -278,6 +417,40 @@ export default function AttendanceSection({
           )}
         </CardContent>
       </Card>
+
+      {/* Reject reason dialog */}
+      <Dialog
+        open={Boolean(rejectDialogId)}
+        onClose={() => setRejectDialogId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Reject Correction</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Reason"
+              fullWidth
+              multiline
+              minRows={2}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            {actionError && <Alert severity="error">{actionError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectDialogId(null)}>Cancel</Button>
+          <Button
+            onClick={handleRejectConfirm}
+            disabled={!rejectReason.trim()}
+            variant="contained"
+            color="error"
+          >
+            Reject
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

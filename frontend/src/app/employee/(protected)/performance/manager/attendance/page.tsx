@@ -22,13 +22,15 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Stack
+    Stack,
+    IconButton
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useRouter } from 'next/navigation';
-import { AppraisalAssignment, AppraisalAssignmentStatus } from '@/types/performance';
+import { AppraisalAssignment } from '@/types/performance';
 import { decryptData } from '@/common/utils/encryption';
 
 // Attendance record type based on the backend model
@@ -56,7 +58,7 @@ interface AttendanceResponse {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-export default function ManagerAssignmentsPage() {
+export default function TeamAttendancePage() {
     const [assignments, setAssignments] = useState<AppraisalAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -106,10 +108,6 @@ export default function ManagerAssignmentsPage() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleStartAppraisal = (assignmentId: string) => {
-        router.push(`/employee/performance/appraisal/${assignmentId}`);
     };
 
     const handleViewAttendance = async (employeeId: string, employeeName: string) => {
@@ -169,9 +167,10 @@ export default function ManagerAssignmentsPage() {
         return { totalDays, totalHours, avgHoursPerDay, missedPunchDays };
     };
 
-    interface Row extends AppraisalAssignment {
+    interface Row {
         id: string;
         employeeName: string;
+        employeeProfileId: string | { _id?: string; id?: string; firstName?: string; lastName?: string };
     }
 
     const columns: GridColDef<Row>[] = [
@@ -182,53 +181,9 @@ export default function ManagerAssignmentsPage() {
             minWidth: 200
         },
         {
-            field: 'status',
-            headerName: 'Status',
-            width: 150,
-            renderCell: (params: GridRenderCellParams<Row, string>) => {
-                let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
-                switch (params.value) {
-                    case AppraisalAssignmentStatus.PUBLISHED:
-                    case AppraisalAssignmentStatus.ACKNOWLEDGED:
-                        color = 'success';
-                        break;
-                    case AppraisalAssignmentStatus.SUBMITTED:
-                        color = 'warning';
-                        break;
-                    case AppraisalAssignmentStatus.IN_PROGRESS:
-                        color = 'primary';
-                        break;
-                    case AppraisalAssignmentStatus.NOT_STARTED:
-                    default:
-                        color = 'default';
-                        break;
-                }
-                return (
-                    <Chip
-                        label={params.value?.replace(/_/g, ' ')}
-                        color={color}
-                        size="small"
-                    />
-                );
-            }
-        },
-        {
-            field: 'assignedAt',
-            headerName: 'Assigned At',
-            width: 150,
-            valueFormatter: (value: any) => value ? new Date(value).toLocaleDateString() : 'N/A'
-        },
-        {
-            field: 'dueDate',
-            headerName: 'Due Date',
-            width: 150,
-            valueGetter: (value: any, row: Row) => row.dueDate ? new Date(row.dueDate) : null,
-            valueFormatter: (value: any) => value ? value.toLocaleDateString() : 'N/A'
-        },
-        {
             field: 'actions',
             headerName: 'Actions',
-            width: 260,
+            width: 180,
             sortable: false,
             renderCell: (params: GridRenderCellParams<Row>) => {
                 // Get the employee profile ID - it can be an object or a string
@@ -237,45 +192,45 @@ export default function ManagerAssignmentsPage() {
                     : params.row.employeeProfileId;
 
                 return (
-                    <Stack direction="row" spacing={0.5}>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleStartAppraisal(params.row.id)}
-                        >
-                            {params.row.status === AppraisalAssignmentStatus.NOT_STARTED ? 'Start' : 'Edit'}
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => handleViewAttendance(employeeProfileId, params.row.employeeName)}
-                        >
-                            Attendance
-                        </Button>
-                    </Stack>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleViewAttendance(employeeProfileId, params.row.employeeName)}
+                    >
+                        View Attendance
+                    </Button>
                 );
             }
         }
     ];
 
+    // Get unique employees from assignments
     const rows: Row[] = assignments
         .map(assignment => ({
-            ...assignment,
             id: assignment._id,
             employeeName: typeof assignment.employeeProfileId === 'object'
                 ? `${assignment.employeeProfileId.firstName} ${assignment.employeeProfileId.lastName}`
                 : String(assignment.employeeProfileId),
+            employeeProfileId: assignment.employeeProfileId,
         }))
+        .filter((row, index, self) =>
+            index === self.findIndex(r => r.employeeName === row.employeeName)
+        )
         .filter(row =>
             row.employeeName.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                Manager Appraisal Dashboard
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <IconButton onClick={() => router.push('/employee/performance/manager')}>
+                    <ArrowBackIcon />
+                </IconButton>
+                <Typography variant="h4">
+                    Team Attendance
+                </Typography>
+            </Box>
 
             {loading && (
                 <Box display="flex" justifyContent="center" my={4}>
@@ -308,7 +263,7 @@ export default function ManagerAssignmentsPage() {
                         columns={columns}
                         initialState={{
                             pagination: {
-                                paginationModel: { page: 0, pageSize: 5 },
+                                paginationModel: { page: 0, pageSize: 10 },
                             },
                         }}
                         pageSizeOptions={[5, 10, 25]}

@@ -11,6 +11,13 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import AssignmentTurnedInRoundedIcon from "@mui/icons-material/AssignmentTurnedInRounded";
+import PunchClockRoundedIcon from "@mui/icons-material/PunchClockRounded";
+import WorkHistoryRoundedIcon from "@mui/icons-material/WorkHistoryRounded";
+import RuleRoundedIcon from "@mui/icons-material/RuleRounded";
+import EventBusyRoundedIcon from "@mui/icons-material/EventBusyRounded";
+import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 
 import AttendanceSection from "./AttendanceSection";
 import AttendanceRecordsSection from "./AttendanceRecordsSection";
@@ -618,7 +625,13 @@ export default function TimeManagementClient({
           sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}
         >
           {tabItems.map((tab) => (
-            <Tab key={tab.id} value={tab.id} label={tab.title} />
+            <Tab
+              key={tab.id}
+              value={tab.id}
+              label={tab.title}
+              icon={tab.icon ?? undefined}
+              iconPosition="start"
+            />
           ))}
         </Tabs>
 
@@ -678,7 +691,6 @@ export default function TimeManagementClient({
             <ExceptionsSection
               section={exceptionsSection}
               holidays={holidays}
-              payrollQueue={payrollQueue}
               loading={loading}
             />
           )}

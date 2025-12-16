@@ -18,6 +18,7 @@ import {
     InputLabel,
     Select,
     Skeleton,
+    Autocomplete,
 } from '@mui/material';
 import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
 import { AppraisalCycle } from '../cycles/types';
@@ -235,19 +236,26 @@ export default function AppraisalMonitoringPage() {
                     <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                         <Box sx={{ minWidth: 250 }}>
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>Appraisal Cycle</Typography>
-                            <TextField
-                                select
+                            <Autocomplete
+                                options={cycles}
+                                getOptionLabel={(option) => `${option.name} (${option.status})`}
+                                value={cycles.find(c => c._id === selectedCycleId) || null}
+                                onChange={(_, newValue) => setSelectedCycleId(newValue ? newValue._id : '')}
+                                popupIcon={null}
+                                clearIcon={null}
                                 fullWidth
-                                hiddenLabel
-                                value={selectedCycleId}
-                                onChange={(e) => setSelectedCycleId(e.target.value)}
-                            >
-                                {cycles.map((cycle) => (
-                                    <MenuItem key={cycle._id} value={cycle._id}>
-                                        {cycle.name} ({cycle.status})
-                                    </MenuItem>
-                                ))}
-                            </TextField>
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        hiddenLabel
+                                        placeholder="Select Appraisal Cycle"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: null,
+                                        }}
+                                    />
+                                )}
+                            />
                         </Box>
                     </Stack>
 
@@ -266,6 +274,9 @@ export default function AppraisalMonitoringPage() {
                             initialState={{
                                 pagination: {
                                     paginationModel: { pageSize: 6, page: 0 },
+                                },
+                                sorting: {
+                                    sortModel: [{ field: 'assignedAt', sort: 'desc' }],
                                 },
                             }}
                             pageSizeOptions={[6, 10, 25, 50, 100]}

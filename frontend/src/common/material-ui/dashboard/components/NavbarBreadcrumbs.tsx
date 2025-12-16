@@ -1,10 +1,11 @@
 'use client';
-'use client';
 import { styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import Breadcrumbs, { breadcrumbsClasses } from '@mui/material/Breadcrumbs';
 import NavigateNextRoundedIcon from '@mui/icons-material/NavigateNextRounded';
 import { usePathname } from 'next/navigation';
+import NextLink from 'next/link';
+import Link from '@mui/material/Link';
 
 const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
   margin: theme.spacing(1, 0),
@@ -28,9 +29,11 @@ export default function NavbarBreadcrumbs() {
       aria-label="breadcrumb"
       separator={<NavigateNextRoundedIcon fontSize="small" />}
     >
-      <Typography variant="body1" color="text.secondary">
-        Dashboard
-      </Typography>
+      <Link component={NextLink} href="/employee/dashboard" underline="hover" color="inherit">
+        <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+          Dashboard
+        </Typography>
+      </Link>
       {pathnames.map((value, index) => {
         const last = index === pathnames.length - 1;
         const to = `/employee/${pathnames.slice(0, index + 1).join('/')}`;
@@ -41,6 +44,7 @@ export default function NavbarBreadcrumbs() {
         // Specific overrides
         if (value === 'member-details') title = 'Member Details';
         if (value === '(protected)') return null; // Should not appear but just in case
+        if (value === 'dashboard' && index === 0) return null; // Avoid duplicate Dashboard since it's the root
 
         // Hide IDs if they are long strings (simple heuristic)
         if (value.length > 20 || (value.match(/\d/) && value.length > 10)) {
@@ -52,9 +56,11 @@ export default function NavbarBreadcrumbs() {
             {title}
           </Typography>
         ) : (
-          <Typography key={to} variant="body1" color="text.secondary">
-            {title}
-          </Typography>
+          <Link key={to} component={NextLink} href={to} underline="hover" color="inherit">
+            <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+              {title}
+            </Typography>
+          </Link>
         );
       })}
     </StyledBreadcrumbs>

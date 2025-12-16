@@ -268,7 +268,7 @@ export default function AppraisalFormPage() {
                                     {criterion.details}
                                 </Typography>
                             )}
-                            
+
                             <Box sx={{ mt: 2, mb: 2 }}>
                                 <Typography gutterBottom>Rating ({template.ratingScale.min} - {template.ratingScale.max})</Typography>
                                 <Slider
@@ -282,15 +282,17 @@ export default function AppraisalFormPage() {
                                 />
                             </Box>
 
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                label="Comments / Examples"
-                                value={ratings[criterion.key]?.comments || ''}
-                                onChange={(e) => handleCommentChange(criterion.key, e.target.value)}
-                                variant="outlined"
-                            />
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Comments / Examples</Typography>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={1}
+                                    value={ratings[criterion.key]?.comments || ''}
+                                    onChange={(e) => handleCommentChange(criterion.key, e.target.value)}
+                                    variant="outlined"
+                                />
+                            </Box>
                         </CardContent>
                     </Card>
                 ))}
@@ -299,48 +301,56 @@ export default function AppraisalFormPage() {
                     <Typography variant="h6" gutterBottom>
                         Overall Feedback
                     </Typography>
-                    
+
                     <Grid container spacing={3}>
                         <Grid size={12}>
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                label="Manager Summary"
-                                value={managerSummary}
-                                onChange={(e) => setManagerSummary(e.target.value)}
-                            />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Manager Summary</Typography>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={1}
+                                    value={managerSummary}
+                                    onChange={(e) => setManagerSummary(e.target.value)}
+                                />
+                            </Box>
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                label="Strengths"
-                                value={strengths}
-                                onChange={(e) => setStrengths(e.target.value)}
-                            />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Strengths</Typography>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={1}
+                                    value={strengths}
+                                    onChange={(e) => setStrengths(e.target.value)}
+                                />
+                            </Box>
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                label="Areas for Improvement"
-                                value={improvementAreas}
-                                onChange={(e) => setImprovementAreas(e.target.value)}
-                            />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Areas for Improvement</Typography>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={1}
+                                    value={improvementAreas}
+                                    onChange={(e) => setImprovementAreas(e.target.value)}
+                                />
+                            </Box>
                         </Grid>
                         <Grid size={12}>
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                label="Goals for Next Period"
-                                value={goals}
-                                onChange={(e) => setGoals(e.target.value)}
-                                placeholder="Enter goals for the upcoming period..."
-                            />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Goals for Next Period</Typography>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={1}
+                                    value={goals}
+                                    onChange={(e) => setGoals(e.target.value)}
+                                    placeholder="Enter goals for the upcoming period..."
+                                />
+                            </Box>
                         </Grid>
                     </Grid>
                 </Paper>
@@ -349,8 +359,8 @@ export default function AppraisalFormPage() {
                     <Button variant="outlined" onClick={() => router.back()}>
                         Cancel
                     </Button>
-                    <Button 
-                        variant="contained" 
+                    <Button
+                        variant="contained"
                         onClick={handleSubmit}
                         disabled={saving}
                     >

@@ -47,6 +47,11 @@ export interface Employee {
     };
     department?: {
         name: string;
+        _id?: string | null;
+        manager?: {
+            firstName: string;
+            lastName: string;
+        };
     };
     primaryPositionId?: {
         _id: string;

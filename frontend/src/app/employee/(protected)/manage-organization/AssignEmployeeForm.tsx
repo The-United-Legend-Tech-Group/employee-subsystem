@@ -168,20 +168,25 @@ export default function AssignEmployeeForm({
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
             <Stack spacing={3}>
-                <TextField
-                    placeholder="Search employees by name, ID or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    fullWidth
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon color="action" />
-                            </InputAdornment>
-                        ),
-                        endAdornment: loading ? <CircularProgress size={20} /> : null
-                    }}
-                />
+                <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                        Select Employee
+                    </Typography>
+                    <TextField
+                        placeholder="Search employees by name, ID or email..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        fullWidth
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon color="action" />
+                                </InputAdornment>
+                            ),
+                            endAdornment: loading ? <CircularProgress size={20} /> : null
+                        }}
+                    />
+                </Box>
 
                 <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto' }}>
                     <List>
@@ -233,23 +238,31 @@ export default function AssignEmployeeForm({
                 </Paper>
 
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <TextField
-                        label="Start Date"
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        required
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                        label="End Date (Optional)"
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
-                    />
+                    <Box sx={{ width: '100%' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            Start Date
+                        </Typography>
+                        <TextField
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            required
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Box>
+                    <Box sx={{ width: '100%' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                            End Date (Optional)
+                        </Typography>
+                        <TextField
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Box>
                 </Box>
 
                 <Stack direction="row" spacing={2} justifyContent="flex-end">

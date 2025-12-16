@@ -27,6 +27,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkIcon from '@mui/icons-material/Work';
+import PerformanceOverview from '../../../dashboard/PerformanceOverview';
 
 interface Employee {
     _id: string;
@@ -233,7 +234,11 @@ export default function MemberDetailsPage() {
                         </CardContent>
                     </Card>
                 </Stack>
+
+
+                {/* Performance Overview */}
+                <PerformanceOverview employeeId={params.id as string} />
             </Stack>
-        </Box>
+        </Box >
     );
 }

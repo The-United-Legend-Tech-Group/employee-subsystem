@@ -48,6 +48,12 @@ export class AppraisalAssignmentService {
         const profileMap = new Map<string, any>();
         profiles.forEach((p: any) => profileMap.set(p._id.toString(), p));
 
+        // Fetch template and cycle details for notification
+        const template = await this.appraisalTemplateRepository.findOne({ _id: dto.templateId });
+        const cycle = await this.appraisalCycleRepository.findOne({ _id: dto.cycleId });
+        const templateName = template ? template.name : dto.templateId;
+        const cycleName = cycle ? cycle.name : dto.cycleId;
+
         const docs: Partial<AppraisalAssignment>[] = dto.items.map((it) => {
             const profile = profileMap.get(it.employeeProfileId);
             if (!profile && !it.departmentId) {
@@ -64,7 +70,7 @@ export class AppraisalAssignmentService {
                 templateId: new Types.ObjectId(dto.templateId),
                 employeeProfileId: new Types.ObjectId(it.employeeProfileId),
                 managerProfileId: new Types.ObjectId(it.managerProfileId),
-                dueDate: it.dueDate ? new Date(it.dueDate) : undefined,
+                dueDate: cycle?.managerDueDate ? new Date(cycle.managerDueDate) : (it.dueDate ? new Date(it.dueDate) : undefined),
                 assignedAt: new Date(),
             };
 
@@ -78,12 +84,6 @@ export class AppraisalAssignmentService {
         });
 
         const created = await this.appraisalAssignmentRepository.insertMany(docs as any);
-
-        // Fetch template and cycle details for notification
-        const template = await this.appraisalTemplateRepository.findOne({ _id: dto.templateId });
-        const cycle = await this.appraisalCycleRepository.findOne({ _id: dto.cycleId });
-        const templateName = template ? template.name : dto.templateId;
-        const cycleName = cycle ? cycle.name : dto.cycleId;
 
         // Send notifications to employees and managers
         for (const c of created) {

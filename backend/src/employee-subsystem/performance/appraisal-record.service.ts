@@ -573,4 +573,112 @@ export class AppraisalRecordService {
         // A record is minimum-score if ALL rated criteria are at the minimum
         return scoredRatings.every((r: any) => r.ratingValue === minScore);
     }
+
+    /**
+     * Get team performance summary for a manager.
+     * Returns aggregated performance data for all team members.
+     */
+    async getTeamPerformanceSummary(managerId: string): Promise<{
+        averageScore: number | null;
+        topPerformer: { name: string; score: number } | null;
+        totalReviewed: number;
+        totalTeamMembers: number;
+        lastReviewDate: Date | null;
+        scoreDistribution: { label: string; count: number }[];
+        memberScores: { employeeId: string; name: string; score: number | null; ratingLabel: string | null }[];
+    }> {
+        // Get team members
+        const teamMembers = await this.employeeProfileRepository.getTeamMembersByManagerId(managerId);
+
+        if (!teamMembers || teamMembers.length === 0) {
+            return {
+                averageScore: null,
+                topPerformer: null,
+                totalReviewed: 0,
+                totalTeamMembers: 0,
+                lastReviewDate: null,
+                scoreDistribution: [],
+                memberScores: [],
+            };
+        }
+
+        const memberScores: { employeeId: string; name: string; score: number | null; ratingLabel: string | null }[] = [];
+        const scoreDistributionMap = new Map<string, number>();
+        let totalScore = 0;
+        let reviewedCount = 0;
+        let topPerformer: { name: string; score: number } | null = null;
+        let lastReviewDate: Date | null = null;
+
+        for (const member of teamMembers) {
+            const employeeId = (member as any)._id.toString();
+            const name = `${(member as any).firstName || ''} ${(member as any).lastName || ''}`.trim() || 'Unknown';
+
+            // Get latest score for this employee
+            const scoreData = await this.getLatestScoreForEmployee(employeeId);
+
+            memberScores.push({
+                employeeId,
+                name,
+                score: scoreData.totalScore,
+                ratingLabel: scoreData.ratingLabel,
+            });
+
+            if (scoreData.totalScore !== null) {
+                totalScore += scoreData.totalScore;
+                reviewedCount++;
+
+                // Track top performer
+                if (!topPerformer || scoreData.totalScore > topPerformer.score) {
+                    topPerformer = { name, score: scoreData.totalScore };
+                }
+
+                // Track score distribution by rating label
+                if (scoreData.ratingLabel) {
+                    const currentCount = scoreDistributionMap.get(scoreData.ratingLabel) || 0;
+                    scoreDistributionMap.set(scoreData.ratingLabel, currentCount + 1);
+                }
+            }
+        }
+
+        // Get the last review date from the most recent record
+        if (reviewedCount > 0) {
+            const allRecords = await this.appraisalRecordRepository.find({
+                employeeProfileId: { $in: teamMembers.map((m: any) => m._id.toString()) },
+                status: AppraisalRecordStatus.HR_PUBLISHED,
+            });
+
+            if (allRecords.length > 0) {
+                const sortedRecords = allRecords.sort((a, b) => {
+                    const dateA = a.hrPublishedAt ? new Date(a.hrPublishedAt).getTime() : 0;
+                    const dateB = b.hrPublishedAt ? new Date(b.hrPublishedAt).getTime() : 0;
+                    return dateB - dateA;
+                });
+                lastReviewDate = sortedRecords[0].hrPublishedAt || null;
+            }
+        }
+
+        // Convert score distribution map to array
+        const scoreDistribution = Array.from(scoreDistributionMap.entries()).map(([label, count]) => ({
+            label,
+            count,
+        }));
+
+        // Sort member scores by score descending (null scores at end)
+        memberScores.sort((a, b) => {
+            if (a.score === null && b.score === null) return 0;
+            if (a.score === null) return 1;
+            if (b.score === null) return -1;
+            return b.score - a.score;
+        });
+
+        return {
+            averageScore: reviewedCount > 0 ? Math.round((totalScore / reviewedCount) * 100) / 100 : null,
+            topPerformer,
+            totalReviewed: reviewedCount,
+            totalTeamMembers: teamMembers.length,
+            lastReviewDate,
+            scoreDistribution,
+            memberScores,
+        };
+    }
 }

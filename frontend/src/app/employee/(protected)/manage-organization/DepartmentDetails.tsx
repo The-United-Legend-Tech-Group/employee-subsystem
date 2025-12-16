@@ -195,12 +195,17 @@ export default function DepartmentDetails({ department, positions = [], onUpdate
                                                 headPositionId: newValue ? newValue._id : ''
                                             }));
                                         }}
+                                        popupIcon={null}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
                                                 placeholder="Select department head"
                                                 fullWidth
                                                 size="small"
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    endAdornment: null
+                                                }}
                                             />
                                         )}
                                     />

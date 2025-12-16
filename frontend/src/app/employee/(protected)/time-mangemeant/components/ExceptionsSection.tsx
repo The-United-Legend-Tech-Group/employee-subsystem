@@ -8,24 +8,14 @@ import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 
 import SectionHeading from "./SectionHeading";
-import {
-  CorrectionRequest,
-  HolidayDefinition,
-  SectionDefinition,
-} from "./types";
+import { HolidayDefinition, SectionDefinition } from "./types";
 
 type ExceptionsSectionProps = {
   section: SectionDefinition;
   holidays: HolidayDefinition[];
-  payrollQueue: CorrectionRequest[];
   loading: boolean;
 };
 
@@ -59,16 +49,11 @@ function normalizeHolidays(holidays: HolidayDefinition[]) {
 export default function ExceptionsSection({
   section,
   holidays,
-  payrollQueue,
   loading,
 }: ExceptionsSectionProps) {
   const upcomingHolidays = React.useMemo(
     () => normalizeHolidays(holidays),
     [holidays]
-  );
-  const payrollItems = React.useMemo(
-    () => payrollQueue.slice(0, 6),
-    [payrollQueue]
   );
 
   return (
@@ -160,54 +145,7 @@ export default function ExceptionsSection({
                   </Stack>
                 )}
               </Box>
-              <Box sx={{ flex: 1 }}>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="bold"
-                  sx={{ mb: 1 }}
-                >
-                  Corrections ready for payroll
-                </Typography>
-                {payrollItems.length === 0 ? (
-                  <Alert severity="success">Payroll queue is empty.</Alert>
-                ) : (
-                  <Table size="small" aria-label="payroll corrections">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Employee</TableCell>
-                        <TableCell>Effective</TableCell>
-                        <TableCell>Duration</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {payrollItems.map((item) => (
-                        <TableRow key={item._id} hover>
-                          <TableCell>{item.employeeId || "—"}</TableCell>
-                          <TableCell>
-                            {formatDate(
-                              item.appliesFromDate || item.submittedAt
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {item.durationMinutes
-                              ? `${Math.round(item.durationMinutes / 60)}h`
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              color="success"
-                              label={item.status || "APPROVED"}
-                              variant="outlined"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </Box>
+              {/* Payroll corrections table removed per request. */}
             </Stack>
           )}
         </CardContent>

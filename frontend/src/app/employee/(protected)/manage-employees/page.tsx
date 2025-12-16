@@ -280,7 +280,7 @@ function EmployeeListContent() {
                 width: 120,
                 renderCell: (params) => (
                     <Chip
-                        label={params.value}
+                        label={params.value?.toUpperCase()}
                         size="small"
                         variant="outlined"
                         color={getStatusColor(params.value) as any}

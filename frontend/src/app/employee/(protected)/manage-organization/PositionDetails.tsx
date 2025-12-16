@@ -198,7 +198,7 @@ export default function PositionDetails({ position, onUpdate, departments, posit
                                         onChange={(event, newValue) => {
                                             setFormData(prev => ({ ...prev, reportsToPositionId: newValue ? newValue._id : '' }));
                                         }}
-                                        forcePopupIcon={false}
+                                        popupIcon={null}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
@@ -208,6 +208,10 @@ export default function PositionDetails({ position, onUpdate, departments, posit
                                                 size="small"
                                                 helperText="Optional"
                                                 hiddenLabel
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    endAdornment: null
+                                                }}
                                             />
                                         )}
                                     />
@@ -224,7 +228,7 @@ export default function PositionDetails({ position, onUpdate, departments, posit
                                         onChange={(event, newValue) => {
                                             setFormData(prev => ({ ...prev, departmentId: newValue ? newValue._id : '' }));
                                         }}
-                                        forcePopupIcon={false}
+                                        popupIcon={null}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
@@ -233,6 +237,10 @@ export default function PositionDetails({ position, onUpdate, departments, posit
                                                 variant="outlined"
                                                 size="small"
                                                 hiddenLabel
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    endAdornment: null
+                                                }}
                                             />
                                         )}
                                     />

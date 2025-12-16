@@ -64,7 +64,10 @@ export class AuthController {
     @Body() loginDto: LoginCandidateDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { access_token, employeeId } = await this.authService.employeeLogin(loginDto);
+    const { access_token, employeeId, roles } = await this.authService.employeeLogin(loginDto);
+
+    //console.log('🍪 [AUTH CONTROLLER] Setting cookies for employee:', employeeId);
+    //console.log('🍪 [AUTH CONTROLLER] Roles to set:', roles);
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
@@ -78,10 +81,20 @@ export class AuthController {
       sameSite: 'strict',
     });
 
+    const rolesJson = JSON.stringify(roles);
+    //console.log('🍪 [AUTH CONTROLLER] user_roles cookie value:', rolesJson);
+    response.cookie('user_roles', rolesJson, {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    //console.log('🍪 [AUTH CONTROLLER] All cookies set successfully');
+
     return {
       message: 'Login successful',
       access_token,
-      employeeId
+      employeeId,
+      roles,
     };
   }
 }

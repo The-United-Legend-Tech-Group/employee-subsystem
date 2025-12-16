@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Container, 
-    Typography, 
-    Box, 
-    Paper, 
-    Button, 
+import {
+    Container,
+    Typography,
+    Box,
+    Paper,
+    Button,
     CircularProgress,
     Alert,
     TextField,
@@ -16,11 +16,11 @@ import {
     CardContent
 } from '@mui/material';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { 
-    AppraisalAssignment, 
-    AppraisalTemplate, 
-    AppraisalRecord, 
-    CreateAppraisalRecordDto, 
+import {
+    AppraisalAssignment,
+    AppraisalTemplate,
+    AppraisalRecord,
+    CreateAppraisalRecordDto,
     UpdateAppraisalRecordDto
 } from '@/types/performance';
 
@@ -39,11 +39,11 @@ export default function AppraisalFormPage() {
     const [saving, setSaving] = useState(false);
 
     // Form state
-    const [ratings, setRatings] = useState<Record<string, { 
-        value: number, 
+    const [ratings, setRatings] = useState<Record<string, {
+        value: number,
         comments: string,
         examples: string,
-        recommendations: string 
+        recommendations: string
     }>>({});
     const [summary, setSummary] = useState('');
     const [strengths, setStrengths] = useState('');
@@ -72,11 +72,11 @@ export default function AppraisalFormPage() {
             try {
                 // 1. Fetch Assignment
                 const assignRes = await fetch(`http://localhost:50000/performance/assignments?managerId=${managerId}`);
-                
+
                 if (!assignRes.ok) throw new Error('Failed to fetch assignments');
                 const assignments: AppraisalAssignment[] = await assignRes.json();
                 const currentAssignment = assignments.find(a => a._id === assignmentId);
-                
+
                 if (!currentAssignment) throw new Error('Assignment not found');
                 setAssignment(currentAssignment);
 
@@ -96,8 +96,8 @@ export default function AppraisalFormPage() {
                 }
 
                 if (templateId === '[object Object]') {
-                     console.error('CRITICAL: templateId resulted in [object Object]. Original:', currentAssignment.templateId);
-                     throw new Error('Failed to extract valid Template ID from assignment');
+                    console.error('CRITICAL: templateId resulted in [object Object]. Original:', currentAssignment.templateId);
+                    throw new Error('Failed to extract valid Template ID from assignment');
                 }
 
                 console.log('Fetching template with ID:', templateId);
@@ -116,13 +116,13 @@ export default function AppraisalFormPage() {
                     if (recordRes.ok) {
                         const recordData: AppraisalRecord = await recordRes.json();
                         setRecord(recordData);
-                        
+
                         // Initialize form with existing data
                         const initialRatings: Record<string, { value: number, comments: string, examples: string, recommendations: string }> = {};
                         recordData.ratings.forEach(r => {
                             const parsed = parseComments(r.comments || '');
-                            initialRatings[r.key] = { 
-                                value: r.ratingValue, 
+                            initialRatings[r.key] = {
+                                value: r.ratingValue,
                                 ...parsed
                             };
                         });
@@ -179,7 +179,7 @@ export default function AppraisalFormPage() {
                 let combinedComments = data.comments;
                 if (data.examples) combinedComments += `\n\n**Examples:**\n${data.examples}`;
                 if (data.recommendations) combinedComments += `\n\n**Development Recommendations:**\n${data.recommendations}`;
-                
+
                 return {
                     key,
                     ratingValue: data.value,
@@ -242,18 +242,18 @@ export default function AppraisalFormPage() {
                 Performance Appraisal
             </Typography>
             <Typography variant="subtitle1" gutterBottom>
-                Employee: {typeof assignment.employeeProfileId === 'object' 
+                Employee: {typeof assignment.employeeProfileId === 'object'
                     ? `${assignment.employeeProfileId.firstName} ${assignment.employeeProfileId.lastName}`
                     : assignment.employeeProfileId}
             </Typography>
-            
+
             <Box component="form" noValidate autoComplete="off">
                 {template.criteria.map((criterion) => (
                     <Card key={criterion.key} sx={{ mb: 3 }}>
                         <CardContent>
                             <Typography variant="h6">{criterion.title}</Typography>
                             {criterion.details && <Typography variant="body2" color="text.secondary" paragraph>{criterion.details}</Typography>}
-                            
+
                             <Box sx={{ mt: 2 }}>
                                 <Typography gutterBottom>Rating ({template.ratingScale.min} - {template.ratingScale.max})</Typography>
                                 <Slider
@@ -266,37 +266,43 @@ export default function AppraisalFormPage() {
                                     valueLabelDisplay="auto"
                                 />
                             </Box>
-                            
+
                             <Stack spacing={2} sx={{ mt: 2 }}>
-                                <TextField
-                                    label="Comments"
-                                    multiline
-                                    rows={1}
-                                    fullWidth
-                                    variant="outlined"
-                                    value={ratings[criterion.key]?.comments || ''}
-                                    onChange={(e) => handleFieldChange(criterion.key, 'comments', e.target.value)}
-                                />
-                                <TextField
-                                    label="Examples"
-                                    multiline
-                                    rows={1}
-                                    fullWidth
-                                    variant="outlined"
-                                    value={ratings[criterion.key]?.examples || ''}
-                                    onChange={(e) => handleFieldChange(criterion.key, 'examples', e.target.value)}
-                                    placeholder="Provide specific examples..."
-                                />
-                                <TextField
-                                    label="Development Recommendations"
-                                    multiline
-                                    rows={1}
-                                    fullWidth
-                                    variant="outlined"
-                                    value={ratings[criterion.key]?.recommendations || ''}
-                                    onChange={(e) => handleFieldChange(criterion.key, 'recommendations', e.target.value)}
-                                    placeholder="Suggest actions for improvement..."
-                                />
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Comments</Typography>
+                                    <TextField
+                                        multiline
+                                        rows={1}
+                                        fullWidth
+                                        variant="outlined"
+                                        value={ratings[criterion.key]?.comments || ''}
+                                        onChange={(e) => handleFieldChange(criterion.key, 'comments', e.target.value)}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Examples</Typography>
+                                    <TextField
+                                        multiline
+                                        rows={1}
+                                        fullWidth
+                                        variant="outlined"
+                                        value={ratings[criterion.key]?.examples || ''}
+                                        onChange={(e) => handleFieldChange(criterion.key, 'examples', e.target.value)}
+                                        placeholder="Provide specific examples..."
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Development Recommendations</Typography>
+                                    <TextField
+                                        multiline
+                                        rows={1}
+                                        fullWidth
+                                        variant="outlined"
+                                        value={ratings[criterion.key]?.recommendations || ''}
+                                        onChange={(e) => handleFieldChange(criterion.key, 'recommendations', e.target.value)}
+                                        placeholder="Suggest actions for improvement..."
+                                    />
+                                </Box>
                             </Stack>
                         </CardContent>
                     </Card>
@@ -305,39 +311,45 @@ export default function AppraisalFormPage() {
                 <Paper sx={{ p: 3, mb: 3 }}>
                     <Typography variant="h6" gutterBottom>Overall Feedback</Typography>
                     <Stack spacing={3}>
-                        <TextField
-                            label="Manager Summary"
-                            multiline
-                            rows={1}
-                            fullWidth
-                            value={summary}
-                            onChange={(e) => setSummary(e.target.value)}
-                        />
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Manager Summary</Typography>
+                            <TextField
+                                multiline
+                                rows={1}
+                                fullWidth
+                                value={summary}
+                                onChange={(e) => setSummary(e.target.value)}
+                            />
+                        </Box>
                         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-                            <TextField
-                                label="Strengths"
-                                multiline
-                                rows={1}
-                                fullWidth
-                                value={strengths}
-                                onChange={(e) => setStrengths(e.target.value)}
-                            />
-                            <TextField
-                                label="Areas for Improvement"
-                                multiline
-                                rows={1}
-                                fullWidth
-                                value={improvements}
-                                onChange={(e) => setImprovements(e.target.value)}
-                            />
+                            <Box sx={{ width: '100%' }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Strengths</Typography>
+                                <TextField
+                                    multiline
+                                    rows={1}
+                                    fullWidth
+                                    value={strengths}
+                                    onChange={(e) => setStrengths(e.target.value)}
+                                />
+                            </Box>
+                            <Box sx={{ width: '100%' }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Areas for Improvement</Typography>
+                                <TextField
+                                    multiline
+                                    rows={1}
+                                    fullWidth
+                                    value={improvements}
+                                    onChange={(e) => setImprovements(e.target.value)}
+                                />
+                            </Box>
                         </Stack>
                     </Stack>
                 </Paper>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                     <Button variant="outlined" onClick={() => router.back()}>Cancel</Button>
-                    <Button 
-                        variant="contained" 
+                    <Button
+                        variant="contained"
                         onClick={handleSubmit}
                         disabled={saving}
                     >

@@ -16,6 +16,7 @@ import {
     IconButton,
     Chip,
     Skeleton,
+    TablePagination,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -30,6 +31,17 @@ export default function AppraisalTemplatesPage() {
     const [templates, setTemplates] = useState<AppraisalTemplate[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
+
+    const handleChangePage = (event: unknown, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
 
     useEffect(() => {
         loadTemplates();
@@ -100,73 +112,86 @@ export default function AppraisalTemplatesPage() {
                 </Box>
             )}
 
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Type</TableCell>
-                            <TableCell>Rating Scale</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loading ? (
-                            Array.from(new Array(5)).map((_, index) => (
-                                <TableRow key={index}>
-                                    <TableCell><Skeleton variant="text" /></TableCell>
-                                    <TableCell><Skeleton variant="text" width={100} /></TableCell>
-                                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
-                                    <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 4 }} /></TableCell>
-                                    <TableCell align="right">
-                                        <Box display="flex" justifyContent="flex-end" gap={1}>
-                                            <Skeleton variant="circular" width={40} height={40} />
-                                            <Skeleton variant="circular" width={40} height={40} />
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            templates.map((template) => (
-                                <TableRow key={template._id}>
-                                    <TableCell>{template.name}</TableCell>
-                                    <TableCell>{template.templateType}</TableCell>
-                                    <TableCell>{template.ratingScale.type}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={template.isActive ? 'Active' : 'Inactive'}
-                                            color={template.isActive ? 'success' : 'default'}
-                                            size="small"
-                                        />
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            color="primary"
-                                            onClick={() => router.push(`/employee/performance/templates/${template._id}`)}
-                                        >
-                                            <EditIcon />
-                                        </IconButton>
-                                        <IconButton
-                                            color="error"
-                                            onClick={() => handleDelete(template._id)}
-                                        >
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                        {templates.length === 0 && !loading && (
+            <Paper sx={{ width: '100%', mb: 2 }}>
+                <TableContainer>
+                    <Table>
+                        <TableHead>
                             <TableRow>
-                                <TableCell colSpan={5} align="center">
-                                    No templates found.
-                                </TableCell>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Type</TableCell>
+                                <TableCell>Rating Scale</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell align="right">Actions</TableCell>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {loading ? (
+                                Array.from(new Array(5)).map((_, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell><Skeleton variant="text" /></TableCell>
+                                        <TableCell><Skeleton variant="text" width={100} /></TableCell>
+                                        <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 4 }} /></TableCell>
+                                        <TableCell align="right">
+                                            <Box display="flex" justifyContent="flex-end" gap={1}>
+                                                <Skeleton variant="circular" width={40} height={40} />
+                                                <Skeleton variant="circular" width={40} height={40} />
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                templates
+                                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                    .map((template) => (
+                                        <TableRow key={template._id}>
+                                            <TableCell>{template.name}</TableCell>
+                                            <TableCell>{template.templateType}</TableCell>
+                                            <TableCell>{template.ratingScale.type}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={template.isActive ? 'Active' : 'Inactive'}
+                                                    color={template.isActive ? 'success' : 'default'}
+                                                    size="small"
+                                                />
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <IconButton
+                                                    color="primary"
+                                                    onClick={() => router.push(`/employee/performance/templates/${template._id}`)}
+                                                >
+                                                    <EditIcon />
+                                                </IconButton>
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => handleDelete(template._id)}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                            )}
+                            {templates.length === 0 && !loading && (
+                                <TableRow>
+                                    <TableCell colSpan={5} align="center">
+                                        No templates found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[5, 10, 25]}
+                    component="div"
+                    count={templates.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+            </Paper>
         </Container>
     );
 }

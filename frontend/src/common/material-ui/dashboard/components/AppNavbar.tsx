@@ -42,7 +42,7 @@ export default function AppNavbar() {
       sx={{
         display: { xs: 'auto', md: 'none' },
         boxShadow: 0,
-        bgcolor: 'background.paper',
+        bgcolor: 'background.default',
         backgroundImage: 'none',
         borderBottom: '1px solid',
         borderColor: 'divider',

@@ -253,6 +253,7 @@ export default function OrganizationHierarchy() {
 
     const containerRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
+    const hasSwitchedMode = React.useRef(false); // Track if user has toggled mode
 
     // Fetch user profile info on mount
     React.useEffect(() => {
@@ -347,15 +348,17 @@ export default function OrganizationHierarchy() {
         fetchHierarchy();
     }, [showMyHierarchy, currentEmployeeId, userInfoLoaded]);
 
-    // Auto-scroll to component when switching views
+    // Auto-scroll to component when switching views (not on initial load)
     React.useEffect(() => {
-        if (!loading && hierarchy.length > 0 && containerRef.current) {
+        if (!loading && hierarchy.length > 0 && containerRef.current && hasSwitchedMode.current) {
             // Small delay to ensure fade animation has started
             const timer = setTimeout(() => {
                 containerRef.current?.scrollIntoView({
                     behavior: 'smooth',
                     block: 'center',
                 });
+                // Reset after scrolling
+                hasSwitchedMode.current = false;
             }, 150);
             return () => clearTimeout(timer);
         }
@@ -500,6 +503,7 @@ export default function OrganizationHierarchy() {
                     exclusive
                     onChange={(e, newValue) => {
                         if (newValue !== null) {
+                            hasSwitchedMode.current = true;
                             setShowMyHierarchy(newValue === 'my');
                         }
                     }}

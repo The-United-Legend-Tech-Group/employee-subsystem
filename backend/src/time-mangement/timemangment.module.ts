@@ -30,6 +30,7 @@ import { NotificationModule } from '../employee-subsystem/notification/notificat
 import { ShiftRepository } from './repository/shift.repository';
 import { ShiftAssignmentRepository } from './repository/shift-assignment.repository';
 import { ScheduleRuleRepository } from './repository/schedule-rule.repository';
+import { ShiftTypeRepository } from './repository/shift-type.repository';
 import { HolidayRepository } from './repository/holiday.repository';
 import { AttendanceRepository } from './repository/attendance.repository';
 import { AttendanceCorrectionRepository } from './repository/attendance-correction.repository';
@@ -71,6 +72,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     PermissionDurationConfigRepository,
     PermissionDurationConfigService,
     ShiftRepository,
+    ShiftTypeRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,
@@ -84,6 +86,7 @@ import { Holiday, HolidaySchema } from './models/holiday.schema';
     AttendanceService,
     EscalationService,
     ShiftRepository,
+    ShiftTypeRepository,
     ShiftAssignmentRepository,
     ScheduleRuleRepository,
     HolidayRepository,

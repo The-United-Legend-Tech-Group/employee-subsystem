@@ -33,6 +33,18 @@ export class TimeController {
     private readonly attendanceService: AttendanceService,
   ) {}
 
+  @Get('shift-types')
+  @ApiOperation({ summary: 'List shift types' })
+  getShiftTypes() {
+    return this.shiftService.getShiftTypes();
+  }
+
+  @Post('shift-types')
+  @ApiOperation({ summary: 'Create a shift type' })
+  createShiftType(@Body() dto: { name: string; active?: boolean }) {
+    return this.shiftService.createShiftType(dto as any);
+  }
+
   @Get('ping')
   @ApiOperation({ summary: 'Health check for time subsystem' })
   @ApiResponse({ status: 200, description: 'pong' })

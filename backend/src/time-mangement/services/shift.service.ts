@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ShiftRepository } from '../repository/shift.repository';
+import { ShiftTypeRepository } from '../repository/shift-type.repository';
 import { ShiftAssignmentService } from './shift-assignment.service';
 import { ScheduleRuleRepository } from '../repository/schedule-rule.repository';
 import { CreateShiftDto } from '../dto/create-shift.dto';
@@ -12,6 +13,7 @@ export class ShiftService {
     private readonly shiftRepo: ShiftRepository,
     private readonly shiftAssignmentService: ShiftAssignmentService,
     private readonly scheduleRuleRepo?: ScheduleRuleRepository,
+    private readonly shiftTypeRepo?: ShiftTypeRepository,
   ) {}
 
   async createShift(dto: CreateShiftDto) {
@@ -139,5 +141,29 @@ export class ShiftService {
 
   async getAllShifts() {
     return this.shiftRepo.find({});
+  }
+
+  // --- Shift Type helpers used by frontend
+  async getShiftTypes() {
+    if (!this.shiftTypeRepo) {
+      throw new Error('ShiftTypeRepository not available');
+    }
+    return this.shiftTypeRepo.find({});
+  }
+
+  async createShiftType(dto: { name: string; active?: boolean }) {
+    if (!this.shiftTypeRepo) {
+      throw new Error('ShiftTypeRepository not available');
+    }
+    const existing = await this.shiftTypeRepo.findOne({
+      name: dto.name,
+    } as any);
+    if (existing) {
+      return existing;
+    }
+    return this.shiftTypeRepo.create({
+      name: dto.name,
+      active: dto.active ?? true,
+    } as any);
   }
 }

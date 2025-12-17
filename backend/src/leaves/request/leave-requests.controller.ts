@@ -125,6 +125,19 @@ async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise
   return this.leavesRequestService.getLeaveRequestsForManager(managerId);
 }
 
+// Get leave requests for current authenticated manager
+@Get('my-team-requests')
+@UseGuards(AuthGuard)
+@ApiOperation({ summary: 'Get leave requests for current manager\'s team' })
+@ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
+async getMyTeamRequests(@Req() req: any): Promise<LeaveRequest[]> {
+  const user: any = (req as any).user;
+  const managerId = user?.sub || user?.employeeId;
+  return this.leavesRequestService.getLeaveRequestsForManager(
+    new Types.ObjectId(managerId).toString(),
+  );
+}
+
 // ------------------------------
 // HR Manager: Get All Leave Requests
 // ------------------------------

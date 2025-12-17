@@ -195,9 +195,14 @@ export class LeavesRequestService {
     const leaveRequests = await this.leaveRequestRepository.find({
       employeeId: { $in: employeeIds },
     });
-    return leaveRequests;
-
-
+    
+    // Sort by createdAt descending (most recent first)
+    // createdAt is added by Mongoose timestamps but not in TypeScript type
+    return leaveRequests.sort((a, b) => {
+      const aDate = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const bDate = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      return bDate - aDate;
+    });
   }
 
   // ---------- REQ-021: Manager Approves a request ----------

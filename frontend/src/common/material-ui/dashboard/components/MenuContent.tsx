@@ -128,6 +128,12 @@ export const leavesSubItems: MenuItem[] = [
     roles: ["HR Manager"],
   },
   {
+    text: "Dashboard",
+    icon: <DashboardRoundedIcon />,
+    path: "/employee/leaves/requests/manager",
+    roles: ["head of department"],
+  },
+  {
     text: "Leave Types",
     icon: <BeachAccessRoundedIcon />,
     path: "/employee/leaves/type",
@@ -224,6 +230,7 @@ export default function MenuContent() {
     if (text === 'Leave Types' && pathname === '/employee/leaves/type') return true;
     if (text === 'Calendar' && pathname === '/employee/leaves/calendar') return true;
     if (text === 'Dashboard' && pathname === '/employee/leaves/requests/hr') return true;
+    if (text === 'Dashboard' && pathname === '/employee/leaves/requests/manager') return true;
     return false;
   };
 

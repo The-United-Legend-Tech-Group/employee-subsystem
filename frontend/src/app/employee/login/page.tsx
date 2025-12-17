@@ -292,6 +292,11 @@ export default function EmployeeLogin() {
         );
         localStorage.setItem("employeeId", encryptedEmployeeId);
 
+        // Store roles in localStorage
+        if (data.roles) {
+          localStorage.setItem("user_roles", JSON.stringify(data.roles));
+        }
+
         router.push("/employee/dashboard");
       } else {
         const errorData = await response.json();

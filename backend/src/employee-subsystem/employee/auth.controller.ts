@@ -36,14 +36,14 @@ export class AuthController {
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
     });
 
     response.cookie('candidateId', candidateId, {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
     });
 
     return {
@@ -71,21 +71,21 @@ export class AuthController {
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
     });
 
     response.cookie('employeeid', employeeId, {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
     });
 
     const rolesJson = JSON.stringify(roles);
     //console.log('🍪 [AUTH CONTROLLER] user_roles cookie value:', rolesJson);
     response.cookie('user_roles', rolesJson, {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
     });
 
     //console.log('🍪 [AUTH CONTROLLER] All cookies set successfully');

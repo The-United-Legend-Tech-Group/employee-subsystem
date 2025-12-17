@@ -14,6 +14,7 @@ import {
   Tab,
   MenuItem,
 } from '@mui/material';
+import { apiService } from '../../../../../../common/services/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -62,10 +63,15 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
   const [pendingRequests, setPendingRequests] = useState<LeaveRequestOption[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const onModifyChange = (key: keyof typeof modifyForm, value: string) =>
     setModifyForm((f) => ({ ...f, [key]: value }));
 
+  
   const computeDuration = () => {
     if (!modifyForm.fromDate || !modifyForm.toDate) return 0;
     const from = new Date(modifyForm.fromDate);
@@ -75,6 +81,18 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
     return diffDays > 0 ? diffDays : 0;
   };
+
+  function getCurrentEmployeeId() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.sub || payload.employeeId || payload.userId || null;
+    } catch (err) {
+      console.error('Failed to decode token:', err);
+      return null;
+    }
+  }
 
   async function handleModifySubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -204,6 +222,11 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
       setAttachmentError('Please enter a request ID.');
       return;
     }
+    const employeeId = getCurrentEmployeeId();
+    if (!employeeId) {
+      setError('Unable to identify current employee. Please log in again.');
+      return;
+    }
     if (!attachmentFile) {
       setAttachmentError('Please choose a file to upload.');
       return;
@@ -213,12 +236,17 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
     try {
       const token = localStorage.getItem('access_token');
 
+      let documentUrl = null;
+
+      if (attachmentFile) {
+        documentUrl = await apiService.uploadFile(attachmentFile, employeeId);
+      }
       // Step 1: create attachment metadata
       const uploadPayload = {
-        originalName: attachmentFile.name,
-        filePath: '/attachments/' + attachmentFile.name,
-        fileType: attachmentFile.type,
-        size: attachmentFile.size,
+        originalName: String(attachmentFile?.name || ''),
+        filePath: String(documentUrl || ''),
+        fileType: String(attachmentFile?.type || ''),
+        size: Number(attachmentFile?.size || 0),
       };
 
       const uploadRes = await fetch(`${API_BASE}/leaves/upload-attachment`, {
@@ -244,23 +272,29 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
         throw new Error('Attachment created without ID');
       }
 
-      // Step 2: attach document to existing leave request
-      const attachRes = await fetch(
-        `${API_BASE}/leaves/attach-document/${attachmentRequestId}/${attachmentId}`,
+      // Step 2: attach document to existing leave request using modify-request
+      const modifyPayload = {
+        attachmentId: attachmentId,
+      };
+
+      const modifyRes = await fetch(
+        `${API_BASE}/leaves/modify-request/${attachmentRequestId}`,
         {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
+            'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: 'include',
+          body: JSON.stringify(modifyPayload),
         },
       );
 
-      if (!attachRes.ok) {
-        const errData = await attachRes.json().catch(() => ({
+      if (!modifyRes.ok) {
+        const errData = await modifyRes.json().catch(() => ({
           message: 'Failed to attach document to request',
         }));
-        throw new Error(errData.message || `Failed (${attachRes.status})`);
+        throw new Error(errData.message || `Failed (${modifyRes.status})`);
       }
 
       setAttachmentSuccess('Document attached to request successfully');

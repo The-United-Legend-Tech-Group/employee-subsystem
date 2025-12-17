@@ -24,7 +24,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'https://arcana-emp-frontend.netlify.app',
+      'https://employee-subsystem-frontend.onrender.com',
       ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
     ],
     credentials: true,

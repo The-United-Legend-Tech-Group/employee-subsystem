@@ -122,9 +122,10 @@ export const performanceSubItems: MenuItem[] = [
 
 export const leavesSubItems: MenuItem[] = [
   {
-    text: "Leave Requests",
-    icon: <ListAltRoundedIcon />,
-    path: "/employee/leaves/requests",
+    text: "Dashboard",
+    icon: <DashboardRoundedIcon />,
+    path: "/employee/leaves/requests/hr",
+    roles: ["HR Manager"],
   },
   {
     text: "Leave Types",
@@ -137,6 +138,11 @@ export const leavesSubItems: MenuItem[] = [
     icon: <ListAltRoundedIcon />,
     path: "/employee/leaves/policy",
     roles: ["HR Admin"],
+  },
+  {
+    text: "Leave Requests",
+    icon: <ListAltRoundedIcon />,
+    path: "/employee/leaves/requests",
   },
   {
     text: "Entitlements",
@@ -217,6 +223,7 @@ export default function MenuContent() {
     if (text === 'Entitlements' && pathname === '/employee/leaves/entitlement') return true;
     if (text === 'Leave Types' && pathname === '/employee/leaves/type') return true;
     if (text === 'Calendar' && pathname === '/employee/leaves/calendar') return true;
+    if (text === 'Dashboard' && pathname === '/employee/leaves/requests/hr') return true;
     return false;
   };
 
@@ -243,6 +250,7 @@ export default function MenuContent() {
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Compose Notification') router.push('/employee/compose-notification');
     if (text === 'Time Management') router.push('/employee/time-mangemeant');
+    if (text === 'Dashboard') router.push('/employee/leaves/hr');
   };
 
   return (

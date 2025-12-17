@@ -112,6 +112,13 @@ export class LeavesRequestService {
     });
   }
 
+  async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
+    // Get all leave requests without populating other subsystem schemas
+    // Returns leave requests with employeeId and leaveTypeId as ObjectIds only
+    // Sorted by createdAt descending (most recent first)
+    return this.leaveRequestRepository.findAllSorted();
+  }
+
   // ---------- REQ-017: Update Pending Leave Requests ----------
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD)

@@ -67,4 +67,8 @@ export class LeaveRequestRepository extends BaseRepository<LeaveRequestDocument>
   async updateWithApprovalFlow(leaveRequestId: string, updateData: any): Promise<LeaveRequestDocument | null> {
     return this.model.findByIdAndUpdate(leaveRequestId, updateData, { new: true }).exec();
   }
+
+  async findAllSorted(): Promise<LeaveRequestDocument[]> {
+    return this.model.find({}).sort({ createdAt: -1 }).exec();
+  }
 }

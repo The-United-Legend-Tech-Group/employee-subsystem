@@ -125,6 +125,17 @@ async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise
   return this.leavesRequestService.getLeaveRequestsForManager(managerId);
 }
 
+// ------------------------------
+// HR Manager: Get All Leave Requests
+// ------------------------------
+@Get('hr/all-requests')
+@UseGuards(AuthGuard)
+@ApiOperation({ summary: 'Get all leave requests for HR manager review' })
+@ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
+async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
+  return this.leavesRequestService.getAllLeaveRequestsForHR();
+}
+
     // ---------- REQ-021: Manager Approves a request ----------
   @Patch(':id/approve')
   @ApiOperation({ summary: 'Manager approves leave request' })

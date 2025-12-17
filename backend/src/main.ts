@@ -22,7 +22,11 @@ async function bootstrap() {
   // can successfully call endpoints during local testing.
   app.use(cookieParser());
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://arcana-emp-frontend.netlify.app',
+      ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
+    ],
     credentials: true,
   });
 

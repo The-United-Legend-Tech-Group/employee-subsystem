@@ -122,26 +122,26 @@ export const performanceSubItems: MenuItem[] = [
 
 const leavesSubItems = [
   {
-    text: "Policy Management",
+    text: "Leave Types",
+    icon: <BeachAccessRoundedIcon />,
+    path: "/employee/leaves/type",
+    roles: ["HR Admin"]
+  },
+  {
+    text: "Leave Policies",
     icon: <ListAltRoundedIcon />,
     path: "/employee/leaves/policy",
     roles: ["HR Admin"]
 
   },
   {
-    text: "Leave Type Management",
-    icon: <BeachAccessRoundedIcon />,
-    path: "/employee/leaves/type",
-    roles: ["HR Admin"]
-  },
-  {
-    text: "Entitlement Management",
+    text: "Entitlements",
     icon: <PlaylistAddCheckRoundedIcon />,
     path: "/employee/leaves/entitlement",
     roles: ["HR Admin"]
   },
   {
-    text: "Calendar Management",
+    text: "Calendar",
     icon: <CalendarViewDay/>,
     path: "/employee/leaves/calendar",
     roles: ["HR Admin"]
@@ -208,10 +208,10 @@ export default function MenuContent() {
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
 
     // Leaves submenu highlight
-    if (text === 'Policy Management' && pathname === '/employee/leaves/policy') return true;
-    if (text === 'Entitlement Management' && pathname === '/employee/leaves/entitlement') return true;
-    if (text === 'Leave Type Management' && pathname === '/employee/leaves/type') return true;
-    if (text === 'Calendar Management' && pathname === '/employee/leaves/calendar') return true;
+    if (text === 'Leave Policies' && pathname === '/employee/leaves/policy') return true;
+    if (text === 'Entitlements' && pathname === '/employee/leaves/entitlement') return true;
+    if (text === 'Leave Types' && pathname === '/employee/leaves/type') return true;
+    if (text === 'Calendar' && pathname === '/employee/leaves/calendar') return true;
     return false;
   };
 

@@ -11,6 +11,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import {apiService} from '../../../../../../common/services/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -46,6 +47,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeOption[]>([]);
   const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
   const [leaveTypesError, setLeaveTypesError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false)
 
   const [form, setForm] = useState({
     leaveTypeId: '',
@@ -107,6 +109,8 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setUploading(true);
+
 
     if (!API_BASE) {
       setError('API base URL is not configured.');
@@ -134,17 +138,17 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
     try {
       const token = localStorage.getItem('access_token');
 
-      const attachmentMeta =
-        file != null
-          ? {
-              originalFileName: file.name,
-              // NOTE: filePath here is a logical placeholder; actual file storage
-              // should be handled by a dedicated upload service on the backend.
-              filePath: file.name,
-              fileType: file.type,
-              size: file.size,
-            }
-          : {};
+      let documentUrl = null;
+
+      if (file) {
+        documentUrl = await apiService.uploadFile(file, employeeId);
+      }
+      const attachmentMeta = {
+        originalFileName: file?.name,
+        filePath: documentUrl,
+        fileType: file?.type,
+        size: file?.size,
+      };
 
       const payload: any = {
         employeeId,

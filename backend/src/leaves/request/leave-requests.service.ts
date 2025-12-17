@@ -56,6 +56,10 @@ export class LeavesRequestService {
       attachmentId = attachment._id;
     }
 
+    if(leaveType.maxDurationDays && dto.durationDays > leaveType.maxDurationDays) {
+      throw new BadRequestException('Duration days exceeds the maximum duration days for this leave type');
+    }
+
     return await this.leaveRequestRepository.create({
       employeeId: new Types.ObjectId(dto.employeeId),
       leaveTypeId: new Types.ObjectId(dto.leaveTypeId),

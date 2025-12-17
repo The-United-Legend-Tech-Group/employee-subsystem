@@ -125,24 +125,26 @@ const leavesSubItems = [
     text: "Policy Management",
     icon: <ListAltRoundedIcon />,
     path: "/employee/leaves/policy",
+    roles: ["HR Admin"]
 
   },
   {
     text: "Leave Type Management",
     icon: <BeachAccessRoundedIcon />,
     path: "/employee/leaves/type",
+    roles: ["HR Admin"]
   },
   {
     text: "Entitlement Management",
     icon: <PlaylistAddCheckRoundedIcon />,
     path: "/employee/leaves/entitlement",
-
+    roles: ["HR Admin"]
   },
   {
     text: "Calendar Management",
     icon: <CalendarViewDay/>,
     path: "/employee/leaves/calendar",
-
+    roles: ["HR Admin"]
   },
 ];
 
@@ -158,13 +160,13 @@ export default function MenuContent() {
   const [performanceOpen, setPerformanceOpen] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [leavesOpen, setLeavesOpen] = useState(false);
 
   // Load user roles only on client side to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true);
     setUserRoles(getUserRoles());
   }, []);
-  const [leavesOpen, setLeavesOpen] = useState(false);
 
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
@@ -301,25 +303,33 @@ export default function MenuContent() {
             <ListItemIcon>
               <BeachAccessRoundedIcon />
             </ListItemIcon>
-            <ListItemText primary="Leaves HR_ADMIN" />
+            <ListItemText primary="Leaves" />
             {leavesOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           </ListItemButton>
         </ListItem>
 
         <Collapse in={leavesOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            {leavesSubItems.map((item, index) => (
-              <ListItem key={index} disablePadding sx={{ display: "block" }}>
-                <ListItemButton
-                
-                  selected={isSelected(item.text)}
-                  onClick={() => handleNavigation(item.text, item.path)}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {leavesSubItems.map((item, index) => {
+              // Only apply role-based filtering on client side after hydration
+              if (isClient) {
+                // @ts-ignore
+                if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+                  return null;
+                }
+              }
+              return (
+                <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                  <ListItemButton
+                    selected={isSelected(item.text)}
+                    onClick={() => handleNavigation(item.text, item.path)}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
           </List>
         </Collapse>
       </List>

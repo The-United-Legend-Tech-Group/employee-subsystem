@@ -37,7 +37,6 @@ import { ConfigureLeaveParametersDto } from '../dtos/configure-leave-parameters.
 import { LeaveCategory } from '../models/leave-category.schema';
 import { AuthGuard } from '../../common/guards/authentication.guard';
 
-
 @ApiTags('Leaves Policy')
 @Controller('leaves')
 @UseGuards(AuthGuard)

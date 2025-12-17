@@ -24,7 +24,7 @@ import AttendanceRecordsSection from "./AttendanceRecordsSection";
 import ExceptionsSection from "./ExceptionsSection";
 import TimeExceptionsSection from "./TimeExceptionsSection";
 import OverviewMetrics from "./OverviewMetrics";
-import PolicyRulesSection from "./PolicyRulesSection";
+//import PolicyRulesSection from "./PolicyRulesSection";
 import SectionHeading from "./SectionHeading";
 import ShiftAssignmentsSection from "./ShiftAssignmentsSection";
 import {
@@ -616,15 +616,15 @@ export default function TimeManagementClient({
 
         {error && <Alert severity="error">{error}</Alert>}
 
-        <Tabs
+        {/* <Tabs
           value={activeSection}
           onChange={handleSectionChange}
           variant="scrollable"
           scrollButtons="auto"
           aria-label="Time management sections"
           sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}
-        >
-          {tabItems.map((tab) => (
+        > */}
+          {/* {tabItems.map((tab) => (
             <Tab
               key={tab.id}
               value={tab.id}
@@ -633,7 +633,7 @@ export default function TimeManagementClient({
               iconPosition="start"
             />
           ))}
-        </Tabs>
+        </Tabs> */}
 
         <Box sx={{ mt: 2 }}>
           {activeSection === overviewSection.id && (
@@ -663,7 +663,7 @@ export default function TimeManagementClient({
             />
           )}
 
-          {activeSection === policiesSection.id && (
+          {/* {activeSection === policiesSection.id && (
             <PolicyRulesSection
               section={policiesSection}
               shifts={shiftDefinitions}
@@ -672,7 +672,7 @@ export default function TimeManagementClient({
               authToken={authToken}
               onRefresh={handleRefresh}
             />
-          )}
+          )} */}
 
           {activeSection === attendanceRecordsSection.id && (
             <AttendanceRecordsSection

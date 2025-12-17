@@ -24,7 +24,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'https://employee-subsystem-frontend.onrender.com',
+      'https://employee-subsystem.onrender.com/',
       ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
     ],
     credentials: true,

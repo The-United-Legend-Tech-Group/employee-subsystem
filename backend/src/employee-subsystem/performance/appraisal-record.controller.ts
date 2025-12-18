@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppraisalRecordService } from './appraisal-record.service';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
+import { GetAllRecordsQueryDto } from './dto/get-all-records-query.dto';
 import { AppraisalRecord } from './models/appraisal-record.schema';
 import { AuthGuard } from '../../common/guards/authentication.guard';
 import { authorizationGuard } from '../../common/guards/authorization.guard';
@@ -15,6 +16,20 @@ export class AppraisalRecordController {
     constructor(
         private readonly appraisalRecordService: AppraisalRecordService,
     ) { }
+
+    @Get('all')
+    @UseGuards(AuthGuard, authorizationGuard)
+    @Roles(SystemRole.HR_EMPLOYEE)
+    @ApiOperation({ summary: 'Get all appraisal records with pagination (HR only)' })
+    @ApiResponse({
+        status: 200,
+        description: 'Paginated list of appraisal records',
+    })
+    async getAllRecords(
+        @Query() query: GetAllRecordsQueryDto,
+    ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+        return this.appraisalRecordService.getAllRecords(query);
+    }
 
     @Get(':id')
     @UseGuards(AuthGuard)

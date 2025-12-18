@@ -101,7 +101,7 @@ export const performanceSubItems: MenuItem[] = [
     roles: ["department head"]
   },
   {
-    text: "My Assigned Appraisals",
+    text: "Appraisal Review Hub",
     icon: <AssignmentRoundedIcon />,
     path: "/employee/performance/manager-assignments",
     roles: ["HR Employee"]
@@ -170,7 +170,7 @@ export default function MenuContent() {
     if (text === 'Appraisal Assignments' && pathname === '/employee/performance/assignments') return true;
     if (text === 'Appraisal Monitoring' && pathname === '/employee/performance/monitoring') return true;
     if (text === 'Manager Appraisal' && pathname === '/employee/performance/manager') return true;
-    if (text === 'My Assigned Appraisals' && pathname === '/employee/performance/manager-assignments') return true;
+    if (text === 'Appraisal Review Hub' && pathname === '/employee/performance/manager-assignments') return true;
     if (text === 'My Performance' && pathname === '/employee/performance/my-records') return true;
     if (text === 'Manage Disputes' && pathname === '/employee/performance/manage-disputes') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;

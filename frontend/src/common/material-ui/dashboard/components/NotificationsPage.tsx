@@ -48,10 +48,14 @@ const getNotificationIcon = (type: string) => {
     }
 };
 
-export default function NotificationsPage() {
+interface NotificationsPageProps {
+    initialNotifications?: Notification[];
+}
+
+export default function NotificationsPage({ initialNotifications = [] }: NotificationsPageProps) {
     const theme = useTheme();
-    const [loading, setLoading] = React.useState(true);
-    const [notifications, setNotifications] = React.useState<Notification[]>([]);
+    const [loading, setLoading] = React.useState(!initialNotifications.length);
+    const [notifications, setNotifications] = React.useState<Notification[]>(initialNotifications);
     const [filter, setFilter] = React.useState<'all' | 'unread'>('all');
 
     const fetchNotifications = async () => {
@@ -78,8 +82,10 @@ export default function NotificationsPage() {
     };
 
     React.useEffect(() => {
-        fetchNotifications();
-    }, []);
+        if (initialNotifications.length === 0) {
+            fetchNotifications();
+        }
+    }, [initialNotifications.length]);
 
     const handleMarkAsRead = async (id: string) => {
         const token = localStorage.getItem('access_token');

@@ -11,6 +11,8 @@ import { PayrollCalculationService } from './services/payroll-calculation.servic
 import { PayrollExceptionsService } from './services/payroll-exceptions.service';
 import { PayslipService } from './services/payslip.service';
 import { EmployeePenaltyService } from './services/EmployeePenalty.service';
+import { EmployeeSigningBonusService } from './services/EmployeesigningBonus.service';
+import { EmployeeTerminationResignationService } from './services/EmployeeTerminationResignation.service';
 
 // Schemas - Execution
 import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
@@ -107,6 +109,8 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
     PayrollExceptionsService,
     PayslipService,
     EmployeePenaltyService,
+    EmployeeSigningBonusService,
+    EmployeeTerminationResignationService,
   ],
   exports: [
     MongooseModule, // export schemas
@@ -115,6 +119,8 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
     PayrollCalculationService,
     PayrollExceptionsService,
     PayslipService,
+    EmployeeSigningBonusService,
+    EmployeeTerminationResignationService,
   ],
 })
-export class ExecutionModule {}
+export class ExecutionModule { }

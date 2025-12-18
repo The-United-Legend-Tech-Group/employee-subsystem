@@ -7,6 +7,7 @@ import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
 import TimelapseRoundedIcon from "@mui/icons-material/TimelapseRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import AddIcon from "@mui/icons-material/Add";
 import Alert from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -41,6 +42,7 @@ import { alpha } from "@mui/material/styles";
 
 import SectionHeading from "./SectionHeading";
 import ShiftTemplateCard from "./ShiftTemplateCard";
+import CreateScheduleRuleModal from "./CreateScheduleRuleModal";
 import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
@@ -64,6 +66,7 @@ type ShiftFormState = {
   endTime: string;
   active: boolean;
   graceInMinutes: number;
+  graceOutMinutes: number;
 };
 
 type HolidayFormState = {
@@ -417,7 +420,8 @@ function PolicyInsightCard({
           <Stack spacing={1.5}>
             {insight.toggles.map((toggle) => {
               const toggleDisabled =
-                !onToggle || (!toggle.action && toggle.action?.kind !== "info");
+                !onToggle ||
+                (!toggle.action && (toggle.action as any)?.kind !== "info");
               const hasAction = toggle.action && toggle.action.kind !== "info";
 
               return (
@@ -605,6 +609,9 @@ export default function PolicyRulesSection({
   const [selectedShiftId, setSelectedShiftId] = React.useState<string | null>(
     null
   );
+
+  const [scheduleRuleModalOpen, setScheduleRuleModalOpen] =
+    React.useState(false);
 
   const selectedShift = React.useMemo(
     () => activeShifts.find((s) => s._id === selectedShiftId) ?? null,
@@ -1149,15 +1156,30 @@ export default function PolicyRulesSection({
               <Card variant="outlined" sx={{ height: "100%" }}>
                 <CardContent>
                   <Stack spacing={2.5}>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Schedule rules
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Pulled from `/time/schedule-rules` to describe rotation
-                        patterns.
-                      </Typography>
-                    </Box>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                    >
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Schedule rules
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Pulled from `/time/schedule-rules` to describe
+                          rotation patterns.
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={() => setScheduleRuleModalOpen(true)}
+                        sx={{ minWidth: "auto", textTransform: "none" }}
+                      >
+                        Create Rule
+                      </Button>
+                    </Stack>
 
                     {/* Detail pane for selected shift */}
                     <Box>
@@ -1485,6 +1507,19 @@ export default function PolicyRulesSection({
           {snackbar.message}
         </Alert>
       </Snackbar>
+      <CreateScheduleRuleModal
+        open={scheduleRuleModalOpen}
+        onClose={() => setScheduleRuleModalOpen(false)}
+        onSuccess={() => {
+          setScheduleRuleModalOpen(false);
+          onRefresh?.();
+          setSnackbar({
+            open: true,
+            severity: "success",
+            message: "Schedule rule created successfully!",
+          });
+        }}
+      />
     </Box>
   );
 }

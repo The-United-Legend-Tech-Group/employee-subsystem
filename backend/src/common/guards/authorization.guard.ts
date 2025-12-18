@@ -32,8 +32,13 @@ export class authorizationGuard implements CanActivate {
     const { user } = request;
     if (!user) throw new UnauthorizedException('no user attached');
 
-    const employeeId = request.cookies?.employeeId;
+    // Prefer employee id from cookies (note: cookie name is 'employeeid' in auth.controller)
+    const employeeId =
+      request.cookies?.employeeid ||
+      request.cookies?.employeeId ||
+      user.employeeId;
 
+    // If we have an employee id, look up roles from the EmployeeSystemRole collection
     if (employeeId) {
       const employeeRoles = await this.employeeSystemRoleModel.findOne({
         employeeProfileId: employeeId,
@@ -43,20 +48,35 @@ export class authorizationGuard implements CanActivate {
         throw new ForbiddenException('Access Denied');
       }
 
-      const hasRole = requiredRoles.some((role) =>
+      const hasRoleFromDb = requiredRoles.some((role) =>
         employeeRoles.roles.includes(role),
       );
 
-      if (!hasRole) {
-        throw new ForbiddenException('unauthorized access');
+      if (hasRoleFromDb) {
+        return true;
       }
-      return true;
+      // If DB record exists but doesn't contain the role, explicitly deny
+      throw new ForbiddenException('unauthorized access');
     }
 
-    // Fallback for candidates or users without employeeId cookie
-    const userRole = user.role;
-    if (!requiredRoles.includes(userRole))
+    // Fallback: rely on JWT payload roles (employees) or single role (candidates/others)
+    const jwtRoles: string[] | undefined = Array.isArray(user.roles)
+      ? user.roles
+      : user.role
+      ? [user.role]
+      : undefined;
+
+    if (!jwtRoles || jwtRoles.length === 0) {
       throw new ForbiddenException('unauthorized access');
+    }
+
+    const hasRoleFromJwt = requiredRoles.some((role) =>
+      jwtRoles.includes(role),
+    );
+
+    if (!hasRoleFromJwt) {
+      throw new ForbiddenException('unauthorized access');
+    }
 
     return true;
   }

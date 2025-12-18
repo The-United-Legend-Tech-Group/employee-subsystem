@@ -224,7 +224,7 @@ export default function AppraisalFormPage() {
                 if (!res.ok) throw new Error('Failed to create record');
             }
 
-            router.push(`/employee/performance/manager?managerId=${managerId}`); // Go back to list
+            router.push('/employee/performance/manager');
         } catch (err: any) {
             setError(err.message || 'Failed to save');
         } finally {

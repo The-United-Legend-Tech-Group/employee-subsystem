@@ -366,7 +366,12 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
                 </form>
             </Card>
 
-            <Snackbar open={!!feedback} autoHideDuration={6000} onClose={() => setFeedback(null)}>
+            <Snackbar
+                open={!!feedback}
+                autoHideDuration={6000}
+                onClose={() => setFeedback(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
                 <Alert onClose={() => setFeedback(null)} severity={feedback?.severity || 'info'} sx={{ width: '100%' }}>
                     {feedback?.message}
                 </Alert>

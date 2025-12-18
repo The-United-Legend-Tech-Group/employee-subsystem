@@ -3,6 +3,7 @@ import { AppraisalRecordRepository } from './repository/appraisal-record.reposit
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
+import { GetAllRecordsQueryDto } from './dto/get-all-records-query.dto';
 import { AppraisalRecordDocument } from './models/appraisal-record.schema';
 import { AppraisalRecordStatus, AppraisalAssignmentStatus } from './enums/performance.enums';
 import { AttendanceService } from '../../time-mangement/services/attendance.service';
@@ -15,6 +16,7 @@ import { CandidateRepository } from '../employee/repository/candidate.repository
 import { ContractRepository } from '../../Recruitment/repositories/implementations/contract.repository';
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
 import { EmployeeStatus } from '../employee/enums/employee-profile.enums';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class AppraisalRecordService {
@@ -33,6 +35,120 @@ export class AppraisalRecordService {
         private readonly contractRepository: ContractRepository,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
     ) { }
+
+    async getAllRecords(query: GetAllRecordsQueryDto): Promise<{
+        data: any[];
+        total: number;
+        page: number;
+        limit: number;
+    }> {
+        const page = query.page || 1;
+        const limit = query.limit || 10;
+        const skip = (page - 1) * limit;
+
+        // Build base filter
+        const filter: any = {};
+
+        if (query.status) {
+            filter.status = query.status;
+        }
+
+        if (query.cycleId) {
+            filter.cycleId = new Types.ObjectId(query.cycleId);
+        }
+
+        // If searching, first find matching employee/manager profiles
+        if (query.search && query.search.trim()) {
+            const searchRegex = new RegExp(query.search.trim(), 'i');
+            const matchingProfiles = await this.employeeProfileRepository.find({
+                $or: [
+                    { firstName: searchRegex },
+                    { lastName: searchRegex },
+                ],
+            });
+
+            const profileIds = matchingProfiles.map((p: any) => p._id.toString());
+
+            if (profileIds.length === 0) {
+                // No matches, return empty
+                return { data: [], total: 0, page, limit };
+            }
+
+            // Search in both employee and manager fields
+            filter.$or = [
+                { employeeProfileId: { $in: profileIds.map(id => new Types.ObjectId(id)) } },
+                { managerProfileId: { $in: profileIds.map(id => new Types.ObjectId(id)) } },
+            ];
+        }
+
+        // Get all matching records
+        const allRecords = await this.appraisalRecordRepository.find(filter);
+        const total = allRecords.length;
+
+        // Sort by createdAt descending (most recent first) and paginate
+        const sortedRecords = allRecords.sort((a: any, b: any) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        const paginatedRecords = sortedRecords.slice(skip, skip + limit);
+
+        // Collect unique IDs for batch lookup
+        const employeeIds = new Set<string>();
+        const managerIds = new Set<string>();
+        const cycleIds = new Set<string>();
+
+        for (const record of paginatedRecords) {
+            if (record.employeeProfileId) employeeIds.add(record.employeeProfileId.toString());
+            if (record.managerProfileId) managerIds.add(record.managerProfileId.toString());
+            if (record.cycleId) cycleIds.add(record.cycleId.toString());
+        }
+
+        // Batch fetch related data
+        const [employees, managers, cycles] = await Promise.all([
+            this.employeeProfileRepository.find({ _id: { $in: Array.from(employeeIds).map(id => new Types.ObjectId(id)) } }),
+            this.employeeProfileRepository.find({ _id: { $in: Array.from(managerIds).map(id => new Types.ObjectId(id)) } }),
+            this.appraisalCycleRepository.find({ _id: { $in: Array.from(cycleIds).map(id => new Types.ObjectId(id)) } }),
+        ]);
+
+        // Create lookup maps
+        const employeeMap = new Map<string, any>();
+        employees.forEach((e: any) => employeeMap.set(e._id.toString(), e));
+
+        const managerMap = new Map<string, any>();
+        managers.forEach((m: any) => managerMap.set(m._id.toString(), m));
+
+        const cycleMap = new Map<string, any>();
+        cycles.forEach((c: any) => cycleMap.set(c._id.toString(), c));
+
+        // Format response
+        const data = paginatedRecords.map((r: any) => {
+            const employee = employeeMap.get(r.employeeProfileId?.toString());
+            const manager = managerMap.get(r.managerProfileId?.toString());
+            const cycle = cycleMap.get(r.cycleId?.toString());
+
+            return {
+                _id: r._id,
+                status: r.status,
+                totalScore: r.totalScore,
+                overallRatingLabel: r.overallRatingLabel,
+                createdAt: r.createdAt,
+                managerSubmittedAt: r.managerSubmittedAt,
+                hrPublishedAt: r.hrPublishedAt,
+                employeeName: employee
+                    ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+                    : 'Unknown',
+                managerName: manager
+                    ? `${manager.firstName || ''} ${manager.lastName || ''}`.trim()
+                    : 'Unknown',
+                cycleName: cycle?.name || 'Unknown Cycle',
+                cycleId: r.cycleId,
+            };
+        });
+
+        return { data, total, page, limit };
+    }
 
     async getRecordById(id: string): Promise<any> {
         const record = await this.appraisalRecordRepository.findOne({ _id: id });

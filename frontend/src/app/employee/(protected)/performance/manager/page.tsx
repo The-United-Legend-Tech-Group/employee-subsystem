@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
     Container,
     Typography,
@@ -22,12 +22,13 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Stack
+    Stack,
+    Snackbar
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppraisalAssignment, AppraisalAssignmentStatus } from '@/types/performance';
 import { decryptData } from '@/common/utils/encryption';
 
@@ -56,12 +57,19 @@ interface AttendanceResponse {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-export default function ManagerAssignmentsPage() {
+function ManagerAssignmentsContent() {
     const [assignments, setAssignments] = useState<AppraisalAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Snackbar state for operations
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
 
     // Attendance dialog state
     const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
@@ -72,7 +80,28 @@ export default function ManagerAssignmentsPage() {
 
     useEffect(() => {
         fetchAssignments();
-    }, []);
+
+        // Check for success/error params in URL
+        const success = searchParams.get('success');
+        const errorParam = searchParams.get('error');
+
+        if (success === 'true') {
+            setSnackbarMessage('Appraisal submitted successfully');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+            // Optional: Clean up URL
+            router.replace('/employee/performance/manager');
+        } else if (errorParam) {
+            setSnackbarMessage(decodeURIComponent(errorParam));
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        }
+    }, [searchParams]);
+
+    const handleSnackbarClose = () => {
+        setSnackbarOpen(false);
+    };
+
 
     const fetchAssignments = async () => {
         setLoading(true);
@@ -430,6 +459,30 @@ export default function ManagerAssignmentsPage() {
                     <Button onClick={handleCloseAttendanceDialog}>Close</Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
+        </Container >
+    );
+}
+
+// Wrap the page with Suspense to handle useSearchParams during static generation
+export default function ManagerAssignmentsPage() {
+    return (
+        <Suspense fallback={
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+                <CircularProgress />
+            </Box>
+        }>
+            <ManagerAssignmentsContent />
+        </Suspense>
     );
 }

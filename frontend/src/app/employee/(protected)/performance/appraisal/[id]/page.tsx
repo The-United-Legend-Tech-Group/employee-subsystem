@@ -220,7 +220,7 @@ export default function AppraisalFormPage() {
                 }
             }
 
-            router.push('/employee/performance/manager-assignments');
+            router.push('/employee/performance/manager?success=true');
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Failed to save');

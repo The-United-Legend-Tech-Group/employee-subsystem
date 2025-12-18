@@ -42,7 +42,6 @@ export default async function EmployeeDashboard() {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
     const employeeId = cookieStore.get('employeeid')?.value; // Note: lowercase 'employeeid' as set by backend
-    const userRolesCookie = cookieStore.get('user_roles')?.value;
 
     if (!token || !employeeId) {
         redirect('/employee/login');
@@ -51,11 +50,14 @@ export default async function EmployeeDashboard() {
 
     // Fetch Employee Profile
     let employee: Employee | null = null;
+    let userRoles: string[] = [];
     try {
         const response = await fetchServer(`employee/${employeeId}`);
         if (response.ok) {
             const data = await response.json();
             employee = data.profile;
+            // Extract roles from API response
+            userRoles = data.systemRole?.roles || [];
         } else {
             console.error('Failed to fetch employee, status:', response.status);
             if (response.status === 401) redirect('/employee/login');
@@ -90,17 +92,6 @@ export default async function EmployeeDashboard() {
     } catch (error) {
         console.warn('Failed to fetch performance records', error);
     }
-
-    const getUserRoles = (): string[] => {
-        if (!userRolesCookie) return [];
-        try {
-            const decoded = decodeURIComponent(userRolesCookie);
-            return JSON.parse(decoded);
-        } catch (e) {
-            return [];
-        }
-    };
-    const userRoles = getUserRoles();
 
 
     const getStatusColor = (status: string) => {

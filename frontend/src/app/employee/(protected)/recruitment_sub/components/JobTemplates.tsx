@@ -20,15 +20,18 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CloseIcon from '@mui/icons-material/Close';
-import { recruitmentApi } from '@/lib/api';
+import { recruitmentApi, organizationApi, OpenDepartment } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
 
 export function JobTemplates() {
   const toast = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [openDepartments, setOpenDepartments] = useState<OpenDepartment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDepts, setLoadingDepts] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showOpenPositions, setShowOpenPositions] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -41,6 +44,7 @@ export function JobTemplates() {
 
   useEffect(() => {
     fetchTemplates();
+    fetchOpenDepartments();
   }, []);
 
   const fetchTemplates = async () => {
@@ -54,6 +58,29 @@ export function JobTemplates() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchOpenDepartments = async () => {
+    try {
+      setLoadingDepts(true);
+      const data = await organizationApi.getOpenDepartments();
+      setOpenDepartments(data || []);
+    } catch (error: any) {
+      console.error('Failed to load open departments:', error);
+      // Don't show error toast - this is optional data
+    } finally {
+      setLoadingDepts(false);
+    }
+  };
+
+  const handleUseOpenPosition = (department: string, position: string) => {
+    setFormData({
+      ...formData,
+      title: position,
+      department: department
+    });
+    setShowCreateForm(true);
+    toast.success(`Pre-filled: ${position} in ${department}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,6 +152,113 @@ export function JobTemplates() {
           Create Template
         </Button>
       </Stack>
+
+      {/* Open Positions Section */}
+      {!loadingDepts && openDepartments.length > 0 && (
+        <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={600} color="primary.main">🎯 Open Positions Needing Job Templates</Typography>
+                <Typography variant="body2" color="text.secondary">Click a position to create a template based on actual hiring needs</Typography>
+              </Box>
+              <Button
+                size="small"
+                onClick={() => setShowOpenPositions(!showOpenPositions)}
+              >
+                {showOpenPositions ? 'Hide' : 'Show'}
+              </Button>
+            </Stack>
+
+            {showOpenPositions && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
+                {openDepartments.map((dept, deptIndex) => (
+                  <Card key={deptIndex} variant="outlined" sx={{ bgcolor: 'white' }}>
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight={600} color="primary.main" sx={{ mb: 1.5 }}>
+                        {dept.departmentName}
+                      </Typography>
+
+                      {/* Open Positions */}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{ mb: 1 }}>
+                          Open Positions ({dept.openPositions.length})
+                        </Typography>
+                        <Stack spacing={0.5}>
+                          {dept.openPositions.map((position, idx) => (
+                            <Chip
+                              key={idx}
+                              label={position}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              onClick={() => handleUseOpenPosition(dept.departmentName, position)}
+                              sx={{
+                                justifyContent: 'flex-start',
+                                cursor: 'pointer',
+                                '&:hover': { bgcolor: 'primary.50' }
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+
+                      {/* Recruiters */}
+                      {dept.recruiters.length > 0 && (
+                        <Box>
+                          <Typography variant="body2" fontWeight={500} color="text.secondary" sx={{ mb: 1 }}>
+                            Recruiters ({dept.recruiters.length})
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            {dept.recruiters.map((recruiter, idx) => (
+                              <Box
+                                key={idx}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  p: 0.5,
+                                  borderRadius: 1,
+                                  bgcolor: 'action.hover'
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    bgcolor: 'success.light',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: 'white'
+                                  }}
+                                >
+                                  {recruiter.name.charAt(0)}
+                                </Box>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="body2" fontWeight={500} noWrap>
+                                    {recruiter.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {recruiter.employeeNumber}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 12 }}>

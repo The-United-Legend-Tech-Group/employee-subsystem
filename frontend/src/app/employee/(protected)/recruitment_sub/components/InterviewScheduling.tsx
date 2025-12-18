@@ -25,12 +25,13 @@ import {
   TableHead,
   TableRow,
   InputAdornment,
+  IconButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import { recruitmentApi, employeeApi } from '@/lib/api';
+import { recruitmentApi, employeeApi, organizationApi, OpenDepartment } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
 
 interface InterviewFormData {
@@ -47,9 +48,11 @@ export function InterviewScheduling() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [panelInput, setPanelInput] = useState('');
-  const [panelMembers, setPanelMembers] = useState<{ number: string; id: string; name: string }[]>([]);
+  const [panelMembers, setPanelMembers] = useState<{ number: string; id: string; name: string; department?: string }[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
+  const [openDepartments, setOpenDepartments] = useState<OpenDepartment[]>([]);
+  const [showRecruiters, setShowRecruiters] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,13 +84,23 @@ export function InterviewScheduling() {
     fetchApplications();
   }, []);
 
-  const handleOpen = (appId: string = '', stage: any = 'hr_interview') => {
+  const handleOpen = async (appId: string = '', stage: any = 'hr_interview') => {
     setFormData({
       ...formData,
       applicationId: appId,
       stage: (stage === 'hr_interview' || stage === 'department_interview') ? stage : 'hr_interview',
     });
     setOpen(true);
+
+    // Fetch open departments when dialog opens (if not already loaded)
+    if (openDepartments.length === 0) {
+      try {
+        const data = await organizationApi.getOpenDepartments();
+        setOpenDepartments(data || []);
+      } catch (error) {
+        console.error('Failed to load recruiters:', error);
+      }
+    }
   };
 
   const handleClose = () => {
@@ -286,6 +299,7 @@ export function InterviewScheduling() {
                   <TableRow>
                     <TableCell>Candidate</TableCell>
                     <TableCell>Position</TableCell>
+                    <TableCell>Department</TableCell>
                     <TableCell>Target Stage</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
@@ -305,6 +319,14 @@ export function InterviewScheduling() {
                         <Typography variant="body2">
                           {app.requisitionId?.title || app.requisitionId?.templateId?.title || app.jobRequisitionId?.title || 'Unknown Position'}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={app.requisitionId?.department || app.requisitionId?.templateId?.department || app.jobRequisitionId?.department || 'Not specified'}
+                          size="small"
+                          variant="filled"
+                          sx={{ bgcolor: 'primary.50', color: 'primary.main', fontWeight: 500 }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -413,20 +435,177 @@ export function InterviewScheduling() {
               )}
 
               <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  Panel Members *
-                </Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle2">
+                    Panel Members *
+                  </Typography>
+                  {openDepartments.length > 0 && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => setShowRecruiters(!showRecruiters)}
+                    >
+                      {showRecruiters ? 'Hide' : 'Show'} Available Recruiters
+                    </Button>
+                  )}
+                </Stack>
+
+                {/* Available Recruiters Helper */}
+                {showRecruiters && openDepartments.length > 0 && (
+                  <Card variant="outlined" sx={{ mb: 2, bgcolor: 'success.50', borderColor: 'success.200' }}>
+                    <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        💡 Click to add a recruiter to the panel:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 240, overflowY: 'auto' }}>
+                        {openDepartments.flatMap((dept) =>
+                          dept.recruiters.map((recruiter, idx) => (
+                            <Box
+                              key={`${dept.departmentName}-${idx}`}
+                              onClick={async () => {
+                                const trimmed = recruiter.employeeNumber.trim();
+                                if (panelMembers.some((m) => m.number === trimmed)) {
+                                  toast.warning('This employee is already added');
+                                  return;
+                                }
+                                try {
+                                  const employee = await employeeApi.getEmployeeByEmployeeNumber(trimmed) as any;
+                                  if (!employee || !employee._id) {
+                                    toast.error('Employee not found');
+                                    return;
+                                  }
+                                  const newMember = {
+                                    number: employee.employeeNumber,
+                                    id: employee._id,
+                                    name: recruiter.name,
+                                    department: dept.departmentName
+                                  };
+                                  setPanelMembers([...panelMembers, newMember]);
+                                  setFormData({ ...formData, panel: [...formData.panel, employee._id] });
+                                  toast.success(`Added ${recruiter.name}`);
+                                } catch (error: any) {
+                                  toast.error('Failed to add employee');
+                                }
+                              }}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                p: 1,
+                                borderRadius: 1,
+                                bgcolor: 'white',
+                                cursor: 'pointer',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                transition: 'all 0.2s',
+                                '&:hover': { bgcolor: 'grey.50', borderColor: 'success.main', transform: 'translateX(4px)' }
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  bgcolor: 'success.light',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 600,
+                                  color: 'white'
+                                }}
+                              >
+                                {recruiter.name.charAt(0).toUpperCase()}
+                              </Box>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {recruiter.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {recruiter.employeeNumber} • {dept.departmentName}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ))
+                        )}
+                        {openDepartments.every(dept => dept.recruiters.length === 0) && (
+                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                            No recruiters available
+                          </Typography>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {panelMembers.length > 0 && (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                     {panelMembers.map((member) => (
-                      <Chip
+                      <Card
                         key={member.id}
-                        label={member.name}
-                        onDelete={() => handleRemovePanelMember(member.id)}
-                        deleteIcon={<DeleteIcon />}
-                        size="small"
-                      />
+                        variant="outlined"
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          p: 1,
+                          pr: 0.5,
+                          bgcolor: 'success.50',
+                          borderColor: 'success.200',
+                          borderRadius: 2
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            bgcolor: 'success.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'white'
+                          }}
+                        >
+                          {member.name.charAt(0).toUpperCase()}
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                            {member.name}
+                          </Typography>
+                          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {member.number}
+                            </Typography>
+                            {member.department && (
+                              <>
+                                <Typography variant="caption" color="text.secondary">•</Typography>
+                                <Chip
+                                  label={member.department}
+                                  size="small"
+                                  sx={{
+                                    height: 16,
+                                    fontSize: '0.65rem',
+                                    bgcolor: 'primary.100',
+                                    color: 'primary.dark',
+                                    fontWeight: 600,
+                                    '& .MuiChip-label': { px: 0.75 }
+                                  }}
+                                />
+                              </>
+                            )}
+                          </Stack>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemovePanelMember(member.id)}
+                          sx={{ ml: 0.5 }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Card>
                     ))}
                   </Box>
                 )}

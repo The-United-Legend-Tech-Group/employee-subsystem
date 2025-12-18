@@ -108,6 +108,22 @@ export interface Notification {
     createdAt: string;
 }
 
+// Organization Structure interfaces
+export interface OpenDepartment {
+    departmentName: string;
+    openPositions: string[];
+    recruiters: { name: string; employeeNumber: string }[];
+}
+
+// Organization Structure API methods
+export const organizationApi = {
+    // Get departments with open positions and recruiters
+    async getOpenDepartments(): Promise<OpenDepartment[]> {
+        const response = await api.get('/organization-structure/departments/open');
+        return response.data;
+    },
+};
+
 // Notification API methods
 export const notificationApi = {
     // Get notifications for authenticated user

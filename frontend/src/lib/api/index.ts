@@ -1,7 +1,7 @@
 // Export all API modules
 export { recruitmentApi } from './recruitment';
 export { offboardingApi } from './offboarding';
-export { employeeApi, candidateApi, notificationApi } from './employee_subsystem';
+export { employeeApi, candidateApi, notificationApi, organizationApi } from './employee_subsystem';
 
 // Re-export everything (including types) from the API modules
 export * from './recruitment';

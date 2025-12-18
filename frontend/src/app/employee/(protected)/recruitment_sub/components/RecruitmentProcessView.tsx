@@ -21,6 +21,9 @@ import WorkIcon from '@mui/icons-material/Work';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
+import LinearProgress from '@mui/material/LinearProgress';
+import Divider from '@mui/material/Divider';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { recruitmentApi } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
 
@@ -175,6 +178,43 @@ export function RecruitmentProcessView() {
     );
   };
 
+  const getAggregateStats = (jobs: JobRequisition[]) => {
+    const stats = {
+      totalJobs: jobs.length,
+      totalApplications: 0,
+      screening: 0,
+      department_interview: 0,
+      hr_interview: 0,
+      offer: 0,
+      totalOpenings: 0,
+      acceptedOffers: 0
+    } as any;
+
+    jobs.forEach(job => {
+      stats.totalOpenings += job.openings || 0;
+      (job.applications || []).forEach((app) => {
+        stats.totalApplications++;
+        if (app.currentStage && stats.hasOwnProperty(app.currentStage)) {
+          stats[app.currentStage]++;
+        }
+        if (app.status === 'accepted' || app.status === 'offer_made') {
+          stats.acceptedOffers++;
+        }
+      });
+    });
+
+    return stats as {
+      totalJobs: number;
+      totalApplications: number;
+      screening: number;
+      department_interview: number;
+      hr_interview: number;
+      offer: number;
+      totalOpenings: number;
+      acceptedOffers: number;
+    };
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" p={6}>
@@ -192,12 +232,42 @@ export function RecruitmentProcessView() {
             Track all job requisitions and candidate applications through hiring stages
           </Typography>
         </Box>
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            <strong>{jobs.length}</strong> Active Jobs
-          </Typography>
+        <Box sx={{ textAlign: 'right' }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              <strong>{jobs.length}</strong> Active Jobs
+            </Typography>
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            <Button size="small" onClick={fetchAllJobsWithApplications} startIcon={<RefreshIcon />}>Refresh</Button>
+          </Stack>
         </Box>
       </Stack>
+
+      {/* Aggregate Summary */}
+      <Card variant="outlined">
+        <CardContent>
+          {(() => {
+            const agg = getAggregateStats(jobs);
+            const fillRate = agg.totalOpenings > 0 ? Math.round((agg.acceptedOffers / agg.totalOpenings) * 100) : 0;
+            return (
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Overview</Typography>
+                  <Chip label={`Jobs: ${agg.totalJobs}`} size="small" />
+                  <Chip label={`Applications: ${agg.totalApplications}`} size="small" />
+                  <Chip label={`Openings: ${agg.totalOpenings}`} size="small" />
+                  <Chip label={`Filled: ${agg.acceptedOffers}`} size="small" color={fillRate >= 50 ? 'success' : 'default'} />
+                </Stack>
+                <Box sx={{ width: 280 }}>
+                  <Typography variant="caption" color="text.secondary">Fill Rate</Typography>
+                  <LinearProgress variant="determinate" value={fillRate} sx={{ height: 8, borderRadius: 2, mt: 0.5 }} />
+                  <Typography variant="caption" sx={{ ml: 1 }}>{fillRate}%</Typography>
+                </Box>
+              </Stack>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Stage Legend */}
       <Card
@@ -353,6 +423,29 @@ export function RecruitmentProcessView() {
                     </Stack>
                   </Stack>
                 </CardContent>
+
+                {/* Job progress and last activity */}
+                <Box sx={{ px: 2, pb: 2 }}>
+                  {(() => {
+                    const totalOpenings = job.openings || 0;
+                    const acceptedForJob = (job.applications || []).filter(a => a.status === 'accepted' || a.status === 'offer_made').length;
+                    const fillPercent = totalOpenings > 0 ? Math.round((acceptedForJob / totalOpenings) * 100) : 0;
+                    const lastApp = (job.applications || []).reduce((acc: string | undefined, a) => {
+                      if (!acc) return a.createdAt;
+                      return new Date(acc) < new Date(a.createdAt) ? a.createdAt : acc;
+                    }, undefined as string | undefined);
+
+                    return (
+                      <Stack spacing={1}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="body2" color="text.secondary">Last activity: {lastApp ? new Date(lastApp).toLocaleString() : '—'}</Typography>
+                          <Typography variant="body2" color="text.secondary">{fillPercent}% filled</Typography>
+                        </Box>
+                        <LinearProgress variant="determinate" value={fillPercent} sx={{ height: 8, borderRadius: 2 }} />
+                      </Stack>
+                    );
+                  })()}
+                </Box>
 
                 {/* Applications List */}
                 <Collapse in={isExpanded} timeout="auto">

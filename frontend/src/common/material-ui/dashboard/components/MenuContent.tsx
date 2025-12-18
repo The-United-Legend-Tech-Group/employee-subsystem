@@ -26,6 +26,7 @@ import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
+import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { usePathname, useRouter } from "next/navigation";
 import { getUserRoles } from "../../../utils/cookie-utils";
 
@@ -115,6 +116,14 @@ export const performanceSubItems: MenuItem[] = [
   },
 ];
 
+export const recruitmentSubItems: MenuItem[] = [
+  { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/employee/recruitment_sub' },
+  { text: 'Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/employee' },
+  { text: 'HR Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-employee' },
+  { text: 'HR Manager', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-manager' },
+  { text: 'System Admin', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/system-admin' },
+];
+
 const secondaryListItems = [
   { text: "Settings", icon: <SettingsRoundedIcon /> },
   { text: "About", icon: <InfoRoundedIcon /> },
@@ -125,6 +134,7 @@ export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
   const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
 
@@ -136,6 +146,7 @@ export default function MenuContent() {
 
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
+  const isRecruitmentPath = pathname.startsWith('/employee/recruitment_sub');
 
   const visibleListItems = mainListItems.filter((item) => {
     if (isCandidate && item.text === "Team") return false;
@@ -171,6 +182,7 @@ export default function MenuContent() {
     if (text === 'My Performance' && pathname === '/employee/performance/my-records') return true;
     if (text === 'Manage Disputes' && pathname === '/employee/performance/manage-disputes') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
+    if (text === 'Recruitment' && pathname.startsWith('/employee/recruitment_sub')) return true;
     return false;
   };
 
@@ -250,6 +262,36 @@ export default function MenuContent() {
                 </ListItem>
               );
             })}
+          </List>
+        </Collapse>
+
+        {/* Recruitment Dropdown */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={isRecruitmentPath}
+            onClick={() => setRecruitmentOpen(!recruitmentOpen)}
+          >
+            <ListItemIcon>
+              <WorkRoundedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Recruitment" />
+            {recruitmentOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </ListItemButton>
+        </ListItem>
+
+        <Collapse in={recruitmentOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {recruitmentSubItems.map((item, index) => (
+              <ListItem key={index} disablePadding sx={{ display: 'block' }}>
+                <ListItemButton
+                  selected={isSelected(item.text)}
+                  onClick={() => handleNavigation(item.text, item.path)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
           </List>
         </Collapse>
       </List>

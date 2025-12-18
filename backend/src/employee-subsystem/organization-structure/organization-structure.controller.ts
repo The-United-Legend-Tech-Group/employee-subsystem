@@ -237,6 +237,19 @@ export class OrganizationStructureController {
     return this.organizationStructureService.listDepartments();
   }
 
+  @Get('departments/open')
+  //@UseGuards(AuthGuard, authorizationGuard)
+  //@Roles(SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.RECRUITER)
+  @ApiOperation({ summary: 'Get departments with open positions and recruiters' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of departments with open positions',
+    type: [Object],
+  })
+  async getOpenDepartments(): Promise<any[]> {
+    return this.organizationStructureService.getOpenDepartments();
+  }
+
   @Get('departments/:id')
   //@UseGuards(AuthGuard, authorizationGuard)
   //@Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)

@@ -58,6 +58,16 @@ type LeaveType = {
   name?: string;
 };
 
+function toTimestamp(value: any): number {
+  if (!value) return Number.NaN;
+  // Handle common Mongo serialization: { $date: "..." }
+  if (typeof value === 'object' && value.$date) {
+    value = value.$date;
+  }
+  const d = new Date(value);
+  return d.getTime();
+}
+
 function formatDate(value: any): string {
   if (!value) return 'N/A';
   if (typeof value === 'object' && value.$date) {
@@ -186,12 +196,12 @@ export default function LeaveHistoryPanel() {
 
       switch (sortBy) {
         case 'startDate':
-          aValue = new Date(a.startDate).getTime();
-          bValue = new Date(b.startDate).getTime();
+          aValue = toTimestamp(a.startDate);
+          bValue = toTimestamp(b.startDate);
           break;
         case 'endDate':
-          aValue = new Date(a.endDate).getTime();
-          bValue = new Date(b.endDate).getTime();
+          aValue = toTimestamp(a.endDate);
+          bValue = toTimestamp(b.endDate);
           break;
         case 'durationDays':
           aValue = a.durationDays || 0;
@@ -209,10 +219,13 @@ export default function LeaveHistoryPanel() {
           return 0;
       }
 
-      // Handle null/undefined values
+      // Handle null/undefined/invalid values
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return 1;
       if (bValue == null) return -1;
+      if (typeof aValue === 'number' && Number.isNaN(aValue) && typeof bValue === 'number' && Number.isNaN(bValue)) return 0;
+      if (typeof aValue === 'number' && Number.isNaN(aValue)) return 1;
+      if (typeof bValue === 'number' && Number.isNaN(bValue)) return -1;
 
       // Compare values
       if (typeof aValue === 'number' && typeof bValue === 'number') {

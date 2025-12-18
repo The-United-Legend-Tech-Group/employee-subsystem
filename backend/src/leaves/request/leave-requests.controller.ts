@@ -19,9 +19,12 @@ import { LeaveRequest } from '../models/leave-request.schema';
 import { Attachment } from '../models/attachment.schema';
 import { Types } from 'mongoose';
 import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from 'src/common/guards/authorization.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { SystemRole } from 'src/employee-subsystem/employee/enums/employee-profile.enums';
 @ApiTags('Leaves Requests')
 @Controller('leaves')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard,authorizationGuard)
 export class LeavesRequestController {
   constructor(
     private readonly leavesRequestService: LeavesRequestService,
@@ -119,12 +122,14 @@ export class LeavesRequestController {
 @ApiParam({ name: 'managerId', description: 'Manager ID' })
 @ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
 @ApiResponse({ status: 404, description: 'Manager not found' })
+@Roles(SystemRole.DEPARTMENT_HEAD)
 async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise<LeaveRequest[]> {
   return this.leavesRequestService.getLeaveRequestsForManager(managerId);
 }
 
 // Get leave requests for current authenticated manager
 @Get('my-team-requests')
+@Roles(SystemRole.DEPARTMENT_HEAD)
 @ApiOperation({ summary: 'Get leave requests for current manager\'s team' })
 @ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
 async getMyTeamRequests(@Req() req: any): Promise<LeaveRequest[]> {
@@ -147,6 +152,7 @@ async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
 
     // ---------- REQ-021: Manager Approves a request ----------
   @Patch(':id/approve')
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Manager approves leave request' })
   @ApiParam({ name: 'id', description: 'Leave request ID' })
   @ApiBody({ type: ManagerApprovalDto })
@@ -163,6 +169,7 @@ async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
 
     // ---------- REQ-022: Manager Rejects a request ----------
   @Patch(':id/reject')
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Manager rejects leave request' })
   @ApiParam({ name: 'id', description: 'Leave request ID' })
   @ApiBody({ type: ManagerApprovalDto })
@@ -181,6 +188,7 @@ async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
 // REQ-025: HR Finalization
 // ------------------------------
 @Post('finalize/:leaveRequestId')
+@Roles(SystemRole.HR_MANAGER)
 @ApiOperation({ summary: 'HR finalizes leave request processing' })
 @ApiParam({ name: 'leaveRequestId', description: 'Leave request ID' })
 @ApiBody({
@@ -218,6 +226,7 @@ async finalizeLeaveRequest(
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Leave request overridden successfully' })
 @ApiResponse({ status: 400, description: 'Invalid override data' })
 @ApiResponse({ status: 404, description: 'Leave request not found' })
@@ -232,6 +241,7 @@ async hrOverrideRequest(
 // REQ-027: Bulk Processing
 // ------------------------------
 @Post('bulk-process')
+@Roles(SystemRole.HR_MANAGER)
 @ApiOperation({ summary: 'Process multiple leave requests in bulk' })
 @ApiBody({
   schema: {
@@ -243,6 +253,7 @@ async hrOverrideRequest(
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Bulk processing completed' })
 @ApiResponse({ status: 400, description: 'Invalid bulk processing data' })
 async bulkProcessRequests(
@@ -267,6 +278,7 @@ async bulkProcessRequests(
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Medical documents verified successfully' })
 @ApiResponse({ status: 400, description: 'Invalid verification data' })
 @ApiResponse({ status: 404, description: 'Leave request not found' })
@@ -281,6 +293,7 @@ async verifyMedicalDocuments(
 // REQ-029: Auto Update Balance After Approval
 // ------------------------------
 @Post('auto-update-balances')
+@Roles(SystemRole.HR_MANAGER)
 @ApiOperation({ summary: 'Automatically update leave balances for approved requests' })
 @ApiResponse({ status: 200, description: 'Balances updated successfully' })
 async autoUpdateBalances(): Promise<{ updated: number }> {

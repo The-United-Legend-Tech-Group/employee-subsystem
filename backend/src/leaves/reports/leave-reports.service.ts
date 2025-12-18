@@ -110,9 +110,19 @@ export class LeavesReportService {
 
     // Filter by date range
     if (filters?.from || filters?.to) {
+      // Dates come from query params like "YYYY-MM-DD".
+      // Make the range inclusive by normalizing:
+      // - from: start-of-day
+      // - to: end-of-day
+      const from = filters.from ? new Date(filters.from) : undefined;
+      if (from) from.setHours(0, 0, 0, 0);
+
+      const to = filters.to ? new Date(filters.to) : undefined;
+      if (to) to.setHours(23, 59, 59, 999);
+
       query['dates.from'] = {};
-      if (filters.from) query['dates.from'].$gte = new Date(filters.from);
-      if (filters.to) query['dates.from'].$lte = new Date(filters.to);
+      if (from) query['dates.from'].$gte = from;
+      if (to) query['dates.from'].$lte = to;
     }
 
     // ============================
@@ -124,7 +134,7 @@ export class LeavesReportService {
     // Format Response
     // ============================
     return history.map((req) => ({
-      requestId: req._id,
+      requestId: req._id?.toString?.() || String(req._id),
       leaveType: req.leaveTypeId,
       startDate: req.dates.from,
       endDate: req.dates.to,

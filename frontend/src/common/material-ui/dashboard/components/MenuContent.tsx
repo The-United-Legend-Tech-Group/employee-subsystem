@@ -169,7 +169,7 @@ export const leavesSubItems: MenuItem[] = [
     text: "Balance",
     icon: <BalanceRoundedIcon />,
     path: "/employee/leaves/balance",
-    roles: ["HR Admin"],
+    roles: [],
   },
   {
     text: "Calendar",

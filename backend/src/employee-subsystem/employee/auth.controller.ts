@@ -64,10 +64,16 @@ export class AuthController {
     @Body() loginDto: LoginCandidateDto,
     @Res({ passthrough: true }) response: Response,
   ) {
+    console.log('🍪 [AuthController.employeeLogin] Starting login request');
+
     const { access_token, employeeId, roles } = await this.authService.employeeLogin(loginDto);
 
-    //console.log('🍪 [AUTH CONTROLLER] Setting cookies for employee:', employeeId);
-    //console.log('🍪 [AUTH CONTROLLER] Roles to set:', roles);
+    console.log('🍪 [AuthController.employeeLogin] Setting cookies:', {
+      employeeId,
+      rolesReceived: roles,
+      rolesType: Array.isArray(roles) ? 'array' : typeof roles,
+      rolesLength: roles?.length,
+    });
 
     response.cookie('access_token', access_token, {
       httpOnly: true,
@@ -82,13 +88,14 @@ export class AuthController {
     });
 
     const rolesJson = JSON.stringify(roles);
-    //console.log('🍪 [AUTH CONTROLLER] user_roles cookie value:', rolesJson);
+    console.log('🍪 [AuthController.employeeLogin] user_roles cookie value:', rolesJson);
+
     response.cookie('user_roles', rolesJson, {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
     });
 
-    //console.log('🍪 [AUTH CONTROLLER] All cookies set successfully');
+    console.log('🍪 [AuthController.employeeLogin] All cookies set successfully');
 
     return {
       message: 'Login successful',

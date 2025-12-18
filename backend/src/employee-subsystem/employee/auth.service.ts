@@ -84,31 +84,45 @@ export class AuthService {
   async employeeLogin(loginDto: LoginCandidateDto): Promise<{ access_token: string; employeeId: string; roles: string[] }> {
     const { email, password } = loginDto;
 
+    console.log('🔐 [AuthService.employeeLogin] Starting login for email:', email);
+
     const employee = await this.employeeProfileRepository.findByEmail(email);
     if (!employee) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    console.log('🔐 [AuthService.employeeLogin] Employee found:', {
+      employeeId: employee._id,
+      employeeIdType: typeof employee._id,
+      employeeIdConstructor: employee._id?.constructor?.name,
+      employeeIdToString: employee._id?.toString(),
+    });
 
     const isPasswordValid = await bcrypt.compare(password, employee.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // // Fetch employee system roles
-    // console.log('🔍 Looking for system role with employeeProfileId:', employee._id);
-    // console.log('🔍 employeeProfileId type:', typeof employee._id);
-    // console.log('🔍 employeeProfileId as string:', employee._id.toString());
+    // Fetch employee system roles
+    // Pass the _id directly - the repository handles type conversion
+    const employeeIdForQuery = employee._id.toString();
+    console.log('🔐 [AuthService.employeeLogin] Looking up roles with employeeProfileId:', employeeIdForQuery);
 
-    // Note: The database stores employeeProfileId as a string, not ObjectId
-    // So we need to convert to string for the query
     const employeeSystemRole = await this.employeeSystemRoleRepository.findByEmployeeProfileId(
-      employee._id.toString()
+      employeeIdForQuery
     );
 
-    console.log('🔍 Found system role:', employeeSystemRole);
+    console.log('🔐 [AuthService.employeeLogin] System role lookup result:', {
+      found: !!employeeSystemRole,
+      documentId: employeeSystemRole?._id?.toString(),
+      employeeProfileIdInDocument: employeeSystemRole?.employeeProfileId,
+      employeeProfileIdTypeInDocument: typeof employeeSystemRole?.employeeProfileId,
+      roles: employeeSystemRole?.roles,
+      isActive: employeeSystemRole?.isActive,
+    });
 
     const roles = employeeSystemRole ? employeeSystemRole.roles : [];
-    console.log('🔍 Extracted roles:', roles);
+    console.log('🔐 [AuthService.employeeLogin] Final roles to set in cookie:', roles);
 
     const payload = { sub: employee._id, email: employee.personalEmail, roles };
     return {

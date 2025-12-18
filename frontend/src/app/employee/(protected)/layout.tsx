@@ -6,6 +6,10 @@ import { alpha } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 import Header from '../../../common/material-ui/dashboard/components/Header';
 import SideMenu from '../../../common/material-ui/dashboard/components/SideMenu';
 import AppNavbar from '../../../common/material-ui/dashboard/components/AppNavbar';
@@ -45,6 +49,8 @@ export default function EmployeeLayout({ children }: LayoutProps) {
     const [employee, setEmployee] = React.useState<EmployeeProfile | null>(null);
     const [userRoles, setUserRoles] = React.useState<SystemRole[]>([]);
     const [rolesLoading, setRolesLoading] = React.useState(true);
+    const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
+    const [authError, setAuthError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const fetchEmployee = async () => {
@@ -52,8 +58,7 @@ export default function EmployeeLayout({ children }: LayoutProps) {
             const encryptedEmployeeId = localStorage.getItem('employeeId');
 
             if (!token || !encryptedEmployeeId) {
-                // Let the individual pages handle redirect if needed, or handle it here.
-                // Handling it here is safer for the protected group.
+                // No credentials found
                 router.push('/employee/login');
                 return;
             }
@@ -63,9 +68,7 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                 const employeeId = await decryptData(encryptedEmployeeId, token);
 
                 if (!employeeId) {
-                    console.error('Failed to decrypt employee ID');
-                    router.push('/employee/login');
-                    return;
+                    throw new Error('Failed to decrypt employee ID. Please login again.');
                 }
 
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
@@ -83,22 +86,57 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                     const roles = data.systemRole?.roles || [];
                     setUserRoles(roles as SystemRole[]);
                     setRolesLoading(false);
+                    setIsCheckingAuth(false);
                 } else {
-                    console.error('Failed to fetch employee profile', response.status, response.statusText);
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('employeeId');
-                    router.push('/employee/login');
+                    // API Call failed (401, 403, 500, etc)
+                    if (response.status === 401 || response.status === 403) {
+                        // Token likely expired or invalid
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('employeeId');
+                        router.push('/employee/login');
+                        return;
+                    }
+                    throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Failed to fetch employee profile for layout', error);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('employeeId');
-                router.push('/employee/login');
+                // On critical error, show it to the user instead of redirecting
+                // This helps debug deployment issues
+                setAuthError(error.message || 'An unexpected error occurred during authentication.');
+                setIsCheckingAuth(false);
             }
         };
 
         fetchEmployee();
     }, [router]);
+
+    if (isCheckingAuth) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (authError) {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default', p: 3 }}>
+                <Alert severity="error" sx={{ mb: 4, width: '100%', maxWidth: '500px' }}>
+                    {authError}
+                </Alert>
+                <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                    API URL: {process.env.NEXT_PUBLIC_API_URL || 'Undefined (Using Fallback)'}
+                </Typography>
+                <Button variant="contained" onClick={() => {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('employeeId');
+                    router.push('/employee/login');
+                }}>
+                    Back to Login
+                </Button>
+            </Box>
+        );
+    }
 
     return (
         <AuthProvider initialRoles={userRoles} initialLoading={rolesLoading}>

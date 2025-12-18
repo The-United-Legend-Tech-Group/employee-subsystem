@@ -52,8 +52,22 @@ export const employeeApi = {
     },
     // Get employee by employee number
     async getEmployeeByEmployeeNumber(employeeNumber: string): Promise<Employee> {
-        const response = await api.get(`/employee/by-number/${employeeNumber}`);
-        return response.data;
+        const response = await api.get('/employee', {
+            params: { search: employeeNumber, limit: 10 }
+        });
+
+        const items = response.data.items || [];
+
+        const match = items.find((item: any) =>
+            item.employeeNumber?.toLowerCase() === employeeNumber.toLowerCase() ||
+            item._id === employeeNumber
+        );
+
+        if (!match) {
+            throw new Error('Employee not found');
+        }
+
+        return match;
     },
     // Get all employees (unpaginated)
     async getAllEmployees(): Promise<Employee[]> {

@@ -27,23 +27,10 @@ import StarIcon from '@mui/icons-material/Star';
 
 import OrganizationHierarchy from './OrganizationHierarchy';
 import PerformanceOverview from './PerformanceOverview';
+import EmploymentDetails, { Employee } from './EmploymentDetails';
 import { fetchServer } from '../../../../lib/api-server';
 
-interface Employee {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    middleName?: string;
-    nationalId: string;
-    personalEmail: string;
-    workEmail?: string;
-    mobilePhone?: string;
-    employeeNumber: string;
-    status: string;
-    dateOfHire: string;
-    profilePictureUrl?: string;
-    biography?: string;
-}
+
 
 interface LatestAppraisal {
     totalScore: number | null;
@@ -254,51 +241,7 @@ export default async function EmployeeDashboard() {
                 </Card>
 
                 {/* Employment Details */}
-                <Card variant="outlined">
-                    <CardContent>
-                        <Typography variant="h6" gutterBottom>Employment Details</Typography>
-                        <TableContainer component={Paper} elevation={0} sx={{ boxShadow: 'none' }}>
-                            <Table aria-label="employment status table">
-                                <TableHead sx={{ bgcolor: 'action.hover' }}>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Reference</TableCell>
-                                        <TableCell align="left" sx={{ fontWeight: 'bold' }}>Type</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Join Date</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    <TableRow hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                        <TableCell component="th" scope="row">
-                                            <Typography variant="body2" fontWeight="medium">Employment Contract</Typography>
-                                            <Typography variant="caption" color="text.secondary">Full Time</Typography>
-                                        </TableCell>
-                                        <TableCell align="left">Standard</TableCell>
-                                        <TableCell align="right">
-                                            {employee?.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : '-'}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <Chip
-                                                label={employee?.status}
-                                                color={getStatusColor(employee?.status || '') as any}
-                                                size="small"
-                                                variant="filled"
-                                                sx={{
-                                                    fontWeight: 'bold',
-                                                    border: 'none',
-                                                    ...(employee?.status === 'ON_LEAVE' && {
-                                                        bgcolor: '#ffface',
-                                                        color: '#666666'
-                                                    })
-                                                }}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </CardContent>
-                </Card>
+                <EmploymentDetails employee={employee} />
 
                 {/* Performance Overview Section - Now with SSR data */}
                 <PerformanceOverview initialRecords={performanceRecords} />

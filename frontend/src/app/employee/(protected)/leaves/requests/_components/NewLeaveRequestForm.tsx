@@ -69,7 +69,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
       setLeaveTypesError(null);
       try {
         const token = localStorage.getItem('access_token');
-        const res = await fetch(`${API_BASE}/leaves/leave-types`, {
+        const res = await fetch(`${API_BASE}/leaves/leave-types/for-me`, {
           headers: token
             ? {
                 Authorization: `Bearer ${token}`,

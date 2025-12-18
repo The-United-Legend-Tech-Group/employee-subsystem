@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +18,7 @@ import {
   ApiBody,
   ApiParam,
 } from '@nestjs/swagger';
+import { Types } from 'mongoose';
 import { LeavesPolicyService } from './leaves-policy.service';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { UpdateEntitlementDto } from '../dtos/update-entitlement.dto';
@@ -177,6 +179,32 @@ export class LeavesPolicyController {
   async getAllLeaveTypes(): Promise<LeaveType[]> {
     return this.leavesService.getAllLeaveTypes();
   }
+
+  /**
+   * Get leave types available for the current employee (based on their role + eligibility rules)
+   */
+  @Get('leave-types/for-me')
+  @ApiOperation({ summary: 'Get leave types available for the current employee' })
+  async getLeaveTypesForMe(@Req() req: any): Promise<LeaveType[]> {
+    const user: any = (req as any).user;
+    const employeeId = user?.sub || user?.employeeId;
+    return this.leavesService.getLeaveTypesForEmployeeRole(
+      new Types.ObjectId(employeeId).toString(),
+    );
+  }
+
+  /**
+   * Get leave types available for a specific employee (based on their role + eligibility rules)
+   */
+  @Get('leave-types/for-employee/:employeeId')
+  @ApiOperation({ summary: 'Get leave types available for a specific employee' })
+  @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+  async getLeaveTypesForEmployee(
+    @Param('employeeId') employeeId: string,
+  ): Promise<LeaveType[]> {
+    return this.leavesService.getLeaveTypesForEmployeeRole(employeeId);
+  }
+  
 
   // Get leave type by ID - Tested
   @Get('leave-types/:id')

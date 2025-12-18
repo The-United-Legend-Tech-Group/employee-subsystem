@@ -29,6 +29,7 @@ import { RoundingRule } from '../enums/rounding-rule.enum';
 import { AnnualResetDto } from '../dtos/annual-reset.dto';
 import { LeaveCategoryRepository } from '../repository/leave-category.repository';
 import { LeaveCategory } from '../models/leave-category.schema';
+import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
 
 @Injectable()
 export class LeavesPolicyService {
@@ -303,6 +304,96 @@ export class LeavesPolicyService {
 
   async getAllLeaveTypes(): Promise<LeaveType[]> {
     return this.leaveTypeRepository.find();
+  }
+
+  /**
+   * Return leave types available for a given employee, based on their system role
+   * and (optionally) policy eligibility rules.
+   *
+   * Uses EmployeeService (org/role source of truth) and Leaves repositories for policies/types.
+   */
+  async getLeaveTypesForEmployeeRole(employeeId: string): Promise<LeaveType[]> {
+    const employee = await this.employeeService.getProfile(employeeId);
+    const roles: string[] = Array.isArray((employee as any)?.systemRole?.roles)
+      ? (employee as any).systemRole.roles
+      : [];
+
+    const isHrOrAdmin = roles.some((r) =>
+      [
+        SystemRole.HR_ADMIN,
+        SystemRole.HR_MANAGER,
+        SystemRole.HR_EMPLOYEE,
+        SystemRole.SYSTEM_ADMIN,
+      ].includes(r as SystemRole),
+    );
+
+    const leaveTypes = await this.leaveTypeRepository.find();
+    if (isHrOrAdmin) return leaveTypes;
+
+    // For non-HR users (e.g., department employee/head), apply eligibility rules if present.
+    const policies = await this.leavePolicyRepository.find();
+    const policyMap = new Map<string, any>(
+      (policies || []).map((p: any) => {
+        const obj = p.toObject ? p.toObject() : p;
+        return [String(obj.leaveTypeId), obj];
+      }),
+    );
+
+    const profile: any = (employee as any)?.profile || {};
+    const dateOfHire = profile.dateOfHire ? new Date(profile.dateOfHire) : null;
+    const primaryPositionId = profile.primaryPositionId?._id || profile.primaryPositionId;
+    const contractType = profile.contractType;
+
+    const tenureMonths = (() => {
+      if (!dateOfHire || Number.isNaN(dateOfHire.getTime())) return null;
+      const now = new Date();
+      let months =
+        (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
+        (now.getMonth() - dateOfHire.getMonth());
+      // If current day-of-month is before hire day-of-month, subtract 1 month (partial month not completed)
+      if (now.getDate() < dateOfHire.getDate()) months -= 1;
+      return Math.max(0, months);
+    })();
+
+    return leaveTypes.filter((lt: any) => {
+      const typeObj = lt.toObject ? lt.toObject() : lt;
+      const policy = policyMap.get(String(typeObj._id));
+      const eligibility = policy?.eligibility || null;
+
+      // If no policy/eligibility configured, allow by default (keeps system usable).
+      if (!eligibility) return true;
+
+      // 1) minTenureMonths
+      const minTenureMonths =
+        eligibility.minTenureMonths != null ? Number(eligibility.minTenureMonths) : null;
+      if (minTenureMonths != null && tenureMonths != null && tenureMonths < minTenureMonths) {
+        return false;
+      }
+      if (minTenureMonths != null && tenureMonths == null) {
+        // Can't evaluate tenure → be conservative and hide
+        return false;
+      }
+
+      // 2) positionsAllowed (if set, must match employee primaryPositionId)
+      const positionsAllowed: string[] = Array.isArray(eligibility.positionsAllowed)
+        ? eligibility.positionsAllowed.map(String)
+        : [];
+      if (positionsAllowed.length > 0) {
+        const posIdStr = primaryPositionId ? String(primaryPositionId) : '';
+        if (!posIdStr || !positionsAllowed.includes(posIdStr)) return false;
+      }
+
+      // 3) contractTypesAllowed (if set, must match employee contractType)
+      const contractTypesAllowed: string[] = Array.isArray(eligibility.contractTypesAllowed)
+        ? eligibility.contractTypesAllowed.map(String)
+        : [];
+      if (contractTypesAllowed.length > 0) {
+        const ct = contractType ? String(contractType) : '';
+        if (!ct || !contractTypesAllowed.includes(ct)) return false;
+      }
+
+      return true;
+    });
   }
 
   async getLeaveTypeById(id: string): Promise<LeaveType> {

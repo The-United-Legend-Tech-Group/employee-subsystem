@@ -77,9 +77,14 @@ export function TerminationReviews() {
             const emp = await employeeApi.getEmployeebyId(id);
             console.log('Fetched employee:', id, emp);
             return { id, employeeNumber: emp?.profile?.employeeNumber };
-          } catch (err) {
-            console.error('Failed to fetch employee for id', id, err);
-            return { id, employeeNumber: undefined };
+          } catch (err: any) {
+            // Silently handle 404 errors for terminated/revoked employees
+            if (err?.response?.status === 404) {
+              console.log(`Employee ${id} not accessible (may be terminated/revoked)`);
+            } else {
+              console.error('Failed to fetch employee for id', id, err);
+            }
+            return { id, employeeNumber: 'N/A (Revoked)' };
           }
         });
         const results = await Promise.all(promises);
@@ -293,11 +298,15 @@ export function TerminationReviews() {
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 2 }}>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Reason</Typography>
-                        <Typography variant="body2">{request.reason}</Typography>
+                        <Typography variant="body2">
+                          {typeof request.reason === 'string' ? request.reason : request.reason?.name || 'N/A'}
+                        </Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Type</Typography>
-                        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{request.initiator || 'N/A'}</Typography>
+                        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                          {typeof request.initiator === 'string' ? request.initiator : request.initiator?.name || 'N/A'}
+                        </Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Termination Date</Typography>
@@ -451,10 +460,10 @@ export function TerminationReviews() {
 
                     <Stack direction="row" spacing={1.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
                       <Box sx={{ width: '50%' }}><Typography variant="caption" color="text.secondary">Status</Typography><Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{selectedRequest.status}</Typography></Box>
-                      <Box sx={{ width: '50%' }}><Typography variant="caption" color="text.secondary">Type</Typography><Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{selectedRequest.initiator || 'N/A'}</Typography></Box>
+                      <Box sx={{ width: '50%' }}><Typography variant="caption" color="text.secondary">Type</Typography><Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{typeof selectedRequest.initiator === 'string' ? selectedRequest.initiator : selectedRequest.initiator?.name || 'N/A'}</Typography></Box>
                       <Box sx={{ width: '50%' }}><Typography variant="caption" color="text.secondary">Termination Date</Typography><Typography variant="body2">{selectedRequest.terminationDate ? new Date(selectedRequest.terminationDate).toLocaleDateString() : 'TBD'}</Typography></Box>
                       <Box sx={{ width: '50%' }}><Typography variant="caption" color="text.secondary">Submitted</Typography><Typography variant="body2">{selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleString() : 'N/A'}</Typography></Box>
-                      <Box sx={{ width: '100%' }}><Typography variant="caption" color="text.secondary">Reason</Typography><Typography variant="body2">{selectedRequest.reason || 'N/A'}</Typography></Box>
+                      <Box sx={{ width: '100%' }}><Typography variant="caption" color="text.secondary">Reason</Typography><Typography variant="body2">{typeof selectedRequest.reason === 'string' ? selectedRequest.reason : selectedRequest.reason?.name || 'N/A'}</Typography></Box>
                       {selectedRequest.employeeComments && (<Box sx={{ width: '100%' }}><Typography variant="caption" color="text.secondary">Employee Comments</Typography><Typography variant="body2">{selectedRequest.employeeComments}</Typography></Box>)}
                       {selectedRequest.hrComments && (<Box sx={{ width: '100%' }}><Typography variant="caption" color="text.secondary">HR Comments</Typography><Typography variant="body2">{selectedRequest.hrComments}</Typography></Box>)}
                     </Stack>
@@ -486,7 +495,9 @@ export function TerminationReviews() {
                     ? `Employee: ${employeeMap[selectedRequest.employeeId].employeeNumber}`
                     : `Employee ID: ${selectedRequest.employeeId?.toString().slice(-8)}`}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">Reason: {selectedRequest.reason}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Reason: {typeof selectedRequest.reason === 'string' ? selectedRequest.reason : selectedRequest.reason?.name || 'N/A'}
+                </Typography>
               </Box>
 
               <Box>

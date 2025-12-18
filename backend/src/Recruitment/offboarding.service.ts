@@ -74,6 +74,31 @@ export class OffboardingService {
     const employeeObjectId = rawId instanceof Types.ObjectId ? rawId : new Types.ObjectId(String(rawId));
     const employeeId = employeeObjectId.toString();
 
+    // Check if employee has existing active termination request first
+    const existingTerminationRequest = await this.terminationRequestRepository
+      .findActiveByEmployeeId(employeeId);
+
+    if (existingTerminationRequest) {
+      console.warn(`Employee ${dto.employeeNumber} already has an active termination request`);
+      throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee already has an active termination request with status ${existingTerminationRequest.status}`);
+    }
+
+    // Check if employee is already terminated/revoked
+    try {
+      const employeeProfile = await this.employeeService.getProfile(employeeId);
+      if (employeeProfile && employeeProfile.profile && employeeProfile.profile.status === EmployeeStatus.TERMINATED) {
+        console.warn(`Employee ${dto.employeeNumber} is already terminated`);
+        throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee is already terminated/revoked from the system`);
+      }
+    } catch (error) {
+      // If we can't fetch the profile, the employee might be deleted or revoked
+      if (error instanceof BadRequestException) {
+        throw error; // Re-throw our own error
+      }
+      console.error(`Failed to fetch employee profile for ${dto.employeeNumber}:`, error.message);
+      throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee may be revoked from the system or profile not accessible`);
+    }
+
     // Step 2: Convert employee number to candidate number (EMP -> CAN)
     if (!dto.employeeNumber.startsWith('EMP')) {
       throw new BadRequestException(`Invalid employee number format: ${dto.employeeNumber}. Must start with EMP`);
@@ -100,14 +125,6 @@ export class OffboardingService {
 
     const contractObjectId = new Types.ObjectId(contract._id);
     console.log(`Found contract ${contract._id} with employeeSignatureUrl: ${contract.employeeSignatureUrl}`);
-
-    const existingTerminationRequest = await this.terminationRequestRepository
-      .findActiveByEmployeeId(employeeId);
-
-    if (existingTerminationRequest) {
-      console.warn(`Employee ${dto.employeeNumber} already has an active termination request`);
-      throw new BadRequestException(`Employee ${dto.employeeNumber} already has an active termination request with status ${existingTerminationRequest.status}`);
-    }
 
     // Try to get appraisal records for the employee (optional)
     let appraisalRecords: any[] = [];
@@ -514,9 +531,25 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
 
     console.log(`Termination request ${dto.terminationRequestId} validated successfully`);
 
-    if (terminationRequest.status !== TerminationStatus.APPROVED) {
-      console.warn(`Termination request ${dto.terminationRequestId} is not approved. Current status: ${terminationRequest.status}`);
-      throw new BadRequestException(`Cannot revoke access for termination request with status: ${terminationRequest.status}. Only APPROVED terminations can have access revoked.`);
+    // Check if termination date has expired
+    const terminationDate = terminationRequest.terminationDate 
+      ? new Date(terminationRequest.terminationDate) 
+      : null;
+    const isExpired = terminationDate && terminationDate < new Date();
+
+    // Allow revocation if:
+    // 1. Status is APPROVED (normal flow) OR
+    // 2. Status is PENDING but termination date has expired (emergency flow)
+    const isApproved = terminationRequest.status === TerminationStatus.APPROVED;
+    const isPendingExpired = terminationRequest.status === TerminationStatus.PENDING && isExpired;
+
+    if (!isApproved && !isPendingExpired) {
+      console.warn(`Termination request ${dto.terminationRequestId} is not approved and not expired. Current status: ${terminationRequest.status}`);
+      throw new BadRequestException(`Cannot revoke access for termination request with status: ${terminationRequest.status}. Only APPROVED terminations or PENDING terminations with expired dates can have access revoked.`);
+    }
+
+    if (isPendingExpired) {
+      console.log(`EMERGENCY REVOCATION: Termination date expired (${terminationDate.toLocaleDateString()}) but status is still PENDING. Proceeding with access revocation.`);
     }
 
     // Step 3: Validate that all checklist items are handled before allowing access revocation
@@ -530,33 +563,87 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
     // Check if all departments are approved
     const allDepartmentsApproved = checklist.items.every(item => item.status === ApprovalStatus.APPROVED);
 
+    // Check if any department has rejected (cannot proceed if rejected)
+    const anyDepartmentRejected = checklist.items.some(item => item.status === ApprovalStatus.REJECTED);
+
+    // Check if any department is still pending
+    const anyDepartmentPending = checklist.items.some(item => item.status === ApprovalStatus.PENDING);
+
     // Check if all equipment is returned
     const allEquipmentReturned = checklist.equipmentList.every(eq => eq.returned === true);
 
     // Check if card is returned
     const cardReturned = checklist.cardReturned === true;
 
-    if (!allDepartmentsApproved || !allEquipmentReturned || !cardReturned) {
-      const pendingDepartments = checklist.items
-        .filter(item => item.status !== ApprovalStatus.APPROVED)
-        .map(item => item.department)
-        .join(', ');
+    // For APPROVED terminations: All must be complete (no rejections, no pending)
+    // For PENDING EXPIRED terminations: Allow revocation even if items pending (emergency override)
+    if (isApproved) {
+      // Strict validation for approved terminations
+      if (anyDepartmentRejected) {
+        const rejectedDepartments = checklist.items
+          .filter(item => item.status === ApprovalStatus.REJECTED)
+          .map(item => `${item.department} (Reason: ${item.comments || 'No reason provided'})`)
+          .join(', ');
 
-      const unreturnedEquipment = checklist.equipmentList
-        .filter(eq => !eq.returned)
-        .map(eq => eq.name)
-        .join(', ');
+        const errorMessage = `Cannot revoke system access. The following departments have REJECTED clearance: ${rejectedDepartments}. Please resolve rejected items before proceeding.`;
+        console.error(errorMessage);
+        throw new BadRequestException(errorMessage);
+      }
 
-      let errorMessage = 'Cannot revoke system access. Pending items: ';
-      if (pendingDepartments) errorMessage += `Departments: ${pendingDepartments}. `;
-      if (unreturnedEquipment) errorMessage += `Equipment: ${unreturnedEquipment}. `;
-      if (!cardReturned) errorMessage += `Access card not returned. `;
+      if (!allDepartmentsApproved || !allEquipmentReturned || !cardReturned) {
+        const pendingDepartments = checklist.items
+          .filter(item => item.status === ApprovalStatus.PENDING)
+          .map(item => item.department)
+          .join(', ');
 
-      console.error(errorMessage);
-      throw new BadRequestException(errorMessage);
+        const unreturnedEquipment = checklist.equipmentList
+          .filter(eq => !eq.returned)
+          .map(eq => eq.name)
+          .join(', ');
+
+        let errorMessage = 'Cannot revoke system access. Pending items: ';
+        if (pendingDepartments) errorMessage += `Departments: ${pendingDepartments}. `;
+        if (unreturnedEquipment) errorMessage += `Equipment: ${unreturnedEquipment}. `;
+        if (!cardReturned) errorMessage += `Access card not returned. `;
+
+        console.error(errorMessage);
+        throw new BadRequestException(errorMessage);
+      }
+    } else if (isPendingExpired) {
+      // For expired pending terminations, log incomplete items but allow revocation
+      const incompleteItems: string[] = [];
+      
+      if (anyDepartmentRejected) {
+        const rejectedDepartments = checklist.items
+          .filter(item => item.status === ApprovalStatus.REJECTED)
+          .map(item => item.department);
+        incompleteItems.push(`Rejected departments: ${rejectedDepartments.join(', ')}`);
+      }
+      
+      if (anyDepartmentPending) {
+        const pendingDepartments = checklist.items
+          .filter(item => item.status === ApprovalStatus.PENDING)
+          .map(item => item.department);
+        incompleteItems.push(`Pending departments: ${pendingDepartments.join(', ')}`);
+      }
+      
+      if (!allEquipmentReturned) {
+        const unreturnedEquipment = checklist.equipmentList
+          .filter(eq => !eq.returned)
+          .map(eq => eq.name);
+        incompleteItems.push(`Unreturned equipment: ${unreturnedEquipment.join(', ')}`);
+      }
+      
+      if (!cardReturned) {
+        incompleteItems.push('Access card not returned');
+      }
+
+      if (incompleteItems.length > 0) {
+        console.warn(`EMERGENCY REVOCATION: Proceeding despite incomplete items: ${incompleteItems.join(' | ')}`);
+      }
     }
 
-    console.log(`All checklist requirements met for termination ${dto.terminationRequestId}. Proceeding with access revocation.`);
+    console.log(`All checklist requirements validated for termination ${dto.terminationRequestId}. Proceeding with access revocation.`);
     //Ahmed been here
     let x = new UpdateEmployeeStatusDto
     x.status = EmployeeStatus.TERMINATED
@@ -2171,9 +2258,9 @@ Please complete the clearance process as soon as possible.`,
     const now = new Date();
     const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
-    // Find all approved termination requests with termination dates
+    // Find all approved AND pending termination requests with termination dates
     const allTerminations = await this.terminationRequestRepository.find({
-      status: TerminationStatus.APPROVED,
+      status: { $in: [TerminationStatus.APPROVED, TerminationStatus.PENDING] },
       terminationDate: { $exists: true, $ne: null },
     });
 
@@ -2230,6 +2317,11 @@ Please complete the clearance process as soon as possible.`,
               ? [departmentHeadId.toString()] 
               : [termination.employeeId.toString()];
 
+            const isPending = termination.status === TerminationStatus.PENDING;
+            const statusWarning = isPending 
+              ? 'The termination request is still PENDING approval, but the termination date has expired.' 
+              : '';
+
             const notificationPayload = {
               recipientId: recipients,
               type: 'Alert',
@@ -2237,8 +2329,11 @@ Please complete the clearance process as soon as possible.`,
               title: `URGENT: Termination Date Expired - ${employeeNumber}`,
               message: `CRITICAL ALERT: The termination date for employee ${employeeNumber} has passed, but clearances are incomplete.
 
+Termination Status: ${termination.status}
 Termination Date: ${terminationDate.toLocaleDateString()} (EXPIRED)
 Days Overdue: ${Math.floor((now.getTime() - terminationDate.getTime()) / (1000 * 60 * 60 * 24))} days
+
+${statusWarning}
 
 Pending Items:
 ${pendingDepartments.length > 0 ? `- Departments: ${pendingDepartments.join(', ')}` : ''}
@@ -2246,10 +2341,10 @@ ${unreturnedItems.length > 0 ? `- Equipment: ${unreturnedItems.join(', ')}` : ''
 ${!cardReturned ? '- Access Card: Not returned' : ''}
 
 ACTION REQUIRED:
-System administrators can now revoke system access for this employee in the Access Revocation section.
+The offboarding checklist was not completed before the termination date. This employee is now listed for system access revocation.
 
 Department: ${dept}
-Please complete your clearance items immediately.`,
+Please complete your clearance items immediately, or contact System Administrator for access revocation.`,
               relatedModule: 'Recruitment',
               isRead: false,
             };
@@ -2318,9 +2413,10 @@ Please complete your clearance items before the termination date to avoid delays
     try {
       console.log('Fetching employees ready for system access revocation');
 
-      // Find all termination requests that are approved
+      // Find all termination requests that are approved OR pending with expired dates
+      const now = new Date();
       const terminationRequests = await this.terminationRequestRepository.find({
-        status: TerminationStatus.APPROVED,
+        status: { $in: [TerminationStatus.APPROVED, TerminationStatus.PENDING] },
       });
 
       console.log(`Found ${terminationRequests.length} approved termination request(s)`);
@@ -2355,34 +2451,41 @@ Please complete your clearance items before the termination date to avoid delays
           continue;
         }
 
+        // Check if termination date has expired
+        const terminationDate = terminationRequest.terminationDate 
+          ? new Date(terminationRequest.terminationDate) 
+          : null;
+        const isExpired = terminationDate && terminationDate < now;
+
         // Check if all departments have approved
         const allDepartmentsApproved = clearanceChecklist.items.every(
           (item) => item.status === ApprovalStatus.APPROVED
         );
-
-        if (!allDepartmentsApproved) {
-          console.log(`Not all departments approved for employee ${terminationRequest.employeeId}`);
-          continue;
-        }
 
         // Check if all equipment has been returned
         const allEquipmentReturned = clearanceChecklist.equipmentList.every(
           (equipment) => equipment.returned === true
         );
 
-        if (!allEquipmentReturned) {
-          console.log(`Not all equipment returned for employee ${terminationRequest.employeeId}`);
-          continue;
-        }
-
         // Check if access card has been returned
-        if (!clearanceChecklist.cardReturned) {
-          console.log(`Access card not returned for employee ${terminationRequest.employeeId}`);
+        const cardReturned = clearanceChecklist.cardReturned;
+
+        // Include employee if:
+        // 1. All clearances complete (original logic) OR
+        // 2. Termination date expired and status is PENDING (new logic)
+        const allClearancesComplete = allDepartmentsApproved && allEquipmentReturned && cardReturned;
+        const isPendingExpired = terminationRequest.status === TerminationStatus.PENDING && isExpired;
+
+        if (!allClearancesComplete && !isPendingExpired) {
+          console.log(`Employee ${terminationRequest.employeeId} not ready - clearances incomplete and not expired`);
           continue;
         }
 
         // All requirements met - add to ready list
-        console.log(`Employee ${terminationRequest.employeeId} is ready for revocation`);
+        const reason = allClearancesComplete 
+          ? 'All clearances completed' 
+          : 'Termination date expired (pending status)';
+        console.log(`Employee ${terminationRequest.employeeId} is ready for revocation - ${reason}`);
 
         readyForRevocation.push({
           terminationRequest: terminationRequest,
@@ -2392,6 +2495,9 @@ Please complete your clearance items before the termination date to avoid delays
           allDepartmentsApproved: allDepartmentsApproved,
           allEquipmentReturned: allEquipmentReturned,
           cardReturned: clearanceChecklist.cardReturned,
+          isExpired: isExpired || false,
+          isPendingExpired: isPendingExpired || false,
+          revocationReason: reason,
         });
       }
 

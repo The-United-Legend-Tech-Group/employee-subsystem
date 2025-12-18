@@ -138,6 +138,16 @@ export const offboardingApi = {
   trackResignationStatus: (params: TrackResignationStatusDto) => {
     return api.get('/offboarding/track-resignation-status', { params });
   },
+
+  // =================== REMINDER & EXPIRY ENDPOINTS ===================
+
+  sendOffboardingReminder: (terminationRequestId: string) => {
+    return api.post('/offboarding/send-reminder/:terminationRequestId', { terminationRequestId });
+  },
+
+  checkExpiryWarnings: () => {
+    return api.post('/offboarding/check-expiry-warnings');
+  },
 };
 
 export default offboardingApi;

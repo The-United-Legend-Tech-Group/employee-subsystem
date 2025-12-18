@@ -201,4 +201,32 @@ export class OffboardingController {
   async getEmployeesReadyForRevocation(): Promise<any[]> {
     return this.offboardingService.getEmployeesReadyForRevocation();
   }
+
+  @Post('send-reminder/:terminationRequestId')
+  @ApiOperation({ summary: 'Send manual reminder for pending offboarding clearances' })
+  @ApiOkResponse({ description: 'Reminders sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid termination request ID or no pending items' })
+  @ApiNotFoundResponse({ description: 'Termination request or checklist not found' })
+  @HttpCode(HttpStatus.OK)
+  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  async sendReminder(@Body('terminationRequestId') terminationRequestId: string): Promise<{
+    message: string;
+    remindersSent: number;
+    pendingDepartments: string[];
+    unreturnedItems: string[];
+  }> {
+    return this.offboardingService.sendOffboardingReminder(terminationRequestId);
+  }
+
+  @Post('check-expiry-warnings')
+  @ApiOperation({ summary: 'Check and send termination expiry warnings (manual or cron job)' })
+  @ApiOkResponse({ description: 'Expiry warnings checked and sent' })
+  @HttpCode(HttpStatus.OK)
+  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  async checkExpiryWarnings(): Promise<{
+    preExpiryWarnings: number;
+    expiryWarnings: number;
+  }> {
+    return this.offboardingService.checkAndSendExpiryWarnings();
+  }
 }

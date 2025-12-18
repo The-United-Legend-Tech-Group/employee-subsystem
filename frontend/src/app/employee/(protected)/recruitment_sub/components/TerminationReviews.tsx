@@ -45,6 +45,7 @@ export function TerminationReviews() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [employeeDetailsMap, setEmployeeDetailsMap] = useState<Record<string, any>>({});
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
   // Form state for initiating termination
   const [formData, setFormData] = useState({
@@ -211,6 +212,27 @@ export function TerminationReviews() {
     setSelectedRequest(null);
   };
 
+  const handleSendReminder = async (terminationRequestId: string) => {
+    try {
+      setSendingReminder(terminationRequestId);
+      const response = await offboardingApi.sendOffboardingReminder(terminationRequestId);
+      
+      toast.success(
+        `${response.data.remindersSent} reminder(s) sent to pending departments`
+      );
+      
+      if (response.data.pendingDepartments.length > 0) {
+        console.log('Pending departments:', response.data.pendingDepartments);
+        console.log('Unreturned items:', response.data.unreturnedItems);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send reminder');
+      console.error(error);
+    } finally {
+      setSendingReminder(null);
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
@@ -298,7 +320,7 @@ export function TerminationReviews() {
                       </Box>
                     )}
 
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
                       <Button
                         onClick={() => handleViewDetails(request)}
                         variant="outlined"
@@ -315,6 +337,18 @@ export function TerminationReviews() {
                       >
                         {creatingChecklist === request._id ? 'Creating...' : 'Create Checklist'}
                       </Button>
+                      {request.status === 'approved' && (
+                        <Button
+                          onClick={() => handleSendReminder(request._id)}
+                          disabled={sendingReminder === request._id}
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                          startIcon={sendingReminder === request._id ? <CircularProgress size={16} /> : undefined}
+                        >
+                          {sendingReminder === request._id ? 'Sending...' : 'Send Reminder'}
+                        </Button>
+                      )}
                       {request.status === 'approved' && (
                         <Button
                           onClick={() => toast.info('Offboarding feature in Clearance tab')}

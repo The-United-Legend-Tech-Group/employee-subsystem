@@ -228,7 +228,7 @@ export class OffboardingService {
       // HR can manually create the benefit record later if needed
     }
 
-    // Step 1: Send notifications to all departments
+    // Step 1: Send notifications to all departments with department head targeting
     const departments = [
       'Health Insurance',
       'Inventory',
@@ -239,21 +239,49 @@ export class OffboardingService {
       'HR'
     ];
 
+    console.log(`Sending termination notifications for employee ${dto.employeeNumber}...`);
+
     for (const department of departments) {
       try {
-        await this.notificationService.create({
-          recipientId: [employeeId],
+        // Try to get department head ID
+        const departmentHeadId = await this.getDepartmentHeadId(department);
+        
+        const recipients = departmentHeadId 
+          ? [departmentHeadId.toString()] 
+          : [employeeId]; // Fallback to general notification
+
+        console.log(`Sending notification to ${department} department. Recipients:`, recipients);
+
+        const notificationPayload = {
+          recipientId: recipients,
           type: 'Alert',
-          deliveryType: 'MULTICAST',
-          title: `Termination Notification - ${department} Department`,
-          message: `Employee termination has been initiated. Please prepare for offboarding checklist processing. Department: ${department}`,
-          relatedEntityId: savedTerminationRequest._id.toString(),
-        });
-        console.log(`Notification sent to ${department} department`);
+          deliveryType: departmentHeadId ? 'UNICAST' : 'MULTICAST',
+          title: `Termination Initiated - ${department} Department Clearance Required`,
+          message: `A termination has been initiated for Employee ${dto.employeeNumber}.
+
+Action Required:
+An offboarding checklist has been automatically created. Please review and process the clearance items for your department.
+
+Department: ${department}
+Employee: ${dto.employeeNumber}
+Termination Reason: ${dto.reason}
+Status: Pending Review
+
+Please navigate to the Offboarding Clearance section to sign off on your department's items.`,
+          relatedModule: 'Recruitment',
+          isRead: false,
+        };
+
+        await this.notificationService.create(notificationPayload);
+        
+        console.log(`✓ Notification sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`);
       } catch (error) {
-        console.error(`Failed to send notification to ${department}: ${error.message}`);
+        console.error(`✗ Failed to send notification to ${department}:`, error.message);
+        console.error(`Error details:`, error);
       }
     }
+
+    console.log(`Completed sending ${departments.length} department notifications`);
 
     // Step 2: Automatically create offboarding checklist with predefined items
     try {
@@ -2026,6 +2054,266 @@ The employee is now ready for system access revocation. Please navigate to Syste
   // - All equipment returned
   // - Access card returned
   // - Employee status is NOT already TERMINATED
+  //OFF-021
+  // Send manual reminder for pending clearances
+  async sendOffboardingReminder(terminationRequestId: string): Promise<{
+    message: string;
+    remindersSent: number;
+    pendingDepartments: string[];
+    unreturnedItems: string[];
+  }> {
+    console.log(`Sending offboarding reminder for termination request ${terminationRequestId}`);
+
+    const terminationObjectId = new Types.ObjectId(terminationRequestId);
+    const terminationRequest = await this.terminationRequestRepository.findById(terminationObjectId.toString());
+
+    if (!terminationRequest) {
+      throw new NotFoundException(`Termination request with ID ${terminationRequestId} not found`);
+    }
+
+    // Get clearance checklist
+    const checklist = await this.clearanceChecklistRepository.findByTerminationId(terminationObjectId);
+    if (!checklist) {
+      throw new BadRequestException(`No offboarding checklist found for termination ${terminationRequestId}`);
+    }
+
+    // Get employee details
+    const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+    const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+    const employeeName = employee?.profile 
+      ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+      : 'Employee';
+
+    // Identify pending departments
+    const pendingDepartments = checklist.items
+      .filter(item => item.status !== ApprovalStatus.APPROVED)
+      .map(item => item.department);
+
+    // Identify unreturned equipment
+    const unreturnedEquipment = checklist.equipmentList
+      .filter(eq => !eq.returned)
+      .map(eq => eq.name);
+
+    const cardNotReturned = !checklist.cardReturned;
+
+    if (pendingDepartments.length === 0 && unreturnedEquipment.length === 0 && !cardNotReturned) {
+      return {
+        message: 'All clearances completed. No reminders needed.',
+        remindersSent: 0,
+        pendingDepartments: [],
+        unreturnedItems: [],
+      };
+    }
+
+    let remindersSent = 0;
+
+    // Send reminders to pending departments only
+    console.log(`Sending reminders to ${pendingDepartments.length} pending department(s)...`);
+    
+    for (const department of pendingDepartments) {
+      try {
+        const departmentHeadId = await this.getDepartmentHeadId(department);
+        const recipients = departmentHeadId 
+          ? [departmentHeadId.toString()] 
+          : [terminationRequest.employeeId.toString()];
+
+        console.log(`Sending reminder to ${department}. Recipients:`, recipients);
+
+        const notificationPayload = {
+          recipientId: recipients,
+          type: 'Alert',
+          deliveryType: departmentHeadId ? 'UNICAST' : 'MULTICAST',
+          title: `Reminder: Pending Clearance for ${employeeNumber}`,
+          message: `This is a reminder that your department has pending clearance items for employee ${employeeNumber} (${employeeName}).
+
+Department: ${department}
+Status: Pending Approval
+Termination Date: ${terminationRequest.terminationDate ? new Date(terminationRequest.terminationDate).toLocaleDateString() : 'TBD'}
+
+Pending Items:
+${pendingDepartments.length > 0 ? `- Departments: ${pendingDepartments.join(', ')}` : ''}
+${unreturnedEquipment.length > 0 ? `- Unreturned Equipment: ${unreturnedEquipment.join(', ')}` : ''}
+${cardNotReturned ? '- Access Card: Not returned' : ''}
+
+Please complete the clearance process as soon as possible.`,
+          relatedModule: 'Recruitment',
+          isRead: false,
+        };
+
+        await this.notificationService.create(notificationPayload);
+
+        remindersSent++;
+        console.log(`✓ Reminder sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`);
+      } catch (error) {
+        console.error(`✗ Failed to send reminder to ${department}:`, error.message);
+        console.error('Error details:', error);
+      }
+    }
+
+    console.log(`Completed sending ${remindersSent} reminder(s)`);
+
+    return {
+      message: `Reminders sent successfully to ${remindersSent} department(s)`,
+      remindersSent,
+      pendingDepartments,
+      unreturnedItems: [...unreturnedEquipment, ...(cardNotReturned ? ['Access Card'] : [])],
+    };
+  }
+
+  //OFF-022
+  // Check and send pre-expiry/expiry warnings (to be called by cron job or manually)
+  async checkAndSendExpiryWarnings(): Promise<{
+    preExpiryWarnings: number;
+    expiryWarnings: number;
+  }> {
+    console.log('Checking for termination expiry warnings...');
+
+    const now = new Date();
+    const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    // Find all approved termination requests with termination dates
+    const allTerminations = await this.terminationRequestRepository.find({
+      status: TerminationStatus.APPROVED,
+      terminationDate: { $exists: true, $ne: null },
+    });
+
+    let preExpiryWarnings = 0;
+    let expiryWarnings = 0;
+
+    for (const termination of allTerminations) {
+      if (!termination.terminationDate) continue;
+
+      const terminationDate = new Date(termination.terminationDate);
+      const checklist = await this.clearanceChecklistRepository.findOne({
+        terminationId: termination._id,
+      });
+
+      if (!checklist) continue;
+
+      // Check if all clearances are complete
+      const allDepartmentsApproved = checklist.items.every(
+        (item) => item.status === ApprovalStatus.APPROVED
+      );
+      const allEquipmentReturned = checklist.equipmentList.every((eq) => eq.returned);
+      const cardReturned = checklist.cardReturned;
+
+      const allComplete = allDepartmentsApproved && allEquipmentReturned && cardReturned;
+
+      // Get employee details
+      const employee = await this.employeeService.getProfile(termination.employeeId.toString());
+      const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+
+      // Case 1: Termination date expired
+      if (terminationDate < now && !allComplete) {
+        const pendingDepartments = checklist.items
+          .filter((item) => item.status !== ApprovalStatus.APPROVED)
+          .map((item) => item.department);
+        const unreturnedItems = checklist.equipmentList
+          .filter((eq) => !eq.returned)
+          .map((eq) => eq.name);
+
+        // Send to ALL department heads + system admin
+        const allDepartments = [
+          'Health Insurance',
+          'Inventory',
+          'Library',
+          'Post Grad Studies',
+          'Finance',
+          'IT Equipment',
+          'HR'
+        ];
+
+        for (const dept of allDepartments) {
+          try {
+            const departmentHeadId = await this.getDepartmentHeadId(dept);
+            const recipients = departmentHeadId 
+              ? [departmentHeadId.toString()] 
+              : [termination.employeeId.toString()];
+
+            const notificationPayload = {
+              recipientId: recipients,
+              type: 'Alert',
+              deliveryType: departmentHeadId ? 'UNICAST' : 'MULTICAST',
+              title: `URGENT: Termination Date Expired - ${employeeNumber}`,
+              message: `CRITICAL ALERT: The termination date for employee ${employeeNumber} has passed, but clearances are incomplete.
+
+Termination Date: ${terminationDate.toLocaleDateString()} (EXPIRED)
+Days Overdue: ${Math.floor((now.getTime() - terminationDate.getTime()) / (1000 * 60 * 60 * 24))} days
+
+Pending Items:
+${pendingDepartments.length > 0 ? `- Departments: ${pendingDepartments.join(', ')}` : ''}
+${unreturnedItems.length > 0 ? `- Equipment: ${unreturnedItems.join(', ')}` : ''}
+${!cardReturned ? '- Access Card: Not returned' : ''}
+
+ACTION REQUIRED:
+System administrators can now revoke system access for this employee in the Access Revocation section.
+
+Department: ${dept}
+Please complete your clearance items immediately.`,
+              relatedModule: 'Recruitment',
+              isRead: false,
+            };
+
+            await this.notificationService.create(notificationPayload);
+
+            expiryWarnings++;
+          } catch (error) {
+            console.error(`Failed to send expiry warning to ${dept}:`, error.message);
+          }
+        }
+      }
+      // Case 2: Termination date in 2 days
+      else if (terminationDate <= twoDaysFromNow && terminationDate > now && !allComplete) {
+        const pendingDepartments = checklist.items
+          .filter((item) => item.status !== ApprovalStatus.APPROVED)
+          .map((item) => item.department);
+        const unreturnedItems = checklist.equipmentList
+          .filter((eq) => !eq.returned)
+          .map((eq) => eq.name);
+
+        // Send only to pending departments
+        for (const dept of pendingDepartments) {
+          try {
+            const departmentHeadId = await this.getDepartmentHeadId(dept);
+            const recipients = departmentHeadId 
+              ? [departmentHeadId.toString()] 
+              : [termination.employeeId.toString()];
+
+            const notificationPayload = {
+              recipientId: recipients,
+              type: 'Alert',
+              deliveryType: departmentHeadId ? 'UNICAST' : 'MULTICAST',
+              title: `Urgent: Termination Deadline Approaching - ${employeeNumber}`,
+              message: `URGENT: The termination date for employee ${employeeNumber} is approaching in 2 days.
+
+Termination Date: ${terminationDate.toLocaleDateString()}
+Days Remaining: ${Math.ceil((terminationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))} days
+
+Pending Items:
+${pendingDepartments.length > 0 ? `- Departments: ${pendingDepartments.join(', ')}` : ''}
+${unreturnedItems.length > 0 ? `- Equipment: ${unreturnedItems.join(', ')}` : ''}
+${!cardReturned ? '- Access Card: Not returned' : ''}
+
+Department: ${dept}
+Please complete your clearance items before the termination date to avoid delays.`,
+              relatedModule: 'Recruitment',
+              isRead: false,
+            };
+
+            await this.notificationService.create(notificationPayload);
+
+            preExpiryWarnings++;
+          } catch (error) {
+            console.error(`Failed to send pre-expiry warning to ${dept}:`, error.message);
+          }
+        }
+      }
+    }
+
+    console.log(`Expiry warnings sent: ${preExpiryWarnings} pre-expiry, ${expiryWarnings} expiry`);
+    return { preExpiryWarnings, expiryWarnings };
+  }
+
   async getEmployeesReadyForRevocation(): Promise<any[]> {
     try {
       console.log('Fetching employees ready for system access revocation');

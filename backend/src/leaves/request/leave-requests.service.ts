@@ -536,11 +536,11 @@ export class LeavesRequestService {
   // ---------- REQ-021: Manager Approves a request ----------
   async approveRequest(leaveRequestId: string, dto: ManagerApprovalDto): Promise<LeaveRequest | null> {
     const updatedRequest = await this.leaveRequestRepository.updateWithApprovalFlow(leaveRequestId, {
-      status: LeaveStatus.APPROVED,
+      status: dto.status,
       $push: {
         approvalFlow: {
           role: 'department head',
-          status: LeaveStatus.APPROVED,
+          status: dto.status,
           decidedBy: new Types.ObjectId(dto.decidedBy),
           decidedAt: new Date(),
         },
@@ -558,11 +558,11 @@ export class LeavesRequestService {
   // ---------- REQ-022: Manager Rejects a request ----------
   async rejectRequest(leaveRequestId: string, dto: ManagerApprovalDto): Promise<LeaveRequest | null> {
     const updatedRequest = await this.leaveRequestRepository.updateWithApprovalFlow(leaveRequestId, {
-      status: LeaveStatus.REJECTED,
+      status: dto.status,
       $push: {
         approvalFlow: {
           role: 'department head',
-          status: LeaveStatus.REJECTED,
+          status: dto.status,
           decidedBy: new Types.ObjectId(dto.decidedBy),
           decidedAt: new Date(),
         },

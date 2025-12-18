@@ -60,7 +60,7 @@ type LeaveRequest = {
     to: string | Date;
   };
   durationDays?: number;
-  status?: string;
+  status?: LeaveStatus;
   justification?: string;
   attachmentId?: string;
   approvalFlow?: Array<{
@@ -71,6 +71,8 @@ type LeaveRequest = {
   }>;
   createdAt?: string | Date;
 };
+
+type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 // Helper function to extract employee profile from various data structures
 function getEmployeeProfile(employee: any): any | null {

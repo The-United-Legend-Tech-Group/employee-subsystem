@@ -18,7 +18,7 @@ export class AppraisalAssignmentController {
 
     @Get()
     @UseGuards(AuthGuard, authorizationGuard)
-    @Roles(SystemRole.DEPARTMENT_HEAD)
+    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Get appraisal assignments for a manager' })
     @ApiResponse({
         status: 200,

@@ -53,16 +53,19 @@ export class authorizationGuard implements CanActivate {
     // If we have an employee id, look up roles from the EmployeeSystemRole collection
     if (employeeId) {
       this.logger.debug(`Checking roles for employeeId: ${employeeId}`);
-      // Some deployments have employeeProfileId stored as ObjectId, some as string.
-      // Query both forms to avoid false negatives.
+
+      // Build $or query to handle both String and ObjectId storage formats
       const or: any[] = [{ employeeProfileId: employeeId }];
       if (Types.ObjectId.isValid(employeeId)) {
         or.push({ employeeProfileId: new Types.ObjectId(employeeId) });
       }
 
-      const employeeRoles = await this.employeeSystemRoleModel.findOne({
-        $or: or,
-      });
+      // Query for active records, sorted by updatedAt to get the most recent
+      // This handles cases where multiple records exist with different storage formats
+      const employeeRoles = await this.employeeSystemRoleModel
+        .findOne({ $or: or, isActive: true })
+        .sort({ updatedAt: -1 })
+        .exec();
 
       // If DB lookup fails or roles are empty, fall back to JWT roles rather than hard-denying.
       if (employeeRoles?.roles?.length) {

@@ -173,88 +173,190 @@ export function JobPostings() {
       </Stack>
 
       {/* Job Requisitions List */}
-      <Card variant="outlined">
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
-            <CircularProgress />
-          </Box>
-        ) : requisitions.length > 0 ? (
-          <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
-            {requisitions.map((req) => (
-              <Box key={req._id} sx={{ p: 3, '&:hover': { bgcolor: 'action.hover' } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 2 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <WorkIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-                      <Typography variant="body1" fontWeight={600}>
-                        {req.title || req.templateId?.title || 'Untitled Position'}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}>
+          <CircularProgress size={48} />
+        </Box>
+      ) : requisitions.length > 0 ? (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
+          {requisitions.map((req) => (
+            <Card
+              key={req._id}
+              sx={{
+                position: 'relative',
+                border: '2px solid',
+                borderColor: req.publishStatus === 'published' ? 'success.main' :
+                  req.publishStatus === 'closed' ? 'error.main' : 'warning.main',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: 6,
+                  transform: 'translateY(-4px)'
+                }
+              }}
+            >
+              {/* Status Badge */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  zIndex: 1
+                }}
+              >
+                <Chip
+                  label={req.publishStatus?.toUpperCase() || 'DRAFT'}
+                  color={
+                    req.publishStatus === 'published' ? 'success' :
+                      req.publishStatus === 'closed' ? 'error' : 'warning'
+                  }
+                  size="small"
+                  sx={{ fontWeight: 700 }}
+                />
+              </Box>
+
+              <CardContent sx={{ p: 3 }}>
+                <Stack spacing={2.5}>
+                  {/* Header */}
+                  <Box>
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1 }}>
+                      <Box
+                        sx={{
+                          bgcolor: 'primary.main',
+                          borderRadius: 2,
+                          p: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <WorkIcon sx={{ color: 'white', fontSize: 24 }} />
+                      </Box>
+                      <Box sx={{ flex: 1, pr: 6 }}>
+                        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5, lineHeight: 1.3 }}>
+                          {req.title || req.templateId?.title || 'Untitled Position'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                          {req.requisitionId}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+
+                  {/* Info Grid */}
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box
+                        sx={{
+                          bgcolor: 'action.hover',
+                          borderRadius: 1.5,
+                          p: 1,
+                          display: 'flex'
+                        }}
+                      >
+                        <LocationOnIcon fontSize="small" color="action" />
+                      </Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        {req.location || 'Location not specified'}
                       </Typography>
                     </Stack>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Requisition ID: {req.requisitionId}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip
-                      label={req.publishStatus || 'draft'}
-                      color={
-                        req.publishStatus === 'published' ? 'success' :
-                          req.publishStatus === 'closed' ? 'error' : 'warning'
-                      }
-                      size="small"
-                    />
-                    <IconButton
-                      onClick={() => handleEdit(req)}
-                      size="small"
-                      color="primary"
-                      title="Edit requisition"
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box
+                        sx={{
+                          bgcolor: 'action.hover',
+                          borderRadius: 1.5,
+                          p: 1,
+                          display: 'flex'
+                        }}
+                      >
+                        <PeopleIcon fontSize="small" color="action" />
+                      </Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        {req.openings || req.numberOfPositions || 1} Opening{(req.openings || req.numberOfPositions || 1) !== 1 ? 's' : ''}
+                      </Typography>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box
+                        sx={{
+                          bgcolor: 'action.hover',
+                          borderRadius: 1.5,
+                          p: 1,
+                          display: 'flex'
+                        }}
+                      >
+                        <CalendarTodayIcon fontSize="small" color="action" />
+                      </Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        {req.postingDate
+                          ? new Date(req.postingDate).toLocaleDateString()
+                          : 'No posting date'}
+                      </Typography>
+                    </Stack>
+
+                    {req.expiryDate && (
+                      <Alert
+                        severity="warning"
+                        variant="outlined"
+                        sx={{
+                          py: 0.5,
+                          borderRadius: 2,
+                          '& .MuiAlert-message': { py: 0 }
+                        }}
+                      >
+                        <Typography variant="caption" fontWeight={600}>
+                          Expires: {new Date(req.expiryDate).toLocaleDateString()}
+                        </Typography>
+                      </Alert>
+                    )}
                   </Stack>
+
+                  {/* Action Button */}
+                  <Button
+                    variant="contained"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleEdit(req)}
+                    fullWidth
+                    sx={{
+                      mt: 1,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 1.25,
+                      borderRadius: 2,
+                      boxShadow: 2
+                    }}
+                  >
+                    Edit Requisition
+                  </Button>
                 </Stack>
-
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <LocationOnIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {req.location || 'Not specified'}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <PeopleIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {req.openings || req.numberOfPositions || 1} Opening(s)
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CalendarTodayIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {req.postingDate
-                        ? new Date(req.postingDate).toLocaleDateString()
-                        : 'No posting date'}
-                    </Typography>
-                  </Stack>
-                </Box>
-
-                {req.expiryDate && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                    Expires: {new Date(req.expiryDate).toLocaleDateString()}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Stack>
-        ) : (
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      ) : (
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
           <Box sx={{ p: 12, textAlign: 'center' }}>
-            <WorkIcon sx={{ fontSize: 48, color: 'action.disabled', mb: 1.5 }} />
-            <Typography color="text.secondary">No job requisitions yet</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Currently no job requisitions have been created.
+            <Box
+              sx={{
+                display: 'inline-flex',
+                p: 3,
+                borderRadius: '50%',
+                bgcolor: 'action.hover',
+                mb: 2
+              }}
+            >
+              <WorkIcon sx={{ fontSize: 48, color: 'action.disabled' }} />
+            </Box>
+            <Typography variant="h6" fontWeight={600} color="text.secondary" gutterBottom>
+              No job requisitions yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Job requisitions will appear here once created.
             </Typography>
           </Box>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Create Requisition Form Modal */}
       <Dialog
@@ -262,18 +364,33 @@ export function JobPostings() {
         onClose={handleCloseForm}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
+          }
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            py: 3
+          }}
+        >
           <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">
-              {editingRequisition ? 'Edit Job Requisition' : 'Create Job Requisition'}
-            </Typography>
-            <IconButton onClick={handleCloseForm} size="small">
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <WorkIcon sx={{ fontSize: 28 }} />
+              <Typography variant="h5" fontWeight={600}>
+                {editingRequisition ? 'Edit Job Requisition' : 'Create Job Requisition'}
+              </Typography>
+            </Stack>
+            <IconButton onClick={handleCloseForm} size="small" sx={{ color: 'white' }}>
               <CloseIcon />
             </IconButton>
           </Stack>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ py: 4, px: 3 }}>
           <Stack spacing={3} component="form" onSubmit={handleSubmit}>
             {!editingRequisition && (
               <>
@@ -384,11 +501,16 @@ export function JobPostings() {
             </Box>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2.5, bgcolor: 'action.hover' }}>
           <Button
             onClick={handleCloseForm}
             disabled={submitting}
-            color="inherit"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 3,
+              borderRadius: 2
+            }}
           >
             Cancel
           </Button>
@@ -396,7 +518,15 @@ export function JobPostings() {
             onClick={handleSubmit}
             disabled={submitting}
             variant="contained"
-            startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+            startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <WorkIcon />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }}
           >
             {submitting
               ? (editingRequisition ? 'Updating...' : 'Creating...')

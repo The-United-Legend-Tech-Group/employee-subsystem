@@ -16,6 +16,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SendIcon from '@mui/icons-material/Send';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import CircularProgress from '@mui/material/CircularProgress';
 import { recruitmentApi } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
 import { JobPostings } from './JobPostings';
@@ -29,6 +30,34 @@ type Tab = 'overview' | 'job-postings' | 'candidates' | 'interviews' | 'all-asse
 export function HREmployeeDashboard() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [applications, setApplications] = useState<any[]>([]);
+  const [interviews, setInterviews] = useState<any[]>([]);
+  const [referrals, setReferrals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      fetchOverviewData();
+    }
+  }, [activeTab]);
+
+  const fetchOverviewData = async () => {
+    try {
+      setLoading(true);
+      const [appsRes, referralsRes] = await Promise.all([
+        recruitmentApi.getAllApplications().catch(() => ({ data: [] })),
+        recruitmentApi.getAllReferrals().catch(() => ({ data: [] }))
+      ]);
+      setApplications(appsRes.data || []);
+      setReferrals(referralsRes.data || []);
+      // TODO: Fetch interviews when API is available
+      setInterviews([]);
+    } catch (error) {
+      console.error('Failed to fetch overview data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview', icon: PeopleIcon },
@@ -78,98 +107,129 @@ export function HREmployeeDashboard() {
         {/* Content */}
         {activeTab === 'overview' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 3 }}>
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                  <PeopleIcon color="primary" />
-                  <Typography variant="h6">Today&apos;s Tasks</Typography>
-                </Stack>
-                <Stack spacing={1}>
-                  {[
-                    'Review 5 new applications',
-                    'Schedule 3 interviews',
-                    'Send rejection emails (2)',
-                    'Update candidate statuses',
-                  ].map((task, index) => (
-                    <FormControlLabel
-                      key={index}
-                      control={<Checkbox size="small" />}
-                      label={<Typography variant="body2">{task}</Typography>}
-                    />
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+            {loading ? (
+              <Box sx={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', py: 6 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <Card>
+                  <CardContent>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+                      <PeopleIcon color="primary" />
+                      <Typography variant="h6">New Applications</Typography>
+                    </Stack>
+                    <Typography variant="h3" sx={{ mb: 2, fontWeight: 600 }}>
+                      {applications.filter(a => {
+                        const created = new Date(a.createdAt);
+                        const today = new Date();
+                        return created.toDateString() === today.toDateString();
+                      }).length}
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {applications
+                        .filter(a => a.status !== 'rejected')
+                        .slice(0, 4)
+                        .map((app, index) => (
+                          <Box key={index} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                            <Typography variant="body2">
+                              {app.candidateId?.firstName} {app.candidateId?.lastName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {app.currentStage || 'Pending'}
+                            </Typography>
+                          </Box>
+                        ))}
+                      {applications.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                          No applications yet
+                        </Typography>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                  <CalendarTodayIcon color="success" />
-                  <Typography variant="h6">Upcoming Interviews</Typography>
-                </Stack>
-                <Stack spacing={2}>
-                  {[
-                    { candidate: 'John Doe', role: 'Senior Developer', time: '10:00 AM' },
-                    { candidate: 'Jane Smith', role: 'Product Manager', time: '2:00 PM' },
-                    { candidate: 'Mike Johnson', role: 'UX Designer', time: '4:00 PM' },
-                  ].map((interview, index) => (
-                    <Box key={index} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1, color: 'text.primary' }}>
-                      <Typography variant="body2">{interview.candidate}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {interview.role} · {interview.time}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardContent>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+                      <CalendarTodayIcon color="success" />
+                      <Typography variant="h6">Scheduled Interviews</Typography>
+                    </Stack>
+                    <Typography variant="h3" sx={{ mb: 2, fontWeight: 600 }}>
+                      {interviews.length}
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {interviews.slice(0, 3).map((interview, index) => {
+                        const scheduleDate = interview.scheduledDate ? new Date(interview.scheduledDate) : null;
+                        return (
+                          <Box key={index} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                            <Typography variant="body2">
+                              {interview.candidateId?.firstName || 'Candidate'} {interview.candidateId?.lastName || ''}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {interview.interviewType || 'Interview'} · {scheduleDate ? scheduleDate.toLocaleString() : 'TBD'}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                      {interviews.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                          No interviews scheduled
+                        </Typography>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                  <LocalOfferIcon color="secondary" />
-                  <Typography variant="h6">Referral Candidates</Typography>
-                </Stack>
-                <Stack spacing={2}>
-                  {[
-                    { name: 'Sarah Wilson', referredBy: 'Tom Brown', status: 'Screening' },
-                    { name: 'Alex Chen', referredBy: 'Lisa Gray', status: 'Interview' },
-                  ].map((referral, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        p: 1.5,
-                        bgcolor: 'action.hover',
-                        borderRadius: 1,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        color: 'text.primary'
-                      }}
-                    >
-                      <Typography variant="body2">{referral.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Referred by {referral.referredBy}
-                      </Typography>
-                      <Box
-                        component="span"
-                        sx={{
-                          display: 'inline-block',
-                          mt: 0.5,
-                          px: 1,
-                          py: 0.25,
-                          bgcolor: 'secondary.light',
-                          color: 'secondary.contrastText',
-                          borderRadius: 0.5,
-                          fontSize: '0.75rem'
-                        }}
-                      >
-                        {referral.status}
-                      </Box>
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardContent>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+                      <LocalOfferIcon color="secondary" />
+                      <Typography variant="h6">Referral Candidates</Typography>
+                    </Stack>
+                    <Typography variant="h3" sx={{ mb: 2, fontWeight: 600 }}>
+                      {referrals.length}
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {referrals.slice(0, 3).map((referral, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            p: 1.5,
+                            bgcolor: 'action.hover',
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider'
+                          }}
+                        >
+                          <Typography variant="body2">
+                            {referral.candidateId?.firstName || 'Candidate'} {referral.candidateId?.lastName || ''}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Referred by {referral.referredBy}
+                          </Typography>
+                          <Box
+                            component="span"
+                            sx={{
+                              display: 'inline-block',
+                              mt: 0.5,
+                              px: 1,
+                              py: 0.25,
+                              bgcolor: 'secondary.light',
+                              color: 'secondary.contrastText',
+                              borderRadius: 0.5,
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {referral.status}
+                          </Box>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </Box>
         )}
 

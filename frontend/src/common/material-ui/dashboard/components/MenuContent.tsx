@@ -38,7 +38,7 @@ export interface MenuItem {
 }
 
 export const mainListItems: MenuItem[] = [
-  { text: "Home", icon: <HomeRoundedIcon />, path: "/employee/dashboard", roles: [] },
+  { text: "Home", icon: <HomeRoundedIcon />, roles: [] },
   {
     text: "Calendar",
     icon: <CalendarMonthRoundedIcon />,
@@ -141,7 +141,10 @@ export default function MenuContent() {
   const isPerformancePath = pathname.startsWith("/employee/performance");
 
   const visibleListItems = mainListItems.filter((item) => {
-    if (isCandidate && item.text === "Team") return false;
+    // For candidates, only show the Home button
+    if (isCandidate) {
+      return item.text === "Home";
+    }
     // Only apply role-based filtering after roles are loaded
     if (!loading) {
       // @ts-ignore
@@ -217,59 +220,66 @@ export default function MenuContent() {
           </ListItem>
         ))}
 
-        {/* Performance Dropdown */}
-        <ListItem disablePadding sx={{ display: "block" }}>
-          <ListItemButton
-            selected={isPerformancePath}
-            onClick={() => setPerformanceOpen(!performanceOpen)}
-          >
-            <ListItemIcon>
-              <TrendingUpRoundedIcon />
-            </ListItemIcon>
-            <ListItemText primary="Performance" />
-            {performanceOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </ListItemButton>
-        </ListItem>
+        {/* Performance Dropdown - Only show for employees, not candidates */}
+        {!isCandidate && (
+          <>
+            <ListItem disablePadding sx={{ display: "block" }}>
+              <ListItemButton
+                selected={isPerformancePath}
+                onClick={() => setPerformanceOpen(!performanceOpen)}
+              >
+                <ListItemIcon>
+                  <TrendingUpRoundedIcon />
+                </ListItemIcon>
+                <ListItemText primary="Performance" />
+                {performanceOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </ListItemButton>
+            </ListItem>
 
-        <Collapse in={performanceOpen} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            {performanceSubItems.map((item, index) => {
-              // Only apply role-based filtering after roles are loaded
-              if (!loading) {
-                // @ts-ignore
-                if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
-                  return null;
-                }
-              }
-              return (
-                <ListItem key={index} disablePadding sx={{ display: "block" }}>
-                  <ListItemButton
-                    selected={isSelected(item.text)}
-                    onClick={() => handleNavigation(item.text, item.path)}
-                  >
-                    <ListItemIcon>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.text} />
-                  </ListItemButton>
-                </ListItem>
-              );
-            })}
-          </List>
-        </Collapse>
+            <Collapse in={performanceOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                {performanceSubItems.map((item, index) => {
+                  // Only apply role-based filtering after roles are loaded
+                  if (!loading) {
+                    // @ts-ignore
+                    if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+                      return null;
+                    }
+                  }
+                  return (
+                    <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                      <ListItemButton
+                        selected={isSelected(item.text)}
+                        onClick={() => handleNavigation(item.text, item.path)}
+                      >
+                        <ListItemIcon>{item.icon}</ListItemIcon>
+                        <ListItemText primary={item.text} />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </>
+        )}
       </List>
 
-      <List dense>
-        {secondaryListItems.map((item, index) => (
-          <ListItem key={index} disablePadding sx={{ display: "block" }}>
-            <ListItemButton
-              selected={isSelected(item.text)}
-              onClick={() => handleNavigation(item.text)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+      {/* Secondary items - Only show for employees, not candidates */}
+      {!isCandidate && (
+        <List dense>
+          {secondaryListItems.map((item, index) => (
+            <ListItem key={index} disablePadding sx={{ display: "block" }}>
+              <ListItemButton
+                selected={isSelected(item.text)}
+                onClick={() => handleNavigation(item.text)}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      )}
     </Stack>
   );
 }

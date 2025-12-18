@@ -26,6 +26,7 @@ import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
+import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -125,6 +126,14 @@ export const performanceSubItems: MenuItem[] = [
   },
 ];
 
+export const recruitmentSubItems: MenuItem[] = [
+  { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/employee/recruitment_sub', roles: ['System Admin'] },
+  { text: 'Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/employee', roles: ['department employee'] },
+  { text: 'HR Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-employee', roles: ['HR Manager', 'HR Employee'] },
+  { text: 'HR Manager', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-manager', roles: ['HR Manager'] },
+  { text: 'System Admin', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/system-admin', roles: ['System Admin'] },
+];
+
 const secondaryListItems = [
   { text: "Settings", icon: <SettingsRoundedIcon /> },
   { text: "About", icon: <InfoRoundedIcon /> },
@@ -135,10 +144,12 @@ export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
   const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const { roles: userRoles, loading } = useAuth();
 
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
+  const isRecruitmentPath = pathname.startsWith('/employee/recruitment_sub');
 
   const visibleListItems = mainListItems.filter((item) => {
     // For candidates, only show the Home button
@@ -177,6 +188,7 @@ export default function MenuContent() {
     if (text === 'My Performance' && pathname === '/employee/performance/my-records') return true;
     if (text === 'Manage Disputes' && pathname === '/employee/performance/manage-disputes') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
+    if (text === 'Recruitment' && pathname.startsWith('/employee/recruitment_sub')) return true;
     return false;
   };
 
@@ -262,6 +274,45 @@ export default function MenuContent() {
             </Collapse>
           </>
         )}
+
+        {/* Recruitment Dropdown */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={isRecruitmentPath}
+            onClick={() => setRecruitmentOpen(!recruitmentOpen)}
+          >
+            <ListItemIcon>
+              <WorkRoundedIcon />
+            </ListItemIcon>
+            <ListItemText primary="Recruitment" />
+            {recruitmentOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </ListItemButton>
+        </ListItem>
+
+        <Collapse in={recruitmentOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {recruitmentSubItems.map((item, index) => {
+              // Only apply role-based filtering after roles are loaded
+              if (!loading) {
+                // @ts-ignore
+                if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+                  return null;
+                }
+              }
+              return (
+                <ListItem key={index} disablePadding sx={{ display: 'block' }}>
+                  <ListItemButton
+                    selected={isSelected(item.text)}
+                    onClick={() => handleNavigation(item.text, item.path)}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        </Collapse>
       </List>
 
       {/* Secondary items - Only show for employees, not candidates */}

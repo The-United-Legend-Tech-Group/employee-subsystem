@@ -11,6 +11,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LayersIcon from '@mui/icons-material/Layers';
 import SendIcon from '@mui/icons-material/Send';
+import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import { usePathname } from 'next/navigation';
 import DashboardSidebarContext from '../context/DashboardSidebarContext';
 import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from '../constants';
@@ -191,6 +192,64 @@ export default function DashboardSidebar({
               icon={<LayersIcon />}
               href="/integrations"
               selected={pathname?.startsWith('/integrations')}
+            />
+            <DashboardSidebarDividerItem />
+            <DashboardSidebarHeaderItem>Recruitment</DashboardSidebarHeaderItem>
+            <DashboardSidebarPageItem
+              id="recruitment"
+              title="Recruitment"
+              icon={<WorkOutlineIcon />}
+              href="/employee/recruitment_sub"
+              selected={pathname?.startsWith('/employee/recruitment_sub')}
+              defaultExpanded={pathname?.startsWith('/employee/recruitment_sub')}
+              expanded={expandedItemIds.includes('recruitment')}
+              nestedNavigation={
+                <List
+                  dense
+                  sx={{
+                    padding: 0,
+                    my: 1,
+                    pl: mini ? 0 : 1,
+                    minWidth: 240,
+                  }}
+                >
+                  <DashboardSidebarPageItem
+                    id="recruitment-overview"
+                    title="Overview"
+                    icon={<DescriptionIcon />}
+                    href="/employee/recruitment_sub"
+                    selected={pathname === '/employee/recruitment_sub'}
+                  />
+                  <DashboardSidebarPageItem
+                    id="recruitment-employee"
+                    title="Employee"
+                    icon={<PersonIcon />}
+                    href="/employee/recruitment_sub/employee"
+                    selected={pathname?.startsWith('/employee/recruitment_sub/employee')}
+                  />
+                  <DashboardSidebarPageItem
+                    id="recruitment-hr-employee"
+                    title="HR Employee"
+                    icon={<PersonIcon />}
+                    href="/employee/recruitment_sub/hr-employee"
+                    selected={pathname?.startsWith('/employee/recruitment_sub/hr-employee')}
+                  />
+                  <DashboardSidebarPageItem
+                    id="recruitment-hr-manager"
+                    title="HR Manager"
+                    icon={<PersonIcon />}
+                    href="/employee/recruitment_sub/hr-manager"
+                    selected={pathname?.startsWith('/employee/recruitment_sub/hr-manager')}
+                  />
+                  <DashboardSidebarPageItem
+                    id="recruitment-system-admin"
+                    title="System Admin"
+                    icon={<PersonIcon />}
+                    href="/employee/recruitment_sub/system-admin"
+                    selected={pathname?.startsWith('/employee/recruitment_sub/system-admin')}
+                  />
+                </List>
+              }
             />
           </List>
         </Box>

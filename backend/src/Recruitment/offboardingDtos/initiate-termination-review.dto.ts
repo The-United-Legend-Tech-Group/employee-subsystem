@@ -1,22 +1,22 @@
 
 import {
   IsEnum,
-  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
   MinLength,
+  IsDateString,
 } from 'class-validator';
 
 import { TerminationInitiation } from '../enums/termination-initiation.enum';
 
 export class InitiateTerminationReviewDto {
-  
-  @IsMongoId({ message: 'Employee ID must be a valid MongoDB ObjectId' })
-  @IsNotEmpty({ message: 'Employee ID is required' })
-  employeeId: string;
 
- 
+  @IsString({ message: 'Employee number must be a string' })
+  @IsNotEmpty({ message: 'Employee number is required' })
+  employeeNumber: string;
+
+
   @IsEnum(TerminationInitiation, {
     message: 'Initiator must be one of: employee, hr, or manager',
   })
@@ -34,13 +34,13 @@ export class InitiateTerminationReviewDto {
   @IsString({ message: 'Employee comments must be a string' })
   employeeComments?: string;
 
- 
+
   @IsOptional()
   @IsString({ message: 'HR comments must be a string' })
   hrComments?: string;
 
-
-  @IsMongoId({ message: 'Contract ID must be a valid MongoDB ObjectId' })
-  @IsNotEmpty({ message: 'Contract ID is required' })
-  contractId: string;
+  @IsOptional()
+  @IsDateString({}, { message: 'Termination date must be an ISO date string' })
+  // Use ISO date string in DTO (frontend will send yyyy-mm-dd)
+  terminationDate?: string;
 }

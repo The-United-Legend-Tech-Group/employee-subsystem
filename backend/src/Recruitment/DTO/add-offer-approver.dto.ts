@@ -6,10 +6,6 @@ export class AddOfferApproverDto {
     offerId: string;
 
     @IsNotEmpty()
-    @IsMongoId()
-    employeeId: string;
-
-    @IsNotEmpty()
     @IsString()
-    role: string; // e.g., "Hiring Manager", "Department Head", "Finance Director"
+    employeeId: string; // Can be MongoDB ID or Employee Number
 }

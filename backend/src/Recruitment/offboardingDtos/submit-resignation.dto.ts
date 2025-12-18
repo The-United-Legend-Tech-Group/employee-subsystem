@@ -16,9 +16,9 @@ export class SubmitResignationDto {
   @IsNotEmpty({ message: 'Employee ID is required' })
   employeeId: string;
 
+  @IsOptional()
   @IsMongoId({ message: 'Contract ID must be a valid MongoDB ObjectId' })
-  @IsNotEmpty({ message: 'Contract ID is required' })
-  contractId: string;
+  contractId?: string;
 
 
   @IsString({ message: 'Resignation reason must be a string' })

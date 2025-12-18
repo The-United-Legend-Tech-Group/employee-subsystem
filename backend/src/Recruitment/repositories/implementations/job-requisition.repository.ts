@@ -36,4 +36,8 @@ export class JobRequisitionRepository extends BaseRepository<JobRequisitionDocum
   async findPublished(): Promise<JobRequisitionDocument[]> {
     return this.jobRequisitionModel.find({ publishStatus: 'published' }).exec();
   }
+
+  async findPublishedWithTemplate(): Promise<JobRequisitionDocument[]> {
+    return this.jobRequisitionModel.find({ publishStatus: 'published' }).populate('templateId').exec();
+  }
 }

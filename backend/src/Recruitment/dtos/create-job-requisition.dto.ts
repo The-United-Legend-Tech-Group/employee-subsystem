@@ -41,11 +41,13 @@ export class CreateJobRequisitionDto {
   location: string;
 
   @ApiProperty({
-    description: 'Hiring manager MongoDB ObjectId',
+    description: 'Hiring manager MongoDB ObjectId. Optional if derived from auth token.',
     example: '507f1f77bcf86cd799439012',
+    required: false
   })
+  @IsOptional()
   @IsMongoId()
-  hiringManagerId: string;
+  hiringManagerId?: string;
 
   @ApiProperty({
     description: 'Publication status',

@@ -10,6 +10,7 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -473,6 +474,25 @@ export class LeavesPolicyController {
   async getLeaveEntitlementByEmployeeId(@Param('employeeId') employeeId: string) {
     return this.leavesService.getLeaveEntitlementByEmployeeId(employeeId);
   }
+
+    // Get leave entitlement for a specific employee and leave type
+    @Get('leave-entitlements/:employeeId/:leaveTypeId')
+    @ApiOperation({ summary: 'Get leave entitlement for a specific employee and leave type' })
+    @Roles(SystemRole.HR_ADMIN)
+    @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+    @ApiParam({ name: 'leaveTypeId', description: 'Leave Type ID' })
+    @ApiResponse({ status: 200, description: 'Leave entitlement retrieved successfully' })
+    @ApiResponse({ status: 404, description: 'Leave entitlement not found' })
+    async getLeaveEntitlementByEmployeeAndLeaveType(
+      @Param('employeeId') employeeId: string,
+      @Param('leaveTypeId') leaveTypeId: string,
+    ) {
+      const entitlement = await this.leavesService.getLeaveEntitlementByEmployeeAndLeaveType(employeeId, leaveTypeId);
+      if (!entitlement) {
+        throw new NotFoundException('Leave entitlement not found');
+      }
+      return entitlement;
+    }
 
   // Get all leave policies
   @Get('policies')

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -88,14 +88,19 @@ export default function EntitlementPage() {
   const [personalizedForm, setPersonalizedForm] = useState({
     employeeId: '',
     leaveTypeId: '',
-    overrideYearlyEntitlement: '',
-    extraDays: '',
-    adjustmentType: 'add',
+    yearlyEntitlement: '',
+    accruedActual: '',
+    accruedRounded: '',
+    carryForward: '',
+    taken: '',
+    pending: '',
+    remaining: '',
     reason: '',
   });
   const [personalizedLoading, setPersonalizedLoading] = useState(false);
   const [personalizedError, setPersonalizedError] = useState<string | null>(null);
   const [personalizedSuccess, setPersonalizedSuccess] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   // Annual Reset Form State
   const [annualResetForm, setAnnualResetForm] = useState({
@@ -301,6 +306,70 @@ export default function EntitlementPage() {
   const historyEmployees = useEmployeeLookup();
   const entitlementEmployees = useEmployeeLookup();
 
+  // Fetch existing entitlement when employee and leave type are selected
+  useEffect(() => {
+    async function fetchEntitlement() {
+      if (!personalizedForm.employeeId || !personalizedForm.leaveTypeId) {
+        // Clear the form fields if not both selected
+        setPersonalizedForm((prev) => ({
+          ...prev,
+          yearlyEntitlement: '',
+          accruedActual: '',
+          accruedRounded: '',
+          carryForward: '',
+          taken: '',
+          pending: '',
+          remaining: '',
+        }));
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(
+          `${API_BASE}/leaves/leave-entitlements/${personalizedForm.employeeId}/${personalizedForm.leaveTypeId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (res.ok) {
+          const entitlement = await res.json();
+          setPersonalizedForm((prev) => ({
+            ...prev,
+            yearlyEntitlement: entitlement.yearlyEntitlement?.toString() || '',
+            accruedActual: entitlement.accruedActual?.toString() || '',
+            accruedRounded: entitlement.accruedRounded?.toString() || '',
+            carryForward: entitlement.carryForward?.toString() || '',
+            taken: entitlement.taken?.toString() || '',
+            pending: entitlement.pending?.toString() || '',
+            remaining: entitlement.remaining?.toString() || '',
+          }));
+        } else if (res.status === 404) {
+          // No entitlement found, clear fields
+          setPersonalizedForm((prev) => ({
+            ...prev,
+            yearlyEntitlement: '',
+            accruedActual: '',
+            accruedRounded: '',
+            carryForward: '',
+            taken: '',
+            pending: '',
+            remaining: '',
+          }));
+        } else {
+          console.error('Failed to fetch entitlement');
+        }
+      } catch (error) {
+        console.error('Error fetching entitlement:', error);
+      }
+    }
+
+    fetchEntitlement();
+  }, [personalizedForm.employeeId, personalizedForm.leaveTypeId, refetchTrigger]);
+
   // Assign Personalized Entitlement Handlers
   async function handlePersonalizedSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -319,14 +388,24 @@ export default function EntitlementPage() {
         employeeId: personalizedForm.employeeId,
         leaveTypeId: personalizedForm.leaveTypeId,
         hrUserId: currentUserId,
-        adjustmentType: personalizedForm.adjustmentType,
         reason: personalizedForm.reason,
       };
 
-      const override = toNumber(personalizedForm.overrideYearlyEntitlement);
-      const extra = toNumber(personalizedForm.extraDays);
-      if (override !== undefined) payload.overrideYearlyEntitlement = override;
-      if (extra !== undefined) payload.extraDays = extra;
+      const yearlyEntitlement = toNumber(personalizedForm.yearlyEntitlement);
+      const accruedActual = toNumber(personalizedForm.accruedActual);
+      const accruedRounded = toNumber(personalizedForm.accruedRounded);
+      const carryForward = toNumber(personalizedForm.carryForward);
+      const taken = toNumber(personalizedForm.taken);
+      const pending = toNumber(personalizedForm.pending);
+      const remaining = toNumber(personalizedForm.remaining);
+
+      if (yearlyEntitlement !== undefined) payload.yearlyEntitlement = yearlyEntitlement;
+      if (accruedActual !== undefined) payload.accruedActual = accruedActual;
+      if (accruedRounded !== undefined) payload.accruedRounded = accruedRounded;
+      if (carryForward !== undefined) payload.carryForward = carryForward;
+      if (taken !== undefined) payload.taken = taken;
+      if (pending !== undefined) payload.pending = pending;
+      if (remaining !== undefined) payload.remaining = remaining;
 
       const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/personalized-entitlement`, {
@@ -345,7 +424,7 @@ export default function EntitlementPage() {
 
       setPersonalizedSuccess('Personalized entitlement assigned successfully');
       setTimeout(() => setPersonalizedSuccess(null), 5000);
-      setPersonalizedForm((f) => ({ ...f, overrideYearlyEntitlement: '', extraDays: '' }));
+      setRefetchTrigger(prev => prev + 1); // Trigger refetch to show updated values
     } catch (err: any) {
       setPersonalizedError(err?.message ?? 'Failed to assign entitlement');
       setTimeout(() => setPersonalizedError(null), 5000);
@@ -641,7 +720,7 @@ export default function EntitlementPage() {
                 Assign Personalized Entitlement
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Override yearly allowance or add a one-time adjustment, with a clear audit reason.
+                Set or update entitlement attributes for an employee. If no entitlement exists, a new one will be created.
               </Typography>
               <Box component="form" onSubmit={handlePersonalizedSubmit}>
                 <Grid container spacing={2} columns={12}>
@@ -692,57 +771,115 @@ export default function EntitlementPage() {
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
-                        label="Override Yearly Entitlement"
+                        label="Yearly Entitlement"
                         type="number"
-                        value={personalizedForm.overrideYearlyEntitlement}
+                        value={personalizedForm.yearlyEntitlement}
                         onChange={(e) =>
                           setPersonalizedForm((f) => ({
                             ...f,
-                            overrideYearlyEntitlement: e.target.value,
+                            yearlyEntitlement: e.target.value,
                           }))
                         }
-                        placeholder="Optional – replaces yearly entitlement"
+                        placeholder="Set yearly entitlement"
                         fullWidth
                         size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
-                        label="Amount"
+                        label="Accrued Actual"
                         type="number"
-                        value={personalizedForm.extraDays}
+                        value={personalizedForm.accruedActual}
                         onChange={(e) =>
-                          setPersonalizedForm((f) => ({ ...f, extraDays: e.target.value }))
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            accruedActual: e.target.value,
+                          }))
                         }
-                        placeholder="Amount to add / deduct / encash"
+                        placeholder="Actual accrued days"
                         fullWidth
                         size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel id="personalized-adjustmentType-label">
-                          Adjustment Type
-                        </InputLabel>
-                        <Select
-                          labelId="personalized-adjustmentType-label"
-                          label="Adjustment Type"
-                          value={personalizedForm.adjustmentType}
-                          onChange={(e) =>
-                            setPersonalizedForm((f) => ({
-                              ...f,
-                              adjustmentType: e.target.value,
-                            }))
-                          }
-                          required
-                        >
-                          {adjustmentOptions.map((opt) => (
-                            <MenuItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <TextField
+                        label="Accrued Rounded"
+                        type="number"
+                        value={personalizedForm.accruedRounded}
+                        onChange={(e) =>
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            accruedRounded: e.target.value,
+                          }))
+                        }
+                        placeholder="Rounded accrued days"
+                        fullWidth
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        label="Carry Forward"
+                        type="number"
+                        value={personalizedForm.carryForward}
+                        onChange={(e) =>
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            carryForward: e.target.value,
+                          }))
+                        }
+                        placeholder="Carried forward days"
+                        fullWidth
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        label="Taken"
+                        type="number"
+                        value={personalizedForm.taken}
+                        onChange={(e) =>
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            taken: e.target.value,
+                          }))
+                        }
+                        placeholder="Days taken"
+                        fullWidth
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        label="Pending"
+                        type="number"
+                        value={personalizedForm.pending}
+                        onChange={(e) =>
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            pending: e.target.value,
+                          }))
+                        }
+                        placeholder="Pending days"
+                        fullWidth
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        label="Remaining"
+                        type="number"
+                        value={personalizedForm.remaining}
+                        onChange={(e) =>
+                          setPersonalizedForm((f) => ({
+                            ...f,
+                            remaining: e.target.value,
+                          }))
+                        }
+                        placeholder="Remaining days"
+                        fullWidth
+                        size="small"
+                      />
                     </Grid>
                     <Grid size={{ xs: 12 }}>
                       <TextField

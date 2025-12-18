@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsMongoId, IsEnum } from 'class-validator';
-import { AdjustmentType } from '../enums/adjustment-type.enum';
+import { IsString, IsOptional, IsNumber, IsMongoId } from 'class-validator';
 
 export class AssignPersonalizedEntitlementDto {
     @IsMongoId()
@@ -10,18 +9,35 @@ export class AssignPersonalizedEntitlementDto {
 
     @IsOptional()
     @IsNumber()
-    overrideYearlyEntitlement?: number; // full override
+    yearlyEntitlement?: number;
 
     @IsOptional()
     @IsNumber()
-    extraDays?: number; // additional days
+    accruedActual?: number;
+
+    @IsOptional()
+    @IsNumber()
+    accruedRounded?: number;
+
+    @IsOptional()
+    @IsNumber()
+    carryForward?: number;
+
+    @IsOptional()
+    @IsNumber()
+    taken?: number;
+
+    @IsOptional()
+    @IsNumber()
+    pending?: number;
+
+    @IsOptional()
+    @IsNumber()
+    remaining?: number;
 
     @IsMongoId()
-    hrUserId: string; // who gave the entitlement
-
-    @IsEnum(AdjustmentType)
-    adjustmentType: AdjustmentType;
+    hrUserId: string;
 
     @IsString()
     reason: string;
-  }
+}

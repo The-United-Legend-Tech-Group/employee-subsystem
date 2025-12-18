@@ -438,59 +438,37 @@ export class LeavesPolicyService {
 
   // REQ-008 — Assign Personalized Entitlements
   async assignPersonalizedEntitlement(dto: AssignPersonalizedEntitlementDto) {
+    const { employeeId, leaveTypeId, hrUserId, reason, ...updateFields } = dto;
+
     // 1. Check if entitlement exists for employee + leaveType
     let entitlement =
       await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
-        dto.employeeId,
-        dto.leaveTypeId,
+        employeeId,
+        leaveTypeId,
       );
 
     if (!entitlement) {
       // Create new entitlement if missing
       entitlement = await this.leaveEntitlementRepository.create({
-        employeeId: new Types.ObjectId(dto.employeeId),
-        leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
-        yearlyEntitlement: 0,
-        accruedActual: 0,
-        accruedRounded: 0,
-        carryForward: 0,
-        taken: 0,
-        pending: 0,
-        remaining: 0,
+        employeeId: new Types.ObjectId(employeeId),
+        leaveTypeId: new Types.ObjectId(leaveTypeId),
+        yearlyEntitlement: updateFields.yearlyEntitlement ?? 0,
+        accruedActual: updateFields.accruedActual ?? 0,
+        accruedRounded: updateFields.accruedRounded ?? 0,
+        carryForward: updateFields.carryForward ?? 0,
+        taken: updateFields.taken ?? 0,
+        pending: updateFields.pending ?? 0,
+        remaining: updateFields.remaining ?? 0,
       });
     }
 
-    // 2. Apply override or extra days
+    // 2. Update entitlement attributes
     const updateData: any = {};
-    if (dto.overrideYearlyEntitlement !== undefined) {
-      updateData.yearlyEntitlement = dto.overrideYearlyEntitlement;
-    }
-
-    if (dto.extraDays !== undefined) {
-      switch (dto.adjustmentType) {
-        case AdjustmentType.ADD:
-          updateData.yearlyEntitlement =
-            (updateData.yearlyEntitlement ?? entitlement.yearlyEntitlement ?? 0) + dto.extraDays;
-          break;
-        case AdjustmentType.DEDUCT:
-          updateData.yearlyEntitlement =
-            (updateData.yearlyEntitlement ?? entitlement.yearlyEntitlement ?? 0) - dto.extraDays;
-          break;
-        case AdjustmentType.ENCASHMENT:
-          // For encashment, subtract from remaining balance
-          updateData.remaining = (entitlement.remaining ?? 0) - dto.extraDays;
-          break;
+    Object.keys(updateFields).forEach(key => {
+      if (updateFields[key] !== undefined) {
+        updateData[key] = updateFields[key];
       }
-    }
-
-    // Recalculate remaining if not encashment (which handles remaining directly)
-    if (dto.adjustmentType !== AdjustmentType.ENCASHMENT) {
-      const taken = entitlement.taken || 0;
-      const pending = entitlement.pending || 0;
-      updateData.remaining =
-        (updateData.yearlyEntitlement ?? entitlement.yearlyEntitlement ?? 0) -
-        (taken + pending);
-    }
+    });
 
     const updatedEntitlement = await this.leaveEntitlementRepository.updateById(
       entitlement._id.toString(),
@@ -498,14 +476,13 @@ export class LeavesPolicyService {
     );
 
     // 3. Store adjustment audit log
-    const amountValue = dto.extraDays ?? dto.overrideYearlyEntitlement ?? 0;
     await this.leaveAdjustmentRepository.create({
-      employeeId: new Types.ObjectId(dto.employeeId),
-      leaveTypeId: new Types.ObjectId(dto.leaveTypeId),
-      adjustmentType: dto.adjustmentType,
-      amount: dto.adjustmentType === AdjustmentType.DEDUCT || dto.adjustmentType === AdjustmentType.ENCASHMENT ? -amountValue : amountValue,
-      reason: dto.reason,
-      hrUserId: new Types.ObjectId(dto.hrUserId),
+      employeeId: new Types.ObjectId(employeeId),
+      leaveTypeId: new Types.ObjectId(leaveTypeId),
+      adjustmentType: AdjustmentType.ADD, // Default to ADD for assignment
+      amount: updateFields.yearlyEntitlement ?? 0,
+      reason,
+      hrUserId: new Types.ObjectId(hrUserId),
     });
 
     return updatedEntitlement;
@@ -871,6 +848,13 @@ async executeAnnualReset(): Promise<void> {
     employeeId: string,
   ): Promise<LeaveEntitlement[]> {
     return this.leaveEntitlementRepository.findByEmployeeId(employeeId);
+  }
+
+  async getLeaveEntitlementByEmployeeAndLeaveType(
+    employeeId: string,
+    leaveTypeId: string,
+  ): Promise<LeaveEntitlement | null> {
+    return this.leaveEntitlementRepository.findByEmployeeAndLeaveType(employeeId, leaveTypeId);
   }
 
   async getLeaveCategories(): Promise<LeaveCategory[]> {

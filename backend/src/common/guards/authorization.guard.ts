@@ -4,16 +4,19 @@ import {
   ExecutionContext,
   UnauthorizedException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { EmployeeSystemRole } from '../../employee-subsystem/employee/models/employee-system-role.schema';
 
 @Injectable()
 export class authorizationGuard implements CanActivate {
+  private readonly logger = new Logger(authorizationGuard.name);
+
   constructor(
     private readonly reflector: Reflector,
     @InjectModel(EmployeeSystemRole.name)
@@ -30,34 +33,77 @@ export class authorizationGuard implements CanActivate {
     }
     const request = context.switchToHttp().getRequest();
     const { user } = request;
-    if (!user) throw new UnauthorizedException('no user attached');
-
-    const employeeId = request.cookies?.employeeId;
-
-    if (employeeId) {
-      const employeeRoles = await this.employeeSystemRoleModel.findOne({
-        employeeProfileId: employeeId,
-      });
-
-      if (!employeeRoles || !employeeRoles.roles) {
-        throw new ForbiddenException('Access Denied');
-      }
-
-      const hasRole = requiredRoles.some((role) =>
-        employeeRoles.roles.includes(role),
-      );
-
-      if (!hasRole) {
-        throw new ForbiddenException('unauthorized access');
-      }
-      return true;
+    if (!user) {
+      this.logger.error('Authorization failed: No user attached to request');
+      throw new UnauthorizedException('no user attached');
     }
 
-    // Fallback for candidates or users without employeeId cookie
-    const userRole = user.role;
-    if (!requiredRoles.includes(userRole))
-      throw new ForbiddenException('unauthorized access');
+    // Prefer employee id from cookies (note: cookie name is 'employeeid' in auth.controller)
+    const rawEmployeeId =
+      request.cookies?.employeeid ||
+      request.cookies?.employeeId ||
+      user.employeeId ||
+      user.sub;
 
+    const employeeId =
+      typeof rawEmployeeId === 'string'
+        ? rawEmployeeId.trim()
+        : rawEmployeeId?.toString?.();
+
+    // If we have an employee id, look up roles from the EmployeeSystemRole collection
+    if (employeeId) {
+      this.logger.debug(`Checking roles for employeeId: ${employeeId}`);
+
+      // Build $or query to handle both String and ObjectId storage formats
+      const or: any[] = [{ employeeProfileId: employeeId }];
+      if (Types.ObjectId.isValid(employeeId)) {
+        or.push({ employeeProfileId: new Types.ObjectId(employeeId) });
+      }
+
+      // Query for active records, sorted by updatedAt to get the most recent
+      // This handles cases where multiple records exist with different storage formats
+      const employeeRoles = await this.employeeSystemRoleModel
+        .findOne({ $or: or, isActive: true })
+        .sort({ updatedAt: -1 })
+        .exec();
+
+      // If DB lookup fails or roles are empty, fall back to JWT roles rather than hard-denying.
+      if (employeeRoles?.roles?.length) {
+        const hasRoleFromDb = requiredRoles.some((role) =>
+          employeeRoles.roles.includes(role),
+        );
+        if (hasRoleFromDb) {
+          this.logger.verbose(`Authorization granted (DB) for employee ${employeeId}: matched ${employeeRoles.roles}`);
+          return true;
+        }
+        // DB record exists but doesn't contain the role → deny
+        this.logger.warn(`Authorization denied (DB) for employee ${employeeId}: required one of [${requiredRoles}], but user has [${employeeRoles.roles}]`);
+        throw new ForbiddenException('unauthorized access');
+      }
+    }
+
+    // Fallback: rely on JWT payload roles (employees) or single role (candidates/others)
+    const jwtRoles: string[] | undefined = Array.isArray(user.roles)
+      ? user.roles
+      : user.role
+        ? [user.role]
+        : undefined;
+
+    if (!jwtRoles || jwtRoles.length === 0) {
+      this.logger.warn(`Authorization denied for user ${user.sub}: no roles found in JWT`);
+      throw new ForbiddenException('unauthorized access');
+    }
+
+    const hasRoleFromJwt = requiredRoles.some((role) =>
+      jwtRoles.includes(role),
+    );
+
+    if (!hasRoleFromJwt) {
+      this.logger.warn(`Authorization denied (JWT) for user ${user.sub}: required one of [${requiredRoles}], but user has [${jwtRoles}]`);
+      throw new ForbiddenException('unauthorized access');
+    }
+
+    this.logger.verbose(`Authorization granted (JWT) for user ${user.sub}: matched roles ${jwtRoles}`);
     return true;
   }
 }

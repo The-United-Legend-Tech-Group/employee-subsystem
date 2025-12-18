@@ -1,47 +1,49 @@
 // "use client";
 
-// import * as React from "react";
-// import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
-// import AvTimerRoundedIcon from "@mui/icons-material/AvTimerRounded";
-// import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
-// import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
-// import TimelapseRoundedIcon from "@mui/icons-material/TimelapseRounded";
-// import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-// import Alert from "@mui/material/Alert";
-// import Avatar from "@mui/material/Avatar";
-// import Box from "@mui/material/Box";
-// import Button from "@mui/material/Button";
-// import Card from "@mui/material/Card";
-// import CardActions from "@mui/material/CardActions";
-// import CardContent from "@mui/material/CardContent";
-// import Checkbox from "@mui/material/Checkbox";
-// import Chip from "@mui/material/Chip";
-// import CircularProgress from "@mui/material/CircularProgress";
-// import Dialog from "@mui/material/Dialog";
-// import DialogActions from "@mui/material/DialogActions";
-// import DialogContent from "@mui/material/DialogContent";
-// import DialogTitle from "@mui/material/DialogTitle";
-// import FormControl from "@mui/material/FormControl";
-// import FormControlLabel from "@mui/material/FormControlLabel";
-// import FormGroup from "@mui/material/FormGroup";
-// import FormHelperText from "@mui/material/FormHelperText";
-// import FormLabel from "@mui/material/FormLabel";
-// import Grid from "@mui/material/Grid";
-// import InputLabel from "@mui/material/InputLabel";
-// import LinearProgress from "@mui/material/LinearProgress";
-// import MenuItem from "@mui/material/MenuItem";
-// import Select from "@mui/material/Select";
-// import Skeleton from "@mui/material/Skeleton";
-// import Snackbar from "@mui/material/Snackbar";
-// import Stack from "@mui/material/Stack";
-// import Switch from "@mui/material/Switch";
-// import TextField from "@mui/material/TextField";
-// import Typography from "@mui/material/Typography";
-// import { alpha } from "@mui/material/styles";
+import * as React from "react";
+import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+import AvTimerRoundedIcon from "@mui/icons-material/AvTimerRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
+import TimelapseRoundedIcon from "@mui/icons-material/TimelapseRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import AddIcon from "@mui/icons-material/Add";
+import Alert from "@mui/material/Alert";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActions from "@mui/material/CardActions";
+import CardContent from "@mui/material/CardContent";
+import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
+import FormHelperText from "@mui/material/FormHelperText";
+import FormLabel from "@mui/material/FormLabel";
+import Grid from "@mui/material/Grid";
+import InputLabel from "@mui/material/InputLabel";
+import LinearProgress from "@mui/material/LinearProgress";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Skeleton from "@mui/material/Skeleton";
+import Snackbar from "@mui/material/Snackbar";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
-// import SectionHeading from "./SectionHeading";
-// import ShiftTemplateCard from "./ShiftTemplateCard";
-// import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
+import SectionHeading from "./SectionHeading";
+import ShiftTemplateCard from "./ShiftTemplateCard";
+import CreateScheduleRuleModal from "./CreateScheduleRuleModal";
+import { ScheduleRule, SectionDefinition, ShiftDefinition } from "./types";
 
 // const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 
@@ -57,14 +59,15 @@
 //   { label: "Sat", value: 6 },
 // ] as const;
 
-// type ShiftFormState = {
-//   name: string;
-//   shiftType: string;
-//   startTime: string;
-//   endTime: string;
-//   active: boolean;
-//   graceInMinutes: number;
-// };
+type ShiftFormState = {
+  name: string;
+  shiftType: string;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+  graceInMinutes: number;
+  graceOutMinutes: number;
+};
 
 // type HolidayFormState = {
 //   type: (typeof HOLIDAY_TYPES)[number];
@@ -413,11 +416,12 @@
 //             </Box>
 //           </Stack>
 
-//           <Stack spacing={1.5}>
-//             {insight.toggles.map((toggle) => {
-//               const toggleDisabled =
-//                 !onToggle || (!toggle.action && toggle.action?.kind !== "info");
-//               const hasAction = toggle.action && toggle.action.kind !== "info";
+          <Stack spacing={1.5}>
+            {insight.toggles.map((toggle) => {
+              const toggleDisabled =
+                !onToggle ||
+                (!toggle.action && (toggle.action as any)?.kind !== "info");
+              const hasAction = toggle.action && toggle.action.kind !== "info";
 
 //               return (
 //                 <Box key={toggle.id}>
@@ -605,10 +609,13 @@
 //     null
 //   );
 
-//   const selectedShift = React.useMemo(
-//     () => activeShifts.find((s) => s._id === selectedShiftId) ?? null,
-//     [selectedShiftId, activeShifts]
-//   );
+  const [scheduleRuleModalOpen, setScheduleRuleModalOpen] =
+    React.useState(false);
+
+  const selectedShift = React.useMemo(
+    () => activeShifts.find((s) => s._id === selectedShiftId) ?? null,
+    [selectedShiftId, activeShifts]
+  );
 
 //   const selectedShiftInfo = React.useMemo(() => {
 //     if (!selectedShift) {
@@ -1144,19 +1151,34 @@
 //               </Card>
 //             </Grid>
 
-//             <Grid size={{ xs: 12, lg: 5 }}>
-//               <Card variant="outlined" sx={{ height: "100%" }}>
-//                 <CardContent>
-//                   <Stack spacing={2.5}>
-//                     <Box>
-//                       <Typography variant="subtitle1" fontWeight="bold">
-//                         Schedule rules
-//                       </Typography>
-//                       <Typography variant="body2" color="text.secondary">
-//                         Pulled from `/time/schedule-rules` to describe rotation
-//                         patterns.
-//                       </Typography>
-//                     </Box>
+            <Grid size={{ xs: 12, lg: 5 }}>
+              <Card variant="outlined" sx={{ height: "100%" }}>
+                <CardContent>
+                  <Stack spacing={2.5}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                    >
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Schedule rules
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Pulled from `/time/schedule-rules` to describe
+                          rotation patterns.
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={() => setScheduleRuleModalOpen(true)}
+                        sx={{ minWidth: "auto", textTransform: "none" }}
+                      >
+                        Create Rule
+                      </Button>
+                    </Stack>
 
 //                     {/* Detail pane for selected shift */}
 //                     <Box>
@@ -1338,155 +1360,168 @@
 //                       </Grid>
 //                     </Grid>
 
-//                     {scheduleRules.length === 0 ? (
-//                       <Alert severity="info">
-//                         No schedule rules have been published.
-//                       </Alert>
-//                     ) : (
-//                       <Grid container spacing={2}>
-//                         {scheduleRules.slice(0, 6).map((rule) => (
-//                           <Grid size={{ xs: 12 }} key={rule._id}>
-//                             <Box
-//                               sx={{
-//                                 px: 2,
-//                                 py: 1.75,
-//                                 borderRadius: 2,
-//                                 border: "1px solid",
-//                                 borderColor: "divider",
-//                                 display: "flex",
-//                                 flexDirection: "column",
-//                                 gap: 1,
-//                               }}
-//                             >
-//                               <Stack
-//                                 direction={{ xs: "column", sm: "row" }}
-//                                 spacing={1}
-//                                 alignItems={{ xs: "flex-start", sm: "center" }}
-//                               >
-//                                 <Typography
-//                                   fontWeight="bold"
-//                                   sx={{ flexGrow: 1 }}
-//                                 >
-//                                   {rule.name}
-//                                 </Typography>
-//                                 <Chip
-//                                   size="small"
-//                                   color={
-//                                     rule.active === false
-//                                       ? "default"
-//                                       : "success"
-//                                   }
-//                                   label={
-//                                     rule.active === false
-//                                       ? "Inactive"
-//                                       : "Active"
-//                                   }
-//                                   variant="outlined"
-//                                 />
-//                                 {upcomingRules.some(
-//                                   (upcoming) => upcoming._id === rule._id
-//                                 ) ? (
-//                                   <Chip
-//                                     size="small"
-//                                     color="info"
-//                                     label="Upcoming"
-//                                     variant="outlined"
-//                                   />
-//                                 ) : null}
-//                               </Stack>
-//                               <Typography
-//                                 variant="body2"
-//                                 color="text.secondary"
-//                               >
-//                                 {describePattern(rule)}
-//                               </Typography>
-//                               <Stack
-//                                 direction="row"
-//                                 spacing={1}
-//                                 flexWrap="wrap"
-//                                 useFlexGap
-//                               >
-//                                 {rule.shiftTypes?.length ? (
-//                                   <Chip
-//                                     size="small"
-//                                     variant="outlined"
-//                                     label={`Shift types: ${rule.shiftTypes.join(
-//                                       ", "
-//                                     )}`}
-//                                   />
-//                                 ) : null}
-//                                 {rule.startDate ? (
-//                                   <Chip
-//                                     size="small"
-//                                     variant="outlined"
-//                                     label={`Start ${rule.startDate}`}
-//                                   />
-//                                 ) : null}
-//                                 {rule.endDate ? (
-//                                   <Chip
-//                                     size="small"
-//                                     variant="outlined"
-//                                     label={`End ${rule.endDate}`}
-//                                   />
-//                                 ) : null}
-//                               </Stack>
-//                             </Box>
-//                           </Grid>
-//                         ))}
-//                       </Grid>
-//                     )}
-//                   </Stack>
-//                 </CardContent>
-//                 <CardActions
-//                   sx={{ justifyContent: "space-between", px: 3, pb: 2 }}
-//                 >
-//                   <Chip
-//                     color="info"
-//                     label={`${scheduleRules.length} total rules`}
-//                     variant="outlined"
-//                   />
-//                   <Chip
-//                     color={weekendRules.length > 0 ? "success" : "default"}
-//                     label={`${weekendRules.length} weekend pattern(s)`}
-//                     variant="outlined"
-//                   />
-//                 </CardActions>
-//               </Card>
-//             </Grid>
-//           </Grid>
-//         </Stack>
-//       )}
-//       <PolicyActionDialog
-//         open={Boolean(activeAction)}
-//         action={activeAction}
-//         token={authToken ?? ""}
-//         onClose={() => setActiveAction(null)}
-//         onSuccess={(message) => {
-//           onRefresh?.();
-//           setSnackbar({
-//             open: true,
-//             severity: "success",
-//             message,
-//           });
-//         }}
-//       />
-//       <Snackbar
-//         open={snackbar.open}
-//         autoHideDuration={5000}
-//         onClose={handleSnackbarClose}
-//         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-//       >
-//         <Alert
-//           onClose={handleSnackbarClose}
-//           severity={snackbar.severity}
-//           sx={{ width: "100%" }}
-//         >
-//           {snackbar.message}
-//         </Alert>
-//       </Snackbar>
-//     </Box>
-//   );
-// }
+                    {scheduleRules.length === 0 ? (
+                      <Alert severity="info">
+                        No schedule rules have been published.
+                      </Alert>
+                    ) : (
+                      <Grid container spacing={2}>
+                        {scheduleRules.slice(0, 6).map((rule) => (
+                          <Grid size={{ xs: 12 }} key={rule._id}>
+                            <Box
+                              sx={{
+                                px: 2,
+                                py: 1.75,
+                                borderRadius: 2,
+                                border: "1px solid",
+                                borderColor: "divider",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                              }}
+                            >
+                              <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
+                                alignItems={{ xs: "flex-start", sm: "center" }}
+                              >
+                                <Typography
+                                  fontWeight="bold"
+                                  sx={{ flexGrow: 1 }}
+                                >
+                                  {rule.name}
+                                </Typography>
+                                <Chip
+                                  size="small"
+                                  color={
+                                    rule.active === false
+                                      ? "default"
+                                      : "success"
+                                  }
+                                  label={
+                                    rule.active === false
+                                      ? "Inactive"
+                                      : "Active"
+                                  }
+                                  variant="outlined"
+                                />
+                                {upcomingRules.some(
+                                  (upcoming) => upcoming._id === rule._id
+                                ) ? (
+                                  <Chip
+                                    size="small"
+                                    color="info"
+                                    label="Upcoming"
+                                    variant="outlined"
+                                  />
+                                ) : null}
+                              </Stack>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {describePattern(rule)}
+                              </Typography>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                flexWrap="wrap"
+                                useFlexGap
+                              >
+                                {rule.shiftTypes?.length ? (
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={`Shift types: ${rule.shiftTypes.join(
+                                      ", "
+                                    )}`}
+                                  />
+                                ) : null}
+                                {rule.startDate ? (
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={`Start ${rule.startDate}`}
+                                  />
+                                ) : null}
+                                {rule.endDate ? (
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={`End ${rule.endDate}`}
+                                  />
+                                ) : null}
+                              </Stack>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+                  </Stack>
+                </CardContent>
+                <CardActions
+                  sx={{ justifyContent: "space-between", px: 3, pb: 2 }}
+                >
+                  <Chip
+                    color="info"
+                    label={`${scheduleRules.length} total rules`}
+                    variant="outlined"
+                  />
+                  <Chip
+                    color={weekendRules.length > 0 ? "success" : "default"}
+                    label={`${weekendRules.length} weekend pattern(s)`}
+                    variant="outlined"
+                  />
+                </CardActions>
+              </Card>
+            </Grid>
+          </Grid>
+        </Stack>
+      )}
+      <PolicyActionDialog
+        open={Boolean(activeAction)}
+        action={activeAction}
+        token={authToken ?? ""}
+        onClose={() => setActiveAction(null)}
+        onSuccess={(message) => {
+          onRefresh?.();
+          setSnackbar({
+            open: true,
+            severity: "success",
+            message,
+          });
+        }}
+      />
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+      <CreateScheduleRuleModal
+        open={scheduleRuleModalOpen}
+        onClose={() => setScheduleRuleModalOpen(false)}
+        onSuccess={() => {
+          setScheduleRuleModalOpen(false);
+          onRefresh?.();
+          setSnackbar({
+            open: true,
+            severity: "success",
+            message: "Schedule rule created successfully!",
+          });
+        }}
+      />
+    </Box>
+  );
+}
 
 // type PolicyActionDialogProps = {
 //   open: boolean;

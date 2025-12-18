@@ -2,7 +2,7 @@
 
 export async function getCryptoKey(token: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();
-    const keyMaterial = await window.crypto.subtle.importKey(
+    const keyMaterial = await crypto.subtle.importKey(
         'raw',
         encoder.encode(token.padEnd(32, '0').slice(0, 32)), // Ensure 256-bit key from token
         { name: 'PBKDF2' },
@@ -10,7 +10,7 @@ export async function getCryptoKey(token: string): Promise<CryptoKey> {
         ['deriveKey']
     );
 
-    return window.crypto.subtle.deriveKey(
+    return crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
             salt: encoder.encode('employee-salt'),
@@ -27,8 +27,8 @@ export async function getCryptoKey(token: string): Promise<CryptoKey> {
 export async function encryptData(data: string, token: string): Promise<string> {
     const key = await getCryptoKey(token);
     const encoder = new TextEncoder();
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await window.crypto.subtle.encrypt(
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
         encoder.encode(data)
@@ -44,7 +44,7 @@ export async function decryptData(encryptedString: string, token: string): Promi
     try {
         const { iv, data } = JSON.parse(encryptedString);
         const key = await getCryptoKey(token);
-        const decrypted = await window.crypto.subtle.decrypt(
+        const decrypted = await crypto.subtle.decrypt(
             { name: 'AES-GCM', iv: new Uint8Array(iv) },
             key,
             new Uint8Array(data)

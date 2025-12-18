@@ -3,6 +3,8 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AttendanceRepository } from '../repository/attendance.repository';
 import { PunchType, PunchPolicy, HolidayType } from '../models/enums/index';
 import { PunchDto } from '../dto/punch.dto';
@@ -10,6 +12,7 @@ import { CreateAttendanceCorrectionDto } from '../dto/create-attendance-correcti
 import { SubmitCorrectionEssDto } from '../dto/submit-correction-ess.dto';
 import { ApproveRejectCorrectionDto } from '../dto/approve-reject-correction.dto';
 import { AttendanceCorrectionRepository } from '../repository/attendance-correction.repository';
+import { TimeExceptionRepository } from '../repository/time-exception.repository';
 import { HolidayRepository } from '../repository/holiday.repository';
 import { ApprovalWorkflowService } from '../services/approval-workflow.service';
 import { ShiftAssignmentRepository } from '../repository/shift-assignment.repository';
@@ -32,7 +35,11 @@ export class AttendanceService {
     private readonly shiftAssignmentRepo?: ShiftAssignmentRepository,
     private readonly shiftRepo?: ShiftRepository,
     private readonly approvalWorkflowService?: ApprovalWorkflowService,
+    private readonly timeExceptionRepo?: TimeExceptionRepository,
   ) {}
+
+  private csvImportedOnce = false;
+  private _importMode = false;
 
   private calculatePenalty(
     checkInTime: Date,
@@ -60,6 +67,41 @@ export class AttendanceService {
       minutesLate,
       gracePeriodApplied,
       deductedMinutes,
+    };
+  }
+
+  async getTimeExceptionsForEmployee(employeeId: string, status?: string) {
+    if (!this.timeExceptionRepo)
+      throw new NotFoundException('TimeException repository not available');
+    return this.timeExceptionRepo.findByEmployee(employeeId, status as any);
+  }
+
+  async getAllCorrectionsDebug() {
+    if (!this.attendanceCorrectionRepo)
+      throw new Error('AttendanceCorrectionRepository not available');
+
+    const all = await this.attendanceCorrectionRepo.find({});
+    console.log(
+      '\ud83d\udd0d DEBUG: All corrections in database:',
+      all?.length || 0,
+    );
+    all?.forEach((correction: any, idx: number) => {
+      console.log(`Correction ${idx + 1}:`, {
+        _id: correction._id,
+        employeeId: correction.employeeId,
+        employeeIdType: typeof correction.employeeId,
+        status: correction.status,
+        reason: correction.reason,
+        lineManagerId: correction.lineManagerId,
+        durationMinutes: correction.durationMinutes,
+        correctionType: correction.correctionType,
+        appliesFromDate: correction.appliesFromDate,
+        createdAt: correction.createdAt,
+      });
+    });
+    return {
+      total: all?.length || 0,
+      corrections: all,
     };
   }
 
@@ -99,7 +141,19 @@ export class AttendanceService {
     const skip = (validPage - 1) * validLimit;
 
     // Get total count for pagination metadata
-    const total = await this.attendanceRepo.countDocuments(query);
+    let total = await this.attendanceRepo.countDocuments(query);
+
+    // Auto-import from default CSV exactly once if empty, then re-count
+    if (total === 0 && !this.csvImportedOnce) {
+      try {
+        await this.importPunchesFromCsv('backend/data/punches.csv');
+        this.csvImportedOnce = true;
+        total = await this.attendanceRepo.countDocuments(query);
+      } catch (e) {
+        // ignore import failure for runtime fetch
+      }
+    }
+
     const totalPages = Math.ceil(total / validLimit);
 
     // Fetch records with pagination using Mongoose query builder
@@ -304,14 +358,34 @@ export class AttendanceService {
       }
     }
 
-    // If holiday repository is available, reject punches on holidays regardless
-    if (this.holidayRepo) {
+    // If holiday repository is available, reject punches on holiday days
+    // Skip blocking during CSV import to allow historical data load
+    if (this.holidayRepo && !this._importMode) {
       const holidays = await this.holidayRepo.find({
         startDate: { $lte: ts } as any,
         $or: [{ endDate: null }, { endDate: { $gte: ts } }],
         active: true,
       } as any);
-      if (holidays && holidays.length) {
+      const weekdayNames = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+      ];
+      const todayName = weekdayNames[ts.getDay()];
+      const isBlockingHoliday = (holidays || []).some((h: any) => {
+        const t = (h?.type || '').toString();
+        if (t === 'NATIONAL' || t === 'ORGANIZATIONAL') return true;
+        if (t === 'WEEKLY_REST') {
+          const name = (h?.name || '').toString();
+          return name.toLowerCase().includes(todayName.toLowerCase());
+        }
+        return false;
+      });
+      if (isBlockingHoliday) {
         throw new BadRequestException('Punch on holiday requires pre-approval');
       }
     }
@@ -611,6 +685,151 @@ export class AttendanceService {
       totalWorkMinutes,
       averageWorkMinutes,
     };
+  }
+
+  async getAllAttendanceRecords(
+    startDate?: Date,
+    endDate?: Date,
+    page: number = 1,
+    limit: number = 50,
+    hasMissedPunch?: boolean,
+    finalisedForPayroll?: boolean,
+  ) {
+    if (!this.attendanceRepo)
+      throw new Error('AttendanceRepository not available');
+
+    const query: any = {};
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+    if (hasMissedPunch !== undefined) query.hasMissedPunch = hasMissedPunch;
+    if (finalisedForPayroll !== undefined)
+      query.finalisedForPayroll = finalisedForPayroll;
+
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(500, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
+
+    let total = await this.attendanceRepo.countDocuments(query);
+
+    if (total === 0 && !this.csvImportedOnce) {
+      try {
+        await this.importPunchesFromCsv('backend/data/punches.csv');
+        this.csvImportedOnce = true;
+        total = await this.attendanceRepo.countDocuments(query);
+      } catch (e) {
+        // ignore
+      }
+    }
+    const totalPages = Math.ceil(total / validLimit);
+
+    const records = await this.attendanceRepo['model']
+      .find(query)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(validLimit)
+      .exec();
+
+    return {
+      data: records,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages,
+        hasNextPage: validPage < totalPages,
+        hasPrevPage: validPage > 1,
+      },
+    };
+  }
+
+  async importPunchesFromCsv(relativePath: string) {
+    // Try several candidate locations so callers can provide paths
+    // like "backend/data/punches.csv", "data/punches.csv" or an absolute path.
+    const candidates: string[] = [];
+    if (path.isAbsolute(relativePath)) {
+      candidates.push(relativePath);
+    } else {
+      // resolve relative to current working directory
+      candidates.push(path.resolve(process.cwd(), relativePath));
+      // allow caller passing repository-root-relative path (e.g. "backend/data/...")
+      candidates.push(path.resolve(process.cwd(), '..', relativePath));
+      // if caller passed with leading "backend/" strip it and try
+      const stripped = relativePath.replace(/^backend[\\/]/, '');
+      if (stripped !== relativePath) {
+        candidates.push(path.resolve(process.cwd(), stripped));
+        candidates.push(path.resolve(process.cwd(), 'backend', stripped));
+      } else {
+        // also try under a backend/ prefix
+        candidates.push(path.resolve(process.cwd(), 'backend', relativePath));
+      }
+      // fallback: try relative to this service file (covers some dev setups)
+      candidates.push(path.resolve(__dirname, '..', '..', '..', relativePath));
+    }
+
+    const filePath = candidates.find((p) => fs.existsSync(p));
+    if (!filePath) {
+      throw new NotFoundException(
+        `CSV file not found. Tried: ${candidates.join(', ')}`,
+      );
+    }
+
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    const lines = content.split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) return { imported: 0 };
+
+    const header = lines[0].split(',').map((h) => h.trim());
+    let imported = 0;
+    this._importMode = true;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map((c) => c.trim());
+      if (cols.length < 2) continue;
+      const row: any = {};
+      for (let j = 0; j < header.length; j++) {
+        row[header[j]] = cols[j] !== undefined ? cols[j] : '';
+      }
+
+      // Build dto
+      const dto: any = {
+        employeeId: row.employeeId,
+        type: row.type,
+      };
+      if (row.time && !isNaN(Date.parse(row.time))) dto.time = row.time;
+      if (row.policy) dto.policy = row.policy;
+      if (row.roundMode) dto.roundMode = row.roundMode;
+      if (row.intervalMinutes)
+        dto.intervalMinutes = Number(row.intervalMinutes);
+      if (row.gracePeriodMinutes)
+        dto.gracePeriodMinutes = Number(row.gracePeriodMinutes);
+      if (row.expectedCheckInTime)
+        dto.expectedCheckInTime = row.expectedCheckInTime;
+      if (row.latenessThresholdMinutes)
+        dto.latenessThresholdMinutes = Number(row.latenessThresholdMinutes);
+      if (row.automaticDeductionMinutes)
+        dto.automaticDeductionMinutes = Number(row.automaticDeductionMinutes);
+      if (row.location) dto.location = row.location;
+      if (row.terminalId) dto.terminalId = row.terminalId;
+      if (row.deviceId) dto.deviceId = row.deviceId;
+
+      try {
+        if (!dto.employeeId || !dto.type) continue;
+        await this.punch(dto as any);
+        imported++;
+      } catch (e) {
+        // continue on errors per-row
+        // eslint-disable-next-line no-console
+        console.error(
+          'Failed to import row',
+          i + 1,
+          e && e.message ? e.message : e,
+        );
+      }
+    }
+    this._importMode = false;
+
+    return { imported };
   }
 
   async createHoliday(dto: any) {

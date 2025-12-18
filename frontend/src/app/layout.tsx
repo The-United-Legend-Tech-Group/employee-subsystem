@@ -1,32 +1,49 @@
-import * as React from 'react';
+import type React from "react"
+import type { Metadata } from "next"
+import { Geist, Geist_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import CssBaseline from '@mui/material/CssBaseline';
-import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
-import AppTheme from '../common/material-ui/shared-theme/AppTheme';
-import ModeSwitch from '@/components/ModeSwitch';
-import { Metadata } from 'next';
+import "./pageCss.css"
+
+const _geist = Geist({ subsets: ["latin"] })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: {
-    template: 'Arcana - %s',
-    default: 'Arcana',
+  title: "Arcana - HR System",
+  description: "Transform your workforce management with cutting-edge AI-powered HR solutions",
+  generator: "v0.app",
+  icons: {
+    icon: [
+      {
+        url: "/icon-light-32x32.png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/icon-dark-32x32.png",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml",
+      },
+    ],
+    apple: "/apple-icon.png",
   },
-};
+}
 
-export default function RootLayout(props: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <InitColorSchemeScript attribute="data-mui-color-scheme" />
-        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
-          <AppTheme>
-            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-            <CssBaseline />
-            {/* <ModeSwitch /> */}
-            {props.children}
-          </AppTheme>
+    <html lang="en" className="dark">
+      <body className={`font-sans antialiased`}>
+        <AppRouterCacheProvider>
+          {children}
         </AppRouterCacheProvider>
+        <Analytics />
       </body>
     </html>
-  );
+  )
 }

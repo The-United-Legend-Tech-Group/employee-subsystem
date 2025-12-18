@@ -38,30 +38,84 @@ import {
   ShiftDefinition,
   TimeException,
 } from "./types";
+import { decryptData } from "@/common/utils/encryption";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 const LINE_MANAGER_KEYS = ["lineManagerId", "managerId", "supervisorId"];
-const HISTORY_LOOKBACK_MONTHS = 3;
+const HISTORY_LOOKBACK_MONTHS = 12;
 
 type TimeManagementClientProps = {
   sections: SectionDefinition[];
 };
 
 type FetchOptions = {
-  token: string;
+  token?: string | null;
 };
 
 function coerceArray<T>(payload: unknown): T[] {
+  console.log("🔄 coerceArray input:", {
+    payload,
+    type: typeof payload,
+    isArray: Array.isArray(payload),
+  });
+
   if (Array.isArray(payload)) {
+    console.log("✅ Direct array with", payload.length, "items");
     return payload as T[];
   }
   if (
     payload &&
     typeof payload === "object" &&
-    Array.isArray((payload as any).data)
+    (Array.isArray((payload as any).data) ||
+      Array.isArray((payload as any).items) ||
+      Array.isArray((payload as any).records) ||
+      Array.isArray((payload as any).docs))
   ) {
-    return (payload as any).data as T[];
+    const anyPayload = payload as any;
+    if (Array.isArray(anyPayload.data)) {
+      console.log(
+        "✅ Found array in .data with",
+        anyPayload.data.length,
+        "items"
+      );
+      return anyPayload.data as T[];
+    }
+    if (Array.isArray(anyPayload.items)) {
+      console.log(
+        "✅ Found array in .items with",
+        anyPayload.items.length,
+        "items"
+      );
+      return anyPayload.items as T[];
+    }
+    if (Array.isArray(anyPayload.records)) {
+      console.log(
+        "✅ Found array in .records with",
+        anyPayload.records.length,
+        "items"
+      );
+      return anyPayload.records as T[];
+    }
+    if (Array.isArray(anyPayload.docs)) {
+      console.log(
+        "✅ Found array in .docs with",
+        anyPayload.docs.length,
+        "items"
+      );
+      return anyPayload.docs as T[];
+    }
   }
+  // Fallback: search shallow properties for first array
+  if (payload && typeof payload === "object") {
+    for (const key of Object.keys(payload as any)) {
+      const v = (payload as any)[key];
+      if (Array.isArray(v)) {
+        console.log(`✅ Found array in .${key} with`, v.length, "items");
+        return v as T[];
+      }
+    }
+  }
+  console.log("⚠️ No array found, returning empty array");
   return [];
 }
 
@@ -119,6 +173,8 @@ export default function TimeManagementClient({
   );
   const [managerQueueEnabled, setManagerQueueEnabled] = React.useState(false);
   const [authToken, setAuthToken] = React.useState<string | null>(null);
+  const [employeeId, setEmployeeId] = React.useState<string>("");
+  const [lineManagerId, setLineManagerId] = React.useState<string>("");
 
   const sectionMap = React.useMemo(
     () => new Map(sections.map((section) => [section.id, section])),
@@ -242,25 +298,133 @@ export default function TimeManagementClient({
     []
   );
 
+  // Load static data (shifts, rules, holidays) - only on mount and refresh
   React.useEffect(() => {
     let isMounted = true;
 
-    const load = async () => {
+    const loadStaticData = async () => {
       try {
         const token = window.localStorage.getItem("access_token");
-        const employeeId = window.localStorage.getItem("employeeId");
+        const fetchOptions: FetchOptions = { token: token || undefined };
 
-        if (!token || !employeeId) {
-          router.push("/employee/login");
+        const [shiftsRes, rulesRes, holidaysRes] = await Promise.all([
+          secureFetch<ShiftDefinition[]>(`/time/shifts`, [], fetchOptions),
+          secureFetch<ScheduleRule[]>(`/time/schedule-rules`, [], fetchOptions),
+          secureFetch<HolidayDefinition[]>(`/time/holidays`, [], fetchOptions),
+        ]);
+
+        if (!isMounted) return;
+
+        setShiftDefinitions(coerceArray<ShiftDefinition>(shiftsRes));
+        setScheduleRules(coerceArray<ScheduleRule>(rulesRes));
+        setHolidays(coerceArray<HolidayDefinition>(holidaysRes));
+      } catch (err) {
+        console.error("Failed to load static time management data", err);
+      }
+    };
+
+    loadStaticData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]); // Only refresh when user clicks refresh
+
+  // Load dynamic data (attendance, corrections, assignments)
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const resolveEmployeeId = async (): Promise<string | null> => {
+      // Try direct employeeId
+      const raw = window.localStorage.getItem("employeeId");
+      const isHex24 = (v: string) => /^[a-fA-F0-9]{24}$/.test(v);
+      if (raw && isHex24(raw)) return raw;
+
+      // If looks like encrypted payload (JSON with iv/data), attempt decrypt using access token
+      const token = window.localStorage.getItem("access_token") || "";
+      if (raw && token) {
+        try {
+          const maybeObj = JSON.parse(raw);
+          if (
+            maybeObj &&
+            typeof maybeObj === "object" &&
+            "iv" in maybeObj &&
+            "data" in maybeObj
+          ) {
+            const decrypted = await decryptData(raw, token);
+            if (decrypted && isHex24(decrypted)) return decrypted;
+          }
+        } catch (_e) {
+          // not JSON, skip
+        }
+      }
+
+      // Try parsed object forms
+      const tryKeys = ["employee", "user", "profile"];
+      for (const key of tryKeys) {
+        const val = window.localStorage.getItem(key);
+        if (!val) continue;
+        try {
+          const obj = JSON.parse(val);
+          if (obj && typeof obj === "object") {
+            if (typeof obj.employeeId === "string" && isHex24(obj.employeeId)) {
+              return obj.employeeId;
+            }
+            if (obj._id && typeof obj._id === "string" && isHex24(obj._id)) {
+              return obj._id;
+            }
+            if (obj.id && typeof obj.id === "string" && isHex24(obj.id)) {
+              return obj.id;
+            }
+          }
+        } catch (_e) {
+          // ignore JSON parse errors
+        }
+      }
+
+      // Fallback: if raw exists and looks like quoted or wrapped, attempt to strip quotes
+      if (raw) {
+        const stripped = raw.replace(/[^a-fA-F0-9]/g, "");
+        if (isHex24(stripped)) return stripped;
+      }
+      return null;
+    };
+
+    const loadDynamicData = async () => {
+      try {
+        const token = window.localStorage.getItem("access_token");
+        const employeeId = await resolveEmployeeId();
+
+        if (!employeeId) {
+          setError(
+            "Missing employee identity. Please ensure your profile is loaded."
+          );
+          setLoading(false);
           return;
         }
 
-        setAuthToken(token);
+        setAuthToken(token || null);
+        setEmployeeId(employeeId);
 
         const managerId = LINE_MANAGER_KEYS.map((key) =>
           window.localStorage.getItem(key)
         ).find(Boolean);
         setManagerQueueEnabled(Boolean(managerId));
+        setLineManagerId(managerId || "");
+
+        // Debug: Log all localStorage to help identify the issue
+        console.log("🔐 TimeManagementClient - User Context:", {
+          employeeId,
+          lineManagerId: managerId || "none",
+          hasToken: !!token,
+          localStorage: {
+            employeeId: window.localStorage.getItem("employeeId"),
+            access_token: !!window.localStorage.getItem("access_token"),
+            lineManagerId: window.localStorage.getItem("lineManagerId"),
+            managerId: window.localStorage.getItem("managerId"),
+            supervisorId: window.localStorage.getItem("supervisorId"),
+          },
+        });
 
         setLoading(true);
         setError(null);
@@ -275,7 +439,7 @@ export default function TimeManagementClient({
         const endRange = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         endRange.setHours(23, 59, 59, 999);
 
-        const fetchOptions: FetchOptions = { token };
+        const fetchOptions: FetchOptions = { token: token || undefined };
 
         // Build attendance query params
         const attendanceParams = new URLSearchParams({
@@ -302,45 +466,56 @@ export default function TimeManagementClient({
           );
         }
 
+        console.log("🔍 Fetching corrections history:", {
+          employeeId,
+          employeeIdType: typeof employeeId,
+          employeeIdLength: employeeId.length,
+          startRange: startRange.toISOString(),
+          endRange: endRange.toISOString(),
+          fullUrl: `${API_BASE}/time/corrections/history/${employeeId}?startDate=${startRange.toISOString()}&endDate=${endRange.toISOString()}`,
+        });
+
         const [
-          shiftsRes,
           assignmentsRes,
-          rulesRes,
-          holidaysRes,
           attendanceRes,
           exceptionsRes,
           historyRes,
           pendingRes,
           payrollRes,
         ] = await Promise.all([
-          secureFetch<ShiftDefinition[]>(`/time/shifts`, [], fetchOptions),
           secureFetch<ShiftAssignment[]>(
-            `/time/shifts/employee/${employeeId}?start=${startRange.toISOString()}&end=${endRange.toISOString()}`,
+            `/time/shifts/assignments?start=${startRange.toISOString()}&end=${endRange.toISOString()}`,
             [],
             fetchOptions
           ),
-          secureFetch<ScheduleRule[]>(`/time/schedule-rules`, [], fetchOptions),
-          secureFetch<HolidayDefinition[]>(`/time/holidays`, [], fetchOptions),
           fetch(
             `${API_BASE}/time/attendance/records/${employeeId}?${attendanceParams}`,
             {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             }
           ).then(async (res) => {
             if (!res.ok)
               throw new Error(`Failed to fetch attendance: ${res.status}`);
             return res.json();
           }),
+          // Fetch exceptions for employee (new backend route)
           secureFetch<TimeException[]>(
             `/time/exceptions/employee/${employeeId}`,
             [],
             fetchOptions
           ),
+          // Try without date filters first to see if ANY corrections exist
           secureFetch<CorrectionRequest[]>(
-            `/time/corrections/history/${employeeId}?startDate=${startRange.toISOString()}&endDate=${endRange.toISOString()}`,
+            `/time/corrections/history/${employeeId}`,
             [],
             fetchOptions
           ),
+          // Also try with date filters
+          // secureFetch<CorrectionRequest[]>(
+          //   `/time/corrections/history/${employeeId}?startDate=${startRange.toISOString()}&endDate=${endRange.toISOString()}`,
+          //   [],
+          //   fetchOptions
+          // ),
           managerId
             ? secureFetch<CorrectionRequest[]>(
                 `/time/corrections/pending/${managerId}`,
@@ -355,12 +530,12 @@ export default function TimeManagementClient({
           ),
         ]);
 
+        console.log("📦 Raw corrections history response:", historyRes);
+        console.log("📦 Raw pending corrections response:", pendingRes);
+
         if (!isMounted) return;
 
-        setShiftDefinitions(coerceArray<ShiftDefinition>(shiftsRes));
         setShiftAssignments(coerceArray<ShiftAssignment>(assignmentsRes));
-        setScheduleRules(coerceArray<ScheduleRule>(rulesRes));
-        setHolidays(coerceArray<HolidayDefinition>(holidaysRes));
 
         // Handle paginated attendance response
         if (
@@ -381,18 +556,42 @@ export default function TimeManagementClient({
             }
           );
         } else {
-          // Fallback for non-paginated response
           setAttendanceRecords(coerceArray<AttendanceRecord>(attendanceRes));
         }
 
         setTimeExceptions(coerceArray<TimeException>(exceptionsRes));
-        setCorrectionHistory(coerceArray<CorrectionRequest>(historyRes));
-        setPendingCorrections(coerceArray<CorrectionRequest>(pendingRes));
-        setPayrollQueue(coerceArray<CorrectionRequest>(payrollRes));
+
+        const historyArray = coerceArray<CorrectionRequest>(historyRes);
+        const pendingArray = coerceArray<CorrectionRequest>(pendingRes);
+        const payrollArray = coerceArray<CorrectionRequest>(payrollRes);
+
+        console.log(
+          "✅ Coerced corrections history:",
+          historyArray.length,
+          "items"
+        );
+        console.log(
+          "✅ Coerced pending corrections:",
+          pendingArray.length,
+          "items"
+        );
+        console.log("✅ Sample history item:", historyArray[0]);
+
+        setCorrectionHistory(historyArray);
+        setPendingCorrections(pendingArray);
+        setPayrollQueue(payrollArray);
       } catch (err) {
         console.error("Failed to load time management data", err);
+        console.error("❌ Error details:", {
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
         if (isMounted) {
-          setError("Unable to load time management data. Please try again.");
+          setError(
+            `Unable to load time management data: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
         }
       } finally {
         if (isMounted) {
@@ -401,7 +600,7 @@ export default function TimeManagementClient({
       }
     };
 
-    load();
+    loadDynamicData();
 
     return () => {
       isMounted = false;
@@ -629,7 +828,11 @@ export default function TimeManagementClient({
               key={tab.id}
               value={tab.id}
               label={tab.title}
-              icon={tab.icon ?? undefined}
+              icon={
+                typeof tab.icon === "string" || React.isValidElement(tab.icon)
+                  ? tab.icon
+                  : undefined
+              }
               iconPosition="start"
             />
           ))}
@@ -650,6 +853,8 @@ export default function TimeManagementClient({
               pending={pendingCorrections}
               loading={loading}
               managerQueueEnabled={managerQueueEnabled}
+              lineManagerId={lineManagerId}
+              onRefresh={handleRefresh}
             />
           )}
 
@@ -660,6 +865,7 @@ export default function TimeManagementClient({
               shifts={shiftDefinitions}
               scheduleRules={scheduleRules}
               loading={loading}
+              onRefresh={handleRefresh}
             />
           )}
 
@@ -680,6 +886,7 @@ export default function TimeManagementClient({
               attendanceRecords={attendanceRecords}
               loading={loading}
               onPunchRecord={handlePunchRecord}
+              onRefresh={handleRefresh}
               pagination={attendancePagination}
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
@@ -700,6 +907,9 @@ export default function TimeManagementClient({
               section={timeExceptionsSection}
               exceptions={timeExceptions}
               loading={loading}
+              employeeId={employeeId}
+              lineManagerId={lineManagerId}
+              onCreated={handleRefresh}
             />
           )}
         </Box>
@@ -711,27 +921,36 @@ export default function TimeManagementClient({
 async function secureFetch<T>(
   path: string,
   fallback: T,
-  options: FetchOptions
+  options?: FetchOptions
 ): Promise<T | unknown> {
   try {
+    const headers: Record<string, string> = {};
+    if (options?.token) headers.Authorization = `Bearer ${options.token}`;
+    console.log(`🌐 Fetching ${path}`, { hasToken: !!options?.token });
     const response = await fetch(`${API_BASE}${path}`, {
-      headers: {
-        Authorization: `Bearer ${options.token}`,
-      },
+      headers,
       cache: "no-store",
     });
 
+    console.log(`📡 Response for ${path}:`, {
+      status: response.status,
+      ok: response.ok,
+    });
+
     if (response.status === 401) {
-      window.localStorage.removeItem("access_token");
-      window.location.href = "/employee/login";
+      // Allow unauthenticated usage for public/testing endpoints
+      console.warn(`401 for ${path} — continuing without auth`);
       return fallback;
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ Error response for ${path}:`, errorText);
+      throw new Error(`Request failed: ${response.status} - ${errorText}`);
     }
 
     const payload = await response.json();
+    console.log(`✅ Payload for ${path}:`, payload);
     return payload as T;
   } catch (err) {
     console.warn(`Failed to fetch ${path}`, err);

@@ -18,6 +18,8 @@ import {
   LeaveTypeRepository,
   AttachmentRepository,
   LeaveEntitlementRepository,
+  LeavePolicyRepository,
+  CalendarRepository,
 } from '../repository';
 
 @Injectable()
@@ -27,6 +29,8 @@ export class LeavesRequestService {
     private readonly leaveTypeRepository: LeaveTypeRepository,
     private readonly attachmentRepository: AttachmentRepository,
     private readonly leaveEntitlementRepository: LeaveEntitlementRepository,
+    private readonly leavePolicyRepository: LeavePolicyRepository,
+    private readonly calendarRepository: CalendarRepository,
     private readonly notificationService: NotificationService,
     private readonly employeeService: EmployeeService,
   ) {}
@@ -36,6 +40,22 @@ export class LeavesRequestService {
     // Validate leave type
     const leaveType = await this.leaveTypeRepository.findById(dto.leaveTypeId);
     if (!leaveType) throw new NotFoundException('Leave type not found');
+
+    // Load policy for this leave type (needed for notice period, eligibility, etc.)
+    const policy = await this.leavePolicyRepository.findByLeaveTypeId(
+      dto.leaveTypeId,
+    );
+    if (!policy) {
+      throw new BadRequestException(
+        'Leave policy is not configured for this leave type',
+      );
+    }
+
+    // Load employee profile to evaluate eligibility (tenure, contract type, position)
+    const employeeProfile = await this.employeeService.getProfile(
+      dto.employeeId,
+    );
+    const profile: any = employeeProfile?.profile || {};
 
     let attachmentId: Types.ObjectId | undefined;
 
@@ -49,8 +69,146 @@ export class LeavesRequestService {
       attachmentId = attachment._id;
     }
 
-    if(leaveType.maxDurationDays && dto.durationDays > leaveType.maxDurationDays) {
-      throw new BadRequestException('Duration days exceeds the maximum duration days for this leave type');
+    // Enforce attachment requirement if leave type requires documents (e.g. medical)
+    if ((leaveType as any).requiresAttachment && !attachmentId) {
+      throw new BadRequestException(
+        'This leave type requires a supporting document to be attached.',
+      );
+    }
+
+    // Enforce maximum duration from leave type
+    if (
+      leaveType.maxDurationDays &&
+      dto.durationDays > leaveType.maxDurationDays
+    ) {
+      throw new BadRequestException(
+        'Duration days exceeds the maximum duration days for this leave type',
+      );
+    }
+
+    // Enforce minimum notice period from policy (REQ-009)
+    if (policy.minNoticeDays && policy.minNoticeDays > 0) {
+      const today = new Date();
+      const fromDate = new Date(dto.dates.from);
+      // Normalize to dates (ignore time)
+      const startOfToday = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
+      const startOfFrom = new Date(
+        fromDate.getFullYear(),
+        fromDate.getMonth(),
+        fromDate.getDate(),
+      );
+      const diffMs = startOfFrom.getTime() - startOfToday.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays < policy.minNoticeDays) {
+        throw new BadRequestException(
+          `This leave type requires at least ${policy.minNoticeDays} day(s) notice before the start date.`,
+        );
+      }
+    }
+
+    // Enforce eligibility rules (REQ-007)
+    const eligibility: any = (policy as any).eligibility || {};
+    const dateOfHire = profile.dateOfHire
+      ? new Date(profile.dateOfHire)
+      : null;
+
+    const tenureMonths =
+      dateOfHire && !Number.isNaN(dateOfHire.getTime())
+        ? (() => {
+            const now = new Date();
+            let months =
+              (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
+              (now.getMonth() - dateOfHire.getMonth());
+            if (now.getDate() < dateOfHire.getDate()) months -= 1;
+            return Math.max(0, months);
+          })()
+        : null;
+
+    if (
+      eligibility.minTenureMonths != null &&
+      tenureMonths != null &&
+      tenureMonths < Number(eligibility.minTenureMonths)
+    ) {
+      throw new BadRequestException(
+        'Employee does not meet the minimum tenure requirement for this leave type.',
+      );
+    }
+
+    if (
+      eligibility.minTenureMonths != null &&
+      tenureMonths == null
+    ) {
+      throw new BadRequestException(
+        'Unable to determine employee tenure for eligibility check.',
+      );
+    }
+
+    const contractTypesAllowed: string[] = Array.isArray(
+      eligibility.contractTypesAllowed,
+    )
+      ? eligibility.contractTypesAllowed.map(String)
+      : [];
+    if (contractTypesAllowed.length > 0) {
+      const contractType = profile.contractType
+        ? String(profile.contractType)
+        : '';
+      if (!contractType || !contractTypesAllowed.includes(contractType)) {
+        throw new BadRequestException(
+          'Employee contract type is not eligible for this leave type.',
+        );
+      }
+    }
+
+    const positionsAllowed: string[] = Array.isArray(
+      eligibility.positionsAllowed,
+    )
+      ? eligibility.positionsAllowed.map(String)
+      : [];
+    if (positionsAllowed.length > 0) {
+      const primaryPositionId =
+        profile.primaryPositionId?._id || profile.primaryPositionId;
+      const posIdStr = primaryPositionId ? String(primaryPositionId) : '';
+      if (!posIdStr || !positionsAllowed.includes(posIdStr)) {
+        throw new BadRequestException(
+          'Employee position is not eligible for this leave type.',
+        );
+      }
+    }
+
+    // Enforce calendar blocked periods (REQ-010)
+    const fromDate = new Date(dto.dates.from);
+    const toDate = new Date(dto.dates.to);
+    const year = fromDate.getFullYear();
+    const calendar = await this.calendarRepository.findByYear(year);
+    const blocked = (calendar as any)?.blockedPeriods || [];
+    const overlapsBlocked = blocked.some(
+      (period: { from: Date; to: Date }) => {
+        const pFrom = new Date(period.from);
+        const pTo = new Date(period.to);
+        // overlap if (from <= pTo) && (to >= pFrom)
+        return fromDate <= pTo && toDate >= pFrom;
+      },
+    );
+    if (overlapsBlocked) {
+      throw new BadRequestException(
+        'Requested dates fall within a blocked period and cannot be requested.',
+      );
+    }
+
+    // Enforce entitlement balance check before creating request
+    const entitlement =
+      await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+        dto.employeeId,
+        dto.leaveTypeId,
+      );
+    if (entitlement && (entitlement.remaining ?? 0) < dto.durationDays) {
+      throw new BadRequestException(
+        'Insufficient leave balance for this leave type.',
+      );
     }
 
     const createdRequest = await this.leaveRequestRepository.create({

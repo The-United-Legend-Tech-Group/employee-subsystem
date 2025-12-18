@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
     Container,
     Typography,
@@ -57,7 +57,7 @@ interface AttendanceResponse {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-export default function ManagerAssignmentsPage() {
+function ManagerAssignmentsContent() {
     const [assignments, setAssignments] = useState<AppraisalAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -471,5 +471,18 @@ export default function ManagerAssignmentsPage() {
                 </Alert>
             </Snackbar>
         </Container >
+    );
+}
+
+// Wrap the page with Suspense to handle useSearchParams during static generation
+export default function ManagerAssignmentsPage() {
+    return (
+        <Suspense fallback={
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+                <CircularProgress />
+            </Box>
+        }>
+            <ManagerAssignmentsContent />
+        </Suspense>
     );
 }

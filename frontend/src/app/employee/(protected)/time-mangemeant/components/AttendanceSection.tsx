@@ -546,7 +546,7 @@ function MetricCard({
             )}`,
           }}
         >
-          <Icon sx={{ color: paletteColor.main }} />
+          {/* <Icon sx={{ color: paletteColor.main }} /> */}
         </Box>
       </Stack>
       <LinearProgress

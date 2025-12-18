@@ -16,7 +16,7 @@ import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import CVUploadSection from "./components/CVUploadSection";
-import CVAnalysisResults from "./components/CVAnalysisResults";
+// import CVAnalysisResults from "./components/CVAnalysisResults";
 import CVListSection from "./components/CVListSection";
 import { atsService, CVRecord } from "./services/atsService";
 import { decryptData } from "../../../../common/utils/encryption";
@@ -260,7 +260,7 @@ export default function ATSPage() {
           )}
         </DialogTitle>
         <DialogContent>
-          {selectedCV && (
+          {/* {selectedCV && (
             <CVAnalysisResults
               filename={selectedCV.filename}
               score={selectedCV.score || 0}
@@ -268,7 +268,7 @@ export default function ATSPage() {
               status={selectedCV.status}
               errorMessage={selectedCV.errorMessage}
             />
-          )}
+          )} */}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDetailsDialog}>Close</Button>

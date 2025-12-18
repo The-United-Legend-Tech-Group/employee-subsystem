@@ -1795,7 +1795,14 @@ export class RecruitmentService {
     if (!application) {
       throw new NotFoundException(`Application with id ${applicationId} not found`);
     }
-    return application;
+    // Still need to populate for single lookup if not in base repo
+    return await application.populate([
+      { path: 'candidateId' },
+      {
+        path: 'requisitionId',
+        populate: { path: 'templateId' }
+      }
+    ]) as ApplicationDocument;
   }
   //REC-017 part 1 also need to add validation for it being hr or candidate
   async getallcandidateApplications(candidateId: string): Promise<ApplicationDocument[]> {
@@ -1807,32 +1814,12 @@ export class RecruitmentService {
 
   // Get all applications with populated candidate data
   async getAllApplications(): Promise<ApplicationDocument[]> {
-    const applications = await this.applicationRepository.find();
-    // Populate candidate data and job requisition with template
-    const populated: ApplicationDocument[] = [];
-    for (const app of applications) {
-      const populatedApp = await app.populate([
-        { path: 'candidateId' },
-        {
-          path: 'requisitionId',
-          populate: { path: 'templateId' }
-        }
-      ]);
-      populated.push(populatedApp as ApplicationDocument);
-    }
-    return populated;
+    return this.applicationRepository.findAllPopulated();
   }
 
   // Get applications by requisition ID
   async getApplicationsByRequisition(requisitionId: string): Promise<ApplicationDocument[]> {
-    const applications = await this.applicationRepository.findByRequisitionId(requisitionId);
-    // Populate candidate data
-    const populated: ApplicationDocument[] = [];
-    for (const app of applications) {
-      const populatedApp = await app.populate('candidateId');
-      populated.push(populatedApp as ApplicationDocument);
-    }
-    return populated;
+    return this.applicationRepository.findByRequisitionId(requisitionId);
   }
 
   // REC-017 part2 & REC-022: Update Application Status/Stage by candidateId and requisitionId

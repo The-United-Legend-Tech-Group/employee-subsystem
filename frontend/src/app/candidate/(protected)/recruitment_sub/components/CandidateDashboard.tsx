@@ -203,11 +203,10 @@ export default function CandidateDashboard() {
                       <CardContent>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Box>
-                            <Typography variant="subtitle1" fontWeight={600}>{app.jobRequisitionId?.title || 'Position'}</Typography>
-                            <Typography variant="caption" color="text.secondary">Applied on {new Date(app.createdAt).toLocaleDateString()}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              Application ID: {app._id}
+                            <Typography variant="subtitle1" fontWeight={600}>
+                              {app.requisitionId?.templateId?.title || app.requisitionId?.requisitionId || 'Position'}
                             </Typography>
+                            <Typography variant="caption" color="text.secondary">Applied on {new Date(app.createdAt).toLocaleDateString()}</Typography>
                           </Box>
                           <Chip label={app.status} color={app.status === 'Interview' ? 'info' : app.status === 'Offer' ? 'success' : app.status === 'Rejected' ? 'error' : 'default'} />
                         </Stack>

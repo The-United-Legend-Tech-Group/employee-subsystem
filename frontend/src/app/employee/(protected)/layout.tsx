@@ -88,9 +88,15 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                     setRolesLoading(false);
                     setIsCheckingAuth(false);
                 } else {
-                    // STOP REDIRECTING - SHOW ERROR FOR DEBUGGING
-                    // Previously this block would redirect on 401/403
-                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                    // API Call failed (401, 403, 500, etc)
+                    if (response.status === 401 || response.status === 403) {
+                        // Token likely expired or invalid
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('employeeId');
+                        router.push('/employee/login');
+                        return;
+                    }
+                    throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`);
                 }
             } catch (error: any) {
                 console.error('Failed to fetch employee profile for layout', error);
@@ -114,29 +120,16 @@ export default function EmployeeLayout({ children }: LayoutProps) {
 
     if (authError) {
         return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default', p: 3, textAlign: 'center' }}>
-                <Alert severity="error" sx={{ mb: 4, width: '100%', maxWidth: '600px', textAlign: 'left' }}>
-                    <Typography variant="h6" sx={{ mb: 1 }}>Authentication Error</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default', p: 3 }}>
+                <Alert severity="error" sx={{ mb: 4, width: '100%', maxWidth: '500px' }}>
                     {authError}
                 </Alert>
-                <Box sx={{ mb: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider', width: '100%', maxWidth: '600px', textAlign: 'left' }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Debug Information:</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', mb: 0.5 }}>
-                        <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'Undefined (Using Fallback)'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', mb: 0.5 }}>
-                        <strong>Access Token:</strong> {localStorage.getItem('access_token') ? 'Present (Hidden)' : 'Missing'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                        <strong>Employee ID (Encrypted):</strong> {localStorage.getItem('employeeId') ? 'Present' : 'Missing'}
-                    </Typography>
-                </Box>
                 <Button variant="contained" onClick={() => {
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('employeeId');
                     router.push('/employee/login');
                 }}>
-                    Reset & Back to Login
+                    Back to Login
                 </Button>
             </Box>
         );

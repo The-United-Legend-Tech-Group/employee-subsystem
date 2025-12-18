@@ -254,6 +254,11 @@ export default function EmployeeLogin() {
     return isValid;
   };
 
+  const setCookie = (name: string, value: string, days: number = 7) => {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
@@ -291,6 +296,11 @@ export default function EmployeeLogin() {
           data.access_token
         );
         localStorage.setItem("employeeId", encryptedEmployeeId);
+
+        // Set Cookies for SSR support (Dashboard)
+        // We set the RAW employeeId because the SSR Dashboard uses it for API calls
+        setCookie('access_token', data.access_token);
+        setCookie('employeeid', data.employeeId); // Note: backend expects lowercase 'employeeid' usually, but here we match what Dashboard reads
 
         // Store roles in localStorage
         if (data.roles) {

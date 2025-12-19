@@ -74,9 +74,7 @@ class ApiClient {
     };
 
     try {
-      console.log('API Request:', { method: options.method || 'GET', url, hasToken: !!fallbackToken });
       const response = await fetch(url, config);
-      console.log('API Response:', { status: response.status, statusText: response.statusText, url });
 
       // Handle 401 Unauthorized (keep token so user isn't silently logged out)
       if (response.status === 401) {

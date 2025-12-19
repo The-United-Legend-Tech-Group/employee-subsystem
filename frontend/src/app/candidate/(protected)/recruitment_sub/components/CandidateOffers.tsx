@@ -29,8 +29,8 @@ import {
   Close as CloseIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
-import { recruitmentApi } from '@/lib/api';
-import { useToast } from '@/lib/hooks/useToast';
+import { recruitmentApi } from '../../../../../lib/api';
+import { useToast } from '../../../../../lib/hooks/useToast';
 
 interface CandidateOffersProps {
   // No props needed

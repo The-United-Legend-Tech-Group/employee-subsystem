@@ -26,6 +26,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
 import { decryptData } from '../../../../common/utils/encryption';
+import { getCandidateIdFromCookie, logout } from '../../../../lib/auth-utils';
 
 interface Candidate {
     _id: string;
@@ -48,35 +49,45 @@ export default function CandidateDashboard(props: { disableCustomTheme?: boolean
 
     React.useEffect(() => {
         const fetchCandidate = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedCandidateId = localStorage.getItem('candidateId');
+            // Try cookie-based auth first (new approach)
+            let candidateId = getCandidateIdFromCookie();
 
-            if (!token || !encryptedCandidateId) {
-                router.push('/candidate/login');
+            // Fallback to localStorage during migration
+            if (!candidateId) {
+                const token = localStorage.getItem('access_token');
+                const encryptedCandidateId = localStorage.getItem('candidateId');
+
+                if (token && encryptedCandidateId) {
+                    try {
+                        candidateId = await decryptData(encryptedCandidateId, token);
+                    } catch {
+                        candidateId = null;
+                    }
+                }
+            }
+
+            if (!candidateId) {
+                logout('/candidate/login');
                 return;
             }
 
             try {
-                const candidateId = await decryptData(encryptedCandidateId, token);
-                if (!candidateId) throw new Error('Decryption failed');
-
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/candidate/${candidateId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    credentials: 'include', // Send httpOnly cookies
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     setCandidate(data);
                 } else {
-                    console.error('Failed to fetch candidate, status:', response.status);
-                    router.push('/candidate/login');
+                    // Only logout on auth failure
+                    if (response.status === 401 || response.status === 403) {
+                        logout('/candidate/login');
+                    }
                 }
             } catch (error) {
-                console.error('Failed to fetch candidate', error);
-                router.push('/candidate/login');
+                // Network errors handled by loading state
             } finally {
                 setLoading(false);
             }

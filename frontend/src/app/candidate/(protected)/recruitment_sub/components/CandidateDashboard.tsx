@@ -26,10 +26,11 @@ import {
   Notifications as NotificationsIcon,
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
-import { recruitmentApi } from '@/lib/api';
-import { useMutation } from '@/lib/hooks/useApi';
-import { useToast } from '@/lib/hooks/useToast';
-import { decryptData } from '@/common/utils/encryption';
+import { recruitmentApi } from '../../../../../lib/api';
+import { useMutation } from '../../../../../lib/hooks/useApi';
+import { useToast } from '../../../../../lib/hooks/useToast';
+import { decryptData } from '../../../../../common/utils/encryption';
+import { getCandidateIdFromCookie, logout } from '../../../../../lib/auth-utils';
 import CandidateContracts from './CandidateContracts';
 import { CandidateOffers } from './CandidateOffers';
 
@@ -59,24 +60,39 @@ export default function CandidateDashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const encryptedCandidateId = localStorage.getItem('candidateId');
+        // Try cookie-based auth first (new approach)
+        let decryptedId = getCandidateIdFromCookie();
 
-        if (!token || !encryptedCandidateId) {
-          router.push('/candidate/login');
+        // Fallback to localStorage during migration
+        if (!decryptedId) {
+          const token = localStorage.getItem('access_token');
+          const encryptedCandidateId = localStorage.getItem('candidateId');
+
+          if (token && encryptedCandidateId) {
+            try {
+              decryptedId = await decryptData(encryptedCandidateId, token);
+            } catch {
+              decryptedId = null;
+            }
+          }
+        }
+
+        if (!decryptedId) {
+          logout('/candidate/login');
           return;
         }
 
-        const decryptedId = await decryptData(encryptedCandidateId, token);
         setCandidateId(decryptedId);
 
-        const jobs = await recruitmentApi.getAllPublishedRequisitions();
-        setOpenJobs(jobs.data || []);
-
-        await fetchApplications();
+        try {
+          const jobs = await recruitmentApi.getAllPublishedRequisitions();
+          setOpenJobs(jobs.data || []);
+          await fetchApplications();
+        } catch (error) {
+          console.error('Error fetching recruitment data:', error);
+        }
       } catch (err: any) {
-        console.error(err);
-        toast.error('Failed to load recruitment data');
+        console.error('Critical recruitment setup error:', err);
       } finally {
         setLoading(false);
       }

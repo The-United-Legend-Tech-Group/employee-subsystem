@@ -46,6 +46,11 @@ export class AuthController {
       sameSite: 'strict',
     });
 
+    response.cookie('user_roles', JSON.stringify(['Job Candidate']), {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
     return {
       message: 'Login successful',
       access_token,

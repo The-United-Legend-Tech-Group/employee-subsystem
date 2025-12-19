@@ -157,6 +157,16 @@ export class OffboardingService {
     //  TODO: what factors do we consider before making the termiantion request
     //e.g: specific score,specific rating,etc?
 
+    // Validate termination date is not in the past (must be today or future)
+    if (dto.terminationDate) {
+      const selected = new Date(dto.terminationDate);
+      const today = new Date();
+      const selDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (selDay < todayDay) {
+        throw new BadRequestException('Termination date cannot be in the past');
+      }
+    }
 
     const terminationRequestData = {
       employeeId: employeeObjectId,
@@ -952,6 +962,17 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       console.warn(`Employee ${dto.employeeId} already has an active resignation/termination request`);
       throw new BadRequestException(`You already have an active resignation/termination request with status: ${existingTerminationRequest.status}`);
     }
+
+      // Validate proposed last working day is not in the past
+      if (dto.proposedLastWorkingDay) {
+        const selected = new Date(dto.proposedLastWorkingDay);
+        const today = new Date();
+        const selDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (selDay < todayDay) {
+          throw new BadRequestException('Proposed last working day cannot be in the past');
+        }
+      }
 
     const savedResignation = await this.terminationRequestRepository.create({
       employeeId: employeeObjectId,

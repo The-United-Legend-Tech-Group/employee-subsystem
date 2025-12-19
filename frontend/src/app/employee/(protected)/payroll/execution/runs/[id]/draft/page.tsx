@@ -11,17 +11,15 @@ function getAccessToken(): string {
 
 function getAuthConfig() {
   const token = getAccessToken();
+
+  // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    throw new Error(
-      'Missing access token. Login again and ensure you store it in localStorage as "accessToken" (or "token").'
-    );
+    console.log('[RunDraft] No localStorage token - relying on httpOnly cookies');
   }
 
   return {
-    withCredentials: true,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    withCredentials: true, // Primary: send httpOnly cookies
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   } as const;
 }
 

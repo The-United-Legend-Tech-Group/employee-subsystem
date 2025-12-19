@@ -11,28 +11,21 @@ import Link from 'next/link';
 import { Button } from '@/payroll/components/ui/button';
 
 function getAccessToken(): string {
-  const raw =
-    localStorage.getItem('accessToken') ||
-    localStorage.getItem('token') ||
-    localStorage.getItem('access_token') ||
-    '';
-
+  const raw = localStorage.getItem('access_token') || '';
   return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
 }
 
 function getAuthConfig() {
   const token = getAccessToken();
+
+  // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    throw new Error(
-      'Missing access token. Please login again and ensure it is stored in localStorage as "accessToken" (or "token").'
-    );
+    console.log('[ManagerDashboard] No localStorage token - relying on httpOnly cookies');
   }
 
   return {
-    withCredentials: true,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    withCredentials: true, // Primary: send httpOnly cookies
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   } as const;
 }
 
@@ -125,7 +118,7 @@ export default function ManagerDashboard() {
                 Resolve Escalated Issues
               </Button>
             </Link>
-           
+
           </CardContent>
         </Card>
 

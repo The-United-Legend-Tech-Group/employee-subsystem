@@ -52,31 +52,26 @@ const computePriority = (msg: string): Priority => {
 };
 
 /**
- * ✅ Same adjustment as your other pages:
+ * ✅ Cookie-first auth pattern:
  * Read token at request-time (NOT module scope) and attach Authorization header.
+ * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw =
-     localStorage.getItem('accessToken') ||
-    localStorage.getItem('token') ||
-    localStorage.getItem('access_token') ||
-    "";
+  const raw = localStorage.getItem('access_token') || "";
   return raw.replace(/^Bearer\s+/i, "").replace(/^"+|"+$/g, "").trim();
 }
 
 function getAuthConfig() {
   const token = getAccessToken();
+
+  // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    throw new Error(
-      'Missing access token. Please login again and ensure it is stored in localStorage as "accessToken" (or "token").'
-    );
+    console.log('[Exceptions] No localStorage token - relying on httpOnly cookies');
   }
 
   return {
-    withCredentials: true,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    withCredentials: true, // Primary: send httpOnly cookies
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   } as const;
 }
 
@@ -164,8 +159,8 @@ export default function ExceptionsPage() {
         const list: any[] = Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res?.data?.exceptions)
-          ? res.data.exceptions
-          : [];
+            ? res.data.exceptions
+            : [];
 
         const flat: Exception[] = list.map((x: any, idx: number) => {
           const description = String(
@@ -188,8 +183,8 @@ export default function ExceptionsPage() {
         console.error(err);
         setError(
           err?.response?.data?.message ||
-            err?.message ||
-            "Failed to load exceptions"
+          err?.message ||
+          "Failed to load exceptions"
         );
       } finally {
         setLoading(false);

@@ -28,28 +28,21 @@ import {
 import type { PaySlip, EmployeeInfo, PayrollRun } from '@/payroll/libs/types';
 
 function getAccessToken(): string {
-  const raw =
-    localStorage.getItem('accessToken') ||
-    localStorage.getItem('token') ||
-    localStorage.getItem('access_token') ||
-    '';
-
-  return raw.replace(/^Bearer\s+/i, '').replace(/^\"+|\"+$/g, '').trim();
+  const raw = localStorage.getItem('access_token') || '';
+  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
 }
 
 function getAuthConfig() {
   const token = getAccessToken();
+
+  // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    throw new Error(
-      'Missing access token. Please login again and ensure it is stored in localStorage as "accessToken" (or "token").'
-    );
+    console.log('[PayslipDetail] No localStorage token - relying on httpOnly cookies');
   }
 
   return {
-    withCredentials: true,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    withCredentials: true, // Primary: send httpOnly cookies
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   } as const;
 }
 
@@ -192,7 +185,7 @@ export default function PayslipDetailPage() {
         sum +
         ((insuranceData.employeeRate || 0) *
           payslip.earningsDetails.baseSalary) /
-          100
+        100
       );
     }, 0) || 0;
 
@@ -206,10 +199,10 @@ export default function PayslipDetailPage() {
           Payroll Run: {payrollRun?.runId || 'N/A'} | Period:{' '}
           {payrollRun?.payrollPeriod
             ? new Date(payrollRun.payrollPeriod).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
             : 'N/A'}
         </p>
       </div>

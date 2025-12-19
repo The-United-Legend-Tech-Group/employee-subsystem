@@ -255,7 +255,7 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <DateTimePicker
                                     value={deadline}
-                                    onChange={(newValue) => setDeadline(newValue)}
+                                    onChange={(newValue: Dayjs | null) => setDeadline(newValue)}
                                     slotProps={{ textField: { fullWidth: true, hiddenLabel: true } }}
                                 />
                             </LocalizationProvider>

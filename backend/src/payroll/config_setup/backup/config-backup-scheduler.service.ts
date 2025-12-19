@@ -6,12 +6,12 @@ import { ConfigBackupService } from './config-backup.service';
 export class ConfigBackupSchedulerService {
   private readonly logger = new Logger(ConfigBackupSchedulerService.name);
   private isBackupRunning = false;
-  
+
   constructor(private backupService: ConfigBackupService) {}
 
   // Runs every day at 2 AM (production schedule)
-  // Change to '0 2 * * *' for testing (every minute: '* * * * *')
-  @Cron('* * * * *', {
+  // Change to '0 2 * * *' for testing (every minute: '* * * * *') for Developement
+  @Cron('*/10 * * * *', {
     name: 'config-setup-daily-backup',
     timeZone: 'Africa/Cairo', // Adjust to your timezone
   })
@@ -25,9 +25,9 @@ export class ConfigBackupSchedulerService {
     try {
       this.isBackupRunning = true;
       this.logger.log('🔄 Starting scheduled config_setup backup...');
-      
+
       await this.backupService.backupConfigSetup();
-      
+
       this.logger.log('✅ Scheduled backup completed successfully');
     } catch (error) {
       const err = error as Error;

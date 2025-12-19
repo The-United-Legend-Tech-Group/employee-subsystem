@@ -7,7 +7,7 @@ export type signingBonusDocument = HydratedDocument<signingBonus>;
 
 @Schema({ timestamps: true })
 export class signingBonus {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, }) // unique removed for execution module
   positionName: string; // only onboarding bonus based on position like:  Junior TA, Mid TA, Senior TA
   @Prop({ required: true, min: 0 })
   amount: number;

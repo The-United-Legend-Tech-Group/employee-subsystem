@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { Connection, Types } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -9,15 +9,23 @@ export class ConfigBackupService {
   private readonly logger = new Logger(ConfigBackupService.name);
   private backupDir: string;
 
-  constructor(@InjectConnection() private readonly connection: Connection) {
-    // Store backups outside src folder to prevent data loss during deployment
-    this.backupDir = path.join(
-      process.cwd(),
-      'backups',
-      'config_setup',
-    );
+  // 🔒 SECURITY: This is your boundary.
+  // Operations will strictly fail if they attempt to touch anything else.
+  private readonly ALLOWED_COLLECTIONS = [
+    'allowances',
+    'payrollpolicies',
+    'companywidesettings',
+    'insurancebrackets',
+    'paygrades',
+    'paytypes',
+    'signingbonus',
+    'taxrules',
+    'terminationandresignationbenefits',
+  ];
 
-    // Create backup directory if it doesn't exist
+  constructor(@InjectConnection() private readonly connection: Connection) {
+    this.backupDir = path.join(process.cwd(), 'backups', 'config_setup');
+
     if (!fs.existsSync(this.backupDir)) {
       fs.mkdirSync(this.backupDir, { recursive: true });
       this.logger.log(`📁 Created backup directory: ${this.backupDir}`);
@@ -28,26 +36,11 @@ export class ConfigBackupService {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(this.backupDir, `backup-${timestamp}`);
 
-    // MongoDB backup for payroll/config_setup collections
-    const collections = [
-      'allowances',
-      'payrollpolicies',
-      'companywidesettings',
-      'insurancebrackets',
-      'paygrades',
-      'paytypes',
-      'signingbonus',
-      'taxrules',
-      'terminationandresignationbenefits',
-    ];
-
     this.logger.log(`📦 Starting backup to: ${backupPath}`);
-    this.logger.log(`📋 Collections: ${collections.join(', ')}`);
     this.logger.log(
-      `🗄️  Database: ${this.connection.db?.databaseName || 'unknown'}`,
+      `🗄️ Connected Database: ${this.connection.name || 'unknown'}`,
     );
 
-    // Create backup directory
     if (!fs.existsSync(backupPath)) {
       fs.mkdirSync(backupPath, { recursive: true });
     }
@@ -58,70 +51,84 @@ export class ConfigBackupService {
     };
 
     try {
-      await this.directMongoExport(backupPath, collections, results);
+      // Pass the ALLOWED list. The export function will only look for these.
+      await this.directMongoExport(
+        backupPath,
+        this.ALLOWED_COLLECTIONS,
+        results,
+      );
     } catch (error) {
-      this.logger.error(`❌ Backup failed: ${(error as Error).message}`);
+      this.logger.error(
+        `❌ Backup critical failure: ${(error as Error).message}`,
+      );
       throw error;
     }
 
-    // Log summary
-    this.logger.log('✨ Backup completed');
+    this.logger.log('✨ Backup process finished');
     this.logger.log(
-      `✅ Successful: ${results.successful.length}/${collections.length}`,
+      `✅ Successful: ${results.successful.length}/${this.ALLOWED_COLLECTIONS.length}`,
     );
-    if (results.failed.length > 0) {
-      this.logger.warn(`❌ Failed: ${results.failed.join(', ')}`);
-    }
-    this.logger.log(`📁 Location: ${backupPath}`);
 
-    // Cleanup old backups (keep last 7)
+    if (results.failed.length > 0) {
+      this.logger.warn(`❌ Failed/Empty: ${results.failed.join(', ')}`);
+    }
+
     this.cleanOldBackups(7);
   }
 
   private async directMongoExport(
     backupPath: string,
-    collections: string[],
+    targetCollections: string[],
     results: { successful: string[]; failed: string[] },
   ): Promise<void> {
     if (!this.connection.db) {
       throw new Error('Database connection not available');
     }
 
-    // Map collection names to actual Mongoose collection names
-    const collectionMap: Record<string, string> = {};
-    for (const modelName of this.connection.modelNames()) {
-      const model = this.connection.model(modelName);
-      const actualCollectionName = model.collection.name;
-      const requestedName = collections.find(
-        (c) => c.toLowerCase() === actualCollectionName.toLowerCase(),
-      );
-      if (requestedName) {
-        collectionMap[requestedName] = actualCollectionName;
-      }
-    }
+    const dbCollections = await this.connection.db.listCollections().toArray();
+    const dbCollectionNames = dbCollections.map((c) => c.name);
 
-    // Export each collection as JSON using direct MongoDB connection
-    for (const collectionName of collections) {
+    this.logger.log(`🔎 Found in DB: ${dbCollectionNames.join(', ')}`);
+
+    for (const targetName of targetCollections) {
       try {
-        const actualName = collectionMap[collectionName] || collectionName;
-        const collection = this.connection.db.collection(actualName);
+        const realCollectionName = dbCollectionNames.find(
+          (dbName) => dbName.toLowerCase() === targetName.toLowerCase(),
+        );
+
+        if (!realCollectionName) {
+          this.logger.warn(
+            `⚠️ Collection '${targetName}' not found in database. Skipping.`,
+          );
+          results.failed.push(targetName);
+          continue;
+        }
+
+        const collection = this.connection.db.collection(realCollectionName);
         const documents = await collection.find({}).toArray();
 
-        const outputFile = path.join(backupPath, `${collectionName}.json`);
+        const outputFile = path.join(backupPath, `${targetName}.json`);
         fs.writeFileSync(
           outputFile,
           JSON.stringify(documents, null, 2),
           'utf-8',
         );
 
-        results.successful.push(collectionName);
-        this.logger.log(
-          `✅ Exported ${collectionName} (${documents.length} documents)`,
-        );
+        if (documents.length > 0) {
+          results.successful.push(targetName);
+          this.logger.log(
+            `✅ Exported ${realCollectionName} -> ${targetName}.json (${documents.length} docs)`,
+          );
+        } else {
+          this.logger.warn(
+            `⚠️ Exported ${realCollectionName} but it was empty (0 docs)`,
+          );
+          results.successful.push(targetName);
+        }
       } catch (error) {
-        results.failed.push(collectionName);
+        results.failed.push(targetName);
         this.logger.error(
-          `❌ Failed to export ${collectionName}: ${(error as Error).message}`,
+          `❌ Error exporting ${targetName}: ${(error as Error).message}`,
         );
       }
     }
@@ -129,6 +136,8 @@ export class ConfigBackupService {
 
   private cleanOldBackups(maxBackups: number): void {
     try {
+      if (!fs.existsSync(this.backupDir)) return;
+
       const backups = fs
         .readdirSync(this.backupDir)
         .filter((name) => name.startsWith('backup-'))
@@ -143,16 +152,10 @@ export class ConfigBackupService {
 
       for (const backup of toDelete) {
         fs.rmSync(backup.path, { recursive: true, force: true });
-        this.logger.log(`🗑️  Deleted old backup: ${backup.name}`);
-      }
-
-      if (toDelete.length > 0) {
-        this.logger.log(`🧹 Cleaned up ${toDelete.length} old backup(s)`);
+        this.logger.log(`🗑️ Deleted old backup: ${backup.name}`);
       }
     } catch (error) {
-      this.logger.error(
-        `Failed to clean old backups: ${(error as Error).message}`,
-      );
+      this.logger.error(`Cleanup failed: ${(error as Error).message}`);
     }
   }
 
@@ -171,46 +174,132 @@ export class ConfigBackupService {
       throw new Error('No JSON backup files found');
     }
 
+    // Pre-fetch DB collections once to avoid querying inside the loop
+    if (!this.connection.db)
+      throw new Error('Database connection not available');
+    const dbCollections = await this.connection.db.listCollections().toArray();
+
     for (const file of files) {
-      const collectionName = file.replace('.json', '');
+      const targetName = file.replace('.json', '');
+
+      // 🔒 SECURITY CHECK 🔒
+      // If the file is not in our specific ALLOWED list, skip it immediately.
+      // This prevents 'users.json' or 'admin.json' from being restored.
+      if (!this.ALLOWED_COLLECTIONS.includes(targetName)) {
+        this.logger.warn(
+          `🛑 SECURITY: Skipping restoration of '${targetName}' - it is outside your allowed boundary.`,
+        );
+        continue;
+      }
+
       const filePath = path.join(backupPath, file);
 
       try {
-        if (!this.connection.db) {
-          throw new Error('Database connection not available');
-        }
+        const realCollectionName =
+          dbCollections.find(
+            (c) => c.name.toLowerCase() === targetName.toLowerCase(),
+          )?.name || targetName;
 
-        const data = JSON.parse(
+        let data = JSON.parse(
           fs.readFileSync(filePath, 'utf-8'),
         ) as unknown[];
-        const collection = this.connection.db.collection(collectionName);
 
-        // Clear existing data
+        // Recursively convert strings to ObjectIds
+        data = this.convertToObjectId(data) as unknown[];
+
+        const collection = this.connection.db.collection(realCollectionName);
+
+        // Safe to proceed because we passed the Security Check
         await collection.deleteMany({});
 
-        // Insert backup data
         if (Array.isArray(data) && data.length > 0) {
           await collection.insertMany(data as never[]);
         }
 
         this.logger.log(
-          `✅ Restored ${collectionName} (${Array.isArray(data) ? data.length : 0} documents)`,
+          `✅ Restored ${realCollectionName} (${Array.isArray(data) ? data.length : 0} documents)`,
         );
       } catch (error) {
         this.logger.error(
-          `❌ Failed to restore ${collectionName}: ${(error as Error).message}`,
+          `❌ Failed to restore ${targetName}: ${(error as Error).message}`,
         );
       }
     }
-
     this.logger.log('✨ Restore completed');
   }
 
   listBackups(): string[] {
+    if (!fs.existsSync(this.backupDir)) return [];
     return fs
       .readdirSync(this.backupDir)
       .filter((name) => name.startsWith('backup-'))
       .sort()
       .reverse();
+  }
+  async getBackupData(backupName: string): Promise<Record<string, any>> {
+    const backupPath = path.join(this.backupDir, backupName);
+
+    if (!fs.existsSync(backupPath)) {
+      throw new NotFoundException(`Backup not found: ${backupName}`);
+    }
+
+    const files = fs.readdirSync(backupPath).filter((f) => f.endsWith('.json'));
+    const backupData: Record<string, any> = {
+      backupName,
+      timestamp: new Date().toISOString(),
+      collections: {},
+    };
+
+    for (const file of files) {
+      const collectionName = file.replace('.json', '');
+      try {
+        const filePath = path.join(backupPath, file);
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        backupData.collections[collectionName] = data;
+      } catch (error) {
+        this.logger.error(
+          `Failed to read file ${file} in backup ${backupName}: ${(error as Error).message}`,
+        );
+        backupData.collections[collectionName] = { error: 'Failed to read data' };
+      }
+    }
+
+    return backupData;
+  }
+
+  private convertToObjectId(data: any): any {
+    if (Array.isArray(data)) {
+      return data.map((item) => this.convertToObjectId(item));
+    } else if (data !== null && typeof data === 'object') {
+      // Handle MongoDB extended JSON format if present (e.g. $oid)
+      if (data.$oid) {
+        return new Types.ObjectId(data.$oid);
+      }
+
+      const result: any = {};
+      for (const key of Object.keys(data)) {
+        const value = data[key];
+
+        // Heuristic: If key is _id or ends with Id/By/At (though At is usually date), 
+        // and value matches ObjectId pattern, convert it.
+        // explicitly handling _id, and foreign keys often ending in Id or By (like createdBy)
+        if (
+          (key === '_id' || key.endsWith('Id') || key.endsWith('By')) &&
+          typeof value === 'string' &&
+          /^[0-9a-fA-F]{24}$/.test(value)
+        ) {
+          try {
+            result[key] = new Types.ObjectId(value);
+          } catch {
+            // Fallback if somehow invalid
+            result[key] = value;
+          }
+        } else {
+          result[key] = this.convertToObjectId(value);
+        }
+      }
+      return result;
+    }
+    return data;
   }
 }

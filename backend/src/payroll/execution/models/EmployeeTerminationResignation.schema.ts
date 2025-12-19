@@ -23,8 +23,8 @@ export class EmployeeTerminationResignation {
   })
   benefitId: mongoose.Types.ObjectId;
 
- @Prop({required: true})
-    givenAmount:number; // for sake of editing Benefits amount manually given to this employee
+  @Prop({ required: true })
+  givenAmount: number; // for sake of editing Benefits amount manually given to this employee
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

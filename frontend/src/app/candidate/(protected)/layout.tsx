@@ -16,8 +16,11 @@ import {
     datePickersCustomizations,
     treeViewCustomizations,
 } from '../../../common/material-ui/dashboard/theme/customizations';
+import {
+    getCandidateIdFromCookie,
+    logout
+} from '../../../lib/auth-utils';
 import { decryptData } from '../../../common/utils/encryption';
-import { AuthProvider } from '../../../context/AuthContext';
 
 const xThemeComponents = {
     ...chartsCustomizations,
@@ -43,23 +46,33 @@ export default function CandidateLayout({ children }: LayoutProps) {
 
     React.useEffect(() => {
         const fetchCandidate = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedCandidateId = localStorage.getItem('candidateId');
+            // Try cookie-based auth first (new approach)
+            let candidateId = getCandidateIdFromCookie();
 
-            if (!token || !encryptedCandidateId) {
-                router.push('/candidate/login');
+            // Fallback to localStorage during migration
+            if (!candidateId) {
+                const token = localStorage.getItem('access_token');
+                const encryptedCandidateId = localStorage.getItem('candidateId');
+
+                if (token && encryptedCandidateId) {
+                    try {
+                        candidateId = await decryptData(encryptedCandidateId, token);
+                    } catch {
+                        candidateId = null;
+                    }
+                }
+            }
+
+            // If no candidateId from either source, redirect to login
+            if (!candidateId) {
+                logout('/candidate/login');
                 return;
             }
 
             try {
-                const candidateId = await decryptData(encryptedCandidateId, token);
-                if (!candidateId) throw new Error('Decryption failed');
-
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/candidate/${candidateId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    credentials: 'include', // Send httpOnly cookies
                 });
 
                 if (response.ok) {
@@ -67,11 +80,11 @@ export default function CandidateLayout({ children }: LayoutProps) {
                     setCandidate(data);
                 } else {
                     console.error('Failed to fetch candidate profile', response.status, response.statusText);
-                    router.push('/candidate/login');
+                    logout('/candidate/login');
                 }
             } catch (error) {
                 console.error('Failed to fetch candidate profile for layout', error);
-                router.push('/candidate/login');
+                logout('/candidate/login');
             }
         };
 
@@ -79,50 +92,48 @@ export default function CandidateLayout({ children }: LayoutProps) {
     }, [router]);
 
     return (
-        <AuthProvider initialRoles={[]} initialLoading={false}>
-            <AppTheme themeComponents={xThemeComponents}>
-                <CssBaseline enableColorScheme />
-                <Box sx={{ display: 'flex' }}>
-                    <SideMenu user={candidate ? {
-                        name: `${candidate.firstName} ${candidate.lastName}`,
-                        email: candidate.personalEmail,
-                        image: candidate.profilePictureUrl || ''
-                    } : undefined} />
-                    <AppNavbar />
+        <AppTheme themeComponents={xThemeComponents}>
+            <CssBaseline enableColorScheme />
+            <Box sx={{ display: 'flex' }}>
+                <SideMenu user={candidate ? {
+                    name: `${candidate.firstName} ${candidate.lastName}`,
+                    email: candidate.personalEmail,
+                    image: candidate.profilePictureUrl || ''
+                } : undefined} />
+                <AppNavbar />
 
-                    {/* Main Content Area */}
-                    <Box
-                        component="main"
-                        sx={(theme) => ({
-                            flexGrow: 1,
-                            backgroundColor: theme.vars
-                                ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
-                                : alpha(theme.palette.background.default, 1),
-                            overflow: 'auto',
-                            height: '100vh',
-                        })}
+                {/* Main Content Area */}
+                <Box
+                    component="main"
+                    sx={(theme) => ({
+                        flexGrow: 1,
+                        backgroundColor: theme.vars
+                            ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
+                            : alpha(theme.palette.background.default, 1),
+                        overflow: 'auto',
+                        height: '100vh',
+                    })}
+                >
+                    <Stack
+                        spacing={2}
+                        sx={{
+                            alignItems: 'center',
+                            mx: 3,
+                            pb: 5,
+                            mt: { xs: 8, md: 0 },
+                            height: '100%',
+                        }}
                     >
-                        <Stack
-                            spacing={2}
-                            sx={{
-                                alignItems: 'center',
-                                mx: 3,
-                                pb: 5,
-                                mt: { xs: 8, md: 0 },
-                                height: '100%',
-                            }}
-                        >
-                            {/* Header is universal for this layout */}
-                            <Header notificationPath="/candidate/notifications" />
+                        {/* Header is universal for this layout */}
+                        <Header notificationPath="/candidate/notifications" />
 
-                            {/* Page Content */}
-                            <Box sx={{ width: '100%', height: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
-                                {children}
-                            </Box>
-                        </Stack>
-                    </Box>
+                        {/* Page Content */}
+                        <Box sx={{ width: '100%', height: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
+                            {children}
+                        </Box>
+                    </Stack>
                 </Box>
-            </AppTheme>
-        </AuthProvider>
+            </Box>
+        </AppTheme>
     );
 }

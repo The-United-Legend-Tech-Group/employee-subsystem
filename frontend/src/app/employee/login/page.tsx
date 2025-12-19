@@ -17,7 +17,6 @@ import AppTheme from "../../../common/material-ui/shared-theme/AppTheme";
 
 import ArcanaLogo from "../../../common/material-ui/shared-theme/ArcanaLogo";
 import ColorModeSelect from "../../../common/material-ui/shared-theme/ColorModeSelect";
-import { encryptData } from "../../../common/utils/encryption";
 
 const floatLayers = keyframes`
     0% {
@@ -281,17 +280,8 @@ export default function EmployeeLogin() {
       });
 
       if (response.ok) {
-        // Successful login
-        const data = await response.json();
-        localStorage.setItem("access_token", data.access_token);
-
-        // Encrypt employeeId before storing
-        const encryptedEmployeeId = await encryptData(
-          data.employeeId,
-          data.access_token
-        );
-        localStorage.setItem("employeeId", encryptedEmployeeId);
-
+        // Successful login - backend sets httpOnly cookies automatically
+        // via credentials: 'include'. No need to store tokens in localStorage.
         router.push("/employee/dashboard");
       } else {
         const errorData = await response.json();

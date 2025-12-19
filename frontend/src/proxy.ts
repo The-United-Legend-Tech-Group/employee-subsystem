@@ -61,7 +61,32 @@ export function proxy(request: NextRequest) {
         //'/employee/performance/my-records' : ['department employee'],
         '/employee/performance/manage-disputes': ['HR Manager'],
         '/employee/performance/disputes': ['HR Employee', 'department employee'],
-
+        // Payroll Config Setup
+        '/employee/payroll/config_setup': [
+            'Payroll Specialist',
+            'Payroll Manager',
+            'System Admin',
+            'Legal & Policy Admin',
+            'HR Manager'
+        ],
+        // Payroll Execution
+        '/employee/payroll/execution': [
+            'Payroll Specialist',
+            'Payroll Manager',
+            'Finance Staff'
+        ],
+        // Payroll Tracking - Specialist Services
+        '/employee/payroll/tracking/specialist-services': [
+            'Payroll Specialist'
+        ],
+        // Payroll Tracking - Manager Services
+        '/employee/payroll/tracking/manager-services': [
+            'Payroll Manager'
+        ],
+        // Payroll Tracking - Finance Services
+        '/employee/payroll/tracking/finance-services': [
+            'Finance Staff'
+        ],
     };
 
     // --- CONFIGURATION END ---

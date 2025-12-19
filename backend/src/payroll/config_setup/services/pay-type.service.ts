@@ -9,10 +9,11 @@ import { CreatePayTypeDto } from '../dto/createPayTypeDto';
 import { UpdatePayTypeDto } from '../dto/updatePayTypeDto';
 import { UpdateStatusDto } from '../dto/update-status.dto';
 import { ConfigStatus } from '../enums/payroll-configuration-enums';
+import { PaginationQueryDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class PayTypeService {
-  constructor(private readonly repository: PayTypeRepository) {}
+  constructor(private readonly repository: PayTypeRepository) { }
 
   async create(dto: CreatePayTypeDto): Promise<payTypeDocument> {
     return this.repository.create(dto as any);
@@ -26,8 +27,61 @@ export class PayTypeService {
     return this.repository.create(data as any);
   }
 
-  async findAll(): Promise<payTypeDocument[]> {
-    return this.repository.findAll();
+  async findAll(): Promise<payTypeDocument[]>;
+  async findAll(query: PaginationQueryDto): Promise<{
+    data: payTypeDocument[];
+    total: number;
+    page: number;
+    lastPage: number;
+  }>;
+  async findAll(query?: PaginationQueryDto): Promise<
+    | payTypeDocument[]
+    | {
+      data: payTypeDocument[];
+      total: number;
+      page: number;
+      lastPage: number;
+    }
+  > {
+    if (!query || Object.keys(query).length === 0) {
+      return this.repository.findAll();
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+    } = query;
+
+    const filter: any = {};
+    if (status) {
+      filter.status = status;
+    }
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.repository.getModel()
+        .find(filter)
+        .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.repository.getModel().countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string): Promise<payTypeDocument | null> {
@@ -42,26 +96,31 @@ export class PayTypeService {
     return this.repository.findMany(filter);
   }
 
-  async update(id: string, dto: UpdatePayTypeDto): Promise<payTypeDocument> {
-        const entity = await this.repository.findById(id);
-        if (!entity) {
-          throw new NotFoundException(`object with ID ${id} not found`);
-        }
-        if (entity.status !== ConfigStatus.DRAFT) {
-          throw new ForbiddenException('Editing is allowed when status is DRAFT only');
-        }
-    const updated = await this.repository.updateById(id, dto as any);
-    if (!updated) {
-      throw new NotFoundException(`Pay Type with ID ${id} not found`);
-    }
-    return updated;
+  // async update(id: string, dto: UpdatePayTypeDto): Promise<payTypeDocument> {
+  //       const entity = await this.repository.findById(id);
+  //       if (!entity) {
+  //         throw new NotFoundException(`object with ID ${id} not found`);
+  //       }
+  //       if (entity.status !== ConfigStatus.DRAFT) {
+  //         throw new ForbiddenException('Editing is allowed when status is DRAFT only');
+  //       }
+  //   const updated = await this.repository.updateById(id, dto as any);
+  //   if (!updated) {
+  //     throw new NotFoundException(`Pay Type with ID ${id} not found`);
+  //   }
+  //   return updated;
+  // }
+
+  async countPending(): Promise<number> {
+    return this.repository.getModel().countDocuments({ status: ConfigStatus.DRAFT }).exec();
   }
+
 
   async updateWithoutStatus(
     id: string,
     dto: UpdatePayTypeDto,
   ): Promise<payTypeDocument> {
-        const entity = await this.repository.findById(id);
+    const entity = await this.repository.findById(id);
     if (!entity) {
       throw new NotFoundException(`object with ID ${id} not found`);
     }
@@ -85,7 +144,7 @@ export class PayTypeService {
     if (!entity) {
       throw new NotFoundException(`Pay Type with ID ${id} not found`);
     }
-         if (entity.status !== ConfigStatus.DRAFT) {
+    if (entity.status !== ConfigStatus.DRAFT) {
       throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     if (entity.createdBy?.toString() === approverId) {

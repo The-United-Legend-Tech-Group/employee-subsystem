@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import MenuContent from './MenuContent';
 import OptionsMenu from './OptionsMenu';
 import ArcanaLogo from './ArcanaLogo';
+import { usePathname } from "next/navigation";
 
 const drawerWidth = 240;
 
@@ -31,11 +32,17 @@ interface SideMenuProps {
 }
 
 export default function SideMenu({ user }: SideMenuProps) {
+  const pathname = usePathname();
   const userData = user || {
     name: 'Riley Carter',
     email: 'riley@email.com',
     image: '',
   };
+
+  // Hide the SideMenu when in /employee/payroll/execution/(anything)
+  if (pathname.startsWith("/employee/payroll/execution/")) {
+    return null;
+  }
 
   return (
     <Drawer

@@ -5,6 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import configuration from '../src/config/configuration';
 import { ConfigSetupModule } from '../src/payroll/config_setup/config_setup.module';
+import { AuthGuard } from '../src/employee-subsystem/guards/authentication.guard';
+import { authorizationGuard } from '../src/employee-subsystem/guards/authorization.guard';
 
 describe('Config Setup API (e2e)', () => {
   let app: INestApplication;
@@ -33,7 +35,12 @@ describe('Config Setup API (e2e)', () => {
         }),
         ConfigSetupModule,
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(authorizationGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -393,7 +400,6 @@ describe('Config Setup API (e2e)', () => {
   describe('Insurance Bracket Endpoints', () => {
     const insuranceBracketData = {
       name: 'Social Insurance Bracket 1',
-      amount: 500,
       minSalary: 0,
       maxSalary: 5000,
       employeeRate: 11,
@@ -424,7 +430,6 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/insurance-brackets')
         .send({
           name: 'Invalid Bracket',
-          amount: 500,
           minSalary: 0,
           maxSalary: 5000,
           employeeRate: 150,
@@ -438,7 +443,6 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/insurance-brackets')
         .send({
           name: 'Negative Bracket',
-          amount: 500,
           minSalary: 0,
           maxSalary: 5000,
           employeeRate: -5,
@@ -499,7 +503,7 @@ describe('Config Setup API (e2e)', () => {
       // Create a new insurance bracket for this test
       const testBracket = await request(app.getHttpServer())
         .post('/config-setup/insurance-brackets')
-        .send({ name: `Test Bracket ${Date.now()}`, amount: 450, minSalary: 3000, maxSalary: 6000, employeeRate: 9, employerRate: 19 })
+        .send({ name: `Test Bracket ${Date.now()}`, minSalary: 3000, maxSalary: 6000, employeeRate: 9, employerRate: 19 })
         .expect(201);
       
       const testId = testBracket.body._id;

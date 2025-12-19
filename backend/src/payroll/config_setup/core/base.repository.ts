@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 
 export class BaseRepository<T extends Document> {
-  constructor(protected readonly model: Model<T>) {}
+  constructor(protected readonly model: Model<T>) { }
+
+  getModel(): Model<T> {
+    return this.model;
+  }
 
   async create(dto: Partial<T>): Promise<T> {
     try {
@@ -39,7 +43,9 @@ export class BaseRepository<T extends Document> {
   async findById(id: string): Promise<T> {
     const entity = await this.model.findById(id).exec();
     if (!entity) {
-      throw new NotFoundException(`${this.model.modelName} with ID ${id} not found`);
+      throw new NotFoundException(
+        `${this.model.modelName} with ID ${id} not found`,
+      );
     }
     return entity;
   }

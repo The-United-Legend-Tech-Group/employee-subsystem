@@ -16,7 +16,6 @@ export class EmployeeSigningBonusService {
         private employeeSigningBonusModel: Model<employeeSigningBonusDocument>,
         @InjectModel(signingBonus.name)
         private signingBonusConfigModel: Model<signingBonus>,
-        
     ) {}
 
     /** Approve a signing bonus record. Sets status to `approved` and optionally sets payment date. */
@@ -85,6 +84,17 @@ export class EmployeeSigningBonusService {
         } catch (err) {
             throw err;
         }
+    }
+
+    async getAllEmployeeSigningBonuses(): Promise<employeeSigningBonus[]> {
+        return this.employeeSigningBonusModel
+            .find()
+            .populate({
+                path: 'employeeId',
+                model: 'EmployeeProfile'
+            })
+            .populate('signingBonusId')
+            .exec();
     }
 
 }

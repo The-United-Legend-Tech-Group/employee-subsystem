@@ -7,7 +7,6 @@ import {
     Container,
     Paper,
     Typography,
-    CircularProgress,
     Alert,
     Chip,
     TextField,
@@ -17,6 +16,8 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    Skeleton,
+    Stack,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
@@ -303,19 +304,45 @@ export default function AppraisalReviewHubPage() {
             </Box>
 
             <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                <DataGrid
-                    rows={records}
-                    columns={columns}
-                    getRowId={(row) => row._id}
-                    loading={loading}
-                    paginationMode="server"
-                    rowCount={total}
-                    paginationModel={paginationModel}
-                    onPaginationModelChange={setPaginationModel}
-                    pageSizeOptions={[10, 25, 50]}
-                    autoHeight
-                    disableRowSelectionOnClick
-                />
+                {loading ? (
+                    <Box sx={{ p: 2 }}>
+                        {/* Header skeleton */}
+                        <Stack direction="row" spacing={2} sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="12%" height={32} />
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="10%" height={32} />
+                            <Skeleton variant="text" width="12%" height={32} />
+                            <Skeleton variant="text" width="10%" height={32} />
+                        </Stack>
+                        {/* Row skeletons */}
+                        {[...Array(paginationModel.pageSize)].map((_, index) => (
+                            <Stack key={index} direction="row" spacing={2} sx={{ py: 1.5 }}>
+                                <Skeleton variant="text" width="15%" height={24} />
+                                <Skeleton variant="text" width="15%" height={24} />
+                                <Skeleton variant="text" width="12%" height={24} />
+                                <Skeleton variant="rounded" width="15%" height={24} />
+                                <Skeleton variant="text" width="10%" height={24} />
+                                <Skeleton variant="text" width="12%" height={24} />
+                                <Skeleton variant="rounded" width={70} height={30} />
+                            </Stack>
+                        ))}
+                    </Box>
+                ) : (
+                    <DataGrid
+                        rows={records}
+                        columns={columns}
+                        getRowId={(row) => row._id}
+                        paginationMode="server"
+                        rowCount={total}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={setPaginationModel}
+                        pageSizeOptions={[10, 25, 50]}
+                        autoHeight
+                        disableRowSelectionOnClick
+                    />
+                )}
             </Paper>
 
             <Snackbar

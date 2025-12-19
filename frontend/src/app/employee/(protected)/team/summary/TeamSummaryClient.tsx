@@ -262,6 +262,38 @@ export default function TeamSummaryClient({
                     </Card>
                 </Grid>
 
+                {/* Department Distribution Chart */}
+                <Grid size={{ xs: 12 }}>
+                    <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="h6" fontWeight="bold" gutterBottom>Department Distribution</Typography>
+                            <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                {departmentData.length > 0 ? (
+                                    <BarChart
+                                        dataset={departmentData.map(d => ({
+                                            department: d.label,
+                                            count: d.value,
+                                        }))}
+                                        yAxis={[{ scaleType: 'band', dataKey: 'department' }]}
+                                        series={[{
+                                            dataKey: 'count',
+                                            label: 'Employees',
+                                            color: theme.palette.primary.main
+                                        }]}
+                                        layout="horizontal"
+                                        height={280}
+                                        margin={{ left: 120, right: 30, top: 10, bottom: 30 }}
+                                        borderRadius={8}
+                                        slotProps={{ legend: { hidden: true } as any }}
+                                    />
+                                ) : (
+                                    <Typography color="text.secondary">No department data available</Typography>
+                                )}
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
                 {/* Performance Section */}
                 {performanceData && (
                     <>

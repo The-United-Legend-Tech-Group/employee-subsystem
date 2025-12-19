@@ -11,7 +11,7 @@ export class ConfigBackupSchedulerService {
 
   // Runs every day at 2 AM (production schedule)
   // Change to '0 2 * * *' for testing (every minute: '* * * * *')
-  @Cron('* * * * *', {
+  @Cron('0 2 * * *', {
     name: 'config-setup-daily-backup',
     timeZone: 'Africa/Cairo', // Adjust to your timezone
   })

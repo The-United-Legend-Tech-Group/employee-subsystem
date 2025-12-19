@@ -10,6 +10,8 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {apiService} from '../../../../../../common/services/api';
 
@@ -54,6 +56,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
     fromDate: '',
     toDate: '',
     justification: '',
+    isEmergency: false,
   });
 
   const [file, setFile] = useState<File | null>(null);
@@ -159,6 +162,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
         },
         durationDays,
         justification: form.justification || undefined,
+        isEmergency: form.isEmergency,
         ...attachmentMeta,
       };
 
@@ -185,6 +189,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
         fromDate: '',
         toDate: '',
         justification: '',
+        isEmergency: false,
       });
       setFile(null);
       
@@ -275,6 +280,18 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
           size="small"
 
           placeholder="Explain the reason for your leave (optional but recommended)"
+        />
+
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={form.isEmergency}
+              onChange={(e) => setForm((f) => ({ ...f, isEmergency: e.target.checked }))}
+              color="error"
+            />
+          }
+          label="This is an emergency leave request"
+          sx={{ color: 'text.secondary' }}
         />
 
         <Box>

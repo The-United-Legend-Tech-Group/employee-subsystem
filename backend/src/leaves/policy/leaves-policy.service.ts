@@ -283,8 +283,8 @@ export class LeavesPolicyService {
       policy.roundingRule,
     );
 
-    entitlement.accruedActual += accrualActual;
-    entitlement.accruedRounded += accrualRounded;
+  entitlement.accruedActual = accrualActual;
+  entitlement.accruedRounded = accrualRounded;
 
     /** ---------------------
      * 3. HANDLE CARRY FORWARD

@@ -10,8 +10,8 @@ import { Types } from 'mongoose';
 import { FilterLeaveHistoryDto } from '../dtos/filter-leave-history.dto';
 import { ManagerFilterTeamDataDto } from '../dtos/manager-filter-team-data.dto';
 import { SubmitPostLeaveDto } from '../dtos/submit-post-leave.dto';
-import { AccrualMethod } from '../enums/accrual-method.enum';
-import { RoundingRule } from '../enums/rounding-rule.enum';
+// import { AccrualMethod } from '../enums/accrual-method.enum';
+// import { RoundingRule } from '../enums/rounding-rule.enum';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
 import {
@@ -460,7 +460,7 @@ export class LeavesReportService implements OnModuleInit{
     name: 'automatic-carry-forward',
     timeZone: 'Africa/Cairo',
   })*/
-  async carryForwardLeaves() {
+  /*async carryForwardLeaves() {
     console.log('🔄 [REQ-041] Automatic carry-forward started at', new Date().toISOString());
     const policies = await this.leavePolicyRepository.find();
     const entitlements = await this.leaveEntitlementRepository.find();
@@ -588,7 +588,7 @@ export class LeavesReportService implements OnModuleInit{
         cappedAt: r.cappedAt,
       })),
     };
-  }
+  }*/
   /**
    * REQ-040: Automatic Accrual
    * Processes automatic leave accrual for all employees according to company policy
@@ -598,7 +598,7 @@ export class LeavesReportService implements OnModuleInit{
     name: 'automatic-leave-accrual',
     timeZone: 'Africa/Cairo',
   })*/
-  async accrueLeaves() {
+  /*async accrueLeaves() {
     console.log('🔄 [REQ-040] Automatic accrual started at', new Date().toISOString());
     const policies = await this.leavePolicyRepository.find();
     const entitlements = await this.leaveEntitlementRepository.find();
@@ -768,7 +768,7 @@ export class LeavesReportService implements OnModuleInit{
         unpaidDays: r.unpaidDays,
       })),
     };
-  }
+  }*/
 
   //REQ-043
   async payrollSync(employeeId: string) {

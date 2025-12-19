@@ -123,7 +123,8 @@ export default function HRLeaveRequestsManager() {
   const [overrideReason, setOverrideReason] = useState('');
   const [verifyStatus, setVerifyStatus] = useState(true);
   const [verifyNotes, setVerifyNotes] = useState('');
-  const [bulkAction, setBulkAction] = useState<'approve' | 'reject'>('approve');
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'override_approve' | 'override_reject'>('approve');
+  const [bulkOverrideReason, setBulkOverrideReason] = useState('');
   const [processing, setProcessing] = useState(false);
 
   
@@ -293,6 +294,66 @@ export default function HRLeaveRequestsManager() {
     }
   };
 
+  const handleHrApproveNormal = async (requestId: string) => {
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const hrUserId = getCurrentUserId();
+      if (!hrUserId) throw new Error('Unable to identify HR user');
+
+      const res = await fetch(`${API_BASE}/leaves/hr/${requestId}/approve-normal`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ hrUserId }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: 'Failed to approve (normal)' }));
+        throw new Error(errData.message || `Failed (${res.status})`);
+      }
+
+      await loadRequests();
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to approve (normal)');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleHrRejectNormal = async (requestId: string) => {
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const hrUserId = getCurrentUserId();
+      if (!hrUserId) throw new Error('Unable to identify HR user');
+
+      const res = await fetch(`${API_BASE}/leaves/hr/${requestId}/reject-normal`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ hrUserId }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: 'Failed to reject (normal)' }));
+        throw new Error(errData.message || `Failed (${res.status})`);
+      }
+
+      await loadRequests();
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to reject (normal)');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleViewMedicalDocument = async (request: LeaveRequest) => {
     if (!API_BASE || !request.attachmentId) return;
     setProcessing(true);
@@ -351,6 +412,7 @@ export default function HRLeaveRequestsManager() {
           leaveRequestIds: selectedRequests,
           action: bulkAction,
           hrUserId,
+          reason: (bulkAction === 'override_approve' || bulkAction === 'override_reject') ? (bulkOverrideReason || 'Bulk override') : undefined,
         }),
       });
 
@@ -541,7 +603,7 @@ export default function HRLeaveRequestsManager() {
                     <TableCell>
                       <Stack direction="row" spacing={0.5}>
                         {(() => {
-                          const medicalVerified = request.approvalFlow?.some(flow => flow.role === 'hr' && flow.status === 'approved');
+                          const medicalVerified = request.approvalFlow?.some(flow => flow.role === 'HR Manager' && flow.status === 'approved');
                           const managerApproved = request.approvalFlow?.some(flow => flow.role === 'department head' && flow.status === 'approved');
                           const canFinalize = medicalVerified && managerApproved;
 
@@ -556,6 +618,28 @@ export default function HRLeaveRequestsManager() {
                             </Tooltip>
                           ) : null;
                         })()}
+                        {request.status === 'pending' && (
+                          <>
+                            <Tooltip title="HR Approve (normal)">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleHrApproveNormal(request._id)}
+                                disabled={processing}
+                              >
+                                <CheckCircleIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="HR Reject (normal)">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleHrRejectNormal(request._id)}
+                                disabled={processing}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                         <Tooltip title="Override">
                           <IconButton
                             size="small"
@@ -703,12 +787,25 @@ export default function HRLeaveRequestsManager() {
               select
               label="Action"
               value={bulkAction}
-              onChange={(e) => setBulkAction(e.target.value as 'approve' | 'reject')}
+              onChange={(e) => setBulkAction(e.target.value as 'approve' | 'reject' | 'override_approve' | 'override_reject')}
               fullWidth
             >
               <MenuItem value="approve">Approve</MenuItem>
               <MenuItem value="reject">Reject</MenuItem>
+              <MenuItem value="override_approve">Override Approve</MenuItem>
+              <MenuItem value="override_reject">Override Reject</MenuItem>
             </TextField>
+            {(bulkAction === 'override_approve' || bulkAction === 'override_reject') && (
+              <TextField
+                label="Override Reason"
+                value={bulkOverrideReason}
+                onChange={(e) => setBulkOverrideReason(e.target.value)}
+                fullWidth
+                multiline
+                rows={3}
+                helperText="Provide a reason for the override applied to all selected requests"
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

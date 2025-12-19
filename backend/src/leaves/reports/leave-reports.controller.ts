@@ -179,7 +179,7 @@ async submitPostLeave(
   /**
    * REQ-040: Process automatic accrual for all employees
    */
-  @Post('automation/process-accrual')
+  /*@Post('automation/process-accrual')
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   @ApiOperation({
@@ -198,7 +198,7 @@ async submitPostLeave(
   /**
    * REQ-041: Process year-end/period carry-forward
    */
-  @Post('automation/process-carry-forward')
+  /*@Post('automation/process-carry-forward')
   @UseGuards(AuthGuard, authorizationGuard)
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   @ApiOperation({
@@ -212,7 +212,7 @@ async submitPostLeave(
   })
   async processCarryForward() {
     return this.leavesReportService.carryForwardLeaves();
-  }
+  }*/
 
   /**
    * Get accrual automation status

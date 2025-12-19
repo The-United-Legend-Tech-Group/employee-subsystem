@@ -89,7 +89,8 @@ export class LeavesRequestService {
     }
 
     // Enforce minimum notice period from policy (REQ-009)
-    if (policy.minNoticeDays && policy.minNoticeDays > 0) {
+    // Emergency requests bypass notice period requirement
+    if (!dto.isEmergency && policy.minNoticeDays && policy.minNoticeDays > 0) {
       const today = new Date();
       const fromDate = new Date(dto.dates.from);
       // Normalize to dates (ignore time)
@@ -203,13 +204,27 @@ export class LeavesRequestService {
       );
     }
 
+    // Prevent overlapping with existing leave requests for the same employee (pending or approved)
+    const overlappingRequestsOnSubmit = await this.leaveRequestRepository.find({
+      employeeId: new Types.ObjectId(dto.employeeId),
+      status: { $in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+      'dates.from': { $lte: toDate },
+      'dates.to': { $gte: fromDate },
+    });
+    if (overlappingRequestsOnSubmit.length > 0) {
+      throw new BadRequestException(
+        'You already have a leave request that overlaps these dates.',
+      );
+    }
+
     // Enforce entitlement balance check before creating request
+    // Emergency requests bypass balance check and are still allowed to be submitted
     const entitlement =
       await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
         dto.employeeId,
         dto.leaveTypeId,
       );
-    if (entitlement && (entitlement.remaining ?? 0) < dto.durationDays) {
+    if (!dto.isEmergency && entitlement && (entitlement.remaining ?? 0) < dto.durationDays) {
       throw new BadRequestException(
         'Insufficient leave balance for this leave type.',
       );
@@ -223,6 +238,30 @@ export class LeavesRequestService {
       justification: dto.justification,
       ...(attachmentId && { attachmentId }),
     });
+
+    console.log(createdRequest)
+    if (createdRequest) {
+      try {
+        const entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(dto.employeeId, dto.leaveTypeId);
+        console.log(entitlement);
+        if (
+          entitlement &&
+          typeof entitlement.remaining === 'number' &&
+          typeof entitlement.pending === 'number'
+        ) {
+          await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+            remaining: entitlement.remaining - dto.durationDays,
+            pending: entitlement.pending + dto.durationDays,
+          });
+          console.log('entitlement updated');
+          let e = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(dto.employeeId, dto.leaveTypeId);
+          console.log(e);
+        }
+      } catch (any) {
+        console.log('no entitlement');
+      }
+    }
+
 
     // Notify manager when a new leave request is submitted
     await this.notifyManagerOfNewRequest(createdRequest);
@@ -595,6 +634,20 @@ export class LeavesRequestService {
       );
     }
 
+    // Prevent overlapping with other requests for this employee (pending or approved), excluding this request itself
+    const overlappingRequestsOnModify = await this.leaveRequestRepository.find({
+      employeeId: new Types.ObjectId(employeeId),
+      _id: { $ne: new Types.ObjectId(id) },
+      status: { $in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+      'dates.from': { $lte: toDate },
+      'dates.to': { $gte: fromDate },
+    });
+    if (overlappingRequestsOnModify.length > 0) {
+      throw new BadRequestException(
+        'This update conflicts with another leave request that overlaps these dates.',
+      );
+    }
+
     // Enforce entitlement balance check before modifying request
     const entitlement =
       await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
@@ -613,6 +666,20 @@ export class LeavesRequestService {
     if (dto.durationDays !== undefined) modifiedFields.push('duration');
     if (dto.justification !== undefined) modifiedFields.push('justification');
     if (dto.leaveTypeId) modifiedFields.push('leave type');
+
+    // Adjust entitlement: revert old pending and remaining, then apply new
+    if (entitlement && typeof entitlement.remaining === 'number' && typeof entitlement.pending === 'number') {
+      // Revert old request
+      await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+        remaining: entitlement.remaining + request.durationDays,
+        pending: entitlement.pending - request.durationDays,
+      });
+      // Apply new request
+      await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+        remaining: entitlement.remaining + request.durationDays - effectiveDurationDays,
+        pending: entitlement.pending - request.durationDays + effectiveDurationDays,
+      });
+    }
 
     const updatedRequest = await this.leaveRequestRepository.updateById(id, dto);
 
@@ -639,10 +706,18 @@ export class LeavesRequestService {
     modifiedFields: string[],
   ): Promise<void> {
     try {
-      const manager = await this.employeeService.getManagerForEmployee(
-        request.employeeId.toString(),
-      );
-      if (!manager) return;
+      const employeeIdStr = request.employeeId.toString();
+      const managerId = await this.resolveManagerIdForEmployee(employeeIdStr);
+      // Fallback: use upward chain to find first manager id if direct resolve failed
+      let finalManagerId = managerId;
+      if (!finalManagerId) {
+        const above = await this.getEmployeesAboveRequester(employeeIdStr);
+        finalManagerId = above?.[0] ?? null;
+      }
+      if (!finalManagerId) {
+        console.warn(`[notifyManagerOfModifiedRequest] No manager found for employee ${employeeIdStr}`);
+        return;
+      }
 
       const employee = await this.employeeService.getProfile(
         request.employeeId.toString(),
@@ -664,7 +739,7 @@ export class LeavesRequestService {
         modifiedFields?.length ? ` Updated fields: ${modifiedFields.join(', ')}.` : '';
 
       await this.notificationService.create({
-        recipientId: [manager._id.toString()],
+        recipientId: [finalManagerId],
         type: 'Info',
         deliveryType: 'UNICAST',
         title: 'Leave Request Updated',
@@ -692,6 +767,18 @@ export class LeavesRequestService {
       throw new Error('Only pending requests can be cancelled');
     }
 
+    // Update entitlement: return durationDays to remaining, subtract from pending
+    const entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+      request.employeeId.toString(),
+      request.leaveTypeId.toString()
+    );
+    if (entitlement && typeof entitlement.remaining === 'number' && typeof entitlement.pending === 'number') {
+      await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+        remaining: entitlement.remaining + request.durationDays,
+        pending: entitlement.pending - request.durationDays,
+      });
+    }
+
     request.status = LeaveStatus.CANCELLED;
     return request.save();
   }
@@ -704,14 +791,17 @@ export class LeavesRequestService {
     request: LeaveRequestDocument,
   ): Promise<void> {
     try {
-      // Get the employee's manager
-      const manager = await this.employeeService.getManagerForEmployee(
-        request.employeeId.toString(),
-      );
-
-      if (!manager) {
-        // No manager found, skip notification
-        return;
+      // Get the employee's manager (with robust resolution + fallback)
+      const employeeIdStr = request.employeeId.toString();
+      const managerId = await this.resolveManagerIdForEmployee(employeeIdStr);
+      let finalManagerId = managerId;
+      if (!finalManagerId) {
+        const above = await this.getEmployeesAboveRequester(employeeIdStr);
+        finalManagerId = above?.[0] ?? null;
+      }
+      if (!finalManagerId) {
+        console.warn(`[notifyManagerOfNewRequest] No manager found for employee ${employeeIdStr}`);
+        return; // No recipient available
       }
 
       // Get employee details for the notification
@@ -732,7 +822,7 @@ export class LeavesRequestService {
         : 'N/A';
 
       await this.notificationService.create({
-        recipientId: [manager._id.toString()],
+        recipientId: [finalManagerId],
         type: 'Info',
         deliveryType: 'UNICAST',
         title: 'New Leave Request for Review',
@@ -821,7 +911,7 @@ export class LeavesRequestService {
       }
 
       await this.notificationService.create({
-      recipientId: [request.employeeId.toString()],
+      recipientId: [request.employeeId?.toString?.() ?? String(request.employeeId)],
       type,
       deliveryType: 'UNICAST',
       title,
@@ -1005,7 +1095,7 @@ export class LeavesRequestService {
         ? `Your leave request for ${request.durationDays} day(s), submitted on ${request.dates?.from?.toLocaleDateString?.() || ''}, has been rejected.`
         : `Your leave request status is now ${status}`;
     return this.notificationService.create({
-      recipientId: [request.employeeId.toString()],
+      recipientId: [request.employeeId?.toString?.() ?? String(request.employeeId)],
       type,
       deliveryType: 'UNICAST',
       title,
@@ -1019,7 +1109,7 @@ export class LeavesRequestService {
    */
   private async sendFinalizationNotifications(request: LeaveRequestDocument): Promise<void> {
     try {
-      const recipientIds: string[] = [];
+  const recipientIds: string[] = [];
 
       // 1. Add the employee
       recipientIds.push(request.employeeId.toString());
@@ -1124,18 +1214,13 @@ export class LeavesRequestService {
     if (updatedRequest) {
       await this.sendFinalizationNotifications(updatedRequest);
 
-      // Automatically update leave balance when HR finalizes with approval
+      // Switch entitlement from pending to taken for final APPROVED
       if (finalStatus === LeaveStatus.APPROVED) {
         try {
-          await this.leaveEntitlementRepository.updateBalance(
-            updatedRequest.employeeId,
-            updatedRequest.leaveTypeId,
-            updatedRequest.durationDays,
-          );
+          await this.applyFinalEntitlementAdjustments(updatedRequest, LeaveStatus.APPROVED);
         } catch (error) {
-          // Log error but don't throw - balance update failures shouldn't break finalization
           console.error(
-            `Failed to update leave balance for request ${leaveRequestId}:`,
+            `Failed to adjust entitlement for finalized request ${leaveRequestId}:`,
             error,
           );
         }
@@ -1171,28 +1256,32 @@ export class LeavesRequestService {
       { updateFields }
     );
 
-    // Send appropriate notifications
+    // Send appropriate notifications and adjust entitlement
     if (updatedRequest) {
       if (newStatus === LeaveStatus.APPROVED) {
-        // Send finalization notifications when overriding to approved
         await this.sendFinalizationNotifications(updatedRequest);
-
-        // Automatically update leave balance when HR overrides to approved
         try {
-          await this.leaveEntitlementRepository.updateBalance(
-            updatedRequest.employeeId,
-            updatedRequest.leaveTypeId,
-            updatedRequest.durationDays,
-          );
+          await this.applyFinalEntitlementAdjustments(updatedRequest, LeaveStatus.APPROVED);
         } catch (error) {
-          // Log error but don't throw - balance update failures shouldn't break override
           console.error(
-            `Failed to update leave balance for HR override request ${leaveRequestId}:`,
+            `Failed to adjust entitlement for HR override APPROVED ${leaveRequestId}:`,
             error,
           );
         }
+      } else if (newStatus === LeaveStatus.REJECTED) {
+        // Switch entitlement back from pending to remaining for final REJECTED
+        try {
+          await this.applyFinalEntitlementAdjustments(updatedRequest, LeaveStatus.REJECTED);
+        } catch (error) {
+          console.error(
+            `Failed to adjust entitlement for HR override REJECTED ${leaveRequestId}:`,
+            error,
+          );
+        }
+        await this.sendLeaveRequestNotification(updatedRequest, 'hr_override', {
+          reason,
+        });
       } else {
-        // Send regular override notification for other statuses
         await this.sendLeaveRequestNotification(updatedRequest, 'hr_override', {
           reason,
         });
@@ -1209,6 +1298,7 @@ export class LeavesRequestService {
     leaveRequestIds: string[],
     action: string,
     hrUserId: string,
+    reason?: string,
   ): Promise<{ processed: number; failed: number }> {
     let processed = 0;
     let failed = 0;
@@ -1221,51 +1311,60 @@ export class LeavesRequestService {
           continue;
         }
 
-        let newStatus: LeaveStatus;
+        if (action === 'approve' || action === 'reject') {
+          const roleStatus: LeaveStatus = action === 'approve' ? LeaveStatus.APPROVED : LeaveStatus.REJECTED;
 
-        if (action === 'approve') {
-          newStatus = LeaveStatus.APPROVED;
-        } else if (action === 'reject') {
-          newStatus = LeaveStatus.REJECTED;
+          const updateFields: any = {
+            status: roleStatus,
+            decidedBy: new Types.ObjectId(hrUserId),
+            decidedAt: new Date(),
+          };
+
+          const updatedRequest = await this.leaveRequestRepository.updateWithApprovalFlow(
+            requestId,
+            {}, // Keep overall request status unchanged for normal review
+            'HR Manager',
+            { updateFields }
+          );
+
+          // Optionally notify the employee that HR reviewed the request (without finalizing)
+          if (updatedRequest) {
+            await this.sendLeaveRequestNotification(updatedRequest, 'modified', {
+              modifiedFields: ['HR review status']
+            });
+          }
+        } else if (action === 'finalize') {
+          // Finalize to APPROVED by default in bulk mode
+          const finalized = await this.finalizeLeaveRequest(requestId, hrUserId, LeaveStatus.APPROVED);
+          if (!finalized) {
+            failed++;
+            continue;
+          }
+        } else if (action === 'override_approve') {
+          const overridden = await this.hrOverrideRequest(
+            requestId,
+            hrUserId,
+            LeaveStatus.APPROVED,
+            reason || 'Bulk override approve',
+          );
+          if (!overridden) {
+            failed++;
+            continue;
+          }
+        } else if (action === 'override_reject') {
+          const overridden = await this.hrOverrideRequest(
+            requestId,
+            hrUserId,
+            LeaveStatus.REJECTED,
+            reason || 'Bulk override reject',
+          );
+          if (!overridden) {
+            failed++;
+            continue;
+          }
         } else {
           failed++;
           continue;
-        }
-
-        const updateFields: any = {
-          status: newStatus,
-          decidedBy: new Types.ObjectId(hrUserId),
-          decidedAt: new Date(),
-        };
-
-        const updatedRequest = await this.leaveRequestRepository.updateWithApprovalFlow(
-          requestId,
-          {}, // Don't change overall request status - keep it pending
-          'HR Manager',
-          { updateFields }
-        );
-
-        // Send notification to employee about bulk processing
-        if (updatedRequest) {
-          const notificationAction = action === 'approve' ? 'approved' : 'rejected';
-          await this.sendLeaveRequestNotification(updatedRequest, notificationAction as any);
-
-          // Automatically update leave balance when bulk approved
-          if (newStatus === LeaveStatus.APPROVED) {
-            try {
-              await this.leaveEntitlementRepository.updateBalance(
-                updatedRequest.employeeId,
-                updatedRequest.leaveTypeId,
-                updatedRequest.durationDays,
-              );
-            } catch (error) {
-              // Log error but don't throw - balance update failures shouldn't break bulk processing
-              console.error(
-                `Failed to update leave balance for bulk processed request ${requestId}:`,
-                error,
-              );
-            }
-          }
         }
 
         processed++;
@@ -1324,12 +1423,12 @@ export class LeavesRequestService {
     let updated = 0;
 
     for (const request of approvedRequests) {
-      await this.leaveEntitlementRepository.updateBalance(
-        request.employeeId,
-        request.leaveTypeId,
-        request.durationDays
-      );
-      updated++;
+      try {
+        await this.applyFinalEntitlementAdjustments(request as any, LeaveStatus.APPROVED);
+        updated++;
+      } catch (error) {
+        console.error(`Failed to auto-adjust entitlement for approved request ${request._id}:`, error);
+      }
     }
 
     return { updated };
@@ -1484,17 +1583,10 @@ export class LeavesRequestService {
       visited.add(currentEmployeeId);
 
       // Get the manager for the current employee
-      const manager = await this.employeeService.getManagerForEmployee(
-        currentEmployeeId,
-      );
-
-      console.log('Current Employee ID', currentEmployeeId);
-      console.log('manager', manager);
-      if (!manager || !manager._id) {
+      const managerId = await this.resolveManagerIdForEmployee(currentEmployeeId);
+      if (!managerId) {
         break;
       }
-
-      const managerId = manager._id.toString();
       if (managerId && !employeeIdsAbove.includes(managerId)) {
         employeeIdsAbove.push(managerId);
       }
@@ -1505,5 +1597,113 @@ export class LeavesRequestService {
 
     console.log('employeeIdsAbove', employeeIdsAbove);
     return employeeIdsAbove;
+  }
+
+  /**
+   * Robustly resolve a direct manager's employeeId for a given employeeId.
+   * Tries employeeService.getManagerForEmployee first; if null, falls back to
+   * matching the employee's supervisorPositionId to another employee's primaryPositionId.
+   */
+  private async resolveManagerIdForEmployee(employeeId: string): Promise<string | null> {
+    try {
+      const manager = await this.employeeService.getManagerForEmployee(employeeId);
+      if (manager) {
+        const m: any = manager;
+        const candidates = [
+          typeof manager === 'string' ? (manager as string) : undefined,
+          m?._id?.toString?.(),
+          m?.id,
+          m?.employeeId,
+          m?.profile?._id?.toString?.(),
+          m?.profile?.id,
+        ].filter((v) => typeof v === 'string' && v) as string[];
+        if (candidates.length > 0) return candidates[0];
+      }
+
+      // Fallback: derive manager by position linkage
+      let employeeProfile: any = null;
+      try {
+        employeeProfile = await this.employeeService.getProfile(employeeId);
+      } catch {}
+      // Normalizer that handles mongoose ObjectId or primitive
+      const norm = (v: any): string | null => {
+        if (!v) return null;
+        try {
+          if (typeof v === 'string') return v;
+          // If Mongoose ObjectId or similar, use its toString()
+          if (typeof v.toString === 'function') return v.toString();
+          return String(v);
+        } catch {
+          return null;
+        }
+      };
+
+      const supPosRaw = employeeProfile?.supervisorPositionId || employeeProfile?.profile?.supervisorPositionId;
+      const supervisorPositionId = norm(supPosRaw);
+      if (!supervisorPositionId) return null;
+
+      // Load employees and find one whose primaryPositionId matches supervisorPositionId
+      const all = await this.employeeService.findAll(1, 10000);
+      const items: any[] = Array.isArray(all?.items) ? all.items : [];
+      const managerEmp = items.find((emp: any) => {
+        const p1 = emp?.primaryPositionId || emp?.profile?.primaryPositionId;
+        const p1Norm = norm(p1);
+        return p1Norm && p1Norm === supervisorPositionId;
+      });
+      if (!managerEmp) return null;
+      const managerId = managerEmp?._id?.toString?.() || managerEmp?.id || managerEmp?.employeeId;
+      return managerId || null;
+    } catch (err) {
+      console.error(`[resolveManagerIdForEmployee] Failed for employee ${employeeId}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Apply final entitlement adjustments when a request is finalized.
+   * - APPROVED: pending -= durationDays; taken += durationDays; remaining unchanged
+   * - REJECTED: pending -= durationDays; remaining += durationDays; taken unchanged
+   * Only adjusts when there is sufficient pending to switch (idempotent-ish).
+   */
+  private async applyFinalEntitlementAdjustments(
+    request: LeaveRequestDocument,
+    finalStatus: LeaveStatus,
+  ): Promise<void> {
+    try {
+      const employeeId = request.employeeId.toString();
+      const leaveTypeId = request.leaveTypeId.toString();
+      const entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+        employeeId,
+        leaveTypeId,
+      );
+      if (!entitlement) return;
+
+      const pending = typeof entitlement.pending === 'number' ? entitlement.pending : 0;
+      const taken = typeof entitlement.taken === 'number' ? entitlement.taken : 0;
+      const remaining = typeof entitlement.remaining === 'number' ? entitlement.remaining : 0;
+      const d = request.durationDays || 0;
+
+      // Only switch if pending still covers this request's days (avoids double-apply)
+      if (pending < d) return;
+
+      if (finalStatus === LeaveStatus.APPROVED) {
+        await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+          pending: Math.max(0, pending - d),
+          taken: taken + d,
+          // remaining unchanged (already reduced on submit)
+          remaining,
+        } as any);
+      } else if (finalStatus === LeaveStatus.REJECTED) {
+        await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
+          pending: Math.max(0, pending - d),
+          remaining: remaining + d,
+          // taken unchanged
+          taken,
+        } as any);
+      }
+    } catch (err) {
+      // Log and swallow; entitlement adjustments shouldn't break main flow
+      console.error(`[applyFinalEntitlementAdjustments] Failed for request ${request._id}:`, err);
+    }
   }
 }

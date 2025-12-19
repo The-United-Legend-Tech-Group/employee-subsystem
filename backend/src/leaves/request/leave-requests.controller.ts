@@ -25,6 +25,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
 import { FilterLeaveRequestsByTypeDto } from '../dtos/filter-leave-requests-by-type.dto';
 import { SetApprovalFlowDto } from '../dtos/set-approval-flow.dto';
+// (no-op) remove unused import
 
 @ApiTags('Leaves Requests')
 @Controller('leaves')
@@ -238,6 +239,56 @@ async setApprovalFlow(
   }
 
 // ------------------------------
+// HR: Normal Approve/Reject (updates HR role status in approval flow)
+// ------------------------------
+@Patch('hr/:id/approve-normal')
+@Roles(SystemRole.HR_MANAGER)
+@ApiOperation({ summary: 'HR normal approve (updates HR role status without finalizing)' })
+@ApiParam({ name: 'id', description: 'Leave request ID' })
+@ApiBody({ schema: {
+  type: 'object',
+  properties: {
+    hrUserId: { type: 'string' },
+    justification: { type: 'string' }
+  }
+} })
+async hrApproveNormal(
+  @Param('id') id: string,
+  @Body() body: { hrUserId: string; justification?: string }
+) {
+  const dto: ManagerApprovalDto = {
+    role: 'HR Manager',
+    decidedBy: body.hrUserId,
+    justification: body.justification,
+    status: LeaveStatus.APPROVED,
+  } as any;
+  return this.leavesRequestService.approveRequest(id, dto);
+}
+
+@Patch('hr/:id/reject-normal')
+@Roles(SystemRole.HR_MANAGER)
+@ApiOperation({ summary: 'HR normal reject (updates HR role status without finalizing)' })
+@ApiParam({ name: 'id', description: 'Leave request ID' })
+@ApiBody({ schema: {
+  type: 'object',
+  properties: {
+    hrUserId: { type: 'string' },
+    justification: { type: 'string' }
+  }
+} })
+async hrRejectNormal(
+  @Param('id') id: string,
+  @Body() body: { hrUserId: string; justification?: string }
+) {
+  const dto: ManagerApprovalDto = {
+    role: 'HR Manager',
+    decidedBy: body.hrUserId,
+    justification: body.justification,
+    status: LeaveStatus.REJECTED,
+  } as any;
+  return this.leavesRequestService.rejectRequest(id, dto);
+}
+// ------------------------------
 // REQ-025: HR Finalization
 // ------------------------------
 @Post('finalize/:leaveRequestId')
@@ -301,8 +352,9 @@ async hrOverrideRequest(
     type: 'object',
     properties: {
       leaveRequestIds: { type: 'array', items: { type: 'string' }, description: 'Array of leave request IDs' },
-      action: { type: 'string', description: 'Action to perform (approve/reject/finalize)' },
-      hrUserId: { type: 'string', description: 'HR user ID performing the action' }
+      action: { type: 'string', description: 'Action to perform (approve/reject/finalize/override_approve/override_reject)' },
+      hrUserId: { type: 'string', description: 'HR user ID performing the action' },
+      reason: { type: 'string', description: 'Optional reason for override actions' }
     }
   }
 })
@@ -310,9 +362,9 @@ async hrOverrideRequest(
 @ApiResponse({ status: 200, description: 'Bulk processing completed' })
 @ApiResponse({ status: 400, description: 'Invalid bulk processing data' })
 async bulkProcessRequests(
-  @Body() body: { leaveRequestIds: string[]; action: string; hrUserId: string }
+  @Body() body: { leaveRequestIds: string[]; action: string; hrUserId: string; reason?: string }
 ): Promise<{ processed: number; failed: number }> {
-  return this.leavesRequestService.bulkProcessRequests(body.leaveRequestIds, body.action, body.hrUserId);
+  return this.leavesRequestService.bulkProcessRequests(body.leaveRequestIds, body.action, body.hrUserId, body.reason);
 }
 
 // ------------------------------

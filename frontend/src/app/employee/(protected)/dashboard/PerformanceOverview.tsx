@@ -28,15 +28,17 @@ import { AppraisalRecord } from '../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-export default function PerformanceOverview({ employeeId: propEmployeeId }: { employeeId?: string }) {
+export default function PerformanceOverview({ employeeId: propEmployeeId, initialRecords }: { employeeId?: string, initialRecords?: AppraisalRecord[] }) {
     const theme = useTheme();
     const router = useRouter();
-    const [records, setRecords] = useState<AppraisalRecord[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [records, setRecords] = useState<AppraisalRecord[]>(initialRecords || []);
+    const [loading, setLoading] = useState(!initialRecords);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchRecords();
+        if (!initialRecords) {
+            fetchRecords();
+        }
     }, [propEmployeeId]);
 
     const fetchRecords = async () => {

@@ -1,7 +1,5 @@
-'use client';
-
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -15,7 +13,6 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
@@ -28,21 +25,12 @@ import PersonIcon from '@mui/icons-material/Person';
 import WorkIcon from '@mui/icons-material/Work';
 import StarIcon from '@mui/icons-material/Star';
 
-interface Employee {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    middleName?: string;
-    nationalId: string;
-    personalEmail: string;
-    workEmail?: string;
-    mobilePhone?: string;
-    employeeNumber: string;
-    status: string;
-    dateOfHire: string;
-    profilePictureUrl?: string;
-    biography?: string;
-}
+import OrganizationHierarchy from './OrganizationHierarchy';
+import PerformanceOverview from './PerformanceOverview';
+import EmploymentDetails, { Employee } from './EmploymentDetails';
+import { fetchServer } from '../../../../lib/api-server';
+
+
 
 interface LatestAppraisal {
     totalScore: number | null;
@@ -50,72 +38,61 @@ interface LatestAppraisal {
     cycleName: string | null;
 }
 
-import OrganizationHierarchy from './OrganizationHierarchy';
-import PerformanceOverview from './PerformanceOverview';
-import { decryptData } from '../../../../common/utils/encryption';
-import { getUserRoles } from '../../../../common/utils/cookie-utils';
+export default async function EmployeeDashboard() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+    const employeeId = cookieStore.get('employeeid')?.value; // Note: lowercase 'employeeid' as set by backend
 
-export default function EmployeeDashboard(props: { disableCustomTheme?: boolean }) {
-    const router = useRouter();
-    const [employee, setEmployee] = React.useState<Employee | null>(null);
-    const [loading, setLoading] = React.useState(true);
-    const [latestAppraisal, setLatestAppraisal] = React.useState<LatestAppraisal | null>(null);
+    if (!token || !employeeId) {
+        redirect('/employee/login');
+    }
 
-    React.useEffect(() => {
-        const fetchEmployee = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-            if (!token || !encryptedEmployeeId) {
-                router.push('/employee/login');
-                return;
-            }
+    // Fetch Employee Profile
+    let employee: Employee | null = null;
+    let userRoles: string[] = [];
+    try {
+        const response = await fetchServer(`employee/${employeeId}`);
+        if (response.ok) {
+            const data = await response.json();
+            employee = data.profile;
+            // Extract roles from API response
+            userRoles = data.systemRole?.roles || [];
+        } else {
+            console.error('Failed to fetch employee, status:', response.status);
+            if (response.status === 401) redirect('/employee/login');
+        }
+    } catch (error) {
+        console.error('Failed to fetch employee', error);
+    }
 
-            try {
-                const employeeId = await decryptData(encryptedEmployeeId, token);
-                if (!employeeId) throw new Error('Decryption failed');
+    // Fetch Latest Appraisal
+    let latestAppraisal: LatestAppraisal | null = null;
+    try {
+        const response = await fetchServer(`performance/records/employee/${employeeId}/latest-score`);
+        if (response.ok) {
+            latestAppraisal = await response.json();
+        }
+    } catch (error) {
+        console.warn('Failed to fetch appraisal score', error);
+    }
 
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-                const response = await fetch(`${apiUrl}/employee/${employeeId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+    // Fetch All Performance Records for Overview
+    let performanceRecords: any[] = [];
+    try {
+        const response = await fetchServer(`performance/records/employee/${employeeId}/final`);
+        if (response.ok) {
+            const data = await response.json();
+            performanceRecords = data.sort((a: any, b: any) => {
+                const dateA = new Date(a.hrPublishedAt || a.updatedAt).getTime();
+                const dateB = new Date(b.hrPublishedAt || b.updatedAt).getTime();
+                return dateA - dateB;
+            });
+        }
+    } catch (error) {
+        console.warn('Failed to fetch performance records', error);
+    }
 
-                if (response.ok) {
-                    const data = await response.json();
-                    // Backend returns { profile: ..., systemRole: ..., performance: ... }
-                    // We default to using the profile object for the dashboard view
-                    setEmployee(data.profile);
-
-                    // Fetch latest appraisal score
-                    try {
-                        const appraisalRes = await fetch(`${apiUrl}/performance/records/employee/${employeeId}/latest-score`, {
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-                        if (appraisalRes.ok) {
-                            const appraisalData = await appraisalRes.json();
-                            setLatestAppraisal(appraisalData);
-                        }
-                    } catch (appraisalError) {
-                        console.warn('Failed to fetch appraisal score', appraisalError);
-                    }
-                } else {
-                    console.error('Failed to fetch employee, status:', response.status);
-                    router.push('/employee/login');
-                }
-            } catch (error) {
-                console.error('Failed to fetch employee', error);
-                router.push('/employee/login');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchEmployee();
-    }, [router]);
 
     const getStatusColor = (status: string) => {
         if (!status) return 'default';
@@ -133,24 +110,13 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
         }
     };
 
-    // Color mapping for appraisal scores (assumes 1-5 scale)
-    // 1 = Poor (red), 2 = Below Expectations (orange/warning), 
-    // 3 = Meets Expectations (blue/info), 4-5 = Exceeds/Outstanding (green)
     const getAppraisalColor = (score: number | null) => {
         if (score === null) return 'default';
-        if (score <= 1) return 'error';      // Red - Poor
-        if (score <= 2) return 'warning';    // Orange - Below Expectations
-        if (score <= 3) return 'info';       // Blue - Meets Expectations
-        return 'success';                     // Green - Exceeds/Outstanding (4-5)
+        if (score <= 1) return 'error';
+        if (score <= 2) return 'warning';
+        if (score <= 3) return 'info';
+        return 'success';
     };
-
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
 
     return (
         <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
@@ -159,7 +125,7 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
             </Typography>
 
             <Stack spacing={4}>
-                {/* Profile Section - Wider and Horizontal */}
+                {/* Profile Section */}
                 <Card variant="outlined">
                     <CardContent>
                         <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="flex-start">
@@ -207,7 +173,6 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                                                     />
                                                 </Tooltip>
                                             )}
-                                            {/* Biography - inline with status */}
                                             {employee?.biography && (
                                                 <Typography
                                                     variant="body2"
@@ -266,57 +231,13 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                     </CardContent>
                 </Card>
 
-                {/* Employment Details - Aligned Left (Full Width) */}
-                <Card variant="outlined">
-                    <CardContent>
-                        <Typography variant="h6" gutterBottom>Employment Details</Typography>
-                        <TableContainer component={Paper} elevation={0} sx={{ boxShadow: 'none' }}>
-                            <Table aria-label="employment status table">
-                                <TableHead sx={{ bgcolor: 'action.hover' }}>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Reference</TableCell>
-                                        <TableCell align="left" sx={{ fontWeight: 'bold' }}>Type</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Join Date</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    <TableRow hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                        <TableCell component="th" scope="row">
-                                            <Typography variant="body2" fontWeight="medium">Employment Contract</Typography>
-                                            <Typography variant="caption" color="text.secondary">Full Time</Typography>
-                                        </TableCell>
-                                        <TableCell align="left">Standard</TableCell>
-                                        <TableCell align="right">
-                                            {employee?.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : '-'}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <Chip
-                                                label={employee?.status}
-                                                color={getStatusColor(employee?.status || '') as any}
-                                                size="small"
-                                                variant="filled"
-                                                sx={{
-                                                    fontWeight: 'bold',
-                                                    border: 'none',
-                                                    ...(employee?.status === 'ON_LEAVE' && {
-                                                        bgcolor: '#ffface',
-                                                        color: '#666666'
-                                                    })
-                                                }}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </CardContent>
-                </Card>
+                {/* Employment Details */}
+                <EmploymentDetails employee={employee} />
 
-                {/* Performance Overview Section */}
-                <PerformanceOverview />
+                {/* Performance Overview Section - Now with SSR data */}
+                <PerformanceOverview initialRecords={performanceRecords} />
 
-                {/* Organization Hierarchy Section */}
+                {/* Organization Hierarchy Section - Remains Client Component */}
                 <OrganizationHierarchy />
 
                 {/* System Roles Section */}
@@ -327,8 +248,8 @@ export default function EmployeeDashboard(props: { disableCustomTheme?: boolean 
                             Access Level
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            {getUserRoles().length > 0 ? (
-                                getUserRoles().map((role, index) => (
+                            {userRoles.length > 0 ? (
+                                userRoles.map((role, index) => (
                                     <Chip
                                         key={index}
                                         label={role}

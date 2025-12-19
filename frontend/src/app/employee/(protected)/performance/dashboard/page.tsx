@@ -42,9 +42,12 @@ export default function PerformanceDashboard() {
     const fetchStats = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+        const token = localStorage.getItem('access_token');
+
         const response = await fetch(`${apiUrl}/performance/dashboard/stats`, {
-          // headers: { 'Authorization': ... } if needed, but per original code it wasn't?
-          // Original code comment: "No Authorization header needed as the endpoint is public"
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
 
         if (!response.ok) {

@@ -21,12 +21,12 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs, { Dayjs } from 'dayjs';
 
-interface Position {
+export interface Position {
     _id: string;
     title: string;
 }
 
-interface Employee {
+export interface Employee {
     _id: string;
     firstName: string;
     lastName: string;
@@ -34,7 +34,12 @@ interface Employee {
     positionTitle?: string;
 }
 
-export default function ComposeNotificationPage() {
+interface ComposeNotificationProps {
+    initialEmployees?: Employee[];
+    initialPositions?: Position[];
+}
+
+export default function ComposeNotificationPage({ initialEmployees = [], initialPositions = [] }: ComposeNotificationProps) {
     const [title, setTitle] = React.useState('');
     const [message, setMessage] = React.useState('');
     const [type, setType] = React.useState('Info');
@@ -47,11 +52,11 @@ export default function ComposeNotificationPage() {
 
     // Search states
     const [empSearchOpen, setEmpSearchOpen] = React.useState(false);
-    const [empOptions, setEmpOptions] = React.useState<Employee[]>([]);
+    const [empOptions, setEmpOptions] = React.useState<Employee[]>(initialEmployees);
     const [empLoading, setEmpLoading] = React.useState(false);
 
     const [posSearchOpen, setPosSearchOpen] = React.useState(false);
-    const [posOptions, setPosOptions] = React.useState<Position[]>([]);
+    const [posOptions, setPosOptions] = React.useState<Position[]>(initialPositions);
     const [posLoading, setPosLoading] = React.useState(false);
 
 
@@ -60,6 +65,10 @@ export default function ComposeNotificationPage() {
         let active = true;
 
         if (!empSearchOpen) {
+            return undefined;
+        }
+
+        if (empOptions.length > 0) {
             return undefined;
         }
 
@@ -88,13 +97,17 @@ export default function ComposeNotificationPage() {
         return () => {
             active = false;
         };
-    }, [empSearchOpen]);
+    }, [empSearchOpen, empOptions.length]);
 
     // Fetch Positions
     React.useEffect(() => {
         let active = true;
 
         if (!posSearchOpen) {
+            return undefined;
+        }
+
+        if (posOptions.length > 0) {
             return undefined;
         }
 
@@ -122,7 +135,7 @@ export default function ComposeNotificationPage() {
         return () => {
             active = false;
         };
-    }, [posSearchOpen]);
+    }, [posSearchOpen, posOptions.length]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -353,7 +366,12 @@ export default function ComposeNotificationPage() {
                 </form>
             </Card>
 
-            <Snackbar open={!!feedback} autoHideDuration={6000} onClose={() => setFeedback(null)}>
+            <Snackbar
+                open={!!feedback}
+                autoHideDuration={6000}
+                onClose={() => setFeedback(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
                 <Alert onClose={() => setFeedback(null)} severity={feedback?.severity || 'info'} sx={{ width: '100%' }}>
                     {feedback?.message}
                 </Alert>

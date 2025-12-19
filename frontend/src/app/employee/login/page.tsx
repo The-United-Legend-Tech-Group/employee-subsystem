@@ -295,6 +295,11 @@ export default function EmployeeLogin() {
         router.push("/employee/dashboard");
       } else {
         const errorData = await response.json();
+        // Check if employee is terminated - redirect to terminated page
+        if (response.status === 403 && errorData.message === 'EMPLOYEE_TERMINATED') {
+          router.push('/employee/terminated');
+          return;
+        }
         setFormError(
           errorData.message || "Login failed. Please check your credentials."
         );

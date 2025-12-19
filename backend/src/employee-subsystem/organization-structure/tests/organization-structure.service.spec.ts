@@ -34,6 +34,14 @@ describe('OrganizationStructureService notifications', () => {
     create: jest.fn().mockResolvedValue(true),
   };
 
+  const mockEmployeeSystemRoleRepository: any = {
+    find: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockEmployeeProfileRepository: any = {
+    find: jest.fn().mockResolvedValue([]),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -82,6 +90,8 @@ describe('OrganizationStructureService notifications', () => {
       mockEmployeeModel as any,
       mockPositionAssignmentModel as any,
       mockNotificationService,
+      mockEmployeeSystemRoleRepository,
+      mockEmployeeProfileRepository,
     );
   });
 
@@ -203,6 +213,55 @@ describe('OrganizationStructureService notifications', () => {
       const result = await service.createPosition(dto);
 
       expect(result.reportsToPositionId).toBe('custom-pos-1');
+    });
+  });
+
+  describe('getOpenDepartments', () => {
+    it('should return departments with open positions and recruiters', async () => {
+      const validDeptId = '507f1f77bcf86cd799439011';
+      const validRecruiterId = '507f1f77bcf86cd799439012';
+
+      // 1. Mock Open Positions (inactive)
+      mockPositionRepository.find = jest.fn().mockResolvedValue([
+        { title: 'Dev', departmentId: validDeptId, isActive: false },
+        { title: 'QA', departmentId: validDeptId, isActive: false },
+      ]);
+
+      // 2. Mock Recruiter Roles
+      mockEmployeeSystemRoleRepository.find.mockResolvedValue([
+        { employeeProfileId: validRecruiterId, roles: ['Recruiter'] },
+      ]);
+
+      // 3. Mock Departments
+      mockDepartmentRepository.find = jest.fn().mockResolvedValue([
+        { _id: { toString: () => validDeptId }, name: 'Engineering' },
+      ]);
+
+      // 4. Mock Recruiters (Employees)
+      mockEmployeeProfileRepository.find.mockResolvedValue([
+        {
+          _id: validRecruiterId,
+          firstName: 'John',
+          lastName: 'Doe',
+          employeeNumber: 'E001',
+          primaryDepartmentId: validDeptId,
+        },
+      ]);
+
+      const result = await service.getOpenDepartments();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].departmentName).toBe('Engineering');
+      expect(result[0].openPositions).toEqual(['Dev', 'QA']);
+      expect(result[0].recruiters).toEqual([
+        { name: 'John Doe', employeeNumber: 'E001' },
+      ]);
+    });
+
+    it('should return empty array if no open positions found', async () => {
+      mockPositionRepository.find = jest.fn().mockResolvedValue([]);
+      const result = await service.getOpenDepartments();
+      expect(result).toEqual([]);
     });
   });
 });

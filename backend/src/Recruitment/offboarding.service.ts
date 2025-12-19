@@ -74,23 +74,32 @@ export class OffboardingService {
     const employeeObjectId = rawId instanceof Types.ObjectId ? rawId : new Types.ObjectId(String(rawId));
     const employeeId = employeeObjectId.toString();
 
-    // Ensure employee number resolved to an ID — otherwise it's invalid
-    // Also prevent duplicate termination requests for the same employee (any status)
+    // Prevent duplicate termination requests for the same employee
+    // Check only the LATEST termination request (sorted by creation date)
+    // Only block if the latest request has PENDING or APPROVED status
+    // Allow new request if the latest request was REJECTED or no requests exist
     const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(employeeId);
     if (existingTerminations && existingTerminations.length > 0) {
-      const ids = existingTerminations.map(t => String(t._id)).join(', ');
-      console.warn(`Employee ${dto.employeeNumber} already has existing termination request(s): ${ids}`);
-      // throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - existing termination request(s) found: ${ids}`);
-      throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} as existing termination request was found `);
-    }
-
-    // Check if employee has existing active termination request (legacy check preserved for clarity)
-    const existingTerminationRequest = await this.terminationRequestRepository
-      .findActiveByEmployeeId(employeeId);
-
-    if (existingTerminationRequest) {
-      console.warn(`Employee ${dto.employeeNumber} already has an active termination request`);
-      throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee already has an active termination request with status ${existingTerminationRequest.status}`);
+      // Sort by createdAt descending to get the most recent first
+      const sortedTerminations = existingTerminations.sort((a, b) => {
+        const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+        const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      const latestTermination = sortedTerminations[0];
+      
+      // Check if the latest termination request is PENDING or APPROVED
+      if (latestTermination.status === TerminationStatus.PENDING || latestTermination.status === TerminationStatus.APPROVED) {
+        console.warn(`Employee ${dto.employeeNumber} already has an active termination request (latest: ${latestTermination.status})`);
+        throw new BadRequestException(
+          `Cannot initiate termination for employee ${dto.employeeNumber} - employee already has an active termination request with status: ${latestTermination.status}. ` +
+          `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`
+        );
+      }
+      
+      // If we reach here, the latest request is REJECTED - allow new request
+      console.log(`Employee ${dto.employeeNumber} has rejected termination request (latest status: ${latestTermination.status}), allowing new request`);
     }
 
     // Check if employee is already terminated/revoked
@@ -1032,11 +1041,32 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       throw new NotFoundException(`Unable to find contract for employee. ${error.message}`);
     }
 
-    // Check if employee has ANY existing termination request (active or not)
+    // Check if employee has existing PENDING or APPROVED termination/resignation request
+    // Check only the LATEST termination request (sorted by creation date)
+    // Only block if the latest request has PENDING or APPROVED status
+    // Allow new request if the latest request was REJECTED or no requests exist
     const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(dto.employeeId);
     if (existingTerminations && existingTerminations.length > 0) {
-      console.warn(`Employee ${dto.employeeId} already has existing termination/resignation request(s)`);
-      throw new BadRequestException(`You cannot submit a resignation request because you already have an existing termination/resignation request.`);
+      // Sort by createdAt descending to get the most recent first
+      const sortedTerminations = existingTerminations.sort((a, b) => {
+        const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+        const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+      
+      const latestTermination = sortedTerminations[0];
+      
+      // Check if the latest termination/resignation request is PENDING or APPROVED
+      if (latestTermination.status === TerminationStatus.PENDING || latestTermination.status === TerminationStatus.APPROVED) {
+        console.warn(`Employee ${dto.employeeId} already has an active termination/resignation request (latest: ${latestTermination.status})`);
+        throw new BadRequestException(
+          `You cannot submit a resignation request because you already have an active termination/resignation request with status: ${latestTermination.status}. ` +
+          `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`
+        );
+      }
+      
+      // If we reach here, the latest request is REJECTED - allow new request
+      console.log(`Employee ${dto.employeeId} has rejected termination/resignation request (latest status: ${latestTermination.status}), allowing new resignation request`);
     }
 
       // Validate proposed last working day is not in the past
@@ -1427,6 +1457,22 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
 
     console.log(`Clearance checklist ${dto.clearanceChecklistId} validated successfully`);
 
+    // Check if termination date has expired - prevent updates after expiration
+    const relatedTerminationRequest = await this.terminationRequestRepository
+      .findById(clearanceChecklist.terminationId.toString());
+    
+    if (relatedTerminationRequest && relatedTerminationRequest.terminationDate) {
+      const terminationDate = new Date(relatedTerminationRequest.terminationDate);
+      const now = new Date();
+      if (terminationDate < now) {
+        console.warn(`Cannot update checklist - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        throw new BadRequestException(
+          `Cannot update clearance checklist. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
+          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+        );
+      }
+    }
+
     const departmentItem = clearanceChecklist.items.find(
       (item) => item.department === dto.department,
     );
@@ -1795,6 +1841,22 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
       throw new NotFoundException(`Clearance checklist with ID ${clearanceChecklistId} not found`);
     }
 
+    // Check if termination date has expired - prevent updates after expiration
+    const relatedTerminationForEquipment = await this.terminationRequestRepository
+      .findById(clearanceChecklist.terminationId.toString());
+    
+    if (relatedTerminationForEquipment && relatedTerminationForEquipment.terminationDate) {
+      const terminationDate = new Date(relatedTerminationForEquipment.terminationDate);
+      const now = new Date();
+      if (terminationDate < now) {
+        console.warn(`Cannot update equipment - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        throw new BadRequestException(
+          `Cannot update equipment return status. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
+          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+        );
+      }
+    }
+
     // Find the equipment item by name
     const equipmentItem = clearanceChecklist.equipmentList.find(
       (item) => item.name === equipmentName,
@@ -1970,6 +2032,22 @@ ${allEquipmentReturned ? 'All equipment has been returned! Thank you.' : 'Please
     if (!clearanceChecklist) {
       console.error(`Clearance checklist with ID ${clearanceChecklistId} not found`);
       throw new NotFoundException(`Clearance checklist with ID ${clearanceChecklistId} not found`);
+    }
+
+    // Check if termination date has expired - prevent updates after expiration
+    const relatedTerminationForCard = await this.terminationRequestRepository
+      .findById(clearanceChecklist.terminationId.toString());
+    
+    if (relatedTerminationForCard && relatedTerminationForCard.terminationDate) {
+      const terminationDate = new Date(relatedTerminationForCard.terminationDate);
+      const now = new Date();
+      if (terminationDate < now) {
+        console.warn(`Cannot update access card - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        throw new BadRequestException(
+          `Cannot update access card return status. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
+          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+        );
+      }
     }
 
     const previousStatus = clearanceChecklist.cardReturned;
@@ -2634,6 +2712,16 @@ Please complete the clearance process as soon as possible.`,
 
       // Case 1: Termination date expired
       if (terminationDate < now && !allComplete) {
+        // AUTOMATICALLY CHANGE STATUS FROM PENDING TO APPROVED when date expires
+        if (termination.status === TerminationStatus.PENDING) {
+          termination.status = TerminationStatus.APPROVED;
+          await this.terminationRequestRepository.updateById(
+            termination._id.toString(),
+            termination
+          );
+          console.log(`AUTO-APPROVED: Termination request ${termination._id} status changed from PENDING to APPROVED due to expired termination date`);
+        }
+
         const pendingDepartments = checklist.items
           .filter((item) => item.status !== ApprovalStatus.APPROVED)
           .map((item) => item.department);
@@ -2659,9 +2747,9 @@ Please complete the clearance process as soon as possible.`,
               ? [departmentHeadId.toString()] 
               : [termination.employeeId.toString()];
 
-            const isPending = termination.status === TerminationStatus.PENDING;
-            const statusWarning = isPending 
-              ? 'The termination request is still PENDING approval, but the termination date has expired.' 
+            const wasAutoApproved = termination.status === TerminationStatus.APPROVED;
+            const statusWarning = wasAutoApproved 
+              ? 'The termination request has been automatically APPROVED due to expired termination date.' 
               : '';
 
             const notificationPayload = {
@@ -2756,6 +2844,7 @@ Please complete your clearance items before the termination date to avoid delays
       console.log('Fetching employees ready for system access revocation');
 
       // Find all termination requests that are approved OR pending with expired dates
+      // Note: Expired pending requests are automatically approved by checkAndSendExpiryWarnings
       const now = new Date();
       const terminationRequests = await this.terminationRequestRepository.find({
         status: { $in: [TerminationStatus.APPROVED, TerminationStatus.PENDING] },

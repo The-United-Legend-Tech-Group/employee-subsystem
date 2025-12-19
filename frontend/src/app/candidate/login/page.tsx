@@ -262,13 +262,30 @@ export default function CandidateLogin() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                credentials: "include", // Required to send/receive cookies
+                credentials: "include",
                 body: JSON.stringify(payload),
             });
 
             if (response.ok) {
-                // Successful login - backend sets httpOnly cookies automatically
-                // via credentials: 'include'. No need to store tokens in localStorage.
+                const responseData = await response.json();
+
+                // Set cookies on the frontend domain (first-party cookies)
+                // This works reliably on deployment where cross-origin cookies are blocked
+                const cookieOptions = "path=/; max-age=86400; SameSite=Lax; Secure";
+
+                // Set access_token cookie
+                if (responseData.access_token) {
+                    document.cookie = `access_token=${responseData.access_token}; ${cookieOptions}`;
+                }
+
+                // Set candidateId cookie
+                if (responseData.candidateId) {
+                    document.cookie = `candidateId=${responseData.candidateId}; ${cookieOptions}`;
+                }
+
+                // Set user_roles cookie
+                document.cookie = `user_roles=${encodeURIComponent(JSON.stringify(['Job Candidate']))}; ${cookieOptions}`;
+
                 router.push("/candidate/dashboard");
             } else {
                 const errorData = await response.json();

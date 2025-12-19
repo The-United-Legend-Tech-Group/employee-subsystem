@@ -154,7 +154,7 @@ export class LeavesReportService implements OnModuleInit{
   // MAnger filter leave team (REQ-035)
   // ============================
 
-  async getManagerTeamData(filters: ManagerFilterTeamDataDto) {
+  async getManagerTeamData(filters: ManagerFilterTeamDataDto, managerId?: string) {
     const requestQuery: any = {};
     const adjustmentQuery: any = {};
 
@@ -165,6 +165,39 @@ export class LeavesReportService implements OnModuleInit{
     if (filters.employeeId) {
       requestQuery.employeeId = new Types.ObjectId(filters.employeeId);
       adjustmentQuery.employeeId = new Types.ObjectId(filters.employeeId);
+    }
+
+    // -------------------------
+    // SCOPE TO MANAGER TEAM (if managerId provided)
+    // -------------------------
+    let teamEmployeeIds: string[] = [];
+    if (managerId) {
+      try {
+        const team = await this.employeeService.getTeamProfiles(managerId);
+        const items: any[] = Array.isArray(team?.items) ? team.items : [];
+        teamEmployeeIds = items
+          .map((m: any) => m?._id?.toString?.() || String(m?._id || ''))
+          .filter(Boolean);
+
+        if (filters.employeeId) {
+          // If a specific employee is requested, ensure they are in the team
+          const isInTeam = teamEmployeeIds.includes(filters.employeeId);
+          if (!isInTeam) {
+            return [];
+          }
+          // Keep the specific employee filter; already set above
+        } else if (teamEmployeeIds.length > 0) {
+          // Restrict to team employees
+          requestQuery.employeeId = { $in: teamEmployeeIds.map((id) => new Types.ObjectId(id)) };
+          adjustmentQuery.employeeId = { $in: teamEmployeeIds.map((id) => new Types.ObjectId(id)) };
+        } else {
+          // No team members found; return empty
+          return [];
+        }
+      } catch (err) {
+        // If team resolution fails, return empty for safety
+        return [];
+      }
     }
 
     if (filters.leaveTypeId) {
@@ -260,15 +293,42 @@ export class LeavesReportService implements OnModuleInit{
     });
 
     // -------------------------
+    // Department post-filter (no schema change): limit to employees whose
+    // profile.primaryDepartmentId matches provided departmentId
+    // -------------------------
+    const passesDepartmentFilter = (employeeIdStr?: string | null) => {
+      if (!filters.departmentId) return true;
+      if (!employeeIdStr) return false;
+      const profile = employeeMap.get(employeeIdStr);
+      const dep = profile?.primaryDepartmentId;
+      try {
+        const depStr = typeof dep?.toString === 'function' ? dep.toString() : String(dep);
+        return depStr === filters.departmentId;
+      } catch {
+        return false;
+      }
+    };
+
+    const filteredRequests = requests.filter((req: any) => {
+      const empId = req.employeeId?.toString?.();
+      return passesDepartmentFilter(empId);
+    });
+
+    const filteredAdjustments = adjustments.filter((adj: any) => {
+      const empId = adj.employeeId?.toString?.();
+      return passesDepartmentFilter(empId);
+    });
+
+    // -------------------------
     // Format unified result
     // -------------------------
     const result = [
-      ...requests.map((req: any) => {
+      ...filteredRequests.map((req: any) => {
         const empId = req.employeeId?.toString?.();
         const ltId = req.leaveTypeId?.toString?.();
         return {
           type: 'REQUEST' as const,
-        id: req._id,
+          id: req._id,
           employee: empId && employeeMap.has(empId)
             ? employeeMap.get(empId)
             : empId,
@@ -277,28 +337,28 @@ export class LeavesReportService implements OnModuleInit{
             : ltId,
           startDate: req.dates?.from,
           endDate: req.dates?.to,
-        durationDays: req.durationDays,
-        justification: req.justification,
-        status: req.status,
+          durationDays: req.durationDays,
+          justification: req.justification,
+          status: req.status,
         };
       }),
 
-      ...adjustments.map((adj: any) => {
+      ...filteredAdjustments.map((adj: any) => {
         const empId = adj.employeeId?.toString?.();
         const ltId = adj.leaveTypeId?.toString?.();
         return {
           type: 'ADJUSTMENT' as const,
-        id: adj._id,
+          id: adj._id,
           employee: empId && employeeMap.has(empId)
             ? employeeMap.get(empId)
             : empId,
           leaveType: ltId && leaveTypeMap.has(ltId)
             ? leaveTypeMap.get(ltId)
             : ltId,
-        adjustmentType: adj.adjustmentType,
-        amount: adj.amount,
-        reason: adj.reason,
-        hrUser: adj.hrUserId,
+          adjustmentType: adj.adjustmentType,
+          amount: adj.amount,
+          reason: adj.reason,
+          hrUser: adj.hrUserId,
         };
       }),
     ];
@@ -306,12 +366,43 @@ export class LeavesReportService implements OnModuleInit{
     // -------------------------
     // SORTING
     // -------------------------
-    const sortField = filters.sortBy || 'createdAt';
+    const sortField = (filters.sortBy || 'startDate') as string;
     const sortOrder = filters.sortOrder === 'asc' ? 1 : -1;
 
-    result.sort((a, b) =>
-      a[sortField] > b[sortField] ? sortOrder : -sortOrder,
-    );
+    const getSortableValue = (item: any, field: string) => {
+      switch (field) {
+        case 'startDate':
+          return item.startDate ? new Date(item.startDate).getTime() : 0;
+        case 'endDate':
+          return item.endDate ? new Date(item.endDate).getTime() : 0;
+        case 'status':
+          return item.status || '';
+        case 'employee': {
+          const emp = item.employee;
+          if (emp && typeof emp === 'object') {
+            const fullName = emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+            return fullName || emp.workEmail || emp.employeeNumber || '';
+          }
+          return String(emp || '');
+        }
+        case 'leaveType': {
+          const lt = item.leaveType;
+          if (lt && typeof lt === 'object') {
+            return lt.name || lt.code || lt._id?.toString?.() || '';
+          }
+          return String(lt || '');
+        }
+        default:
+          return item[sortField] ?? '';
+      }
+    };
+
+    result.sort((a, b) => {
+      const va = getSortableValue(a, sortField);
+      const vb = getSortableValue(b, sortField);
+      if (va === vb) return 0;
+      return va > vb ? sortOrder : -sortOrder;
+    });
 
     return result;
   }

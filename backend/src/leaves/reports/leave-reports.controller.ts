@@ -120,8 +120,11 @@ async getMyLeaveHistory(
 @ApiResponse({ status: 400, description: 'Invalid filter parameters' })
 async getManagerTeamData(
   @Query() filters: ManagerFilterTeamDataDto,
+  @Req() req: any,
 ) {
-  return this.leavesReportService.getManagerTeamData(filters);
+  const user = (req as any).user || {};
+  const managerId = user?.sub || user?.employeeId;
+  return this.leavesReportService.getManagerTeamData(filters, new Types.ObjectId(managerId).toString());
 }
   // =============================
   // REQ-039 — Flag Irregular Patterns

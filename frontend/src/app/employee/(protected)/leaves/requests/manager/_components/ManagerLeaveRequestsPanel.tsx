@@ -36,7 +36,7 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-type ViewTab = 'requests' | 'balances' | 'analytics';
+type ViewTab = 'requests' | 'balances' | 'analytics' | 'reports';
 
 type LeaveRequest = {
   _id: string;
@@ -149,6 +149,43 @@ export default function ManagerLeaveRequestsPanel() {
     { id: string; label: string }[]
   >([]);
   const [teamEmployeesLoading, setTeamEmployeesLoading] = useState(false);
+
+  // Reports (manager filter/sort by type/date/department/status)
+  type ReportItem =
+    | {
+        type: 'REQUEST';
+        id: string;
+        employee: any;
+        leaveType: any;
+        startDate: string | Date;
+        endDate: string | Date;
+        durationDays: number;
+        justification?: string;
+        status: string;
+      }
+    | {
+        type: 'ADJUSTMENT';
+        id: string;
+        employee: any;
+        leaveType: any;
+        adjustmentType: string;
+        amount: number;
+        reason?: string;
+        hrUser?: any;
+      };
+
+  const [reportFilters, setReportFilters] = useState({
+    leaveTypeId: '',
+    status: '',
+    from: '',
+    to: '',
+    sortBy: 'startDate',
+    sortOrder: 'desc',
+  });
+  const [reportResults, setReportResults] = useState<ReportItem[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [leaveTypes, setLeaveTypes] = useState<Array<{ _id: string; code?: string; name?: string }>>([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
 
   const loadRequests = useCallback(async () => {
     if (!API_BASE) return;
@@ -285,6 +322,66 @@ export default function ManagerLeaveRequestsPanel() {
       loadTeamEmployees();
     }
   }, [viewTab, loadTeamEmployees]);
+
+  // Load leave types for reports tab
+  const loadLeaveTypes = useCallback(async () => {
+    if (!API_BASE) return;
+    setLeaveTypesLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      // Use team union leave types for managers
+      const res = await fetch(`${API_BASE}/leaves/leave-types/for-team`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
+      const data = await res.json();
+      setLeaveTypes(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // non-fatal; keep types empty
+      setLeaveTypes([]);
+    } finally {
+      setLeaveTypesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewTab === 'reports') {
+      loadLeaveTypes();
+    }
+  }, [viewTab, loadLeaveTypes]);
+
+  const applyReportsFilter = useCallback(async () => {
+    if (!API_BASE) return;
+    setReportLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
+      if (reportFilters.leaveTypeId) params.append('leaveTypeId', reportFilters.leaveTypeId);
+      if (reportFilters.status) params.append('status', reportFilters.status);
+      if (reportFilters.from) params.append('from', reportFilters.from);
+      if (reportFilters.to) params.append('to', reportFilters.to);
+      if (reportFilters.sortBy) params.append('sortBy', reportFilters.sortBy);
+      if (reportFilters.sortOrder) params.append('sortOrder', reportFilters.sortOrder);
+
+      const res = await fetch(`${API_BASE}/leaves-report/manager/team-data?${params.toString()}` , {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: 'Failed to load team data' }));
+        throw new Error(errData.message || `Failed (${res.status})`);
+      }
+      const data = await res.json();
+      setReportResults(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to load team data');
+      setReportResults([]);
+    } finally {
+      setReportLoading(false);
+    }
+  }, [reportFilters]);
 
   const employeeHistory = useMemo(
     () => {
@@ -453,6 +550,7 @@ export default function ManagerLeaveRequestsPanel() {
             <Tab value="requests" label="Requests" />
             <Tab value="balances" label="Team Balances" />
             <Tab value="analytics" label="Employee History" />
+            <Tab value="reports" label="Reports" />
           </Tabs>
           
           {viewTab === 'requests' && (
@@ -843,6 +941,177 @@ export default function ManagerLeaveRequestsPanel() {
               <Typography color="text.secondary">
                 Select an employee to view all of their leave requests.
               </Typography>
+            )}
+          </Stack>
+        )}
+
+        {viewTab === 'reports' && (
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+              <TextField
+                select
+                size="small"
+                label="Leave Type"
+                value={reportFilters.leaveTypeId}
+                onChange={(e) => setReportFilters((f) => ({ ...f, leaveTypeId: e.target.value }))}
+                sx={{ minWidth: 220 }}
+                helperText={leaveTypesLoading ? 'Loading types…' : 'Optional'}
+              >
+                <MenuItem value=""><em>Any</em></MenuItem>
+                {leaveTypes.map((lt) => (
+                  <MenuItem key={lt._id} value={lt._id}>
+                    {`${lt.code || ''} ${lt.name || ''}`.trim() || lt._id}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                size="small"
+                label="Status"
+                value={reportFilters.status}
+                onChange={(e) => setReportFilters((f) => ({ ...f, status: e.target.value }))}
+                sx={{ minWidth: 160 }}
+              >
+                <MenuItem value=""><em>Any</em></MenuItem>
+                <MenuItem value="PENDING">Pending</MenuItem>
+                <MenuItem value="APPROVED">Approved</MenuItem>
+                <MenuItem value="REJECTED">Rejected</MenuItem>
+                <MenuItem value="CANCELLED">Cancelled</MenuItem>
+              </TextField>
+
+              <TextField
+                type="date"
+                size="small"
+                label="From"
+                InputLabelProps={{ shrink: true }}
+                value={reportFilters.from}
+                onChange={(e) => setReportFilters((f) => ({ ...f, from: e.target.value }))}
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="To"
+                InputLabelProps={{ shrink: true }}
+                value={reportFilters.to}
+                onChange={(e) => setReportFilters((f) => ({ ...f, to: e.target.value }))}
+              />
+
+              {/* Department filter removed per requirement */}
+            </Stack>
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+              <TextField
+                select
+                size="small"
+                label="Sort By"
+                value={reportFilters.sortBy}
+                onChange={(e) => setReportFilters((f) => ({ ...f, sortBy: e.target.value }))}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="startDate">Start Date</MenuItem>
+                <MenuItem value="endDate">End Date</MenuItem>
+                <MenuItem value="status">Status</MenuItem>
+                <MenuItem value="employee">Employee</MenuItem>
+                <MenuItem value="leaveType">Leave Type</MenuItem>
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="Order"
+                value={reportFilters.sortOrder}
+                onChange={(e) => setReportFilters((f) => ({ ...f, sortOrder: e.target.value }))}
+                sx={{ minWidth: 140 }}
+              >
+                <MenuItem value="asc">Ascending</MenuItem>
+                <MenuItem value="desc">Descending</MenuItem>
+              </TextField>
+
+              <Button
+                variant="contained"
+                onClick={applyReportsFilter}
+                disabled={reportLoading}
+              >
+                {reportLoading ? <CircularProgress size={20} /> : 'Apply Filters'}
+              </Button>
+              <Button
+                onClick={() => setReportFilters({ leaveTypeId: '', status: '', from: '', to: '', sortBy: 'startDate', sortOrder: 'desc' })}
+                disabled={reportLoading}
+              >
+                Reset
+              </Button>
+            </Stack>
+
+            {reportLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Type</TableCell>
+                      <TableCell>Employee</TableCell>
+                      <TableCell>Leave Type</TableCell>
+                      <TableCell>Start</TableCell>
+                      <TableCell>End</TableCell>
+                      <TableCell>Duration/Amount</TableCell>
+                      <TableCell>Status/Adj Type</TableCell>
+                      <TableCell>Reason</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {reportResults.map((item) => (
+                      <TableRow key={`${item.type}-${item.id}`}>
+                        <TableCell>{item.type}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            const emp = getEmployeeProfile((item as any).employee);
+                            if (!emp) return typeof (item as any).employee === 'string' ? (item as any).employee.slice(-8) : 'N/A';
+                            return (
+                              emp.employeeNumber || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.workEmail || 'N/A'
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const lt = (item as any).leaveType;
+                            if (lt && typeof lt === 'object') return `${lt.code || ''} ${lt.name || ''}`.trim() || lt._id || 'N/A';
+                            return typeof lt === 'string' ? lt.slice(-8) : 'N/A';
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {'startDate' in item ? formatDate(item.startDate) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {'endDate' in item ? formatDate(item.endDate) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {'durationDays' in item ? `${item.durationDays} days` : 'amount' in item ? String((item as any).amount) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {'status' in item ? (
+                            <Chip label={item.status} color={getStatusColor(item.status) as any} size="small" />
+                          ) : (
+                            (item as any).adjustmentType || '-'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {'justification' in item ? (item as any).justification || '' : (item as any).reason || ''}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {reportResults.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                          <Typography color="text.secondary">No results</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )}
           </Stack>
         )}

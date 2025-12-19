@@ -452,6 +452,42 @@ export class LeavesPolicyService {
     });
   }
 
+  /**
+   * Return the UNION of leave types allowed for all employees in a manager's team.
+   * No schema changes. Uses employee profiles' system roles and existing eligibility logic.
+   */
+  async getLeaveTypesForTeam(managerId: string): Promise<LeaveType[]> {
+    // Load team members for this manager
+    const team = await this.employeeService.getTeamProfiles(managerId);
+    const items: any[] = Array.isArray((team as any)?.items) ? (team as any).items : [];
+    if (items.length === 0) return [];
+
+    // For each team member, fetch their roles and compute allowed leave types
+    const typeMap = new Map<string, any>();
+
+    for (const member of items) {
+      try {
+        const memberId = member?._id?.toString?.() || String(member?._id || '');
+        if (!memberId) continue;
+        const profile = await this.employeeService.getProfile(memberId);
+        const roles: string[] = Array.isArray((profile as any)?.systemRole?.roles)
+          ? (profile as any).systemRole.roles
+          : [];
+        const allowed = await this.getLeaveTypesForEmployeeRole(memberId, roles);
+        for (const lt of allowed) {
+          const obj = (lt as any).toObject ? (lt as any).toObject() : lt;
+          const key = String(obj._id);
+          if (!typeMap.has(key)) typeMap.set(key, obj);
+        }
+      } catch (err) {
+        // Skip problematic member; continue accumulating others
+        continue;
+      }
+    }
+
+    return Array.from(typeMap.values());
+  }
+
   async getLeaveTypeById(id: string): Promise<LeaveType> {
     const type = await this.leaveTypeRepository.findById(id);
     if (!type) throw new NotFoundException('Leave type not found');

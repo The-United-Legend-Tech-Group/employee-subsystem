@@ -197,6 +197,18 @@ export class LeavesPolicyController {
       roles,
     );
   }
+
+  /**
+   * Get union of leave types allowed for the current manager's team
+   */
+  @Get('leave-types/for-team')
+  @ApiOperation({ summary: 'Get leave types allowed for the current manager\'s team (union)' })
+  @Roles(SystemRole.DEPARTMENT_HEAD)
+  async getLeaveTypesForTeam(@Req() req: any): Promise<LeaveType[]> {
+    const user: any = (req as any).user;
+    const managerId = user?.sub || user?.employeeId;
+    return this.leavesService.getLeaveTypesForTeam(new Types.ObjectId(managerId).toString());
+  }
   
 
   // Get leave type by ID - Tested

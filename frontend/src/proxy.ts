@@ -61,11 +61,11 @@ export function proxy(request: NextRequest) {
         //'/employee/performance/my-records' : ['department employee'],
         '/employee/performance/manage-disputes': ['HR Manager'],
         '/employee/performance/disputes': ['HR Employee', 'department employee'],
-        '/employee/recruitment_sub/hr-employee' : ['HR Employee', 'HR Manager'],
-        '/employee/recruitment_sub/employee' : ['department employee'],
-        '/employee/recruitment_sub/hr-manager' : ['HR Manager'],
-        '/employee/recruitment_sub/system-admin' : ['System Admin'],
-        
+        '/employee/recruitment_sub/hr-employee': ['HR Employee', 'HR Manager'],
+        '/employee/recruitment_sub/employee': ['department employee', 'HR Employee', 'HR Manager', 'System Admin'],
+        '/employee/recruitment_sub/hr-manager': ['HR Manager'],
+        '/employee/recruitment_sub/system-admin': ['System Admin'],
+
 
         // Payroll Config Setup
         '/employee/payroll/config_setup': [

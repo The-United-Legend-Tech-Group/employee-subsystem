@@ -22,7 +22,6 @@ import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
-
 import { fetchServer } from '../../../../lib/api-server';
 
 interface Candidate {

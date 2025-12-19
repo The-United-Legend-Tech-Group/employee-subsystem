@@ -47,6 +47,11 @@ export class AuthController {
       maxAge: 1 * 24 * 60 * 60 * 1000,
     });
 
+    response.cookie('user_roles', JSON.stringify(['Job Candidate']), {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
     return {
       message: 'Login successful',
       access_token,

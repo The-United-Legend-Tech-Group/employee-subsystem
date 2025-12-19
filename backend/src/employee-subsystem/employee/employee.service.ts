@@ -742,6 +742,14 @@ export class EmployeeService {
     // 4. Update Candidate Status
     await this.candidateRepository.updateById(candidateId, { status: CandidateStatus.HIRED });
 
+    // 5. Assign 'department employee' role
+    const employeeProfileId = String((employeeProfile as any)._id || (employeeProfile as any).id);
+    console.log(`📝 [EmployeeService.convertCandidateToEmployee] Assigning 'department employee' role to new employee ${employeeProfileId}`);
+    await this.assignRoles(employeeProfileId, {
+      roles: [SystemRole.DEPARTMENT_EMPLOYEE],
+      permissions: []
+    });
+
     return employeeProfile;
   }
 

@@ -126,6 +126,14 @@ export function OffboardingClearance() {
     }
   };
 
+  // Helper function to check if termination date has expired
+  const isTerminationDateExpired = (terminationDate: string | null | undefined): boolean => {
+    if (!terminationDate) return false;
+    const termDate = new Date(terminationDate);
+    const now = new Date();
+    return termDate < now;
+  };
+
   const handleUpdateEquipmentReturn = async (checklistId: string, equipmentName: string, returned: boolean) => {
     try {
       if (!equipmentName) {
@@ -279,6 +287,26 @@ export function OffboardingClearance() {
             const clearedCount = progress.clearedCount;
             const allCleared = progress.allCleared;
 
+            // Get overall status from backend (in_progress, fully_cleared, clearance_issues)
+            const overallStatus = checklist.overallStatus || 'in_progress';
+            const isFullyCleared = overallStatus === 'fully_cleared';
+            const hasClearanceIssues = overallStatus === 'clearance_issues';
+
+            // Check if termination date has expired
+            const isExpired = isTerminationDateExpired(termination.terminationDate);
+
+            // Determine chip label and color based on overall status
+            let statusLabel = 'In Progress';
+            let statusColor: 'warning' | 'success' | 'error' = 'warning';
+            
+            if (isFullyCleared) {
+              statusLabel = 'Fully Cleared';
+              statusColor = 'success';
+            } else if (hasClearanceIssues) {
+              statusLabel = 'Clearance Issues';
+              statusColor = 'error';
+            }
+
             return (
               <Card key={checklist._id} variant="outlined">
                 <CardContent>
@@ -295,11 +323,36 @@ export function OffboardingClearance() {
                       </Typography>
                     </Box>
                     <Chip
-                      label={allCleared ? 'Fully Cleared' : 'In Progress'}
-                      color={allCleared ? 'success' : 'warning'}
+                      label={statusLabel}
+                      color={statusColor}
                       size="small"
                     />
                   </Stack>
+
+                  {/* Show warning if termination date has expired */}
+                  {isExpired && (
+                    <Paper
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: 'error.50',
+                        borderLeft: 4,
+                        borderColor: 'error.main'
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <AlertCircleIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium" color="error.main">
+                            Termination Date Expired - Checklist Locked
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            This offboarding checklist is now locked. No further updates are allowed. The employee is ready for system access revocation.
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  )}
 
                   <Box mb={3}>
                     <Stack direction="row" justifyContent="space-between" mb={1}>
@@ -542,6 +595,32 @@ export function OffboardingClearance() {
               {/* Department Clearances with Status Update */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" gutterBottom>Department Sign-offs</Typography>
+                
+                {/* Show warning if termination date has expired */}
+                {isTerminationDateExpired(selectedChecklist.termination?.terminationDate) && (
+                  <Paper
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      bgcolor: 'error.50',
+                      borderLeft: 4,
+                      borderColor: 'error.main'
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AlertCircleIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium" color="error.main">
+                          Termination Date Expired - Checklist Locked
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          The termination date ({new Date(selectedChecklist.termination.terminationDate).toLocaleDateString()}) has passed. This checklist is now locked and cannot be modified. The termination request has been automatically approved.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                )}
+                
                 <Stack spacing={2}>
                   {(selectedChecklist.checklist.items || []).map((clearance: any, index: number) => {
                     const isApproved = clearance.status === 'approved';
@@ -602,25 +681,43 @@ export function OffboardingClearance() {
                             )}
                           </Box>
 
-                          {/* Status Dropdown - Only show if not already approved */}
-                            {!isApproved && (
-                              <FormControl size="small" sx={{ minWidth: 140 }}>
-                                <Select
-                                  value={clearance.status || 'pending'}
-                                  onChange={(e) => {
-                                    handleUpdateDepartmentStatus(
-                                      selectedChecklist.checklist._id,
-                                      deptLabel,
-                                      e.target.value
-                                    );
-                                  }}
-                                >
-                                <MenuItem value="pending">Pending</MenuItem>
-                                <MenuItem value="under_review">Under Review</MenuItem>
-                                <MenuItem value="approved">Approved</MenuItem>
-                                <MenuItem value="rejected">Rejected</MenuItem>
-                              </Select>
-                            </FormControl>
+                          {/* Status Dropdown - Only show when status is not final (approved/rejected) AND termination not expired */}
+                          {!(isApproved || isRejected) && !isTerminationDateExpired(selectedChecklist.termination?.terminationDate) && (
+                            (() => {
+                              const options: { value: string; label: string }[] = isUnderReview
+                                ? [
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ]
+                                : [
+                                    { value: 'pending', label: 'Pending' },
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ];
+
+                              return (
+                                <FormControl size="small" sx={{ minWidth: 140 }}>
+                                  <Select
+                                    value={clearance.status || 'pending'}
+                                    onChange={(e) => {
+                                      handleUpdateDepartmentStatus(
+                                        selectedChecklist.checklist._id,
+                                        deptLabel,
+                                        e.target.value
+                                      );
+                                    }}
+                                  >
+                                    {options.map((opt) => (
+                                      <MenuItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              );
+                            })()
                           )}
                         </Stack>
                       </Paper>
@@ -672,6 +769,7 @@ export function OffboardingClearance() {
                               control={
                                 <Checkbox
                                   checked={isReturned}
+                                  disabled={isTerminationDateExpired(selectedChecklist.termination?.terminationDate)}
                                   onChange={(e) => {
                                     const equipName = typeof asset.name === 'string' ? asset.name : asset.name?.name || 'Equipment';
                                     handleUpdateEquipmentReturn(
@@ -723,6 +821,7 @@ export function OffboardingClearance() {
                         control={
                           <Checkbox
                             checked={selectedChecklist.checklist.cardReturned}
+                            disabled={isTerminationDateExpired(selectedChecklist.termination?.terminationDate)}
                             onChange={(e) => {
                               handleUpdateAccessCardReturn(
                                 selectedChecklist.checklist._id,

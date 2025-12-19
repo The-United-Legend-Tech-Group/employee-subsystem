@@ -67,12 +67,12 @@ export const mainListItems: MenuItem[] = [
     text: "Manage Organization",
     icon: <ApartmentRoundedIcon />,
     path: "/employee/manage-organization",
-    roles: ["System Admin"]
+    roles: ["System Admin", "HR Manager"]
   },
-  { text: 'Employee Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests', roles: ["HR Admin"] },
-  { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees', roles: ["HR Admin"] },
+  { text: 'Employee Requests', icon: <EditNoteRoundedIcon />, path: '/employee/manage-requests', roles: ["HR Admin", "HR Manager"] },
+  { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees', roles: ["HR Admin", "HR Manager"] },
   { text: 'Compose Notification', icon: <SendTwoToneIcon />, path: '/employee/compose-notification', roles: ["System Admin", "HR Admin", "HR Manager", "department head"] },
-  { text: 'Organization Changes', icon: <AssignmentRoundedIcon />, path: '/employee/manage-structure-requests', roles: ["System Admin"] },
+  { text: 'Organization Changes', icon: <AssignmentRoundedIcon />, path: '/employee/manage-structure-requests', roles: ["System Admin", "HR Manager"] },
   {
     text: "Payroll",
     icon: <AccountBalanceRoundedIcon />,
@@ -85,31 +85,31 @@ export const performanceSubItems: MenuItem[] = [
     text: "Dashboard",
     icon: <DashboardRoundedIcon />,
     path: "/employee/performance/dashboard",
-    roles: ["HR Manager"]
+    roles: ["HR Manager", "HR Admin"]
   },
   {
     text: "Performance Templates",
     icon: <AssessmentRoundedIcon />,
     path: "/employee/performance/templates",
-    roles: ["HR Manager"]
+    roles: ["HR Manager", "HR Admin"]
   },
   {
     text: "Appraisal Cycles",
     icon: <AccessTimeRoundedIcon />,
     path: "/employee/performance/cycles",
-    roles: ["HR Manager"]
+    roles: ["HR Manager", "HR Admin"]
   },
   {
     text: "Appraisal Assignments",
     icon: <AssignmentRoundedIcon />,
     path: "/employee/performance/assignments",
-    roles: ["HR Employee"]
+    roles: ["HR Employee", "HR Manager", "HR Admin"]
   },
   {
     text: "Appraisal Monitoring",
     icon: <VisibilityRoundedIcon />,
     path: "/employee/performance/monitoring",
-    roles: ["HR Employee"]
+    roles: ["HR Employee", "HR Manager", "HR Admin"]
   },
   {
     text: "Manager Appraisal",
@@ -121,7 +121,7 @@ export const performanceSubItems: MenuItem[] = [
     text: "Appraisal Review Hub",
     icon: <AssignmentRoundedIcon />,
     path: "/employee/performance/manager-assignments",
-    roles: ["HR Employee"]
+    roles: ["HR Employee", "HR Manager", "HR Admin"]
   },
   {
     text: "My Performance",
@@ -132,7 +132,7 @@ export const performanceSubItems: MenuItem[] = [
     text: "Manage Disputes",
     icon: <GavelRoundedIcon />,
     path: "/employee/performance/manage-disputes",
-    roles: ["HR Manager"]
+    roles: ["HR Manager", "HR Admin"]
   },
   {
     text: "Disputes",
@@ -189,12 +189,16 @@ export const trackingSubItems: MenuItem[] = [
 
 export const recruitmentSubItems: MenuItem[] = [
   { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/employee/recruitment_sub', roles: ['System Admin'] },
-  { text: 'Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/employee', roles: ['department employee'] },
+  { text: 'Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/employee', roles: ['department employee', 'HR Employee', 'HR Manager', 'System Admin'] },
   { text: 'HR Employee', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-employee', roles: ['HR Manager', 'HR Employee'] },
   { text: 'HR Manager', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-manager', roles: ['HR Manager'] },
   { text: 'System Admin', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/system-admin', roles: ['System Admin'] },
 ];
 
+
+
+export const candidateRecruitmentSubItems: MenuItem[] = [
+  { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/candidate/recruitment_sub' },
 export const leavesSubItems: MenuItem[] = [
   {
     text: "Requests Dashboard",
@@ -283,14 +287,14 @@ export default function MenuContent() {
   const [payrollOpen, setPayrollOpen] = useState(false);
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [performanceOpen, setPerformanceOpen] = useState(false);
-  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
 
   // Hooks
+  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const { roles: userRoles, loading } = useAuth();
   const [leavesOpen, setLeavesOpen] = useState(false);
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
-  const isRecruitmentPath = pathname.startsWith('/employee/recruitment_sub');
+  const isRecruitmentPath = pathname.includes('/recruitment_sub');
 
   // Auto-expand payroll menu if on any payroll route
   useEffect(() => {
@@ -364,6 +368,7 @@ export default function MenuContent() {
     if (text === 'My Performance' && pathname === '/employee/performance/my-records') return true;
     if (text === 'Manage Disputes' && pathname === '/employee/performance/manage-disputes') return true;
     if (text === 'Disputes' && pathname === '/employee/performance/disputes') return true;
+    if (text === 'Recruitment' && pathname.includes('/recruitment_sub')) return true;
     if (text === 'Recruitment' && pathname.startsWith('/employee/recruitment_sub')) return true;
 
     // Leaves submenu highlight
@@ -585,7 +590,7 @@ export default function MenuContent() {
 
         <Collapse in={recruitmentOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            {recruitmentSubItems.map((item, index) => {
+            {(isCandidate ? candidateRecruitmentSubItems : recruitmentSubItems).map((item, index) => {
               // Only apply role-based filtering after roles are loaded
               if (!loading) {
                 // @ts-ignore

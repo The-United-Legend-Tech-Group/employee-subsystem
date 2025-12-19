@@ -30,6 +30,14 @@ export class ContractRepository extends BaseRepository<ContractDocument> impleme
   }
 
   async findAllWithOffer(): Promise<ContractDocument[]> {
-    return this.contractModel.find().populate('offerId').exec();
+    return this.contractModel.find()
+      .populate({
+        path: 'offerId',
+        populate: {
+          path: 'candidateId',
+          select: 'firstName lastName fullName candidateNumber'
+        }
+      })
+      .exec();
   }
 }

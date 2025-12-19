@@ -36,10 +36,9 @@ import { JobRequisitionDocument } from './models/job-requisition.schema';
 import { ApplicationDocument } from './models/application.schema';
 
 import { InterviewDocument } from './models/interview.schema';
-//import { EmployeeProfileDocument } from '../employee-subsystem/employee/models/employee-profile.schema';
 import { ReferralDocument } from './models/referral.schema';
 import { OfferDocument } from './models/offer.schema';
-import { ContractDocument } from './models/contract.schema';
+//import { ContractDocument } from './models/contract.schema';
 
 import { NotificationService } from '../employee-subsystem/notification/notification.service';
 import { ApplicationStage } from './enums/application-stage.enum';
@@ -131,6 +130,15 @@ export class RecruitmentService {
     const isCandidateValid = await this.validateCandidateExistence(candidateId);
     if (!isCandidateValid) {
       throw new NotFoundException(`Candidate with id ${candidateId} is not valid or not active`);
+    }
+
+    // Check if an offer already exists for this application
+    const existingOffer = await this.offerRepository.findOne({
+      applicationId: new mongoose.Types.ObjectId(applicationId)
+    });
+
+    if (existingOffer) {
+      throw new BadRequestException(`An offer already exists for this application. Please edit the existing offer instead of creating a new one.`);
     }
 
     // Validate HR employee exists and has proper role
@@ -627,6 +635,13 @@ export class RecruitmentService {
       try {
         const createdEmployee = await this.employeeService.onboard(employeeData);
         employeeProfileId = String((createdEmployee as any)._id || (createdEmployee as any).id);
+
+        // Assign 'department employee' role to the new employee
+        console.log(`📝 [RecruitmentService.hrSignContract] Assigning 'department employee' role to new employee ${employeeProfileId}`);
+        await this.employeeService.assignRoles(employeeProfileId, {
+          roles: [SystemRole.DEPARTMENT_EMPLOYEE],
+          permissions: []
+        });
       } catch (error) {
         // Re-throw the error from employee service (already formatted as BadRequestException)
         throw error;
@@ -644,8 +659,14 @@ export class RecruitmentService {
 
       await this.contractRepository.updateById(contractId, updateData);
 
+      // Calculate next working day (skip weekends)
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 7); // Start date 7 days from now
+      startDate.setDate(startDate.getDate() + 1); // Next day
+
+      // Skip weekends: if Saturday (6) or Sunday (0), move to Monday
+      while (startDate.getDay() === 0 || startDate.getDay() === 6) {
+        startDate.setDate(startDate.getDate() + 1);
+      }
 
       await this.createOnboardingWithDefaults({
         employeeId: employeeProfileId,
@@ -693,6 +714,31 @@ export class RecruitmentService {
           updatedContract.role,
           employeeData.employeeNumber
         );
+      }
+
+      // Decrement job requisition openings and update status if needed
+      if (offer.applicationId) {
+        try {
+          const application = await this.applicationRepository.findById(offer.applicationId.toString());
+          if (application && application.requisitionId) {
+            const requisition = await this.jobRequisitionRepository.findById(application.requisitionId.toString());
+            if (requisition && requisition.openings > 0) {
+              const newOpenings = requisition.openings - 1;
+              const updateData: any = { openings: newOpenings };
+
+              // If openings reach 0, close the requisition
+              if (newOpenings === 0) {
+                updateData.publishStatus = 'closed';
+              }
+
+              await this.jobRequisitionRepository.updateById(requisition._id.toString(), updateData);
+              console.log(`✅ Job requisition ${requisition.requisitionId} openings decremented to ${newOpenings}. Status: ${updateData.publishStatus || requisition.publishStatus}`);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to decrement job requisition openings:', error);
+          // Don't fail the contract signing if this fails
+        }
       }
 
       return updatedContract;
@@ -1394,38 +1440,76 @@ export class RecruitmentService {
 
     const notifications: Notification[] = [];
 
-    // Find tasks that are not completed and have upcoming deadlines
+    // Find tasks that are not completed and have deadlines
     for (const task of onboarding.tasks) {
       if (task.status !== OnboardingTaskStatus.COMPLETED && task.deadline) {
         const taskDeadline = new Date(task.deadline);
 
-        // Send reminder if deadline is within threshold and hasn't passed
+        let title = 'Onboarding Task Reminder';
+        let message = '';
+        let recipientIds = [employeeId];
+        let deliverToRole: SystemRole | undefined = undefined;
+        let deliveryType = 'UNICAST';
+        let type = 'Warning';
+
         if (taskDeadline >= now && taskDeadline <= reminderThreshold) {
+          // Upcoming reminder
           const daysUntilDeadline = Math.ceil((taskDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          const message = `Reminder: Onboarding task "${task.name}" is due in ${daysUntilDeadline} day(s). Department: ${task.department || 'N/A'}`;
-          const title = 'Onboarding Task Reminder';
+          message = `Reminder: Onboarding task "${task.name}" is due in ${daysUntilDeadline} day(s). Department: ${task.department || 'N/A'}`;
+        } else if (taskDeadline < now) {
+          // Overdue logic
+          const daysOverdue = Math.floor((now.getTime() - taskDeadline.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-          // Prevent spamming: Check if a similar notification was sent in the last 24 hours
-          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          const existingNotification = await this.notificationService.findByRecipientId(employeeId);
-          const recentDuplicate = existingNotification.find(n =>
-            (n as any).title === title &&
-            (n as any).message === message &&
-            new Date((n as any).createdAt) > oneDayAgo
-          );
+          if (daysOverdue <= 7) {
+            // Countdown for employee
+            const daysLeftToEscalation = 7 - daysOverdue;
+            title = 'URGENT: Onboarding Task OVERDUE';
+            type = 'Alert';
+            message = `URGENT: Onboarding task "${task.name}" is OVERDUE. You have ${daysLeftToEscalation} day(s) left until termination process is initiated.`;
+          } else {
+            // Escalation to HR Manager
+            try {
+              const employee = await this.employeeService.findById(employeeId);
+              const employeeName = employee ? `${(employee as any).firstName} ${(employee as any).lastName}` : employeeId;
 
-          if (!recentDuplicate) {
-            const notification = await this.notificationService.create({
-              recipientId: [employeeId],
-              type: 'Warning',
-              deliveryType: 'UNICAST',
-              title,
-              message,
-              relatedModule: 'Recruitment',
-              isRead: false,
-            });
-            notifications.push(notification);
+              title = 'Onboarding Escalation: Action Required';
+              type = 'Alert';
+              message = `Escalation: Employee ${employeeName} has failed to complete onboarding task "${task.name}" within 7 days of the deadline. Recommended action: Initiate termination.`;
+              recipientIds = []; // Broadcast to role
+              deliverToRole = SystemRole.SYSTEM_ADMIN;
+              deliveryType = 'BROADCAST';
+            } catch (e) {
+              console.error('Failed to fetch employee for escalation:', e);
+              continue;
+            }
           }
+        } else {
+          // Future task beyond threshold
+          continue;
+        }
+
+        // Prevent spamming: Check if a similar notification was sent in the last 24 hours
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const existingNotifications = await this.notificationService.findByRecipientId(employeeId);
+
+        const recentDuplicate = existingNotifications.find(n =>
+          (n as any).title === title &&
+          (n as any).message === message &&
+          new Date((n as any).createdAt) > oneDayAgo
+        );
+
+        if (!recentDuplicate) {
+          const notification = await this.notificationService.create({
+            recipientId: recipientIds,
+            type,
+            deliveryType,
+            deliverToRole,
+            title,
+            message,
+            relatedModule: 'Recruitment',
+            isRead: false,
+          });
+          notifications.push(notification);
         }
       }
     }
@@ -1503,6 +1587,26 @@ export class RecruitmentService {
     if (allCompleted) {
       updateData.completed = true;
       updateData.completedAt = new Date();
+
+      // Notify System Admin regarding probation conversion
+      try {
+        const employee = await this.employeeService.findById(employeeId);
+        const employeeName = employee ? `${(employee as any).firstName} ${(employee as any).lastName}` : employeeId;
+
+        await this.notificationService.create({
+          recipientId: [], // Broadcast to role
+          type: 'Info',
+          deliveryType: 'BROADCAST',
+          deliverToRole: SystemRole.SYSTEM_ADMIN,
+          title: 'Onboarding Checklist Completed',
+          message: `Employee ${employeeName} has completed all onboarding tasks. Tasks: Convert from probation. Deadline: ASAP.`,
+          relatedEntityId: onboarding._id.toString(),
+          relatedModule: 'Recruitment',
+          isRead: false,
+        });
+      } catch (notifError) {
+        console.error('Failed to notify System Admin on onboarding completion:', notifError);
+      }
     }
 
     const updatedOnboarding = await this.onboardingRepository.updateById(
@@ -1761,6 +1865,11 @@ export class RecruitmentService {
       throw new NotFoundException(`Job requisition with id ${createApplicationDto.requisitionId} not found`);
     }
 
+    // Check if requisition has expired
+    if (requisition.expiryDate && new Date(requisition.expiryDate) < new Date()) {
+      throw new BadRequestException(`Job requisition ${createApplicationDto.requisitionId} has expired and is no longer accepting applications`);
+    }
+
     const validCandidateId = candidateId;
     if (!validCandidateId) {
       throw new BadRequestException('Candidate ID is required');
@@ -1820,6 +1929,33 @@ export class RecruitmentService {
   // Get applications by requisition ID
   async getApplicationsByRequisition(requisitionId: string): Promise<ApplicationDocument[]> {
     return this.applicationRepository.findByRequisitionId(requisitionId);
+  }
+
+  // Get application history with time-to-hire calculation
+  async getApplicationHistory(applicationId: string): Promise<any> {
+    const history = await this.applicationHistoryRepository.findByApplicationId(applicationId);
+    const application = await this.applicationRepository.findById(applicationId);
+
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    // Calculate time-to-hire (from submission to hired/offer accepted)
+    let timeToHire: number | null = null;
+    if (application.status === 'hired' || application.status === 'offer') {
+      const createdAt = (application as any).createdAt || new Date();
+      const hiredDate = history.find(h => h.newStatus === 'hired' || h.newStatus === 'offer');
+      if (hiredDate && (hiredDate as any).createdAt) {
+        const diffInMs = new Date((hiredDate as any).createdAt).getTime() - new Date(createdAt).getTime();
+        timeToHire = Math.floor(diffInMs / (1000 * 60 * 60 * 24)); // Convert to days
+      }
+    }
+
+    return {
+      application,
+      history,
+      timeToHire,
+    };
   }
 
   // REC-017 part2 & REC-022: Update Application Status/Stage by candidateId and requisitionId
@@ -2368,11 +2504,13 @@ export class RecruitmentService {
           message += ` Video Link: ${interview.videoLink}`;
         }
         break;
+      case 'completed':
       case InterviewStatus.COMPLETED:
         title = 'Interview Completed';
         message = `Your ${interview.stage.replace('_', ' ')} interview has been completed. You will be notified of the next steps soon.`;
         notificationType = 'Success';
         break;
+      case 'cancelled':
       case InterviewStatus.CANCELLED:
         title = 'Interview Cancelled';
         message = `Your ${interview.stage.replace('_', ' ')} interview scheduled for ${interview.scheduledDate.toLocaleDateString()} has been cancelled. You will be contacted to reschedule.`;
@@ -2456,6 +2594,13 @@ export class RecruitmentService {
     if (!await this.validateCandidateExistence(candidateId)) {
       throw new NotFoundException(`Candidate with id ${candidateId} is not valid or not active`);
     }
+
+    // Check if a referral already exists for this candidate (prevent duplicates per candidate)
+    const existingReferrals = await this.referralRepository.findByCandidateId(candidateId);
+    if (existingReferrals && existingReferrals.length > 0) {
+      throw new BadRequestException(`A referral already exists for this candidate. Candidates can only be referred once.`);
+    }
+
     const referralData = {
       candidateId: new Types.ObjectId(candidateId),
       referringEmployeeId: new Types.ObjectId(referringEmployeeId),
@@ -2503,6 +2648,46 @@ export class RecruitmentService {
       }
     }
 
+    // Populate application details with requisition and job template
+    if (offer.applicationId) {
+      try {
+        const application = await this.applicationRepository.findById(offer.applicationId.toString());
+        if (application) {
+          const appObj = application.toObject ? application.toObject() : application;
+
+          // Populate requisition details
+          if (appObj.requisitionId) {
+            const requisition = await this.jobRequisitionRepository.findById(appObj.requisitionId.toString());
+            if (requisition) {
+              const reqObj = requisition.toObject ? requisition.toObject() : requisition;
+
+              // Populate job template details
+              if (reqObj.templateId) {
+                const template = await this.jobTemplateRepository.findById(reqObj.templateId.toString());
+                if (template) {
+                  const templateObj = template.toObject ? template.toObject() : template;
+
+                  // Build job details object without MongoDB IDs
+                  offerObj.jobDetails = {
+                    requisitionId: reqObj.requisitionId, // Custom ID, not MongoDB _id
+                    location: reqObj.location,
+                    openings: reqObj.openings,
+                    department: templateObj.department,
+                    title: templateObj.title,
+                    description: templateObj.description,
+                    qualifications: templateObj.qualifications || [],
+                    skills: templateObj.skills || []
+                  };
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to populate application/requisition/template details for offer', e);
+      }
+    }
+
     // Manually populate approvers
     if (offerObj.approvers && offerObj.approvers.length > 0) {
       for (const approver of offerObj.approvers) {
@@ -2539,25 +2724,166 @@ export class RecruitmentService {
       }
     }
 
+    // Compute benifitsum for this single offer (use config service, fallback to offer-local values)
+    try {
+      let benifitsum = 0;
+      if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+        try {
+          benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+        } catch (e) {
+          console.warn('Failed to compute approved benefit sum for offer in getOfferById', e);
+        }
+
+        // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+        if (!benifitsum) {
+          benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+            if (typeof b === 'number') return acc + b;
+            if (b && typeof b === 'object') {
+              const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+              return acc + (typeof v === 'number' ? v : 0);
+            }
+            return acc;
+          }, 0);
+        }
+      }
+
+      offerObj.benifitsum = benifitsum;
+      offerObj.offerDocument = offerObj.content || '';
+    } catch (e) {
+      console.warn('Error while attaching benifitsum to offer', e);
+      offerObj.benifitsum = 0;
+      offerObj.offerDocument = offerObj.content || '';
+    }
+
     return offerObj;
   }
 
   // Get offers by candidate ID
-  async getOffersByCandidateId(candidateId: string): Promise<OfferDocument[]> {
-    // Filter to show only 'sent' offers (which means they are ready for candidate checks)
-    return await this.offerRepository.find({
+  async getOffersByCandidateId(candidateId: string): Promise<any[]> {
+    // Get offers that have been sent to the candidate
+    const offers = await this.offerRepository.find({
       candidateId: new mongoose.Types.ObjectId(candidateId),
       finalStatus: 'sent'
+    })
+
+    // Calculate benifitsum for each offer using terminationBenefitService
+    const offersWithBenefits = await Promise.all(
+      offers.map(async (offer) => {
+        const offerObj = offer.toObject ? offer.toObject() : offer;
+        let benifitsum = 0;
+
+        if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+          try {
+            benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+          } catch (error) {
+            console.warn('Failed to calculate benefit sum for offer', error);
+          }
+
+          // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
+          }
+        }
+
+        return {
+          ...offerObj,
+          benifitsum,
+          offerDocument: offerObj.content || '' // Map content to offerDocument for DTO compatibility
+        };
+      })
+    );
+
+    return offersWithBenefits;
+  }
+
+  /**
+   * Get offers by candidate ID without filtering by finalStatus.
+   * Useful for debugging or when candidates should see offers in other states.
+   */
+  async getAllOffersByCandidateId(candidateId: string): Promise<any[]> {
+    const offers = await this.offerRepository.find({
+      candidateId: new mongoose.Types.ObjectId(candidateId),
     });
+
+    const offersWithBenefits = await Promise.all(
+      offers.map(async (offer) => {
+        const offerObj = offer.toObject ? offer.toObject() : offer;
+        let benifitsum = 0;
+
+        if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+          try {
+            benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+          } catch (error) {
+            console.warn('Failed to calculate benefit sum for offer', error);
+          }
+
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
+          }
+        }
+
+        return {
+          ...offerObj,
+          benifitsum,
+          offerDocument: offerObj.content || ''
+        };
+      })
+    );
+
+    return offersWithBenefits;
   }
 
   // Get all contracts
-  async getAllContracts(): Promise<ContractDocument[]> {
-    return await this.contractRepository.findAllWithOffer();
+  async getAllContracts(): Promise<any[]> {
+    const contracts = await this.contractRepository.findAllWithOffer();
+
+    return await Promise.all(contracts.map(async (contract) => {
+      const contractObj = contract.toObject ? contract.toObject() : contract;
+
+      // If offerId is populated and has a candidateId, ensure candidate details are present
+      if (contractObj.offerId && (contractObj.offerId as any).candidateId) {
+        const candidateId = (contractObj.offerId as any).candidateId;
+
+        // If candidateId is just an ID (string/ObjectId), fetch the candidate details manually
+        if (typeof candidateId === 'string' || mongoose.Types.ObjectId.isValid(candidateId)) {
+          try {
+            const candidate = await this.candidateRepository.findById(candidateId.toString());
+            if (candidate) {
+              const candidateObj = candidate.toObject ? candidate.toObject() : candidate;
+              (contractObj.offerId as any).candidateId = {
+                _id: candidateObj._id,
+                firstName: candidateObj.firstName,
+                lastName: candidateObj.lastName,
+                fullName: candidateObj.fullName,
+                candidateNumber: candidateObj.candidateNumber
+              };
+            }
+          } catch (e) {
+            console.warn(`Failed to manually populate candidate ${candidateId} for contract ${contractObj._id}`, e);
+          }
+        }
+      }
+
+      return contractObj;
+    }));
   }
 
   // Get contracts by candidate ID
-  async getContractsByCandidateId(candidateId: string): Promise<ContractDocument[]> {
+  async getContractsByCandidateId(candidateId: string): Promise<any[]> {
     // First, find all offers for this candidate
     const offers = await this.offerRepository.find({ candidateId: new mongoose.Types.ObjectId(candidateId) });
 
@@ -2569,7 +2895,45 @@ export class RecruitmentService {
     const offerIds = offers.map(offer => offer._id);
 
     // Find all contracts that reference these offers
-    return await this.contractRepository.findByOfferIds(offerIds);
+    const contracts = await this.contractRepository.findByOfferIds(offerIds as any[]);
+
+    // Manually add candidate details to each contract's offer
+    return await Promise.all(contracts.map(async (contract) => {
+      const contractObj = contract.toObject ? contract.toObject() : contract;
+
+      // Populate offerId if it's just an ID
+      if (contractObj.offerId && (typeof contractObj.offerId === 'string' || mongoose.Types.ObjectId.isValid(contractObj.offerId as any))) {
+        try {
+          const offer = await this.offerRepository.findById(contractObj.offerId.toString());
+          if (offer) {
+            (contractObj as any).offerId = offer.toObject ? offer.toObject() : offer;
+          }
+        } catch (e) {
+          console.warn(`Failed to populate offer details for contract ${contractObj._id}`, e);
+        }
+      }
+
+      if (contractObj.offerId && (contractObj.offerId as any).candidateId) {
+        try {
+          // Since we know the candidateId (it's what we searched by), we can use it or fetch full details
+          const candidate = await this.candidateRepository.findById(candidateId);
+          if (candidate) {
+            const candidateObj = candidate.toObject ? candidate.toObject() : candidate;
+            (contractObj.offerId as any).candidateId = {
+              _id: candidateObj._id,
+              firstName: candidateObj.firstName,
+              lastName: candidateObj.lastName,
+              fullName: candidateObj.fullName,
+              candidateNumber: candidateObj.candidateNumber
+            };
+          }
+        } catch (e) {
+          console.warn(`Failed to populate candidate details for contract ${contractObj._id}`, e);
+        }
+      }
+
+      return contractObj;
+    }));
   }
 
   // Get offers where I am an approver
@@ -2593,6 +2957,18 @@ export class RecruitmentService {
               lastName: candidate.lastName,
               email: candidate.personalEmail || (candidate as any).email || 'N/A'
             };
+
+            // Get candidate's CV documents
+            try {
+              const cvDocuments = await this.documentRepository.findByOwnerId(offer.candidateId.toString());
+              offerObj.cvDocuments = cvDocuments.filter((doc: any) => {
+                const docObj = doc.toObject ? doc.toObject() : doc;
+                return docObj.type === 'cv' || docObj.type === 'resume';
+              });
+            } catch (e) {
+              console.warn('Failed to fetch CV documents', e);
+              offerObj.cvDocuments = [];
+            }
           }
         } catch (e) { console.warn('Failed to populate candidate', e); }
       }
@@ -2617,6 +2993,35 @@ export class RecruitmentService {
           }
         }
       }
+
+      // Calculate benefit sum for termination benefits
+      try {
+        let benifitsum = 0;
+        if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+          try {
+            benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+          } catch (e) {
+            console.warn('Failed to calculate benefit sum for offer', e);
+          }
+
+          // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
+          }
+        }
+        offerObj.benifitsum = benifitsum;
+      } catch (e) {
+        console.warn('Error calculating benefit sum', e);
+        offerObj.benifitsum = 0;
+      }
+
       return offerObj;
     }));
   }

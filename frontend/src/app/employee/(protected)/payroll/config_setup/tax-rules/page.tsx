@@ -153,6 +153,13 @@ export default function TaxRulesPage() {
       setSaving(true);
       setError(null);
 
+      // Validate rate is between 1 and 100
+      if (formData.rate < 1 || formData.rate > 100) {
+        setError('Tax rate must be between 1% and 100%');
+        setSaving(false);
+        return;
+      }
+
       if (editingItem) {
         const updateDto: UpdateTaxRuleDto = {
           name: formData.name,
@@ -374,13 +381,19 @@ export default function TaxRulesPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenDialog(taxRule)}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={taxRule.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(taxRule)}
+                                    disabled={taxRule.status !== 'draft'}
+                                    sx={{
+                                      color: taxRule.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (
@@ -475,12 +488,29 @@ export default function TaxRulesPage() {
             label="Rate (%)"
             type="number"
             fullWidth
-            value={formData.rate}
-            onChange={(e) => setFormData({ ...formData, rate: Math.max(0, Number(e.target.value)) })}
+            value={formData.rate || ''}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              // Allow any value during typing, but clamp to max 100
+              if (value > 100) {
+                setFormData({ ...formData, rate: 100 });
+              } else {
+                setFormData({ ...formData, rate: value });
+              }
+            }}
+            onBlur={(e) => {
+              // Enforce minimum of 1 when field loses focus
+              const value = Number(e.target.value);
+              if (value < 1) {
+                setFormData({ ...formData, rate: 1 });
+              }
+            }}
+            placeholder="e.g., 15"
             InputProps={{
               endAdornment: <Typography color="text.secondary" sx={{ ml: 1 }}>%</Typography>,
             }}
-            inputProps={{ min: 0, max: 100, step: 0.01 }}
+            inputProps={{ min: 1, max: 100, step: 0.01 }}
+            helperText="Rate must be between 1% and 100%"
             required
           />
         </Stack>

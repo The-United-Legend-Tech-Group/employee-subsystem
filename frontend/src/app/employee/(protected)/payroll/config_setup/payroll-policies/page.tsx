@@ -438,10 +438,19 @@ export default function PayrollPoliciesPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(policy)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={policy.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(policy)}
+                                    disabled={policy.status !== 'draft'}
+                                    sx={{
+                                      color: policy.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (

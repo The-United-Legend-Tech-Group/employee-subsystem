@@ -367,10 +367,19 @@ export default function PayTypesPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(payType)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={payType.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(payType)}
+                                    disabled={payType.status !== 'draft'}
+                                    sx={{
+                                      color: payType.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (

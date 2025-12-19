@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { PieChart } from '@mui/x-charts/PieChart';
+import { logout } from '../../../../../lib/auth-utils';
 
 interface DepartmentPerformanceStats {
   departmentId: string;
@@ -42,12 +43,16 @@ export default function PerformanceDashboard() {
     const fetchStats = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
+
         const response = await fetch(`${apiUrl}/performance/dashboard/stats`, {
-          // headers: { 'Authorization': ... } if needed, but per original code it wasn't?
-          // Original code comment: "No Authorization header needed as the endpoint is public"
+          credentials: 'include',
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            logout('/employee/login');
+            return;
+          }
           const errorText = await response.text();
           throw new Error(`Failed to fetch dashboard stats: ${response.status} ${response.statusText} - ${errorText}`);
         }

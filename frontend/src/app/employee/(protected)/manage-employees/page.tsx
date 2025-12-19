@@ -11,7 +11,7 @@ import Skeleton from '@mui/material/Skeleton';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
@@ -29,12 +29,11 @@ import {
     GridEventListener,
     gridClasses,
 } from '@mui/x-data-grid';
+import { logout } from '@/lib/auth-utils';
 
 import PageContainer from '../../../../common/material-ui/crud-dashboard/components/PageContainer';
 import DialogsProvider from '../../../../common/material-ui/crud-dashboard/hooks/useDialogs/DialogsProvider';
 import NotificationsProvider from '../../../../common/material-ui/crud-dashboard/hooks/useNotifications/NotificationsProvider';
-import { useDialogs } from '../../../../common/material-ui/crud-dashboard/hooks/useDialogs/useDialogs';
-import useNotifications from '../../../../common/material-ui/crud-dashboard/hooks/useNotifications/useNotifications';
 
 const INITIAL_PAGE_SIZE = 8;
 
@@ -88,8 +87,6 @@ interface Employee {
 
 function EmployeeListContent() {
     const router = useRouter();
-    const dialogs = useDialogs();
-    const notifications = useNotifications();
 
     // Track if component has mounted to prevent SSR state update issues
     const isMounted = React.useRef(false);
@@ -130,12 +127,6 @@ function EmployeeListContent() {
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                router.push('/employee/login');
-                return;
-            }
-
             const queryPage = paginationModel.page + 1; // Backend is 1-indexed
             let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000'}/employee?page=${queryPage}&limit=${paginationModel.pageSize}`;
 
@@ -144,12 +135,14 @@ function EmployeeListContent() {
             }
 
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch employees');
             }
 
@@ -218,42 +211,21 @@ function EmployeeListContent() {
     );
 
     const handleCreateClick = React.useCallback(() => {
-        // Assuming we want to use the onboard page or a new create page
         router.push('/employee/onboard');
     }, [router]);
 
-    const handleRowEdit = React.useCallback(
+    const handleViewDetails = React.useCallback(
         (employee: Employee) => () => {
             router.push(`/employee/manage-employees/${employee.id}`);
         },
         [router],
     );
 
-    const handleRowDelete = React.useCallback(
-        (employee: Employee) => async () => {
-            const confirmed = await dialogs.confirm(
-                `Do you wish to delete ${employee.firstName} ${employee.lastName}?`,
-                {
-                    title: `Delete employee?`,
-                    severity: 'error',
-                    okText: 'Delete',
-                    cancelText: 'Cancel',
-                },
-            );
-
-            if (confirmed) {
-                // TODO: Implement delete API call
-                notifications.show('Delete functionality not yet implemented on backend', {
-                    severity: 'info',
-                    autoHideDuration: 3000,
-                });
-                // After implementation:
-                // await deleteEmployee(employee.id);
-                // notifications.show(...);
-                // loadData();
-            }
+    const handleRowEdit = React.useCallback(
+        (employee: Employee) => () => {
+            router.push(`/employee/manage-employees/${employee.id}/edit`);
         },
-        [dialogs, notifications],
+        [router],
     );
 
     const getStatusColor = (status: string) => {
@@ -294,21 +266,21 @@ function EmployeeListContent() {
                 align: 'right',
                 getActions: ({ row }) => [
                     <GridActionsCellItem
+                        key="view-item"
+                        icon={<VisibilityIcon />}
+                        label="View Details"
+                        onClick={handleViewDetails(row)}
+                    />,
+                    <GridActionsCellItem
                         key="edit-item"
                         icon={<EditIcon />}
                         label="Edit"
                         onClick={handleRowEdit(row)}
                     />,
-                    <GridActionsCellItem
-                        key="delete-item"
-                        icon={<DeleteIcon />}
-                        label="Delete"
-                        onClick={handleRowDelete(row)}
-                    />,
                 ],
             },
         ],
-        [handleRowEdit, handleRowDelete],
+        [handleViewDetails, handleRowEdit],
     );
 
     const initialState = React.useMemo(

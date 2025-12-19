@@ -16,7 +16,7 @@ export class AppraisalDisputeService {
     private readonly disputeRepository: AppraisalDisputeRepository,
     private readonly notificationService: NotificationService,
     private readonly assignmentRepository: AppraisalAssignmentRepository,
-  ) {}
+  ) { }
 
   async create(dto: CreateAppraisalDisputeDto): Promise<AppraisalDisputeDocument> {
     const payload: any = {
@@ -58,6 +58,10 @@ export class AppraisalDisputeService {
     return disputes;
   }
 
+  async findHistory() {
+    return this.disputeRepository.findHistory();
+  }
+
   async assignReviewer(id: string, dto: AssignReviewerDto) {
     const updated = await this.disputeRepository.updateById(id, {
       assignedReviewerEmployeeId: dto.assignedReviewerEmployeeId,
@@ -72,7 +76,7 @@ export class AppraisalDisputeService {
   async resolve(id: string, dto: ResolveAppraisalDisputeDto) {
     console.log(`Attempting to resolve dispute: ${id}`);
     console.log(`Checking with findOne using _id filter...`);
-    
+
     // Try finding with both string and ObjectId
     const existing = await this.disputeRepository.findOne({ _id: id } as any);
     if (!existing) {
@@ -112,8 +116,8 @@ export class AppraisalDisputeService {
 
     // Notify the original raiser that the dispute was resolved
     try {
-      const recipientId = (updated.raisedByEmployeeId as any)._id 
-        ? (updated.raisedByEmployeeId as any)._id.toString() 
+      const recipientId = (updated.raisedByEmployeeId as any)._id
+        ? (updated.raisedByEmployeeId as any)._id.toString()
         : updated.raisedByEmployeeId.toString();
 
       await this.notificationService.create({

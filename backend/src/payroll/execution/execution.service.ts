@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types, ClientSession } from 'mongoose';
 import { PublishPayrollDto } from './dto/publish-payroll.dto';
 import { ApprovePayrollManagerDto } from './dto/approve-payroll-manager.dto';
 import { RejectPayrollDto } from './dto/reject-payroll.dto';
@@ -16,11 +16,22 @@ import { GeneratePayslipsDto } from './dto/generate-payslips.dto';
 import { payrollRuns } from './models/payrollRuns.schema';
 import { paySlip } from './models/payslip.schema';
 import {
+  employeePayrollDetails,
+  employeePayrollDetailsDocument,
+} from './models/employeePayrollDetails.schema';
+import {
   PayRollStatus,
   PayRollPaymentStatus,
   PaySlipPaymentStatus,
 } from './enums/payroll-execution-enum';
 import { EmailService } from './email.service';
+import { allowance } from '../config_setup/models/allowance.schema';
+import { taxRules } from '../config_setup/models/taxRules.schema';
+import { insuranceBrackets } from '../config_setup/models/insuranceBrackets.schema';
+import { employeeSigningBonus } from './models/EmployeeSigningBonus.schema';
+import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
+import { employeePenalties } from './models/employeePenalties.schema';
+import { refunds } from '../tracking/models/refunds.schema';
 
 @Injectable()
 export class ExecutionService {
@@ -31,8 +42,24 @@ export class ExecutionService {
     private readonly payrollRunsModel: Model<payrollRuns>,
     @InjectModel(paySlip.name)
     private readonly paySlipModel: Model<paySlip>,
+    @InjectModel(employeePayrollDetails.name)
+    private readonly employeePayrollDetailsModel: Model<employeePayrollDetailsDocument>,
+    @InjectModel(allowance.name)
+    private readonly allowanceModel: Model<allowance>,
+    @InjectModel(taxRules.name)
+    private readonly taxRulesModel: Model<taxRules>,
+    @InjectModel(insuranceBrackets.name)
+    private readonly insuranceBracketsModel: Model<insuranceBrackets>,
+    @InjectModel(employeeSigningBonus.name)
+    private readonly employeeSigningBonusModel: Model<employeeSigningBonus>,
+    @InjectModel(EmployeeTerminationResignation.name)
+    private readonly employeeTerminationResignationModel: Model<EmployeeTerminationResignation>,
+    @InjectModel(employeePenalties.name)
+    private readonly employeePenaltiesModel: Model<employeePenalties>,
+    @InjectModel(refunds.name)
+    private readonly refundsModel: Model<refunds>,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   // Placeholder methods - to be implemented for other phases
   create() {
@@ -58,12 +85,12 @@ export class ExecutionService {
   // ==================== PHASE 3: REVIEW & APPROVAL ====================
 
   /**
-   * REQ-PY-6: Payroll Specialist reviews payroll in preview dashboard
-   * Gets all payroll runs with UNDER_REVIEW status for preview
+   * Get all payroll runs ordered by creation date (newest first)
    */
-  async getPayrollsForReview(): Promise<payrollRuns[]> {
+  async getAllPayrolls(): Promise<payrollRuns[]> {
     return await this.payrollRunsModel
-      .find({ status: PayRollStatus.UNDER_REVIEW })
+      .find()
+      .sort({ createdAt: -1 }) // Newest first
       .populate('payrollSpecialistId payrollManagerId financeStaffId')
       .exec();
   }
@@ -102,7 +129,7 @@ export class ExecutionService {
 
   /**
    * REQ-PY-12: Payroll Specialist publishes payroll for Manager and Finance approval
-   * Changes status from UNDER_REVIEW to UNDER_REVIEW (waiting for manager approval)
+   * Changes status from DRAFT to UNDER_REVIEW (ready for manager approval)
    */
   async publishPayrollForApproval(
     publishPayrollDto: PublishPayrollDto,
@@ -115,15 +142,15 @@ export class ExecutionService {
       throw new NotFoundException('Payroll run not found');
     }
 
-    if (payrollRun.status !== PayRollStatus.UNDER_REVIEW) {
+    if (payrollRun.status !== PayRollStatus.DRAFT) {
       throw new BadRequestException(
-        `Payroll run must be in UNDER_REVIEW status to publish. Current status: ${payrollRun.status}`,
+        `Payroll run must be in DRAFT status to publish. Current status: ${payrollRun.status}`,
       );
     }
 
-    // Keep status as UNDER_REVIEW, indicating it's ready for manager review
-    // No status change needed, just confirms it's published for approval
-    return payrollRun;
+    // Update status to UNDER_REVIEW, indicating it's ready for manager approval
+    payrollRun.status = PayRollStatus.UNDER_REVIEW;
+    return await payrollRun.save();
   }
 
   /**
@@ -132,8 +159,9 @@ export class ExecutionService {
    */
   async approvePayrollByManager(
     approveDto: ApprovePayrollManagerDto,
+    managerId: string,
   ): Promise<payrollRuns> {
-    const { payrollRunId, managerId } = approveDto;
+    const { payrollRunId } = approveDto;
 
     const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
 
@@ -160,7 +188,10 @@ export class ExecutionService {
    * REQ-PY-20: Payroll Manager or Finance Staff rejects payroll
    * Changes status to REJECTED and stores rejection reason
    */
-  async rejectPayroll(rejectDto: RejectPayrollDto): Promise<payrollRuns> {
+  async rejectPayroll(
+    rejectDto: RejectPayrollDto,
+    _rejectedBy: string,
+  ): Promise<payrollRuns> {
     const { payrollRunId, rejectionReason } = rejectDto;
 
     const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
@@ -188,11 +219,14 @@ export class ExecutionService {
   /**
    * REQ-PY-15: Finance Staff approves payroll for disbursement
    * Changes status to APPROVED and payment status to PAID
+   * PHASE 4: Automatically generates payslips upon approval
+   * Uses transaction to ensure atomicity - rolls back if payslip generation fails
    */
   async approvePayrollByFinance(
     approveDto: ApprovePayrollFinanceDto,
+    financeStaffId: string,
   ): Promise<payrollRuns> {
-    const { payrollRunId, financeStaffId } = approveDto;
+    const { payrollRunId } = approveDto;
 
     const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
 
@@ -206,14 +240,168 @@ export class ExecutionService {
       );
     }
 
-    // Finance approval means payments are approved
-    payrollRun.status = PayRollStatus.APPROVED;
-    payrollRun.financeStaffId =
-      financeStaffId as unknown as typeof payrollRun.financeStaffId;
-    payrollRun.financeApprovalDate = new Date();
-    payrollRun.paymentStatus = PayRollPaymentStatus.PAID;
+    // Start a transaction session
+    const session = await this.payrollRunsModel.db.startSession();
+    session.startTransaction();
 
-    return await payrollRun.save();
+    try {
+      // Finance approval means payments are approved
+      payrollRun.status = PayRollStatus.APPROVED;
+      payrollRun.financeStaffId =
+        financeStaffId as unknown as typeof payrollRun.financeStaffId;
+      payrollRun.financeApprovalDate = new Date();
+      payrollRun.paymentStatus = PayRollPaymentStatus.PAID;
+
+      await payrollRun.save({ session });
+
+      // PHASE 4: Automatically generate payslips upon approval
+      await this.generatePayslipsFromDetails(payrollRunId, session);
+
+      // Commit the transaction if everything succeeded
+      await session.commitTransaction();
+
+      this.logger.log(
+        `Successfully approved payroll ${payrollRunId} and generated payslips`,
+      );
+
+      return payrollRun;
+    } catch (error) {
+      // Rollback the transaction if anything failed
+      await session.abortTransaction();
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to approve payroll ${payrollRunId}: ${errorMessage}`,
+      );
+      throw error;
+    } finally {
+      // End the session
+      await session.endSession();
+    }
+  }
+
+  /**
+   * PHASE 4: Generate payslips from employeePayrollDetails
+   * Creates detailed payslip documents using already-calculated values from draft generation
+   * Populates all earnings and deductions breakdown
+   */
+  private async generatePayslipsFromDetails(
+    payrollRunId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    this.logger.log(
+      `Auto-generating payslips for payroll run: ${payrollRunId}`,
+    );
+
+    // Get all employee payroll details for this run (already calculated during draft)
+    const query = this.employeePayrollDetailsModel
+      .find({ payrollRunId })
+      .populate('employeeId');
+
+    if (session) {
+      query.session(session);
+    }
+
+    const employeeDetails = await query.exec();
+
+    if (employeeDetails.length === 0) {
+      this.logger.warn(
+        `No employee payroll details found for run ${payrollRunId}`,
+      );
+      return;
+    }
+
+    // Generate payslips for each employee using already-calculated values
+    const payslipPromises = employeeDetails.map(async (details) => {
+      // Use already-calculated gross salary from draft generation
+      const totalGrossSalary =
+        Number(details.baseSalary || 0) +
+        Number(details.allowances || 0) +
+        Number(details.bonus || 0) +
+        Number(details.benefit || 0);
+
+      // Fetch approved allowances
+      const allowances = await this.allowanceModel
+        .find({ status: 'approved' })
+        .exec();
+
+      // Fetch employee signing bonuses
+      const bonuses = await this.employeeSigningBonusModel
+        .find({
+          employeeId: details.employeeId,
+          status: 'approved',
+        })
+        .populate('signingBonusId')
+        .exec();
+
+      // Fetch employee termination/resignation benefits
+      const benefits = await this.employeeTerminationResignationModel
+        .find({
+          employeeId: details.employeeId,
+          status: 'approved',
+        })
+        .populate('benefitId')
+        .exec();
+
+      // Fetch employee refunds
+      const refundsList = await this.refundsModel
+        .find({
+          employeeId: details.employeeId,
+          status: 'approved',
+        })
+        .exec();
+
+      // Fetch approved tax rules
+      const taxes = await this.taxRulesModel
+        .find({ status: 'approved' })
+        .exec();
+      // Fetch approved insurance brackets that apply to this employee's salary
+      const insurances = await this.insuranceBracketsModel
+        .find({
+          status: 'approved',
+          minSalary: { $lte: totalGrossSalary },
+          maxSalary: { $gte: totalGrossSalary },
+        })
+        .exec();
+
+      // Fetch employee penalties
+      const penalties = await this.employeePenaltiesModel
+        .findOne({ employeeId: details.employeeId })
+        .exec();
+
+      // Create payslip with all fetched data
+      const payslipData = {
+        employeeId: details.employeeId,
+        payrollRunId: details.payrollRunId,
+        earningsDetails: {
+          baseSalary: Number(details.baseSalary || 0),
+          allowances: allowances || [],
+          bonuses: bonuses.map((b) => b.signingBonusId) || [],
+          benefits: benefits.map((b) => b.benefitId) || [],
+          refunds: refundsList || [],
+        },
+        deductionsDetails: {
+          taxes: taxes || [],
+          insurances: insurances || [],
+          penalties: penalties || null,
+        },
+        totalGrossSalary,
+        totaDeductions: Number(details.deductions || 0),
+        netPay: Number(details.netPay || 0),
+        paymentStatus: PaySlipPaymentStatus.PENDING,
+      };
+
+      if (session) {
+        return this.paySlipModel.create([payslipData], { session });
+      }
+      return this.paySlipModel.create(payslipData);
+    });
+
+    await Promise.all(payslipPromises);
+
+    this.logger.log(
+      `Successfully generated ${employeeDetails.length} payslips for run ${payrollRunId}`,
+    );
   }
 
   /**
@@ -283,16 +471,9 @@ export class ExecutionService {
     const { payrollRunId } = generateDto;
 
     const payrollRun = await this.payrollRunsModel.findById(payrollRunId);
-
+    await payrollRun?.save();
     if (!payrollRun) {
       throw new NotFoundException('Payroll run not found');
-    }
-
-    // Can only generate payslips after finance approval (status = PAID)
-    if (payrollRun.paymentStatus !== PayRollPaymentStatus.PAID) {
-      throw new BadRequestException(
-        'Payslips can only be generated after finance approval and payment status is PAID',
-      );
     }
 
     // Get all payslips for this payroll run
@@ -310,7 +491,7 @@ export class ExecutionService {
     // Update all payslips to PAID status since payment is approved
     const updatePromises = payslips.map(async (payslip) => {
       payslip.paymentStatus = PaySlipPaymentStatus.PAID;
-      return await payslip.save();
+      return payslip.save();
     });
 
     await Promise.all(updatePromises);
@@ -326,7 +507,7 @@ export class ExecutionService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const employeeName = employee.firstName
         ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          `${String(employee.firstName)} ${String(employee.lastName)}`
+        `${String(employee.firstName)} ${String(employee.lastName)}`
         : 'Employee';
       const employeeEmail =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -338,7 +519,7 @@ export class ExecutionService {
         employeeEmail,
         payrollRunId: payrollRunId,
         netPay: ps.netPay,
-        payPeriod: payrollRun.payrollPeriod,
+        payPeriod: new Date(),
         payslipData: ps,
       };
     });
@@ -385,14 +566,147 @@ export class ExecutionService {
 
     return payslip;
   }
-
   /**
-   * Get all payslips for a payroll run (for manager/specialist review)
-   */
+ * Get all payslips for a payroll run (for manager/specialist review)
+ */
   async getAllPayslipsForRun(payrollRunId: string): Promise<paySlip[]> {
     return await this.paySlipModel
       .find({ payrollRunId })
       .populate('employeeId')
+      .exec();
+  }
+  ///////////////////used by tracking service
+  /**
+   * Get a single payslip by ID with all related data populated
+   */
+  async getPayslipById(
+    payslipId: Types.ObjectId,
+    employeeId?: Types.ObjectId,
+  ): Promise<paySlip | null> {
+    const query: any = { _id: payslipId };
+    if (employeeId) {
+      query.employeeId = employeeId;
+    }
+
+    return await this.paySlipModel
+      .findOne(query)
+      .populate('employeeId')
+      .populate('payrollRunId')
+      .populate('earningsDetails.allowances.createdBy')
+      .populate('earningsDetails.allowances.approvedBy')
+      .populate('earningsDetails.bonuses.createdBy')
+      .populate('earningsDetails.bonuses.approvedBy')
+      .populate('earningsDetails.benefits.createdBy')
+      .populate('earningsDetails.benefits.approvedBy')
+      .populate('deductionsDetails.taxes.createdBy')
+      .populate('deductionsDetails.taxes.approvedBy')
+      .populate('deductionsDetails.insurances.createdBy')
+      .populate('deductionsDetails.insurances.approvedBy')
+      .exec();
+  }
+
+  /**
+   * Get a single payslip by ID for PDF generation (minimal populate)
+   */
+  async getPayslipByIdForPDF(
+    payslipId: Types.ObjectId,
+    employeeId?: Types.ObjectId,
+  ): Promise<paySlip | null> {
+    const query: any = { _id: payslipId };
+    if (employeeId) {
+      query.employeeId = employeeId;
+    }
+
+    return await this.paySlipModel
+      .findOne(query)
+      .populate('employeeId')
+      .populate('payrollRunId')
+      .exec();
+  }
+
+  /**
+   * Get all payslips for an employee by employee ID
+   */
+  async getEmployeePayslipsByEmployeeId(employeeId: Types.ObjectId): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({ employeeId: employeeId })
+      .populate('employeeId')
+      .populate('payrollRunId')
+      .populate('earningsDetails.allowances.createdBy')
+      .populate('earningsDetails.allowances.approvedBy')
+      .populate('earningsDetails.bonuses.createdBy')
+      .populate('earningsDetails.bonuses.approvedBy')
+      .populate('earningsDetails.benefits.createdBy')
+      .populate('earningsDetails.benefits.approvedBy')
+      .populate('deductionsDetails.taxes.createdBy')
+      .populate('deductionsDetails.taxes.approvedBy')
+      .populate('deductionsDetails.insurances.createdBy')
+      .populate('deductionsDetails.insurances.approvedBy')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+
+
+  /**
+   * Get payslips by date range (for reporting)
+   */
+  async getPayslipsByDateRange(startDate: Date, endDate: Date): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({
+        updatedAt: { $gte: startDate, $lte: endDate },
+      })
+      .sort({ updatedAt: 1 })
+      .populate('deductionsDetails.taxes')
+      .populate('deductionsDetails.insurances')
+      .populate('earningsDetails.benefits')
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Get payslips by payroll run IDs (for reporting)
+   */
+  async getPayslipsByPayrollRunIds(payrollRunIds: Types.ObjectId[]): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({
+        payrollRunId: { $in: payrollRunIds },
+      })
+      .populate('deductionsDetails.taxes')
+      .populate('deductionsDetails.insurances')
+      .populate('earningsDetails.benefits')
+      .exec();
+  }
+
+  /**
+   * Get payslips by employee ID with taxes populated (for reporting)
+   */
+  async getPayslipsByEmployeeIdWithTaxes(employeeId: Types.ObjectId): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({
+        employeeId: employeeId,
+      })
+      .populate('deductionsDetails.taxes')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Get payslips by employee IDs and payroll run IDs (for department reporting)
+   */
+  async getPayslipsByEmployeeIdsAndPayrollRunIds(
+    employeeIds: Types.ObjectId[],
+    payrollRunIds: Types.ObjectId[],
+  ): Promise<paySlip[]> {
+    return await this.paySlipModel
+      .find({
+        employeeId: { $in: employeeIds },
+        payrollRunId: { $in: payrollRunIds },
+      })
+      .populate('employeeId')
+      .populate('payrollRunId')
+      .populate('deductionsDetails.taxes')
+      .populate('deductionsDetails.insurances')
       .exec();
   }
 }

@@ -26,13 +26,10 @@ export default function EditTemplatePage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('access_token');
-                const headers = { 'Authorization': `Bearer ${token}` };
-
                 const [tmplRes, deptsRes, posRes] = await Promise.all([
-                    fetch(`${API_URL}/performance/templates/${id}`, { headers, credentials: 'include' }),
-                    fetch(`${API_URL}/organization-structure/departments`, { headers, credentials: 'include' }),
-                    fetch(`${API_URL}/organization-structure/positions`, { headers, credentials: 'include' }),
+                    fetch(`${API_URL}/performance/templates/${id}`, { credentials: 'include' }),
+                    fetch(`${API_URL}/organization-structure/departments`, { credentials: 'include' }),
+                    fetch(`${API_URL}/organization-structure/positions`, { credentials: 'include' }),
                 ]);
 
                 if (tmplRes.ok) setTemplate(await tmplRes.json());
@@ -59,7 +56,6 @@ export default function EditTemplatePage() {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 },
                 body: JSON.stringify(data),
                 credentials: 'include',

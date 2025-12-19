@@ -16,22 +16,17 @@ import Popper from '@mui/material/Popper';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { mainListItems, performanceSubItems, MenuItem } from './MenuContent';
-import { getUserRoles } from '../../../utils/cookie-utils';
+import { mainListItems, performanceSubItems, payrollSubItems, MenuItem } from './MenuContent';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function Search() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const { roles: userRoles } = useAuth();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Load user roles on client side
-  useEffect(() => {
-    setUserRoles(getUserRoles());
-  }, []);
 
   // Keyboard shortcut: Ctrl+F to focus search bar
   useEffect(() => {
@@ -55,12 +50,16 @@ export default function Search() {
       ...item,
       text: `Performance > ${item.text}`, // Prefix performance items
     })),
+    ...payrollSubItems.map(item => ({
+      ...item,
+      text: `Payroll > ${item.text}`, // Prefix payroll items
+    })),
   ];
 
   // Filter items based on user roles
   const roleFilteredItems = allItems.filter(item => {
     if (item.roles && item.roles.length > 0) {
-      return item.roles.some(role => userRoles.includes(role));
+      return item.roles.some(role => (userRoles as string[]).includes(role));
     }
     return true;
   });

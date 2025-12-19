@@ -11,7 +11,6 @@ export class CreateAllowanceDto {
 
     @IsNumber()
     @Min(0)
-    @IsNotEmpty()   //i added this line 3ala coPilot
     amount: number
 
     @IsEnum(ConfigStatus)

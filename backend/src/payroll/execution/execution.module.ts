@@ -3,14 +3,24 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 // Controllers
 import { PayrollController } from './controllers/payroll.controller';
+import { PayRollDraftController } from './controllers/payRollDraft.controller';
+import { ExecutionController } from './execution.controller';
 
 // Services
+import { ExecutionService } from './execution.service';
+import { EmailService } from './email.service';
 import { PayrollRunService } from './services/payroll-run.service';
 import { PayrollEventsService } from './services/payroll-events.service';
 import { PayrollCalculationService } from './services/payroll-calculation.service';
 import { PayrollExceptionsService } from './services/payroll-exceptions.service';
 import { PayslipService } from './services/payslip.service';
 import { EmployeePenaltyService } from './services/EmployeePenalty.service';
+import { EmployeeSigningBonusService } from './services/EmployeesigningBonus.service';
+import { EmployeeTerminationResignationService } from './services/EmployeeTerminationResignation.service';
+import { PayrollRunPeriodService } from './services/payrollRunPeriod.service';
+
+// added(Hamza)
+import { PayrollExceptionsQueryService } from './services/payroll-exceptions-query.service';
 
 // Schemas - Execution
 import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
@@ -43,7 +53,14 @@ import {
 } from '../../employee-subsystem/employee/models/employee-system-role.schema';
 
 // Schemas - Config Setup
-import { taxRules, taxRulesSchema } from '../config_setup/models/taxRules.schema';
+import {
+  allowance,
+  allowanceSchema,
+} from '../config_setup/models/allowance.schema';
+import {
+  taxRules,
+  taxRulesSchema,
+} from '../config_setup/models/taxRules.schema';
 import {
   insuranceBrackets,
   insuranceBracketsSchema,
@@ -84,10 +101,13 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
         name: EmployeeTerminationResignation.name,
         schema: EmployeeTerminationResignationSchema,
       },
+
       // Employee subsystem schemas
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
+
       // Config setup schemas
+      { name: allowance.name, schema: allowanceSchema },
       { name: taxRules.name, schema: taxRulesSchema },
       { name: insuranceBrackets.name, schema: insuranceBracketsSchema },
       { name: signingBonus.name, schema: signingBonusSchema },
@@ -95,26 +115,43 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
         name: terminationAndResignationBenefits.name,
         schema: terminationAndResignationBenefitsSchema,
       },
+
       // Tracking schemas
       { name: refunds.name, schema: refundsSchema },
     ]),
   ],
-  controllers: [PayrollController],
+  controllers: [PayrollController, PayRollDraftController, ExecutionController],
   providers: [
+    ExecutionService,
+    EmailService,
     PayrollRunService,
     PayrollEventsService,
     PayrollCalculationService,
     PayrollExceptionsService,
+
+    //added provider (Hamza)
+    PayrollExceptionsQueryService,
+
     PayslipService,
     EmployeePenaltyService,
+    EmployeeSigningBonusService,
+    EmployeeTerminationResignationService,
+    PayrollRunPeriodService,
   ],
   exports: [
-    MongooseModule, // export schemas
+    MongooseModule,
+    ExecutionService,
     PayrollRunService,
     PayrollEventsService,
     PayrollCalculationService,
     PayrollExceptionsService,
+
+    // exported
+    PayrollExceptionsQueryService,
+
     PayslipService,
+    EmployeeSigningBonusService,
+    EmployeeTerminationResignationService,
   ],
 })
-export class ExecutionModule {}
+export class ExecutionModule { }

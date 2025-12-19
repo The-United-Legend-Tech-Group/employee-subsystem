@@ -24,6 +24,7 @@ import { DataGrid, GridColDef, GridToolbar } from '@mui/x-data-grid';
 import { AppraisalCycle } from '../cycles/types';
 import { AppraisalAssignment, AppraisalAssignmentStatus, EmployeeProfileShort } from '../../../../../types/performance';
 import SendIcon from '@mui/icons-material/Send';
+import { logout } from '@/lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -55,22 +56,24 @@ export default function AppraisalMonitoringPage() {
 
     const fetchCycles = async () => {
         try {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(`${API_URL}/performance/cycles`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
-            if (response.ok) {
-                const data = await response.json();
-                setCycles(data);
-                // Select the first active cycle if available
-                const activeCycle = data.find((c: AppraisalCycle) => c.status === 'ACTIVE');
-                if (activeCycle) {
-                    setSelectedCycleId(activeCycle._id);
-                } else if (data.length > 0) {
-                    setSelectedCycleId(data[0]._id);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
                 }
+                throw new Error('Failed to fetch cycles');
+            }
+            const data = await response.json();
+            setCycles(data);
+            // Select the first active cycle if available
+            const activeCycle = data.find((c: AppraisalCycle) => c.status === 'ACTIVE');
+            if (activeCycle) {
+                setSelectedCycleId(activeCycle._id);
+            } else if (data.length > 0) {
+                setSelectedCycleId(data[0]._id);
             }
         } catch (error) {
             console.error('Error fetching cycles:', error);
@@ -81,18 +84,18 @@ export default function AppraisalMonitoringPage() {
     const fetchProgress = async (cycleId: string) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(`${API_URL}/performance/assignments/progress?cycleId=${cycleId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
-            if (response.ok) {
-                const data = await response.json();
-                setAssignments(data);
-            } else {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch progress');
             }
+            const data = await response.json();
+            setAssignments(data);
         } catch (error) {
             console.error('Error fetching progress:', error);
             setSnackbar({ open: true, message: 'Failed to load appraisal progress', severity: 'error' });
@@ -106,18 +109,17 @@ export default function AppraisalMonitoringPage() {
 
         setSendingReminders(true);
         try {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(`${API_URL}/performance/assignments/reminders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     cycleId: selectedCycleId,
                     // We could add status filter here if we want to remind only specific statuses
                     // status: AppraisalAssignmentStatus.NOT_STARTED 
                 }),
+                credentials: 'include',
             });
 
             if (response.ok) {

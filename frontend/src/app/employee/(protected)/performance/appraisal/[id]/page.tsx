@@ -17,7 +17,7 @@ import {
     CardContent,
 } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
-import { decryptData } from '@/common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 import { AppraisalAssignment } from '../../assignments/types';
 import { AppraisalTemplate, EvaluationCriterion } from '../../templates/types';
 import { AppraisalRecord, CreateAppraisalRecordDto, UpdateAppraisalRecordDto, RatingEntry } from '../types';
@@ -49,22 +49,20 @@ export default function AppraisalFormPage() {
 
     const loadData = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            // getEmployeeIdFromCookie returns the plain employee ID (already decrypted by backend)
+            const managerId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) {
-                throw new Error('Authentication details missing');
-            }
-
-            const managerId = await decryptData(encryptedEmployeeId, token);
             if (!managerId) {
-                throw new Error('Failed to decrypt manager ID');
+                logout();
+                return;
             }
-
-            const headers = { 'Authorization': `Bearer ${token}` };
 
             // 1. Fetch Assignment (via list and filter)
-            const assignmentsRes = await fetch(`${API_URL}/performance/assignments?managerId=${managerId}`, { headers });
+            const assignmentsRes = await fetch(`${API_URL}/performance/assignments?managerId=${managerId}`, { credentials: 'include' });
+            if (assignmentsRes.status === 401 || assignmentsRes.status === 403) {
+                logout();
+                return;
+            }
             if (!assignmentsRes.ok) throw new Error('Failed to fetch assignments');
             const assignments: AppraisalAssignment[] = await assignmentsRes.json();
             const currentAssignment = assignments.find(a => a._id === assignmentId);
@@ -85,14 +83,22 @@ export default function AppraisalFormPage() {
                 throw new Error('Invalid Template ID in assignment');
             }
 
-            const templateRes = await fetch(`${API_URL}/performance/templates/${templateId}`, { headers });
+            const templateRes = await fetch(`${API_URL}/performance/templates/${templateId}`, { credentials: 'include' });
+            if (templateRes.status === 401 || templateRes.status === 403) {
+                logout();
+                return;
+            }
             if (!templateRes.ok) throw new Error('Failed to fetch template');
             const templateData: AppraisalTemplate = await templateRes.json();
             setTemplate(templateData);
 
             // 3. Fetch Record if exists
             if (currentAssignment.latestAppraisalId) {
-                const recordRes = await fetch(`${API_URL}/performance/records/${currentAssignment.latestAppraisalId}`, { headers });
+                const recordRes = await fetch(`${API_URL}/performance/records/${currentAssignment.latestAppraisalId}`, { credentials: 'include' });
+                if (recordRes.status === 401 || recordRes.status === 403) {
+                    logout();
+                    return;
+                }
                 if (!recordRes.ok) throw new Error('Failed to fetch appraisal record');
                 const recordData: AppraisalRecord = await recordRes.json();
                 setRecord(recordData);
@@ -147,10 +153,9 @@ export default function AppraisalFormPage() {
         setError(null);
 
         try {
-            const token = localStorage.getItem('access_token');
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+            const fetchOptions = {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include' as RequestCredentials
             };
 
             const ratingsList = Object.entries(ratings).map(([key, data]) => ({
@@ -186,9 +191,14 @@ export default function AppraisalFormPage() {
 
                 const res = await fetch(`${API_URL}/performance/records/${record._id}`, {
                     method: 'PATCH',
-                    headers,
+                    ...fetchOptions,
                     body: JSON.stringify(updateDto)
                 });
+
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
 
                 if (!res.ok) {
                     const errorData = await res.json();
@@ -210,9 +220,14 @@ export default function AppraisalFormPage() {
 
                 const res = await fetch(`${API_URL}/performance/records`, {
                     method: 'POST',
-                    headers,
+                    ...fetchOptions,
                     body: JSON.stringify(createDto)
                 });
+
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
 
                 if (!res.ok) {
                     const errorData = await res.json();
@@ -220,7 +235,7 @@ export default function AppraisalFormPage() {
                 }
             }
 
-            router.push('/employee/performance/manager-assignments');
+            router.push('/employee/performance/manager?success=true');
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Failed to save');

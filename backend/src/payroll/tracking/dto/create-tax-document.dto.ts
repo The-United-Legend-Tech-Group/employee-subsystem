@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsDate, IsObject, ValidateNested, Min, IsOptional, IsArray, IsMongoId } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsDate, IsObject, ValidateNested, Min, Max, ValidateIf, IsOptional, IsArray, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class TaxComponentDto {
@@ -49,17 +49,23 @@ export class CreateTaxDocumentDto {
   document_id: string;
 
   @IsMongoId()
-  employee_id: string;
+  @IsOptional()
+  employee_id?: string;
 
-  @IsEnum(['Annual Tax Statement', 'Monthly Tax Summary', 'Quarterly Tax Report'])
-  document_type: 'Annual Tax Statement' | 'Monthly Tax Summary' | 'Quarterly Tax Report';
+  @IsEnum(['Annual Tax Statement', 'Monthly Tax Summary'])
+  document_type: 'Annual Tax Statement' | 'Monthly Tax Summary';
 
   @IsNumber()
+  @Min(2000)
+  @Max(2100)
   year: number;
 
-  @IsString()
+  @ValidateIf((o) => o.document_type === 'Monthly Tax Summary')
+  @IsNumber()
+  @Min(1)
+  @Max(12)
   @IsOptional()
-  period?: string;
+  month?: number; // Required for Monthly Tax Summary, not used for Annual Tax Statement
 
   @IsString()
   file_url: string;

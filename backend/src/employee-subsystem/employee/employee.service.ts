@@ -87,13 +87,19 @@ export class EmployeeService {
       }
     }
 
-    // upsert assignment
-    const existing = await this.employeeSystemRoleRepository.findOne({
-      employeeProfileId: new Types.ObjectId(employeeId),
+    // Use findByEmployeeProfileId which handles both String and ObjectId formats
+    // to avoid creating duplicate records when existing ones have different storage format
+    const existing = await this.employeeSystemRoleRepository.findByEmployeeProfileId(employeeId);
+
+    console.log('📝 [EmployeeService.assignRoles] Existing record found:', {
+      found: !!existing,
+      existingId: existing?._id?.toString(),
+      existingRoles: existing?.roles,
     });
 
     if (existing) {
       // Update existing record using updateById with $set operator
+      console.log('📝 [EmployeeService.assignRoles] Updating existing record');
       return await this.employeeSystemRoleRepository.updateById(
         existing._id.toString(),
         {
@@ -106,7 +112,8 @@ export class EmployeeService {
       );
     }
 
-    // Create new record
+    // Create new record - use ObjectId for consistent type going forward
+    console.log('📝 [EmployeeService.assignRoles] Creating new record');
     return await this.employeeSystemRoleRepository.create({
       employeeProfileId: new Types.ObjectId(employeeId),
       roles,
@@ -425,9 +432,10 @@ export class EmployeeService {
       throw new ConflictException('Employee not found during update');
     }
 
-    // Update related system roles isActive flag
-    await this.employeeSystemRoleRepository.update(
-      { employeeProfileId: new Types.ObjectId(id) },
+    // Update related system roles isActive flag - handle both String and ObjectId formats
+    const objectId = new Types.ObjectId(id);
+    await this.employeeSystemRoleRepository.updateMany(
+      { $or: [{ employeeProfileId: id }, { employeeProfileId: objectId }] },
       { $set: { isActive } },
     );
 
@@ -536,9 +544,8 @@ export class EmployeeService {
       throw new NotFoundException('Employee not found');
     }
 
-    const systemRole = await this.employeeSystemRoleRepository.findOne({
-      employeeProfileId: new Types.ObjectId(employeeId),
-    } as any);
+    // Use findByEmployeeProfileId which handles both String and ObjectId formats
+    const systemRole = await this.employeeSystemRoleRepository.findByEmployeeProfileId(employeeId);
 
     // Return combined view; omit any sensitive fields if present
     const profileObj: any = employee.toObject ? employee.toObject() : employee;
@@ -568,6 +575,28 @@ export class EmployeeService {
         if (dept) {
           profileObj.department = { name: dept.name, _id: dept._id };
         }
+      }
+    }
+
+    // Populate supervisor info
+    if (profileObj.supervisorPositionId) {
+      // Handle case where it might be populated or just an ID
+      const supPosId = (profileObj.supervisorPositionId._id || profileObj.supervisorPositionId).toString();
+
+      const supervisor = await this.employeeProfileModel.findOne({
+        primaryPositionId: new Types.ObjectId(supPosId)
+      })
+        .select('firstName lastName _id')
+        .lean<{ _id: Types.ObjectId; firstName: string; lastName: string }>()
+        .exec();
+
+      if (supervisor) {
+        profileObj.supervisor = {
+          _id: supervisor._id.toString(),
+          firstName: supervisor.firstName,
+          lastName: supervisor.lastName,
+          fullName: `${supervisor.firstName} ${supervisor.lastName}`
+        };
       }
     }
 
@@ -672,5 +701,12 @@ export class EmployeeService {
     }
 
     return updatedCandidate;
+  }
+  async findByEmployeeNumber(employeeNumber: string): Promise<EmployeeProfile | null> {
+    return this.employeeProfileRepository.findOne({ employeeNumber: employeeNumber });
+  }
+
+  async findById(id: string): Promise<EmployeeProfile | null> {
+    return this.employeeProfileRepository.findById(id);
   }
 }

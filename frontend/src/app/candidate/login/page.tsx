@@ -20,7 +20,6 @@ import AppTheme from '../../../common/material-ui/shared-theme/AppTheme';
 
 import ArcanaLogo from '../../../common/material-ui/shared-theme/ArcanaLogo';
 import ColorModeSelect from '../../../common/material-ui/shared-theme/ColorModeSelect';
-import { encryptData } from '../../../common/utils/encryption';
 
 const Card = styled(MuiCard)(({ theme }) => ({
     display: 'flex',
@@ -122,16 +121,13 @@ export default function CandidateLogin() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Required to send/receive cookies
                 body: JSON.stringify(payload),
             });
 
             if (response.ok) {
-                // Successful login
-                const data = await response.json();
-                localStorage.setItem('access_token', data.access_token);
-                // Encrypt candidateId
-                const encryptedCandidateId = await encryptData(data.candidateId, data.access_token);
-                localStorage.setItem('candidateId', encryptedCandidateId);
+                // Successful login - backend sets httpOnly cookies automatically
+                // via credentials: 'include'. No need to store tokens in localStorage.
                 router.push('/candidate/dashboard');
             } else {
                 const errorData = await response.json();

@@ -11,15 +11,6 @@ export class CreateInsuranceBracketsDto {
   name: string;
 
   @ApiProperty({
-    description: 'Insurance amount',
-    example: 500,
-    minimum: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  amount: number;
-
-  @ApiProperty({
     description: 'Minimum salary for bracket',
     example: 0,
   })

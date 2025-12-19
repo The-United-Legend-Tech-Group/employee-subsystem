@@ -4,7 +4,7 @@ import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import { LoginCandidateDto } from '../dto/login-candidate.dto';
 import { RegisterCandidateDto } from '../dto/register-candidate.dto';
-import { UnauthorizedException, ConflictException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -135,6 +135,22 @@ describe('AuthController', () => {
 
       await expect(controller.employeeLogin(loginDto, mockResponse)).rejects.toThrow(
         UnauthorizedException,
+      );
+    });
+
+    it('should throw ForbiddenException when employee is terminated', async () => {
+      const loginDto: LoginCandidateDto = {
+        email: 'terminated@example.com',
+        password: 'password',
+      };
+      mockAuthService.employeeLogin.mockRejectedValue(new ForbiddenException('EMPLOYEE_TERMINATED'));
+
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response;
+
+      await expect(controller.employeeLogin(loginDto, mockResponse)).rejects.toThrow(
+        ForbiddenException,
       );
     });
   });

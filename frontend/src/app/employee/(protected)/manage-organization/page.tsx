@@ -39,6 +39,7 @@ import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { logout } from '@/lib/auth-utils';
 
 interface Department {
     _id: string;
@@ -271,14 +272,17 @@ export default function ManageOrganizationPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-            const headers = { 'Authorization': `Bearer ${token}` };
 
             const [deptRes, posRes] = await Promise.all([
-                fetch(`${apiUrl}/organization-structure/departments`, { headers }),
-                fetch(`${apiUrl}/organization-structure/positions`, { headers })
+                fetch(`${apiUrl}/organization-structure/departments`, { credentials: 'include' }),
+                fetch(`${apiUrl}/organization-structure/positions`, { credentials: 'include' })
             ]);
+
+            if (deptRes.status === 401 || posRes.status === 401) {
+                logout('/employee/login');
+                return;
+            }
 
             if (!deptRes.ok) throw new Error('Failed to fetch departments');
             if (!posRes.ok) throw new Error('Failed to fetch positions');
@@ -305,15 +309,14 @@ export default function ManageOrganizationPage() {
         setError(null);
         setSuccess(null);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/departments/${id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(updatedData)
             });
 
@@ -339,15 +342,14 @@ export default function ManageOrganizationPage() {
         setError(null);
         setSuccess(null);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/positions/${id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(updatedData)
             });
 
@@ -375,15 +377,12 @@ export default function ManageOrganizationPage() {
         setSuccess(null);
         setIsDeleting(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             console.log('Deleting position at:', `${apiUrl}/organization-structure/positions/${id}`);
 
             const response = await fetch(`${apiUrl}/organization-structure/positions/${id}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             console.log('Delete response status:', response.status);

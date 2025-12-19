@@ -14,10 +14,11 @@ import { SystemRole } from '../employee/enums/employee-profile.enums';
 @ApiTags('Performance - Appraisal Disputes')
 @Controller('performance/disputes')
 export class AppraisalDisputeController {
-  constructor(private readonly disputeService: AppraisalDisputeService) {}
+  constructor(private readonly disputeService: AppraisalDisputeService) { }
 
   @Post()
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_EMPLOYEE)
   @ApiOperation({ summary: 'Create a new appraisal dispute' })
   @ApiResponse({ status: 201, description: 'The created dispute', type: AppraisalDispute })
   async create(@Body() dto: CreateAppraisalDisputeDto) {
@@ -25,17 +26,26 @@ export class AppraisalDisputeController {
   }
 
   @Get('open')
-  @UseGuards(AuthGuard) //, authorizationGuard)
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'List open disputes' })
   @ApiResponse({ status: 200, description: 'Open disputes', type: [AppraisalDispute] })
   async findOpen() {
     return this.disputeService.findOpen();
   }
 
+  @Get('history')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER)
+  @ApiOperation({ summary: 'List resolved or rejected disputes (History)' })
+  @ApiResponse({ status: 200, description: 'Resolved/Rejected disputes', type: [AppraisalDispute] })
+  async findHistory() {
+    return this.disputeService.findHistory();
+  }
+
   @Get(':id')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Get dispute by ID' })
   @ApiResponse({ status: 200, description: 'The dispute', type: AppraisalDispute })
   async findOne(@Param('id') id: string) {
@@ -44,7 +54,7 @@ export class AppraisalDisputeController {
 
   @Get('record/:appraisalId')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'List disputes for an appraisal record' })
   async findByAppraisal(@Param('appraisalId') appraisalId: string) {
     return this.disputeService.findByAppraisalId(appraisalId);
@@ -52,7 +62,7 @@ export class AppraisalDisputeController {
 
   @Get('cycle/:cycleId')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'List disputes for a cycle' })
   async findByCycle(@Param('cycleId') cycleId: string) {
     return this.disputeService.findByCycleId(cycleId);
@@ -76,8 +86,8 @@ export class AppraisalDisputeController {
   }
 
   @Post(':id/resolve')
-  @UseGuards(AuthGuard) //, authorizationGuard)
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Resolve a dispute with summary and status' })
   @ApiResponse({ status: 200, description: 'The resolved dispute', type: AppraisalDispute })
   async resolve(@Param('id') id: string, @Body() dto: ResolveAppraisalDisputeDto) {
@@ -87,7 +97,7 @@ export class AppraisalDisputeController {
 
   @Patch(':id')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Update a dispute (status / resolution)' })
   async update(@Param('id') id: string, @Body() dto: UpdateAppraisalDisputeDto) {
     return this.disputeService.update(id, dto);

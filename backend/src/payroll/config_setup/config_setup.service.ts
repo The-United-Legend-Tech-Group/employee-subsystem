@@ -23,5 +23,48 @@ export class ConfigSetupService {
     public readonly signingBonus: SigningBonusService,
     public readonly taxRule: TaxRuleService,
     public readonly terminationBenefit: TerminationBenefitService,
-  ) {}
+  ) { }
+
+  async getPendingApprovals() {
+    const [
+      allowances,
+      insuranceBrackets,
+      payGrades,
+      payrollPolicies,
+      payTypes,
+      signingBonuses,
+      taxRules,
+      terminationBenefits,
+    ] = await Promise.all([
+      this.allowance.countPending(),
+      this.insuranceBracket.countPending(),
+      this.payGrade.countPending(),
+      this.payrollPolicy.countPending(),
+      this.payType.countPending(),
+      this.signingBonus.countPending(),
+      this.taxRule.countPending(),
+      this.terminationBenefit.countPending(),
+    ]);
+
+    return {
+      allowances,
+      insuranceBrackets,
+      payGrades,
+      payrollPolicies,
+      payTypes,
+      signingBonuses,
+      taxRules,
+      terminationBenefits,
+      total:
+        allowances +
+        insuranceBrackets +
+        payGrades +
+        payrollPolicies +
+        payTypes +
+        signingBonuses +
+        taxRules +
+        terminationBenefits,
+    };
+  }
 }
+

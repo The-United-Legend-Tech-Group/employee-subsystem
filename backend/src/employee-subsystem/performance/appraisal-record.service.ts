@@ -3,6 +3,7 @@ import { AppraisalRecordRepository } from './repository/appraisal-record.reposit
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { CreateAppraisalRecordDto } from './dto/create-appraisal-record.dto';
+import { GetAllRecordsQueryDto } from './dto/get-all-records-query.dto';
 import { AppraisalRecordDocument } from './models/appraisal-record.schema';
 import { AppraisalRecordStatus, AppraisalAssignmentStatus } from './enums/performance.enums';
 import { AttendanceService } from '../../time-mangement/services/attendance.service';
@@ -14,6 +15,8 @@ import { TerminationInitiation } from '../../Recruitment/enums/termination-initi
 import { CandidateRepository } from '../employee/repository/candidate.repository';
 import { ContractRepository } from '../../Recruitment/repositories/implementations/contract.repository';
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
+import { EmployeeStatus } from '../employee/enums/employee-profile.enums';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class AppraisalRecordService {
@@ -32,6 +35,120 @@ export class AppraisalRecordService {
         private readonly contractRepository: ContractRepository,
         private readonly employeeProfileRepository: EmployeeProfileRepository,
     ) { }
+
+    async getAllRecords(query: GetAllRecordsQueryDto): Promise<{
+        data: any[];
+        total: number;
+        page: number;
+        limit: number;
+    }> {
+        const page = query.page || 1;
+        const limit = query.limit || 10;
+        const skip = (page - 1) * limit;
+
+        // Build base filter
+        const filter: any = {};
+
+        if (query.status) {
+            filter.status = query.status;
+        }
+
+        if (query.cycleId) {
+            filter.cycleId = new Types.ObjectId(query.cycleId);
+        }
+
+        // If searching, first find matching employee/manager profiles
+        if (query.search && query.search.trim()) {
+            const searchRegex = new RegExp(query.search.trim(), 'i');
+            const matchingProfiles = await this.employeeProfileRepository.find({
+                $or: [
+                    { firstName: searchRegex },
+                    { lastName: searchRegex },
+                ],
+            });
+
+            const profileIds = matchingProfiles.map((p: any) => p._id.toString());
+
+            if (profileIds.length === 0) {
+                // No matches, return empty
+                return { data: [], total: 0, page, limit };
+            }
+
+            // Search in both employee and manager fields
+            filter.$or = [
+                { employeeProfileId: { $in: profileIds.map(id => new Types.ObjectId(id)) } },
+                { managerProfileId: { $in: profileIds.map(id => new Types.ObjectId(id)) } },
+            ];
+        }
+
+        // Get all matching records
+        const allRecords = await this.appraisalRecordRepository.find(filter);
+        const total = allRecords.length;
+
+        // Sort by createdAt descending (most recent first) and paginate
+        const sortedRecords = allRecords.sort((a: any, b: any) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        const paginatedRecords = sortedRecords.slice(skip, skip + limit);
+
+        // Collect unique IDs for batch lookup
+        const employeeIds = new Set<string>();
+        const managerIds = new Set<string>();
+        const cycleIds = new Set<string>();
+
+        for (const record of paginatedRecords) {
+            if (record.employeeProfileId) employeeIds.add(record.employeeProfileId.toString());
+            if (record.managerProfileId) managerIds.add(record.managerProfileId.toString());
+            if (record.cycleId) cycleIds.add(record.cycleId.toString());
+        }
+
+        // Batch fetch related data
+        const [employees, managers, cycles] = await Promise.all([
+            this.employeeProfileRepository.find({ _id: { $in: Array.from(employeeIds).map(id => new Types.ObjectId(id)) } }),
+            this.employeeProfileRepository.find({ _id: { $in: Array.from(managerIds).map(id => new Types.ObjectId(id)) } }),
+            this.appraisalCycleRepository.find({ _id: { $in: Array.from(cycleIds).map(id => new Types.ObjectId(id)) } }),
+        ]);
+
+        // Create lookup maps
+        const employeeMap = new Map<string, any>();
+        employees.forEach((e: any) => employeeMap.set(e._id.toString(), e));
+
+        const managerMap = new Map<string, any>();
+        managers.forEach((m: any) => managerMap.set(m._id.toString(), m));
+
+        const cycleMap = new Map<string, any>();
+        cycles.forEach((c: any) => cycleMap.set(c._id.toString(), c));
+
+        // Format response
+        const data = paginatedRecords.map((r: any) => {
+            const employee = employeeMap.get(r.employeeProfileId?.toString());
+            const manager = managerMap.get(r.managerProfileId?.toString());
+            const cycle = cycleMap.get(r.cycleId?.toString());
+
+            return {
+                _id: r._id,
+                status: r.status,
+                totalScore: r.totalScore,
+                overallRatingLabel: r.overallRatingLabel,
+                createdAt: r.createdAt,
+                managerSubmittedAt: r.managerSubmittedAt,
+                hrPublishedAt: r.hrPublishedAt,
+                employeeName: employee
+                    ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+                    : 'Unknown',
+                managerName: manager
+                    ? `${manager.firstName || ''} ${manager.lastName || ''}`.trim()
+                    : 'Unknown',
+                cycleName: cycle?.name || 'Unknown Cycle',
+                cycleId: r.cycleId,
+            };
+        });
+
+        return { data, total, page, limit };
+    }
 
     async getRecordById(id: string): Promise<any> {
         const record = await this.appraisalRecordRepository.findOne({ _id: id });
@@ -187,7 +304,7 @@ export class AppraisalRecordService {
         // Check if this triggers a termination review (3rd minimum-score appraisal)
         await this.checkAndTriggerTerminationReview(
             record.employeeProfileId.toString(),
-            totalScore,
+            id,
             record.templateId.toString(),
         );
 
@@ -393,7 +510,7 @@ export class AppraisalRecordService {
         // Check if this triggers a termination review (3rd minimum-score appraisal)
         await this.checkAndTriggerTerminationReview(
             createDto.employeeProfileId,
-            totalScore,
+            created._id.toString(),
             createDto.templateId,
         );
 
@@ -469,11 +586,11 @@ export class AppraisalRecordService {
      */
     private async checkAndTriggerTerminationReview(
         employeeProfileId: string,
-        newRecordTotalScore: number,
+        currentRecordId: string,
         templateId: string,
     ): Promise<void> {
         try {
-            this.logger.log(`[TerminationCheck] Starting check for employee ${employeeProfileId}, totalScore: ${newRecordTotalScore}, templateId: ${templateId}`);
+            this.logger.log(`[TerminationCheck] Starting check for employee ${employeeProfileId}, currentRecordId: ${currentRecordId}, templateId: ${templateId}`);
 
             // Fetch template to get minimum score
             const template = await this.appraisalTemplateRepository.findOne({ _id: templateId });
@@ -485,26 +602,37 @@ export class AppraisalRecordService {
             const minScore = template.ratingScale.min;
             this.logger.log(`[TerminationCheck] Template ratingScale.min: ${minScore}`);
 
-            // Get all HR_PUBLISHED records for this employee
+            // Check current record
+            let currentIsMin = false;
+            const currentRecord = await this.appraisalRecordRepository.findOne({ _id: currentRecordId });
+            if (currentRecord && this.isMinimumScoreRecord(currentRecord, minScore)) {
+                currentIsMin = true;
+                this.logger.log(`[TerminationCheck] Current record ${currentRecordId} is minimum-score`);
+            } else {
+                this.logger.log(`[TerminationCheck] Current record ${currentRecordId} is NOT minimum-score`);
+            }
+
+            // Get all HR_PUBLISHED records for this employee (excluding current if it happened to be published)
             const existingRecords = await this.appraisalRecordRepository.find({
                 employeeProfileId,
                 status: AppraisalRecordStatus.HR_PUBLISHED,
+                _id: { $ne: currentRecordId }
             });
 
-            this.logger.log(`[TerminationCheck] Found ${existingRecords.length} HR_PUBLISHED records for employee`);
+            this.logger.log(`[TerminationCheck] Found ${existingRecords.length} historical HR_PUBLISHED records`);
 
             // Count how many have all ratings at minimum score
-            // A record is "minimum-score" if all its non-GOALS ratings are at the minimum value
-            let minScoreCount = 0;
+            let minScoreCount = currentIsMin ? 1 : 0;
+
             for (const record of existingRecords) {
                 const isMinScore = this.isMinimumScoreRecord(record, minScore);
                 if (isMinScore) {
                     minScoreCount++;
-                    this.logger.log(`[TerminationCheck] Record ${(record as any)._id} is minimum-score`);
+                    this.logger.log(`[TerminationCheck] Historical record ${(record as any)._id} is minimum-score`);
                 }
             }
 
-            this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} has ${minScoreCount} minimum-score appraisals (threshold: 3)`);
+            this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} has ${minScoreCount} total minimum-score appraisals (threshold: 3)`);
 
             // If 3 or more minimum-score appraisals, trigger termination review
             if (minScoreCount >= 3) {
@@ -526,6 +654,20 @@ export class AppraisalRecordService {
                     this.logger.error(`[TerminationCheck] Failed to send notification:`, notifError);
                 }
 
+                // Update employee status to SUSPENDED
+                try {
+                    await this.employeeProfileRepository.updateById(
+                        employeeProfileId,
+                        {
+                            status: EmployeeStatus.SUSPENDED,
+                            statusEffectiveFrom: new Date(),
+                        }
+                    );
+                    this.logger.log(`[TerminationCheck] Employee ${employeeProfileId} status updated to SUSPENDED due to repeated poor performance.`);
+                } catch (statusError) {
+                    this.logger.error(`[TerminationCheck] Failed to update employee status to SUSPENDED:`, statusError);
+                }
+
                 // Try to get contract ID and initiate termination review
                 const contractId = await this.getContractIdForEmployee(employeeProfileId);
 
@@ -534,12 +676,11 @@ export class AppraisalRecordService {
                     // Still log but don't fail - notification was already sent
                     return;
                 }
-
+                let employeeProfile = await this.employeeProfileRepository.findById(employeeProfileId);
                 // Initiate termination review
                 try {
                     await this.offboardingService.initiateTerminationReview({
-                        employeeId: employeeProfileId,
-                        contractId: contractId,
+                        employeeNumber: employeeProfile?.employeeNumber || 'UNKNOWN',
                         initiator: TerminationInitiation.MANAGER,
                         reason: `Performance-based termination review: Employee has received ${minScoreCount} minimum-score appraisals.`,
                         hrComments: 'Automatically initiated due to repeated poor performance appraisals.',
@@ -548,6 +689,8 @@ export class AppraisalRecordService {
                 } catch (termError) {
                     this.logger.error(`[TerminationCheck] Failed to initiate termination review:`, termError);
                 }
+            } else {
+                this.logger.log(`[TerminationCheck] Threshold NOT met (${minScoreCount} < 3). No action taken.`);
             }
         } catch (error) {
             // Log error but don't fail the main operation

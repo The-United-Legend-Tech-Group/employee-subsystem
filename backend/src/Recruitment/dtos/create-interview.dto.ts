@@ -1,6 +1,5 @@
-import { IsArray, IsDate, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { ApplicationStage } from '../enums/application-stage.enum';
 import { InterviewMethod } from '../enums/interview-method.enum';
 import { InterviewStatus } from '../enums/interview-status.enum';
@@ -20,9 +19,9 @@ export class CreateInterviewDto {
         example: '507f1f77bcf86cd799439013',
         type: 'string'
     })
+    @IsOptional()
     @IsMongoId()
-    @IsNotEmpty()
-    hrId: string;
+    hrId?: string;
 
     @ApiProperty({
         enum: ApplicationStage,
@@ -35,14 +34,13 @@ export class CreateInterviewDto {
     stage: ApplicationStage;
 
     @ApiProperty({
-        description: 'Scheduled date and time for the interview. Should be in the future.',
+        description: 'Scheduled date and time for the interview. Provide an ISO 8601 date-time string (e.g., from Date.toISOString()).',
         example: '2025-12-01T10:00:00.000Z',
         type: 'string',
         format: 'date-time'
     })
-    @IsDate()
+    @IsDateString()
     @IsNotEmpty()
-    @Type(() => Date)
     scheduledDate: Date;
 
     @ApiProperty({

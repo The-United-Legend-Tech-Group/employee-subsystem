@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 // Import Payroll Configuration&Setup controller and service
 import { ConfigSetupController } from './config_setup.controller';
 import { ConfigSetupService } from './config_setup.service';
+import { AuthModule } from '../../employee-subsystem/employee/auth.module';
 // Import Backup services and controller
 import { ConfigBackupService } from './backup/config-backup.service';
 import { ConfigBackupSchedulerService } from './backup/config-backup-scheduler.service';
@@ -56,9 +57,14 @@ import {
   terminationAndResignationBenefits,
   terminationAndResignationBenefitsSchema,
 } from './models/terminationAndResignationBenefits';
+import {
+  EmployeeSystemRole,
+  EmployeeSystemRoleSchema,
+} from '../../employee-subsystem/employee/models/employee-system-role.schema';
 
 @Module({
   imports: [
+    AuthModule,
     MongooseModule.forFeature([
       { name: allowance.name, schema: allowanceSchema },
       { name: CompanyWideSettings.name, schema: CompanyWideSettingsSchema },
@@ -72,6 +78,7 @@ import {
         name: terminationAndResignationBenefits.name,
         schema: terminationAndResignationBenefitsSchema,
       },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
     ]),
   ],
   controllers: [ConfigSetupController, ConfigBackupController],
@@ -104,4 +111,4 @@ import {
   ],
   exports: [ConfigSetupService], // export the facade service
 })
-export class ConfigSetupModule {}
+export class ConfigSetupModule { }

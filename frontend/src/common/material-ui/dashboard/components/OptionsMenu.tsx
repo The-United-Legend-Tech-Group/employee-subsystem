@@ -1,5 +1,5 @@
 'use client';
-'use client';
+
 import * as React from 'react';
 import { styled } from '@mui/material/styles';
 import Divider, { dividerClasses } from '@mui/material/Divider';
@@ -14,6 +14,7 @@ import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 import MenuButton from './MenuButton';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { logout } from '@/lib/auth-utils';
 
 const MenuItem = styled(MuiMenuItem)({
   margin: '2px 0',
@@ -35,11 +36,8 @@ export default function OptionsMenu() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('employeeId');
-    localStorage.removeItem('candidateId'); // Clear all potential auth tokens
     handleClose();
-    router.push(`${basePath}/login`);
+    logout(`${basePath}/login`);
   };
 
   return (

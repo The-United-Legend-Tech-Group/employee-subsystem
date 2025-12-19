@@ -31,6 +31,9 @@ import {
 import { NotificationService } from '../notification/notification.service';
 import { CreateNotificationDto } from '../notification/dto/create-notification.dto';
 import { CreatePositionAssignmentDto } from './dto/create-position-assignment.dto';
+import { EmployeeSystemRoleRepository } from '../employee/repository/employee-system-role.repository';
+import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
+import { SystemRole } from '../employee/enums/employee-profile.enums';
 
 @Injectable()
 export class OrganizationStructureService {
@@ -45,11 +48,100 @@ export class OrganizationStructureService {
     private readonly employeeModel: Model<EmployeeProfileDocument>,
     @InjectModel(PositionAssignment.name)
     private readonly positionAssignmentModel: Model<PositionAssignmentDocument>,
-    private readonly notificationService?: NotificationService,
+    private readonly notificationService: NotificationService,
+    private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
+    private readonly employeeProfileRepository: EmployeeProfileRepository,
   ) { }
 
   async getOpenPositions(): Promise<Position[]> {
     return this.positionRepository.find({ isActive: false });
+  }
+
+  async getOpenDepartments(): Promise<any[]> {
+    // 1. Fetch all inactive positions (Open Positions) and Recruiter Roles in parallel
+    const [openPositions, recruiterRoles] = await Promise.all([
+      this.positionRepository.find({ isActive: false }),
+      this.employeeSystemRoleRepository.find({
+        roles: SystemRole.RECRUITER,
+      }),
+    ]);
+
+    if (!openPositions || openPositions.length === 0) {
+      return [];
+    }
+
+    // 2. Extract distinct departmentIds from open positions
+    const openDepartmentIds = [
+      ...new Set(
+        openPositions
+          .map((p) => p.departmentId?.toString())
+          .filter((id) => !!id),
+      ),
+    ];
+
+    if (openDepartmentIds.length === 0) {
+      return [];
+    }
+
+    // Process Recruiter Profile IDs
+    const recruiterProfileIds = recruiterRoles
+      .map((r) => r.employeeProfileId)
+      .map((id) => {
+        try {
+          return new Types.ObjectId(id as any);
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter((id) => !!id);
+
+    // Prepare Department IDs for filtered query (Both ObjectId and String for safety)
+    const deptIdsAsObjectIds = openDepartmentIds.map(
+      (id) => new Types.ObjectId(id),
+    );
+    const deptIdsAsStrings = openDepartmentIds;
+
+    // 3. Fetch Departments and Recruiters in parallel
+    const [departments, recruiters] = await Promise.all([
+      this.departmentRepository.find({
+        _id: { $in: deptIdsAsObjectIds },
+      }),
+      this.employeeProfileRepository.find({
+        _id: { $in: recruiterProfileIds },
+        primaryDepartmentId: {
+          $in: [...deptIdsAsObjectIds, ...deptIdsAsStrings],
+        },
+      }),
+    ]);
+
+    // 4. Aggregate results
+    const results = departments.map((dept) => {
+      const deptId = dept._id.toString();
+
+      // Filter open positions for this department
+      const deptOpenPositions = openPositions
+        .filter((p) => p.departmentId?.toString() === deptId)
+        .map((p) => p.title);
+
+      // Filter recruiters for this department
+      const deptRecruiters = recruiters
+        .filter((r) => {
+          const rDeptId = r.primaryDepartmentId?.toString();
+          return rDeptId === deptId;
+        })
+        .map((r) => ({
+          name: `${r.firstName} ${r.lastName}`,
+          employeeNumber: r.employeeNumber,
+        }));
+
+      return {
+        departmentName: dept.name,
+        openPositions: deptOpenPositions,
+        recruiters: deptRecruiters,
+      };
+    });
+
+    return results;
   }
 
   async listChangeRequests(): Promise<StructureChangeRequest[]> {
@@ -186,7 +278,7 @@ export class OrganizationStructureService {
 
   async rejectChangeRequest(
     id: string,
-    approverEmployeeId?: string,
+    comment?: string,
   ): Promise<StructureChangeRequest> {
     const existing = await this.changeRequestModel.findById(id).lean().exec();
     if (!existing) throw new NotFoundException('Change request not found');
@@ -194,7 +286,10 @@ export class OrganizationStructureService {
     const updated = await this.changeRequestModel
       .findByIdAndUpdate(
         id,
-        { status: StructureRequestStatus.REJECTED },
+        {
+          status: StructureRequestStatus.REJECTED,
+          reason: comment || '',
+        },
         { new: true },
       )
       .exec();
@@ -206,9 +301,7 @@ export class OrganizationStructureService {
         action: ChangeLogAction.UPDATED,
         entityType: 'StructureChangeRequest',
         entityId: updated._id,
-        performedByEmployeeId: (approverEmployeeId && Types.ObjectId.isValid(approverEmployeeId))
-          ? new Types.ObjectId(approverEmployeeId)
-          : (updated.submittedByEmployeeId as any),
+        performedByEmployeeId: updated.submittedByEmployeeId as any,
         summary: 'Change request rejected',
         beforeSnapshot: existing,
         afterSnapshot: (updated.toObject ? updated.toObject() : updated) as unknown as Record<string, unknown>,

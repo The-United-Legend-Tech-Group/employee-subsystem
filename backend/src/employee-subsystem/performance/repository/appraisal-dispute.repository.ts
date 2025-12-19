@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, UpdateQuery, QueryOptions } from 'mongoose';
 import { BaseRepository } from '../../../common/repository/base.repository';
-import {AppraisalDispute,AppraisalDisputeDocument,} from '../models/appraisal-dispute.schema';
+import { AppraisalDispute, AppraisalDisputeDocument, } from '../models/appraisal-dispute.schema';
 import { AppraisalDisputeStatus } from '../enums/performance.enums';
 
 @Injectable()
@@ -37,21 +37,31 @@ export class AppraisalDisputeRepository extends BaseRepository<AppraisalDisputeD
     return this.model.find({ status }).populate('raisedByEmployeeId', 'firstName lastName').exec();
   }
 
+  async findHistory() {
+    return this.model.find({
+      status: { $in: [AppraisalDisputeStatus.ADJUSTED, AppraisalDisputeStatus.REJECTED] }
+    })
+      .populate('raisedByEmployeeId', 'firstName lastName')
+      .populate('resolvedByEmployeeId', 'firstName lastName')
+      .sort({ resolvedAt: -1 })
+      .exec();
+  }
+
   async findOne(filter: any): Promise<AppraisalDisputeDocument | null> {
     console.log(`FindOne called with filter:`, JSON.stringify(filter));
-    
+
     // If filtering by _id, try both string and ObjectId
     if (filter._id) {
       const id = filter._id;
       console.log(`Trying to find by _id: ${id}`);
-      
+
       // First try as-is
       let result = await this.model.findOne(filter).exec();
       if (result) {
         console.log(`Found with direct lookup, _id: ${result._id}`);
         return result;
       }
-      
+
       // Try with ObjectId conversion
       try {
         const objectId = new Types.ObjectId(id);
@@ -63,16 +73,16 @@ export class AppraisalDisputeRepository extends BaseRepository<AppraisalDisputeD
       } catch (e) {
         console.log(`ObjectId conversion failed:`, e.message);
       }
-      
+
       // Try finding in all documents to debug
       const allDocs = await this.model.find({}).limit(5).exec();
       console.log(`Sample _id types from collection:`, allDocs.map(d => ({ _id: d._id, type: typeof d._id })));
       console.log(`Looking for ID: ${id} (type: ${typeof id})`);
-      
+
       console.log(`FindOne result: Not found after all attempts`);
       return null;
     }
-    
+
     const result = await this.model.findOne(filter).exec();
     console.log(`FindOne result:`, result ? `Found with _id: ${result._id}` : 'Not found');
     return result;

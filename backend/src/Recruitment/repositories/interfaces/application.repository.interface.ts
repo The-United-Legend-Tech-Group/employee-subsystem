@@ -8,4 +8,5 @@ export interface IApplicationRepository extends IRepository<ApplicationDocument>
   findByStatus(status: string): Promise<ApplicationDocument[]>;
   findByCandidateEmail(email: string): Promise<ApplicationDocument[]>;
   findByRequisitionAndCandidate(requisitionId: Types.ObjectId, candidateId: Types.ObjectId): Promise<ApplicationDocument | null>;
+  findAllPopulated(): Promise<ApplicationDocument[]>;
 }

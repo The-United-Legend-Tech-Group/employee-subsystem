@@ -6,6 +6,13 @@ export enum AppraisalAssignmentStatus {
     ACKNOWLEDGED = 'ACKNOWLEDGED',
 }
 
+export enum AppraisalRecordStatus {
+    DRAFT = 'DRAFT',
+    MANAGER_SUBMITTED = 'MANAGER_SUBMITTED',
+    HR_PUBLISHED = 'HR_PUBLISHED',
+    ARCHIVED = 'ARCHIVED',
+}
+
 export interface EmployeeProfileShort {
     _id: string;
     firstName: string;

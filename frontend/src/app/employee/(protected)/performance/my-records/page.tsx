@@ -32,7 +32,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 
-import { decryptData } from '../../../../../common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '../../../../../lib/auth-utils';
 import { AppraisalRecord } from '../../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
@@ -49,25 +49,24 @@ export default function MyPerformanceRecordsPage() {
 
     const fetchRecords = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) {
-                throw new Error('Authentication details missing');
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
             }
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
-            if (!employeeId) throw new Error('Failed to decrypt employee ID');
 
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
 
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include', // Send httpOnly cookies
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch performance records: ${response.status} ${response.statusText}`);
             }

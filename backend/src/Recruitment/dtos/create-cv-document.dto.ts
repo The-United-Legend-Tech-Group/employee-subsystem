@@ -28,8 +28,9 @@ export class CreateCVDocumentDto {
     description: 'File storage path',
     example: '/uploads/documents/john-doe-cv.pdf',
   })
+  @IsOptional()
   @IsString()
-  filePath: string;
+  filePath?: string;
 
   @ApiProperty({
     description: 'Document upload timestamp',

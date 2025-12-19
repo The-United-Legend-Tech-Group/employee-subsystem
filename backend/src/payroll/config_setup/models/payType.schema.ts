@@ -7,7 +7,7 @@ export type payTypeDocument = HydratedDocument<payType>;
 
 @Schema({ timestamps: true })
 export class payType {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   type: string;
   @Prop({ required: true, min: 6000 })
   amount: number;

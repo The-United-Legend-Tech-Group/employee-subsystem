@@ -153,15 +153,14 @@ export default function EmployeeEditForm({ employee, onUpdate }: EmployeeEditFor
     };
 
     const saveToApi = async (payload: any) => {
-        const token = localStorage.getItem('access_token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
         const response = await fetch(`${apiUrl}/employee/${employee._id}/profile/admin`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include',
             body: JSON.stringify(payload)
         });
 

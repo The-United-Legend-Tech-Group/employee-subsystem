@@ -9,7 +9,7 @@ export class ShiftAssignmentService {
     private readonly shiftAssignmentRepo: ShiftAssignmentRepository,
     private readonly shiftRepo: ShiftRepository,
     private readonly scheduleRuleRepo?: ScheduleRuleRepository,
-  ) {}
+  ) { }
 
   async assignShiftToEmployee(dto: any) {
     // defensive: ensure the referenced shift exists
@@ -124,6 +124,25 @@ export class ShiftAssignmentService {
       startDate: { $lte: e },
       $or: [{ endDate: null }, { endDate: { $gte: s } }],
     } as any);
+  }
+
+  async getAllShiftAssignments(start?: string, end?: string) {
+    const filter: any = {};
+
+    if (start && end) {
+      const s = new Date(start);
+      const e = new Date(end);
+      filter.startDate = { $lte: e };
+      filter.$or = [{ endDate: null }, { endDate: { $gte: s } }];
+    } else if (start) {
+      const s = new Date(start);
+      filter.startDate = { $gte: s };
+    } else if (end) {
+      const e = new Date(end);
+      filter.$or = [{ endDate: null }, { endDate: { $lte: e } }];
+    }
+
+    return this.shiftAssignmentRepo.find(filter);
   }
 
   async attachScheduleRuleToAssignment(

@@ -22,7 +22,6 @@ export class OnboardingTaskDto {
 export class CreateOnboardingChecklistDto {
   @IsNotEmpty()
   @IsString()
-  @IsMongoId()
   employeeId: string;
 
   @IsOptional()

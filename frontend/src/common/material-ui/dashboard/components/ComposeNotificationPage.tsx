@@ -20,13 +20,14 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs, { Dayjs } from 'dayjs';
+import { logout } from '@/lib/auth-utils';
 
-interface Position {
+export interface Position {
     _id: string;
     title: string;
 }
 
-interface Employee {
+export interface Employee {
     _id: string;
     firstName: string;
     lastName: string;
@@ -34,7 +35,12 @@ interface Employee {
     positionTitle?: string;
 }
 
-export default function ComposeNotificationPage() {
+interface ComposeNotificationProps {
+    initialEmployees?: Employee[];
+    initialPositions?: Position[];
+}
+
+export default function ComposeNotificationPage({ initialEmployees = [], initialPositions = [] }: ComposeNotificationProps) {
     const [title, setTitle] = React.useState('');
     const [message, setMessage] = React.useState('');
     const [type, setType] = React.useState('Info');
@@ -47,11 +53,11 @@ export default function ComposeNotificationPage() {
 
     // Search states
     const [empSearchOpen, setEmpSearchOpen] = React.useState(false);
-    const [empOptions, setEmpOptions] = React.useState<Employee[]>([]);
+    const [empOptions, setEmpOptions] = React.useState<Employee[]>(initialEmployees);
     const [empLoading, setEmpLoading] = React.useState(false);
 
     const [posSearchOpen, setPosSearchOpen] = React.useState(false);
-    const [posOptions, setPosOptions] = React.useState<Position[]>([]);
+    const [posOptions, setPosOptions] = React.useState<Position[]>(initialPositions);
     const [posLoading, setPosLoading] = React.useState(false);
 
 
@@ -63,15 +69,22 @@ export default function ComposeNotificationPage() {
             return undefined;
         }
 
+        if (empOptions.length > 0) {
+            return undefined;
+        }
+
         (async () => {
             setEmpLoading(true);
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             try {
                 // Fetch all employees for now (paginated by default but we ask for list)
                 const res = await fetch(`${apiUrl}/employee?limit=100`, { // Arbitrary limit for demo
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
                     if (active) {
@@ -88,7 +101,7 @@ export default function ComposeNotificationPage() {
         return () => {
             active = false;
         };
-    }, [empSearchOpen]);
+    }, [empSearchOpen, empOptions.length]);
 
     // Fetch Positions
     React.useEffect(() => {
@@ -98,14 +111,21 @@ export default function ComposeNotificationPage() {
             return undefined;
         }
 
+        if (posOptions.length > 0) {
+            return undefined;
+        }
+
         (async () => {
             setPosLoading(true);
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             try {
                 const res = await fetch(`${apiUrl}/organization-structure/positions`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
                     if (active) {
@@ -122,13 +142,12 @@ export default function ComposeNotificationPage() {
         return () => {
             active = false;
         };
-    }, [posSearchOpen]);
+    }, [posSearchOpen, posOptions.length]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        const token = localStorage.getItem('access_token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
         const payload = {
@@ -150,11 +169,16 @@ export default function ComposeNotificationPage() {
             const res = await fetch(`${apiUrl}/notification`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
+
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
 
             if (res.ok) {
                 setFeedback({ message: 'Notification sent successfully!', severity: 'success' });
@@ -242,7 +266,7 @@ export default function ComposeNotificationPage() {
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <DateTimePicker
                                     value={deadline}
-                                    onChange={(newValue) => setDeadline(newValue)}
+                                    onChange={(newValue) => setDeadline(newValue as Dayjs | null)}
                                     slotProps={{ textField: { fullWidth: true, hiddenLabel: true } }}
                                 />
                             </LocalizationProvider>
@@ -353,7 +377,12 @@ export default function ComposeNotificationPage() {
                 </form>
             </Card>
 
-            <Snackbar open={!!feedback} autoHideDuration={6000} onClose={() => setFeedback(null)}>
+            <Snackbar
+                open={!!feedback}
+                autoHideDuration={6000}
+                onClose={() => setFeedback(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
                 <Alert onClose={() => setFeedback(null)} severity={feedback?.severity || 'info'} sx={{ width: '100%' }}>
                     {feedback?.message}
                 </Alert>

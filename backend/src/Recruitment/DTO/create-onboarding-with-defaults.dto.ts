@@ -28,4 +28,8 @@ export class CreateOnboardingWithDefaultsDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeNumber?: string;
 }

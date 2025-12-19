@@ -5,9 +5,7 @@ export class CandidateRespondOfferDto {
     @IsMongoId()
     offerId: string;
 
-    @IsNotEmpty()
-    @IsMongoId()
-    candidateId: string;
+
 
     @IsNotEmpty()
     @IsEnum(['accepted', 'rejected', 'negotiating'])

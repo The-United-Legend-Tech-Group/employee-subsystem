@@ -56,11 +56,10 @@ export default function StructureApprovalsTable() {
     const fetchApprovals = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/approvals`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!response.ok) throw new Error('Failed to fetch approvals');

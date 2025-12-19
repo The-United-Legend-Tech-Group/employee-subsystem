@@ -21,16 +21,14 @@ import WarningIcon from '@mui/icons-material/Warning';
 import { useTheme, alpha } from '@mui/material/styles';
 import SearchAndDateFilter from '@/common/components/payroll/SearchAndDateFilter';
 import { useTableFilters } from '@/common/components/payroll/useTableFilters';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatCurrency } from '../../utils';
 import { isAuthenticated } from '@/lib/auth-utils';
 
 interface PenaltyDeduction {
   payslipId: string;
   payslipPeriod: string;
-  type: string;
   reason: string;
   amount: number;
-  createdAt: string | null;
 }
 
 export default function PenaltyDeductionsPage() {
@@ -50,8 +48,8 @@ export default function PenaltyDeductionsPage() {
     clearFilters,
   } = useTableFilters<PenaltyDeduction>(
     penaltyDeductions,
-    ['type', 'reason', 'payslipPeriod'],
-    'createdAt',
+    ['reason', 'payslipPeriod'],
+    'payslipPeriod',
     'month' // Use month/year filtering for payroll periods
   );
 
@@ -93,17 +91,6 @@ export default function PenaltyDeductionsPage() {
 
     fetchPenaltyDeductions();
   }, [router]);
-
-  const getTypeColor = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'unapproved absenteeism':
-        return 'warning';
-      case 'misconduct':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
 
   const totalAmount = penaltyDeductions.reduce((sum, penalty) => sum + (penalty.amount || 0), 0);
 
@@ -205,7 +192,7 @@ export default function PenaltyDeductionsPage() {
           onStartDateChange={updateStartDate}
           endDate={filters.endDate}
           onEndDateChange={updateEndDate}
-          searchPlaceholder="Search by type, reason, or period..."
+          searchPlaceholder="Search by reason or period..."
           dateFilterType="month"
           onClear={clearFilters}
         />
@@ -245,7 +232,6 @@ export default function PenaltyDeductionsPage() {
                   <TableHead>
                     <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                       <TableCell sx={{ fontWeight: 'bold' }}>Payroll Period</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Reason</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
                     </TableRow>
@@ -253,7 +239,7 @@ export default function PenaltyDeductionsPage() {
                   <TableBody>
                     {filteredPenaltyDeductions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
                           <Typography variant="body2" color="text.secondary">
                             No penalty deductions match your search criteria.
                           </Typography>
@@ -277,17 +263,6 @@ export default function PenaltyDeductionsPage() {
                             <Typography variant="body2" fontWeight="medium">
                               {penalty.payslipPeriod || 'Unknown Period'}
                             </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={penalty.type}
-                              color={getTypeColor(penalty.type) as any}
-                              size="small"
-                              variant="filled"
-                              sx={{
-                                fontWeight: 'bold',
-                              }}
-                            />
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">

@@ -362,10 +362,19 @@ export default function PayGradesPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(grade)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={grade.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(grade)}
+                                    disabled={grade.status !== 'draft'}
+                                    sx={{
+                                      color: grade.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (

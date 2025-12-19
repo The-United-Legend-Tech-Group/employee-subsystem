@@ -35,7 +35,7 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import HistoryIcon from '@mui/icons-material/History';
-import { decryptData } from '../../../../../common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 import { AppraisalRecord, AppraisalDispute, AppraisalDisputeStatus } from '../../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
@@ -87,23 +87,28 @@ export default function DisputesPage() {
 
     const fetchRecords = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) return;
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
-            if (!employeeId) throw new Error('Failed to decrypt employee ID');
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
+            }
 
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
             const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                setRecords(data);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                throw new Error('Failed to fetch records');
             }
+
+            const data = await response.json();
+            setRecords(data);
         } catch (err) {
             console.error('Error fetching records:', err);
         }
@@ -111,16 +116,12 @@ export default function DisputesPage() {
 
     const fetchMyDisputes = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) return;
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
             if (!employeeId) return;
 
             const response = await fetch(`${API_URL}/performance/disputes/employee/${employeeId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -143,12 +144,13 @@ export default function DisputesPage() {
         setSubmitting(true);
 
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) throw new Error('Authentication required');
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
+            }
 
-            const employeeId = await decryptData(encryptedEmployeeId, token);
             const selectedRecord = records.find(r => r._id === selectedRecordId);
 
             if (!selectedRecord) throw new Error('Selected record not found');
@@ -157,8 +159,8 @@ export default function DisputesPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     appraisalId: selectedRecord._id,
                     assignmentId: selectedRecord.assignmentId,
@@ -170,6 +172,10 @@ export default function DisputesPage() {
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to submit dispute');
             }

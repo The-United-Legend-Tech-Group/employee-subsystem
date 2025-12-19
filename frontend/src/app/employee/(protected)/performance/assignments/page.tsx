@@ -21,6 +21,7 @@ import { AppraisalCycle } from '../cycles/types';
 import { AppraisalTemplate } from '../templates/types';
 import { BulkAssignDto, BulkAssignItemDto, Employee } from './types';
 import { useRouter } from 'next/navigation';
+import { logout } from '@/lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -54,18 +55,17 @@ export default function AppraisalAssignmentsPage() {
     const loadInitialData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-            };
-
             const [cyclesRes, templatesRes, employeesRes] = await Promise.all([
-                fetch(`${API_URL}/performance/cycles`, { headers, credentials: 'include' }),
-                fetch(`${API_URL}/performance/templates`, { headers, credentials: 'include' }),
-                fetch(`${API_URL}/employee?page=1&limit=1000`, { headers, credentials: 'include' })
+                fetch(`${API_URL}/performance/cycles`, { credentials: 'include' }),
+                fetch(`${API_URL}/performance/templates`, { credentials: 'include' }),
+                fetch(`${API_URL}/employee?page=1&limit=1000`, { credentials: 'include' })
             ]);
 
             if (!cyclesRes.ok || !templatesRes.ok || !employeesRes.ok) {
+                if (cyclesRes.status === 401 || templatesRes.status === 401 || employeesRes.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch initial data');
             }
 
@@ -149,7 +149,6 @@ export default function AppraisalAssignmentsPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 },
                 body: JSON.stringify(dto),
                 credentials: 'include',

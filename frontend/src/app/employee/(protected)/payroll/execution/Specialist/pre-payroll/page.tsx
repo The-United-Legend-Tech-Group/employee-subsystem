@@ -24,6 +24,7 @@ import type { SigningBonus, TerminationBenefit } from "@/payroll/libs/types";
 import { useToast } from "@/payroll/hooks/use-toast";
 import axios from "axios";
 import { Box, CircularProgress } from "@mui/material";
+import { getCookie } from '@/lib/auth-utils';
 
 /**
  * ✅ Cookie-first auth pattern:
@@ -31,8 +32,8 @@ import { Box, CircularProgress } from "@mui/material";
  * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw = localStorage.getItem("access_token") || "";
-  return raw.replace(/^Bearer\s+/i, "").replace(/^"+|"+$/g, "").trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {

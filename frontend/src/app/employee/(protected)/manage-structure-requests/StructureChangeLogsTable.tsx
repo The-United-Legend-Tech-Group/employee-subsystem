@@ -52,11 +52,10 @@ export default function StructureChangeLogsTable() {
     const fetchLogs = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/change-logs`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!response.ok) throw new Error('Failed to fetch change logs');

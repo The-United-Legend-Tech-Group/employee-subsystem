@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { getUserRolesFromCookie } from '@/lib/auth-utils';
 
 export type Role = 'Payroll Specialist' | 'Finance Staff' | 'Payroll Manager';
 
@@ -14,20 +14,20 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { roles, loading } = useAuth();
   const [role, setRole] = useState<Role | null>(null);
 
   useEffect(() => {
-    if (!loading && roles.length > 0) {
-      if (roles.includes('Payroll Manager' as any)) {
+    const roles = getUserRolesFromCookie();
+    if (roles.length > 0) {
+      if (roles.includes('Payroll Manager')) {
         setRole('Payroll Manager');
-      } else if (roles.includes('Payroll Specialist' as any)) {
+      } else if (roles.includes('Payroll Specialist')) {
         setRole('Payroll Specialist');
-      } else if (roles.includes('Finance Staff' as any)) {
+      } else if (roles.includes('Finance Staff')) {
         setRole('Finance Staff');
       }
     }
-  }, [roles, loading]);
+  }, []);
 
   return (
     <UserContext.Provider

@@ -51,7 +51,7 @@ export default function EmploymentDetailsForm({ formData, handleChange, handleDa
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>Date of Hire</Typography>
                     <DatePicker
                         value={formData.dateOfHire}
-                        onChange={(newValue) => handleDateChange('dateOfHire', newValue as Dayjs || null)}
+                        onChange={(newValue) => handleDateChange('dateOfHire', newValue as Dayjs | null)}
                         slotProps={{ textField: { fullWidth: true, variant: 'outlined', size: 'small' } }}
                     />
                 </Grid>
@@ -59,7 +59,7 @@ export default function EmploymentDetailsForm({ formData, handleChange, handleDa
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>Contract Start Date</Typography>
                     <DatePicker
                         value={formData.contractStartDate}
-                        onChange={(newValue) => handleDateChange('contractStartDate', newValue as Dayjs || null)}
+                        onChange={(newValue) => handleDateChange('contractStartDate', newValue as Dayjs | null)}
                         slotProps={{ textField: { fullWidth: true, variant: 'outlined', size: 'small' } }}
                     />
                 </Grid>
@@ -67,7 +67,7 @@ export default function EmploymentDetailsForm({ formData, handleChange, handleDa
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>Contract End Date</Typography>
                     <DatePicker
                         value={formData.contractEndDate}
-                        onChange={(newValue) => handleDateChange('contractEndDate', newValue as Dayjs || null)}
+                        onChange={(newValue) => handleDateChange('contractEndDate', newValue as Dayjs | null)}
                         slotProps={{ textField: { fullWidth: true, variant: 'outlined', size: 'small' } }}
                     />
                 </Grid>

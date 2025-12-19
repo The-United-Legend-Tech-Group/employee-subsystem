@@ -9,25 +9,8 @@ import {
 import { CheckCircle, AlertTriangle, Lock, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/payroll/components/ui/button';
+import { getCookie } from '@/lib/auth-utils';
 
-function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || '';
-  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
-}
-
-function getAuthConfig() {
-  const token = getAccessToken();
-
-  // Don't throw - cookies may still be valid via withCredentials
-  if (!token) {
-    console.log('[ManagerDashboard] No localStorage token - relying on httpOnly cookies');
-  }
-
-  return {
-    withCredentials: true, // Primary: send httpOnly cookies
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  } as const;
-}
 
 export default function ManagerDashboard() {
   return (

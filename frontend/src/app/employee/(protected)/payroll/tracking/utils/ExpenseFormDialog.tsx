@@ -392,7 +392,7 @@ export default function ExpenseFormDialog({
                 ),
               }}
               helperText={amount ? `Amount: ${formatCurrency(amountNum || 0)}` : 'Enter the expense amount'}
-              error={amount && (!isValidAmount || amountNum > MAX_AMOUNT)}
+              error={!!amount && (!isValidAmount || amountNum > MAX_AMOUNT)}
             />
             {amount && amountNum > MAX_AMOUNT && (
               <FormHelperText error sx={{ mt: 0.5 }}>

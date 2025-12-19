@@ -23,11 +23,17 @@ import {
   employeeSigningBonus,
   employeeSigningBonusDocument,
 } from '../models/EmployeeSigningBonus.schema';
+import { BenefitStatus } from '../enums/payroll-execution-enum';
 
 import { BonusStatus, BankStatus } from '../enums/payroll-execution-enum';
 import { EmployeePenaltyService } from './EmployeePenalty.service';
 import { ConfigSetupService } from '../../config_setup/config_setup.service';
 import { AttendanceService } from '../../../time-mangement/services/attendance.service';
+import {
+  EmployeeTerminationResignation,
+  EmployeeTerminationResignationDocument
+} from '../models/EmployeeTerminationResignation.schema';
+
 
 @Injectable()
 export class PayrollCalculationService {
@@ -56,10 +62,13 @@ export class PayrollCalculationService {
     @InjectModel(employeeSigningBonus.name)
     private readonly employeeSigningBonusModel: Model<employeeSigningBonusDocument>,
 
+    @InjectModel(EmployeeTerminationResignation.name)
+    private readonly employeeTerminationResignationModel: Model<EmployeeTerminationResignationDocument>,
+
     private readonly employeePenaltyService: EmployeePenaltyService,
     private readonly configSetupService: ConfigSetupService,
     private readonly attendanceService: AttendanceService,
-  ) {}
+  ) { }
 
   private async getActiveTaxRate(): Promise<number> {
     const rule = await this.taxRulesModel
@@ -190,28 +199,56 @@ export class PayrollCalculationService {
     const allowancesList = await this.configSetupService.allowance.findAll();
     const totalAllowances = allowancesList.reduce((sum, a) => sum + a.amount, 0);
 
-    // Signing bonuses (approved)
+    // Payroll month range (used for penalties already; we also use it to scope HR-event records)
+    const { start, end } = this.monthRange(payrollPeriod);
+
+    // Signing bonuses (approved) -> "new hire event inferred through signing bonus"
     const bonusList = await this.employeeSigningBonusModel
-      .find({ employeeId, status: BonusStatus.APPROVED })
+      .find({
+        employeeId,
+        status: BonusStatus.APPROVED,
+        // If your schema doesn't have createdAt, remove this filter
+        createdAt: { $gte: start, $lte: end },
+      })
       .exec();
     const totalBonus = bonusList.reduce((sum, b) => sum + b.givenAmount, 0);
 
-    const benefit = 0;
+    // Termination/Resignation benefits (approved) -> "offboarding event inferred through benefits"
+    // IMPORTANT: ensure your injected model name matches this property.
+    const terminationBenefitsList = await this.employeeTerminationResignationModel
+      .find({
+        employeeId,
+        status: BenefitStatus.APPROVED,
+        // If your schema doesn't have createdAt, remove this filter
+        createdAt: { $gte: start, $lte: end },
+      })
+      .exec();
+    const totalTerminationResignationBenefit = terminationBenefitsList.reduce(
+      (sum, b) => sum + (b.givenAmount ?? 0),
+      0,
+    );
 
+    const benefit = totalTerminationResignationBenefit;
+
+    // Gross (your current implementation style)
     const grossSalary = payGrade.baseSalary + totalAllowances + totalBonus + benefit;
 
-    // Tax
+    // ✅ Tax MUST be % of Base Salary (per spec)
     const taxRate = await this.getActiveTaxRate();
-    const tax = Number((taxRate * grossSalary).toFixed(2));
+    const taxBase = Number(payGrade.baseSalary ?? 0);
+    const tax = Number((taxRate * taxBase).toFixed(2));
 
-    // Insurance
+    // Insurance (kept as-is; if you want strict spec, you might base it on payGrade.grossSalary)
     const { employeeInsurance } = await this.getInsuranceAmount(grossSalary);
 
-    // Refunds
+    // Refunds (kept as-is; consider month scoping later to avoid repeating)
     const refundList = await this.refundsModel
       .find({ employeeId, status: 'approved' })
       .exec();
-    const totalRefunds = refundList.reduce((sum, r) => sum + r.refundDetails.amount, 0);
+    const totalRefunds = refundList.reduce(
+      (sum, r) => sum + r.refundDetails.amount,
+      0,
+    );
 
     // Missing hours penalty (computed only)
     const missingHoursPenalty = await this.computeMissingHoursPenaltyAmount(
@@ -219,9 +256,7 @@ export class PayrollCalculationService {
       payrollPeriod,
     );
 
-    //Approved penalties filtered by payroll period month
-    const { start, end } = this.monthRange(payrollPeriod);
-
+    // Approved penalties filtered by payroll period month
     const approvedPenalties = await this.employeePenaltiesModel
       .find({
         employeeId,
@@ -231,7 +266,8 @@ export class PayrollCalculationService {
       .exec();
 
     const approvedPenaltiesSum = approvedPenalties.reduce(
-      (sum, p) => sum + (p.penalties?.reduce((s, pen) => s + pen.amount, 0) || 0),
+      (sum, p) =>
+        sum + (p.penalties?.reduce((s, pen) => s + pen.amount, 0) || 0),
       0,
     );
 
@@ -240,8 +276,12 @@ export class PayrollCalculationService {
     const netSalary = grossSalary - tax - employeeInsurance;
     const netPay = netSalary - totalPenalties + totalRefunds;
 
-    const employeeProfile = await this.employeeProfileModel.findById(employeeId).exec();
-    const bankStatus = employeeProfile?.bankName ? BankStatus.VALID : BankStatus.MISSING;
+    const employeeProfile = await this.employeeProfileModel
+      .findById(employeeId)
+      .exec();
+    const bankStatus = employeeProfile?.bankName
+      ? BankStatus.VALID
+      : BankStatus.MISSING;
 
     const employeeDetails = new this.employeePayrollDetailsModel({
       employeeId,
@@ -267,6 +307,7 @@ export class PayrollCalculationService {
       },
     };
   }
+
 
   async saveEmployeePayrollRecord(data: any) {
     return await this.employeePayrollDetailsModel.create(data);

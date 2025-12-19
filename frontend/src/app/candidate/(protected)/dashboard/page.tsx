@@ -1,7 +1,5 @@
-'use client';
-
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -15,7 +13,6 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
@@ -25,8 +22,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonIcon from '@mui/icons-material/Person';
-import { decryptData } from '../../../../common/utils/encryption';
-import { getCandidateIdFromCookie, logout } from '../../../../lib/auth-utils';
+import { fetchServer } from '../../../../lib/api-server';
 
 interface Candidate {
     _id: string;
@@ -42,93 +38,54 @@ interface Candidate {
     profilePictureUrl?: string;
 }
 
-export default function CandidateDashboard(props: { disableCustomTheme?: boolean }) {
-    const router = useRouter();
-    const [candidate, setCandidate] = React.useState<Candidate | null>(null);
-    const [loading, setLoading] = React.useState(true);
+const getStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+        case 'ACTIVE':
+            return 'success';
+        case 'PENDING':
+            return 'warning';
+        case 'REJECTED':
+            return 'error';
+        case 'HIRED':
+            return 'success';
+        case 'APPLIED':
+            return 'info';
+        case 'SCREENING':
+            return 'warning';
+        case 'INTERVIEW':
+            return 'info';
+        case 'OFFER_SENT':
+            return 'warning';
+        case 'OFFER_ACCEPTED':
+            return 'success';
+        case 'WITHDRAWN':
+            return 'default';
+        default:
+            return 'default';
+    }
+};
 
-    React.useEffect(() => {
-        const fetchCandidate = async () => {
-            // Try cookie-based auth first (new approach)
-            let candidateId = getCandidateIdFromCookie();
+export default async function CandidateDashboard() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+    const candidateId = cookieStore.get('candidateId')?.value;
 
-            // Fallback to localStorage during migration
-            if (!candidateId) {
-                const token = localStorage.getItem('access_token');
-                const encryptedCandidateId = localStorage.getItem('candidateId');
+    if (!token || !candidateId) {
+        redirect('/candidate/login');
+    }
 
-                if (token && encryptedCandidateId) {
-                    try {
-                        candidateId = await decryptData(encryptedCandidateId, token);
-                    } catch {
-                        candidateId = null;
-                    }
-                }
-            }
-
-            if (!candidateId) {
-                logout('/candidate/login');
-                return;
-            }
-
-            try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-                const response = await fetch(`${apiUrl}/employee/candidate/${candidateId}`, {
-                    credentials: 'include', // Send httpOnly cookies
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setCandidate(data);
-                } else {
-                    // Only logout on auth failure
-                    if (response.status === 401 || response.status === 403) {
-                        logout('/candidate/login');
-                    }
-                }
-            } catch (error) {
-                // Network errors handled by loading state
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchCandidate();
-    }, [router]);
-
-    const getStatusColor = (status: string) => {
-        switch (status?.toUpperCase()) {
-            case 'ACTIVE':
-                return 'success';
-            case 'PENDING':
-                return 'warning';
-            case 'REJECTED':
-                return 'error';
-            case 'HIRED':
-                return 'success';
-            case 'APPLIED':
-                return 'info';
-            case 'SCREENING':
-                return 'warning';
-            case 'INTERVIEW':
-                return 'info';
-            case 'OFFER_SENT':
-                return 'warning';
-            case 'OFFER_ACCEPTED':
-                return 'success';
-            case 'WITHDRAWN':
-                return 'default';
-            default:
-                return 'default';
+    // Fetch Candidate Profile
+    let candidate: Candidate | null = null;
+    try {
+        const response = await fetchServer(`employee/candidate/${candidateId}`);
+        if (response.ok) {
+            candidate = await response.json();
+        } else {
+            console.error('Failed to fetch candidate, status:', response.status);
+            if (response.status === 401) redirect('/candidate/login');
         }
-    };
-
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+    } catch (error) {
+        console.error('Failed to fetch candidate', error);
     }
 
     return (

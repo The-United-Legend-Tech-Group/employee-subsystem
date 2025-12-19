@@ -8,6 +8,20 @@ export class DeductionService {
     private payslipService: PayslipService,
   ) {}
 
+  /**
+   * Helper method to identify if a penalty is an unpaid leave deduction
+   * Uses exact matching on "unpaid leaves" for reliability
+   * @param penalty - The penalty object to check
+   * @returns true if the penalty is an unpaid leave deduction
+   */
+  private isUnpaidLeavePenalty(penalty: any): boolean {
+    if (!penalty?.reason) return false;
+
+    // Exact match for "unpaid leaves" (case-insensitive)
+    const reasonNormalized = penalty.reason.toLowerCase().trim();
+    return reasonNormalized === 'unpaid leaves';
+  }
+
   async getAllTaxDeductions(employeeId: Types.ObjectId): Promise<any[]> {
     // Use PayslipService to get all payslips (already sorted by creation date, newest first)
     const payslips = await this.payslipService.getEmployeePayslips(employeeId.toString());
@@ -21,29 +35,21 @@ export class DeductionService {
       taxes.forEach((tax: any) => {
         const taxAmount = (taxBase * (tax.rate || 0)) / 100;
         
-        // Get date from payrollPeriod (preferred) or createdAt (fallback)
-        let payrollPeriodDate: Date;
-        if ((payslip.payrollRunId as any)?.payrollPeriod) {
-          payrollPeriodDate = new Date((payslip.payrollRunId as any).payrollPeriod);
-        } else if ((payslip as any).createdAt) {
-          payrollPeriodDate = new Date((payslip as any).createdAt);
-        } else {
-          payrollPeriodDate = new Date();
-        }
-        
         allTaxDeductions.push({
           payslipId: payslip._id,
-          payslipPeriod: payrollPeriodDate.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-          }),
-          createdAt: payrollPeriodDate.toISOString(),
+          payslipPeriod: (payslip.payrollRunId as any)?.payrollPeriod
+            ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+              })
+            : 'Unknown Period',
           taxName: tax.name,
           description: tax.description,
           rate: tax.rate,
           appliedTo: taxBase,
           calculatedAmount: taxAmount,
           status: tax.status,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
     }
@@ -109,7 +115,7 @@ export class DeductionService {
           minSalary: insurance.minSalary,
           maxSalary: insurance.maxSalary,
           status: insurance.status,
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
     }
@@ -173,13 +179,6 @@ export class DeductionService {
             : 'Unknown Period',
           reason: penalty.reason,
           amount: penalty.amount,
-          type: penalty.reason?.toLowerCase().includes('absenteeism') ||
-            penalty.reason?.toLowerCase().includes('leave')
-            ? 'Unapproved Absenteeism'
-            : penalty.reason?.toLowerCase().includes('misconduct')
-            ? 'Misconduct'
-            : 'Other',
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
         });
       });
     }
@@ -195,12 +194,6 @@ export class DeductionService {
     const penaltyBreakdown = penalties.map((penalty: any) => ({
       reason: penalty.reason,
       amount: penalty.amount,
-      type: penalty.reason?.toLowerCase().includes('absenteeism') ||
-        penalty.reason?.toLowerCase().includes('leave')
-        ? 'Unapproved Absenteeism'
-        : penalty.reason?.toLowerCase().includes('misconduct')
-        ? 'Misconduct'
-        : 'Other',
     }));
 
     const totalPenaltyDeductions = penaltyBreakdown.reduce(
@@ -226,10 +219,9 @@ export class DeductionService {
       
       // Check for unpaid leave in penalties array (filter by reason)
       if (penalties?.penalties && Array.isArray(penalties.penalties)) {
+        // Use helper method for precise filtering
         const unpaidLeavePenalties = penalties.penalties.filter((penalty: any) =>
-          penalty.reason?.toLowerCase().includes('unpaid leave') ||
-          penalty.reason?.toLowerCase().includes('unpaid') ||
-          penalty.reason?.toLowerCase().includes('leave'),
+          this.isUnpaidLeavePenalty(penalty),
         );
 
         unpaidLeavePenalties.forEach((penalty: any) => {
@@ -242,9 +234,7 @@ export class DeductionService {
                 })
               : 'Unknown Period',
             reason: penalty.reason,
-            description: penalty.reason,
-            amount: penalty.amount,
-            createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+            amount: penalty.amount || 0,
           });
         });
       }
@@ -262,16 +252,15 @@ export class DeductionService {
 
     // Check for unpaid leave in penalties array (filter by reason)
     if (penalties?.penalties && Array.isArray(penalties.penalties)) {
+      // Use helper method for precise filtering
       const unpaidLeavePenalties = penalties.penalties.filter((penalty: any) =>
-        penalty.reason?.toLowerCase().includes('unpaid leave') ||
-        penalty.reason?.toLowerCase().includes('unpaid') ||
-        penalty.reason?.toLowerCase().includes('leave'),
+        this.isUnpaidLeavePenalty(penalty),
       );
 
       unpaidLeavePenalties.forEach((penalty: any) => {
         unpaidLeaveBreakdown.push({
           reason: penalty.reason,
-          amount: penalty.amount,
+          amount: penalty.amount || 0,
         });
       });
     }

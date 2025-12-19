@@ -20,16 +20,14 @@ import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { useTheme, alpha } from '@mui/material/styles';
 import SearchAndDateFilter from '@/common/components/payroll/SearchAndDateFilter';
 import { useTableFilters } from '@/common/components/payroll/useTableFilters';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatCurrency } from '../../utils';
 import { isAuthenticated } from '@/lib/auth-utils';
 
 interface UnpaidLeaveDeduction {
   payslipId: string;
   payslipPeriod: string;
   reason: string;
-  description: string;
   amount: number;
-  createdAt: string | null;
 }
 
 export default function UnpaidLeaveDeductionsPage() {
@@ -49,8 +47,8 @@ export default function UnpaidLeaveDeductionsPage() {
     clearFilters,
   } = useTableFilters<UnpaidLeaveDeduction>(
     unpaidLeaveDeductions,
-    ['reason', 'description', 'payslipPeriod'],
-    'createdAt',
+    ['reason', 'payslipPeriod'],
+    'payslipPeriod',
     'month' // Use month/year filtering for payroll periods
   );
 
@@ -193,7 +191,7 @@ export default function UnpaidLeaveDeductionsPage() {
           onStartDateChange={updateStartDate}
           endDate={filters.endDate}
           onEndDateChange={updateEndDate}
-          searchPlaceholder="Search by reason, description, or period..."
+          searchPlaceholder="Search by reason or period..."
           dateFilterType="month"
           onClear={clearFilters}
         />
@@ -235,13 +233,12 @@ export default function UnpaidLeaveDeductionsPage() {
                       <TableCell sx={{ fontWeight: 'bold' }}>Payroll Period</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Reason</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Date</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredUnpaidLeaveDeductions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
                           <Typography variant="body2" color="text.secondary">
                             No unpaid leave deductions match your search criteria.
                           </Typography>
@@ -268,7 +265,7 @@ export default function UnpaidLeaveDeductionsPage() {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {deduction.reason || deduction.description || 'No reason provided'}
+                              {deduction.reason || 'No reason provided'}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -284,11 +281,6 @@ export default function UnpaidLeaveDeductionsPage() {
                               }}
                             >
                               {formatCurrency(deduction.amount || 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" color="text.secondary">
-                              {formatDate(deduction.createdAt)}
                             </Typography>
                           </TableCell>
                         </TableRow>

@@ -16,12 +16,9 @@ export default function CreateTemplatePage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('access_token');
-                const headers = { 'Authorization': `Bearer ${token}` };
-
                 const [deptsRes, posRes] = await Promise.all([
-                    fetch(`${API_URL}/organization-structure/departments`, { headers, credentials: 'include' }),
-                    fetch(`${API_URL}/organization-structure/positions`, { headers, credentials: 'include' }),
+                    fetch(`${API_URL}/organization-structure/departments`, { credentials: 'include' }),
+                    fetch(`${API_URL}/organization-structure/positions`, { credentials: 'include' }),
                 ]);
 
                 if (deptsRes.ok) setDepartments(await deptsRes.json());
@@ -39,7 +36,6 @@ export default function CreateTemplatePage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                 },
                 body: JSON.stringify(data),
                 credentials: 'include',

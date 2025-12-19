@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from '@/payroll/components/ui/alert';
 import { FreezeModal } from '@/payroll/components/modals/freeze-modal';
 import type { PayrollRun, EmployeeInfo } from '@/payroll/libs/types';
 import { useToast } from '@/payroll/hooks/use-toast';
-import { useUser } from '@/payroll/libs/user-context';
+import { getCookie, hasRole } from '@/lib/auth-utils';
 
 import {
   Lock,
@@ -39,8 +39,8 @@ import {
 ========================= */
 
 function getAccessToken(): string {
-  const raw = localStorage.getItem('accessToken') || '';
-  return raw.replace(/^Bearer\s+/i, '').trim();
+  const token = getCookie('accessToken');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getManagerId(
@@ -63,7 +63,6 @@ type HistoryEntry = {
 export default function PayrollControlsPage() {
   const params = useParams();
   const payrollId = params.id as string;
-  const { role } = useUser();
 
   const [payroll, setPayroll] = useState<PayrollRun | null>(null);
   const [freezeModal, setFreezeModal] = useState<'freeze' | 'unfreeze' | null>(null);
@@ -212,7 +211,9 @@ export default function PayrollControlsPage() {
   const isFrozen = payroll?.status === 'locked';
   const canFreeze = payroll?.status === 'approved';
 
-  if (role !== 'Payroll Manager') {
+  const isManager = hasRole('Payroll Manager');
+
+  if (!isManager) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />

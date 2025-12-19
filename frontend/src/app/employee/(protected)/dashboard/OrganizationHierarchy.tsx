@@ -264,21 +264,22 @@ export default function OrganizationHierarchy() {
 
                 // Try cookie-based auth first (new approach)
                 let employeeId = getEmployeeIdFromCookie();
+                
+                //DEPRECATED!!
+                // // Fallback to localStorage during migration
+                // if (!employeeId) {
+                //     const token = localStorage.getItem('access_token');
+                //     const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-                // Fallback to localStorage during migration
-                if (!employeeId) {
-                    const token = localStorage.getItem('access_token');
-                    const encryptedEmployeeId = localStorage.getItem('employeeId');
-
-                    if (token && encryptedEmployeeId) {
-                        try {
-                            const { decryptData } = await import('../../../../common/utils/encryption');
-                            employeeId = await decryptData(encryptedEmployeeId, token);
-                        } catch {
-                            employeeId = null;
-                        }
-                    }
-                }
+                //     if (token && encryptedEmployeeId) {
+                //         try {
+                //             const { decryptData } = await import('../../../../common/utils/encryption');
+                //             employeeId = await decryptData(encryptedEmployeeId, token);
+                //         } catch {
+                //             employeeId = null;
+                //         }
+                //     }
+                // }
 
                 if (employeeId) {
                     setCurrentEmployeeId(employeeId);

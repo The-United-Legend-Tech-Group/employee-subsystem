@@ -25,6 +25,7 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import { useRouter } from 'next/navigation';
 import IconButton from '@mui/material/IconButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 
 export default function StructureRequestPage() {
     const router = useRouter();
@@ -49,14 +50,18 @@ export default function StructureRequestPage() {
     // Load Initial Data (Departments, Positions)
     useEffect(() => {
         const fetchInitialData = async () => {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             try {
                 const [deptRes, posRes] = await Promise.all([
-                    fetch(`${apiUrl}/organization-structure/departments`, { headers: { Authorization: `Bearer ${token}` } }),
-                    fetch(`${apiUrl}/organization-structure/positions`, { headers: { Authorization: `Bearer ${token}` } })
+                    fetch(`${apiUrl}/organization-structure/departments`, { credentials: 'include' }),
+                    fetch(`${apiUrl}/organization-structure/positions`, { credentials: 'include' })
                 ]);
+
+                if (deptRes.status === 401 || posRes.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
 
                 if (deptRes.ok) setDepartments(await deptRes.json());
                 if (posRes.ok) setPositions(await posRes.json());
@@ -72,13 +77,12 @@ export default function StructureRequestPage() {
     }, []);
 
     const fetchEmployees = async (search: string) => {
-        const token = localStorage.getItem('access_token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             // Assuming /employee endpoint supports ?search= query param based on user Request
             const query = search ? `?search=${encodeURIComponent(search)}` : '';
             const res = await fetch(`${apiUrl}/employee${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 const data = await res.json();
@@ -90,17 +94,9 @@ export default function StructureRequestPage() {
         }
     };
 
-    // Helper to decode JWT token and get current user ID
+    // Helper to get current user ID from cookie
     const getCurrentUserId = () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return null;
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.sub || payload.userId || payload.employeeId;
-        } catch (err) {
-            console.error('Failed to decode token:', err);
-            return null;
-        }
+        return getEmployeeIdFromCookie();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -109,7 +105,6 @@ export default function StructureRequestPage() {
         setError(null);
         setSuccess(null);
 
-        const token = localStorage.getItem('access_token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
         if (!selectedEmployee && requestType === 'UPDATE_POSITION') {
@@ -135,12 +130,16 @@ export default function StructureRequestPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
+                if (res.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errData = await res.json();
                 throw new Error(errData.message || 'Failed to submit request');
             }

@@ -23,6 +23,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import Pagination from '@mui/material/Pagination';
 import Skeleton from '@mui/material/Skeleton';
+import { logout } from '@/lib/auth-utils';
 
 interface Notification {
     _id: string;
@@ -59,21 +60,20 @@ export default function NotificationsPage({ initialNotifications = [] }: Notific
     const [filter, setFilter] = React.useState<'all' | 'unread'>('all');
 
     const fetchNotifications = async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            setLoading(false);
-            return;
-        }
-
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const notifRes = await fetch(`${apiUrl}/notification/my-notifications`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
-            if (notifRes.ok) {
-                const data = await notifRes.json();
-                setNotifications(data);
+            if (!notifRes.ok) {
+                if (notifRes.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                throw new Error('Failed to fetch notifications');
             }
+            const data = await notifRes.json();
+            setNotifications(data);
         } catch (error) {
             console.error('Error fetching notifications', error);
         } finally {
@@ -88,14 +88,11 @@ export default function NotificationsPage({ initialNotifications = [] }: Notific
     }, [initialNotifications.length]);
 
     const handleMarkAsRead = async (id: string) => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const res = await fetch(`${apiUrl}/notification/${id}/read`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 setNotifications(prev => prev.map(n =>
@@ -108,14 +105,11 @@ export default function NotificationsPage({ initialNotifications = [] }: Notific
     };
 
     const handleMarkAllAsRead = async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const res = await fetch(`${apiUrl}/notification/read-all`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));

@@ -31,6 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
 import { useRouter } from 'next/navigation';
 import { AppraisalTemplate, AppraisalTemplateType, AppraisalRatingScaleType } from './types';
+import { logout } from '../../../../../lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -65,13 +66,6 @@ export default function AppraisalTemplatesPage() {
         try {
             setLoading(true);
             setError(null);
-            const token = localStorage.getItem('access_token');
-
-            if (!token) {
-                setError('Authentication token missing');
-                setLoading(false);
-                return;
-            }
 
             const params = new URLSearchParams();
             params.append('page', String(paginationModel.page + 1));
@@ -90,13 +84,14 @@ export default function AppraisalTemplatesPage() {
             }
 
             const response = await fetch(`${API_URL}/performance/templates?${params.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
                 credentials: 'include',
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch templates: ${response.status} ${response.statusText} - ${errorText}`);
             }
@@ -186,9 +181,6 @@ export default function AppraisalTemplatesPage() {
         try {
             const response = await fetch(`${API_URL}/performance/templates/${templateToDelete}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                },
                 credentials: 'include',
             });
             if (!response.ok) {

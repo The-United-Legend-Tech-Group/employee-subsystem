@@ -54,14 +54,13 @@ export default function EmployeeRoleForm({ employeeId, currentRoles, currentPerm
         setMessage(null);
 
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             const response = await fetch(`${apiUrl}/employee/${employeeId}/roles`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ roles, permissions })
             });
 

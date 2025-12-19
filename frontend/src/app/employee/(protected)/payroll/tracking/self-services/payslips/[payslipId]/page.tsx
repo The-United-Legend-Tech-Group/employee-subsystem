@@ -413,7 +413,7 @@ export default function PayslipDetailsPage() {
 
           {/* Employee Information */}
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Box>
                 <Typography
                   variant="caption"
@@ -434,7 +434,7 @@ export default function PayslipDetailsPage() {
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Box>
                 <Typography
                   variant="caption"
@@ -953,7 +953,7 @@ export default function PayslipDetailsPage() {
       >
         <CardContent sx={{ p: 4 }}>
           <Grid container spacing={6}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography
                 variant="h6"
                 fontWeight={600}
@@ -1000,7 +1000,7 @@ export default function PayslipDetailsPage() {
                 </Box>
               </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   pl: { md: 4 },

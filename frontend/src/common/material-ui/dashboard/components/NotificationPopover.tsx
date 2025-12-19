@@ -1,5 +1,5 @@
 'use client';
-'use client';
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
@@ -21,6 +21,7 @@ import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import MenuButton from './MenuButton';
 import { useRouter, usePathname } from 'next/navigation';
+import { logout } from '@/lib/auth-utils';
 
 interface Notification {
     _id: string;
@@ -61,18 +62,20 @@ export default function NotificationPopover() {
     };
 
     const fetchNotifications = async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const notifRes = await fetch(`${apiUrl}/notification/my-notifications`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
-            if (notifRes.ok) {
-                const data = await notifRes.json();
-                setNotifications(data);
+            if (!notifRes.ok) {
+                if (notifRes.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                return;
             }
+            const data = await notifRes.json();
+            setNotifications(data);
         } catch (error) {
             console.error('Error fetching notifications', error);
         }
@@ -87,14 +90,12 @@ export default function NotificationPopover() {
 
     const handleMarkAsRead = async (id: string, event: React.MouseEvent) => {
         event.stopPropagation();
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const res = await fetch(`${apiUrl}/notification/${id}/read`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 // Optimistic update
@@ -108,14 +109,11 @@ export default function NotificationPopover() {
     };
 
     const handleMarkAllAsRead = async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
         try {
             const res = await fetch(`${apiUrl}/notification/read-all`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 // Optimistic update

@@ -39,7 +39,7 @@ import {
 import GavelIcon from '@mui/icons-material/Gavel';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useRouter } from 'next/navigation';
-import { decryptData } from '../../../../../common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 import { AppraisalRecord, AppraisalDispute, AppraisalDisputeStatus, RatingEntry } from '../../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
@@ -104,17 +104,20 @@ export default function ManageDisputesClient({
 
     const fetchDisputes = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
             const response = await fetch(`${API_URL}/performance/disputes/open`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                setDisputes(data);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                throw new Error('Failed to fetch disputes');
             }
+
+            const data = await response.json();
+            setDisputes(data);
         } catch (err) {
             console.error('Error fetching disputes:', err);
         }
@@ -123,25 +126,27 @@ export default function ManageDisputesClient({
     const fetchDisputedRecord = async (recordId: string) => {
         setLoadingRecord(true);
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) return;
-
             const response = await fetch(`${API_URL}/performance/records/${recordId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
-            if (response.ok) {
-                const record: AppraisalRecord = await response.json();
-                setDisputedRecord(record);
-                setEditForm({
-                    ratings: record.ratings || [],
-                    managerSummary: record.managerSummary || '',
-                    strengths: record.strengths || '',
-                    improvementAreas: record.improvementAreas || ''
-                });
-            } else {
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 setError('Failed to fetch the disputed record details.');
+                return;
             }
+
+            const record: AppraisalRecord = await response.json();
+            setDisputedRecord(record);
+            setEditForm({
+                ratings: record.ratings || [],
+                managerSummary: record.managerSummary || '',
+                strengths: record.strengths || '',
+                improvementAreas: record.improvementAreas || ''
+            });
         } catch (err) {
             console.error('Error fetching disputed record:', err);
             setError('Error fetching record details.');
@@ -178,12 +183,12 @@ export default function ManageDisputesClient({
         setError(null);
 
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) throw new Error('Authentication required');
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
+            }
 
             // Step 1: If ADJUSTED, update the record first
             if (resolutionStatus === AppraisalDisputeStatus.ADJUSTED && disputedRecord) {
@@ -203,8 +208,8 @@ export default function ManageDisputesClient({
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
                     },
+                    credentials: 'include',
                     body: JSON.stringify(updatePayload)
                 });
 
@@ -224,8 +229,8 @@ export default function ManageDisputesClient({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
 
@@ -635,7 +640,7 @@ export default function ManageDisputesClient({
                                 <TextField
                                     fullWidth
                                     multiline
-                                    rows={3}
+                                    rows={1}
                                     required
                                     value={resolutionSummary}
                                     onChange={(e) => setResolutionSummary(e.target.value)}

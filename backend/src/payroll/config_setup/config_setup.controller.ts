@@ -621,7 +621,7 @@ export class ConfigSetupController {
   }
 
   @Patch('tax-rules/:id/status')
-  @Roles(SystemRole.LEGAL_POLICY_ADMIN)
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update tax rule status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Tax rule ID' })
   @ApiBody({ type: UpdateStatusDto })

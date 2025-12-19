@@ -30,6 +30,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
 import { AppraisalCycle, AppraisalTemplateType, CreateAppraisalCycleDto, UpdateAppraisalCycleDto, AppraisalCycleStatus } from './types';
+import { logout } from '../../../../../lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -76,13 +77,6 @@ export default function AppraisalCyclesPage() {
         try {
             setLoading(true);
             setError(null);
-            const token = localStorage.getItem('access_token');
-
-            if (!token) {
-                setError('Authentication token missing');
-                setLoading(false);
-                return;
-            }
 
             const params = new URLSearchParams();
             params.append('page', String(paginationModel.page + 1)); // API is 1-indexed
@@ -101,13 +95,14 @@ export default function AppraisalCyclesPage() {
             }
 
             const response = await fetch(`${API_URL}/performance/cycles?${params.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
                 credentials: 'include',
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch cycles: ${response.status} ${response.statusText} - ${errorText}`);
             }
@@ -235,7 +230,6 @@ export default function AppraisalCyclesPage() {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                     },
                     body: JSON.stringify(formData),
                     credentials: 'include',
@@ -250,7 +244,6 @@ export default function AppraisalCyclesPage() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                     },
                     body: JSON.stringify(formData),
                     credentials: 'include',
@@ -280,9 +273,6 @@ export default function AppraisalCyclesPage() {
         try {
             const response = await fetch(`${API_URL}/performance/cycles/${cycleToDelete}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                },
                 credentials: 'include',
             });
             if (!response.ok) {

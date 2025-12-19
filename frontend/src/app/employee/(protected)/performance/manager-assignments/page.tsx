@@ -22,6 +22,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
 import { AppraisalRecordStatus } from '@/types/performance';
+import { logout } from '@/lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
@@ -62,13 +63,6 @@ export default function AppraisalReviewHubPage() {
     const loadRecords = useCallback(async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('access_token');
-
-            if (!token) {
-                setError('Authentication token missing');
-                setLoading(false);
-                return;
-            }
 
             const params = new URLSearchParams();
             params.append('page', String(paginationModel.page + 1)); // API is 1-indexed
@@ -83,12 +77,14 @@ export default function AppraisalReviewHubPage() {
             }
 
             const response = await fetch(`${API_URL}/performance/records/all?${params.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch appraisal records');
             }
 
@@ -136,15 +132,16 @@ export default function AppraisalReviewHubPage() {
 
     const handlePublish = async (recordId: string) => {
         try {
-            const token = localStorage.getItem('access_token');
             const response = await fetch(`${API_URL}/performance/records/${recordId}/publish`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to publish appraisal');
             }
 

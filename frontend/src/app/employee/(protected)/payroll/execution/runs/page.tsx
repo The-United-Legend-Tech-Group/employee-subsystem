@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow
 } from '@/payroll/components/ui/table';
+import { getCookie } from '@/lib/auth-utils';
 
 export default function PayrollRunsPage() {
   const router = useRouter();

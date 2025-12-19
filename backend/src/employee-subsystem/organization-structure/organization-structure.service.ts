@@ -278,7 +278,7 @@ export class OrganizationStructureService {
 
   async rejectChangeRequest(
     id: string,
-    approverEmployeeId?: string,
+    comment?: string,
   ): Promise<StructureChangeRequest> {
     const existing = await this.changeRequestModel.findById(id).lean().exec();
     if (!existing) throw new NotFoundException('Change request not found');
@@ -286,7 +286,10 @@ export class OrganizationStructureService {
     const updated = await this.changeRequestModel
       .findByIdAndUpdate(
         id,
-        { status: StructureRequestStatus.REJECTED },
+        {
+          status: StructureRequestStatus.REJECTED,
+          reason: comment || '',
+        },
         { new: true },
       )
       .exec();
@@ -298,9 +301,7 @@ export class OrganizationStructureService {
         action: ChangeLogAction.UPDATED,
         entityType: 'StructureChangeRequest',
         entityId: updated._id,
-        performedByEmployeeId: (approverEmployeeId && Types.ObjectId.isValid(approverEmployeeId))
-          ? new Types.ObjectId(approverEmployeeId)
-          : (updated.submittedByEmployeeId as any),
+        performedByEmployeeId: updated.submittedByEmployeeId as any,
         summary: 'Change request rejected',
         beforeSnapshot: existing,
         afterSnapshot: (updated.toObject ? updated.toObject() : updated) as unknown as Record<string, unknown>,

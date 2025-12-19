@@ -30,12 +30,11 @@ import InputLabel from '@mui/material/InputLabel';
 
 interface TaxDeduction {
   payslipId: string;
-  payslipPeriod: string;
+  payslipPeriod?: string;
   taxName: string;
   description: string;
   rate: number;
-  appliedTo: number;
-  calculatedAmount: number;
+  calculatedAmount?: number;
   status: string;
   createdAt: string | null;
 }
@@ -59,7 +58,7 @@ export default function TaxDeductionsPage() {
     clearFilters,
   } = useTableFilters<TaxDeduction>(
     taxDeductions,
-    ['taxName', 'description', 'payslipPeriod'],
+    ['taxName', 'description'],
     'createdAt',
     'month' // Use month/year filtering for payroll periods
   );
@@ -120,14 +119,6 @@ export default function TaxDeductionsPage() {
           }
         } catch (e) {
           console.warn('Invalid createdAt date:', tax.createdAt);
-        }
-      }
-
-      // Fallback: try to extract year from payslipPeriod string (e.g., "January 2024")
-      if (!year && tax.payslipPeriod && tax.payslipPeriod !== 'Unknown Period') {
-        const yearMatch = tax.payslipPeriod.match(/\b(20\d{2})\b/);
-        if (yearMatch) {
-          year = parseInt(yearMatch[1], 10);
         }
       }
 

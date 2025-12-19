@@ -61,17 +61,14 @@ export default function StructureRequestDetails({ request, onApprove, onReject }
         if (!request) return;
         setLoadingDetails(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-
-            const headers = { 'Authorization': `Bearer ${token}` };
 
             // Parallel fetch for available IDs
             const promises = [];
 
             if (request.requestedByEmployeeId) {
                 promises.push(
-                    fetch(`${apiUrl}/employee/${request.requestedByEmployeeId}`, { headers })
+                    fetch(`${apiUrl}/employee/${request.requestedByEmployeeId}`, { credentials: 'include' })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => setFetchedEmployee(data ? (data.profile || data) : null))
                 );
@@ -79,7 +76,7 @@ export default function StructureRequestDetails({ request, onApprove, onReject }
 
             if (request.submittedByEmployeeId) {
                 promises.push(
-                    fetch(`${apiUrl}/employee/${request.submittedByEmployeeId}`, { headers })
+                    fetch(`${apiUrl}/employee/${request.submittedByEmployeeId}`, { credentials: 'include' })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => setFetchedSubmitter(data ? (data.profile || data) : null))
                 );
@@ -87,7 +84,7 @@ export default function StructureRequestDetails({ request, onApprove, onReject }
 
             if (request.targetPositionId) {
                 promises.push(
-                    fetch(`${apiUrl}/organization-structure/positions/${request.targetPositionId}`, { headers })
+                    fetch(`${apiUrl}/organization-structure/positions/${request.targetPositionId}`, { credentials: 'include' })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => setFetchedPosition(data))
                 );
@@ -95,7 +92,7 @@ export default function StructureRequestDetails({ request, onApprove, onReject }
 
             if (request.targetDepartmentId) {
                 promises.push(
-                    fetch(`${apiUrl}/organization-structure/departments/${request.targetDepartmentId}`, { headers })
+                    fetch(`${apiUrl}/organization-structure/departments/${request.targetDepartmentId}`, { credentials: 'include' })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => setFetchedDepartment(data))
                 );

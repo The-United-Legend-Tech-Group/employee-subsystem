@@ -264,7 +264,7 @@ export default function DisputeDetailsPage() {
 
           {/* Employee Information */}
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Box>
                 <Typography 
                   variant="caption" 

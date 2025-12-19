@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getCookie } from '@/lib/auth-utils';
 
 import { PageHeader } from "@/payroll/components/layout/page-header";
 import {
@@ -57,8 +58,8 @@ const computePriority = (msg: string): Priority => {
  * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || "";
-  return raw.replace(/^Bearer\s+/i, "").replace(/^"+|"+$/g, "").trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {

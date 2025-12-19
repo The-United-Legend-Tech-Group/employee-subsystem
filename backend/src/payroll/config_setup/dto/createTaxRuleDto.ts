@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, Min, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, Min, Max, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTaxRuleDto {
@@ -20,12 +20,14 @@ export class CreateTaxRuleDto {
   description?: string;
 
   @ApiProperty({
-    description: 'Tax rate (%)',
+    description: 'Tax rate (%) - must be between 1 and 100',
     example: 15,
-    minimum: 0,
+    minimum: 1,
+    maximum: 100,
   })
   @IsNumber()
-  @Min(0)
+  @Min(1, { message: 'Tax rate must be at least 1%' })
+  @Max(100, { message: 'Tax rate cannot exceed 100%' })
   rate: number;
 
   // Status will be set to DRAFT by default in schema

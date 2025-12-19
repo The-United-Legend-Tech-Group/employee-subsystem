@@ -62,16 +62,10 @@ export class CompensationService {
 
     return {
       payslipId: payslip._id,
-      payrollPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-        ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-          })
-        : 'Unknown Period',
       leaveCompensations: leaveCompensations.map((benefit: any) => ({
         name: benefit.name,
         amount: benefit.amount,
-        description: benefit.terms || benefit.name,
+        terms: benefit.terms,
       })),
       totalLeaveCompensation,
     };
@@ -89,16 +83,10 @@ export class CompensationService {
       benefits.forEach((benefit: any) => {
         allCompensations.push({
           payslipId: payslip._id,
-          payslipPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-            ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-              })
-            : 'Unknown Period',
-          type: benefit.name,
-          description: benefit.terms || benefit.name,
+          name: benefit.name,
+          terms: benefit.terms,
           amount: benefit.amount,
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
 
@@ -114,16 +102,9 @@ export class CompensationService {
       transportAllowances.forEach((allowance: any) => {
         allCompensations.push({
           payslipId: payslip._id,
-          payslipPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-            ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-              })
-            : 'Unknown Period',
-          type: 'transportation',
-          description: allowance.description || allowance.name,
+          name: allowance.name,
           amount: allowance.amount,
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
     }
@@ -143,6 +124,7 @@ export class CompensationService {
 
       insurances.forEach((insurance: any) => {
         const employerContribution = (insuranceBase * (insurance.employerRate || 0)) / 100;
+        
         allEmployerContributions.push({
           payslipId: payslip._id,
           payslipPeriod: (payslip.payrollRunId as any)?.payrollPeriod
@@ -151,15 +133,12 @@ export class CompensationService {
                 month: 'long',
               })
             : 'Unknown Period',
-          type: 'Insurance',
           name: insurance.name || 'Unknown Insurance',
+          employerContribution: employerContribution,
           employerRate: insurance.employerRate,
           employeeRate: insurance.employeeRate,
-          calculationBase: insuranceBase,
-          employerContribution: employerContribution,
-          employeeContribution: (insuranceBase * (insurance.employeeRate || 0)) / 100,
           status: insurance.status,
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
     }
@@ -185,16 +164,9 @@ export class CompensationService {
       transportAllowances.forEach((allowance: any) => {
         allTransportationCompensations.push({
           payslipId: payslip._id,
-          payslipPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-            ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-              })
-            : 'Unknown Period',
           name: allowance.name,
           amount: allowance.amount,
-          description: allowance.description,
-          createdAt: (payslip as any).createdAt || (payslip.payrollRunId as any)?.payrollPeriod || null,
+          createdAt: (payslip as any).createdAt ? new Date((payslip as any).createdAt).toISOString() : null,
         });
       });
     }
@@ -221,16 +193,9 @@ export class CompensationService {
 
     return {
       payslipId: payslip._id,
-      payrollPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-        ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-          })
-        : 'Unknown Period',
       transportationCompensations: transportAllowances.map((allowance: any) => ({
         name: allowance.name,
         amount: allowance.amount,
-        description: allowance.description,
       })),
       totalTransportationCompensation,
     };
@@ -243,33 +208,20 @@ export class CompensationService {
     const insurances = payslip.deductionsDetails?.insurances || [];
     const insuranceBase = payslip.earningsDetails?.baseSalary || 0;
 
-    const employerContributions = insurances.map((insurance: any) => {
-      const employerContribution = (insuranceBase * (insurance.employerRate || 0)) / 100;
-      return {
-        type: 'Insurance',
-        name: insurance.name || 'Unknown Insurance',
-        employerRate: insurance.employerRate,
-        employeeRate: insurance.employeeRate,
-        calculationBase: insuranceBase,
-        employerContribution: employerContribution,
-        employeeContribution: (insuranceBase * (insurance.employeeRate || 0)) / 100,
-        status: insurance.status,
-      };
-    });
+    const employerContributions = insurances.map((insurance: any) => ({
+      name: insurance.name || 'Unknown Insurance',
+      employerRate: insurance.employerRate,
+      employeeRate: insurance.employeeRate,
+      status: insurance.status,
+    }));
 
-    const totalEmployerContributions = employerContributions.reduce(
-      (sum: number, contrib: any) => sum + contrib.employerContribution,
-      0,
-    );
+    const totalEmployerContributions = insurances.reduce((sum: number, insurance: any) => {
+      const employerContribution = (insuranceBase * (insurance.employerRate || 0)) / 100;
+      return sum + employerContribution;
+    }, 0);
 
     return {
       payslipId: payslip._id,
-      payrollPeriod: (payslip.payrollRunId as any)?.payrollPeriod
-        ? new Date((payslip.payrollRunId as any).payrollPeriod).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-          })
-        : 'Unknown Period',
       employerContributions,
       totalEmployerContributions,
     };

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsMongoId, IsNumber, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsMongoId, IsNumber, ValidateNested, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class LeaveRequestDatesDto {
@@ -40,4 +40,8 @@ export class CreateLeaveRequestDto {
 
   @IsOptional()
   size?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isEmergency?: boolean;
 }

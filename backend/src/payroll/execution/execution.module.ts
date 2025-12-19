@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 // Controllers
@@ -84,8 +84,8 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
 
 @Module({
   imports: [
-    ConfigSetupModule,
-    TimeMangementModule,
+  ConfigSetupModule,
+  forwardRef(() => TimeMangementModule),
     AuthModule,
     MongooseModule.forFeature([
       // Execution schemas

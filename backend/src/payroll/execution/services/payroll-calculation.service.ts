@@ -70,6 +70,35 @@ export class PayrollCalculationService {
     private readonly attendanceService: AttendanceService,
   ) { }
 
+  //Leaves Ghoraba
+  async getDailyRate(employeeId: string): Promise<number> {
+    const empRole = await this.employeeSystemRoleModel
+      .findOne({ employeeProfileId: employeeId })
+      .exec();
+
+    const role = empRole ? empRole.roles?.[0] || '' : '';
+    const payGrade = await this.configSetupService.payGrade.getPayGradeByName(role);
+    if (!payGrade) {
+      throw new Error(`No pay grade found for role: ${role}`);
+    }
+    return Number((payGrade.grossSalary / 30).toFixed(2));
+  }
+
+  //Leaves Ghoraba
+  async recordUnpaidLeavePenalty(
+    employeeId: string,
+    days: number,
+    reason: string = 'unpaid leave',
+  ) {
+    if (!days || days <= 0) return null;
+    const dailyRate = await this.getDailyRate(employeeId);
+    const amount = Number((dailyRate * days).toFixed(2));
+    return this.employeePenaltyService.createEmployeePenalties({
+      employeeId,
+      penalties: [{ reason, amount }],
+    });
+  }
+
   private async getActiveTaxRate(): Promise<number> {
     const rule = await this.taxRulesModel
       .findOne({ status: ConfigStatus.APPROVED })

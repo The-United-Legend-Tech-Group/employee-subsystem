@@ -55,6 +55,36 @@ export class LeavesRequestService {
       );
     }
 
+    if (!dto.isEmergency) {
+      // Disallow past-dated leave requests (non-emergency must be today or later)
+      const now = new Date();
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
+
+      const fromDateRaw = new Date(dto.dates.from);
+      const toDateRaw = new Date(dto.dates.to);
+
+      const startOfFrom = new Date(
+        fromDateRaw.getFullYear(),
+        fromDateRaw.getMonth(),
+        fromDateRaw.getDate(),
+      );
+      const startOfTo = new Date(
+        toDateRaw.getFullYear(),
+        toDateRaw.getMonth(),
+        toDateRaw.getDate(),
+      );
+
+      if (startOfFrom < startOfToday || startOfTo < startOfToday) {
+        throw new BadRequestException(
+          'Start date and end date must not be in the past for non-emergency requests.',
+        );
+      }
+    }
+
     // Load employee profile to evaluate eligibility (tenure, contract type, position)
     const employeeProfile = await this.employeeService.getProfile(
       dto.employeeId,

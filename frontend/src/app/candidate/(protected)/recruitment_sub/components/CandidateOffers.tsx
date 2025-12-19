@@ -127,6 +127,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
   };
 
   const canRespond = (offer: any) => {
+    // Can respond if offer is sent and applicant hasn't responded yet
     return offer.finalStatus === 'sent' && offer.applicantResponse === 'pending';
   };
 
@@ -298,7 +299,8 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                               </Box>
                               <Box>
                                 <Typography variant="caption" color="text.secondary">
-                                  Benefits Value
+
+                                  its Value
                                 </Typography>
                                 <Typography variant="h6" fontWeight={600} color="info.main">
                                   ${offer.benifitsum?.toLocaleString()}

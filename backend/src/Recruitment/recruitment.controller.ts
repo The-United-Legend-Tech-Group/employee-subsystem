@@ -67,8 +67,19 @@ export class RecruitmentController {
   @Get('offers/my')
   @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getMyOffers(@Req() req: any) {
-    // Assuming we want offers for the candidate
-    return this.recruitmentService.getOffersByCandidateId(req.user.sub);
+    // Resolve candidate id from common token fields to support different auth payloads
+    const candidateId = req.user?.candidateId || req.user?.sub || req.user?.employeeId;
+    if (!candidateId) {
+      throw new BadRequestException('Unable to determine candidate id from token');
+    }
+
+    return this.recruitmentService.getOffersByCandidateId(candidateId);
+  }
+
+  @Get('offers/candidate/:candidateId')
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
+  async getOffersByCandidateId(@Param('candidateId') candidateId: string) {
+    return this.recruitmentService.getOffersByCandidateId(candidateId);
   }
 
   @Get('offer/:offerId')

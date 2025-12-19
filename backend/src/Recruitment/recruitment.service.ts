@@ -105,17 +105,18 @@ export class RecruitmentService {
     private readonly configSetupService: ConfigSetupService,
     private readonly employeeSigningBonusService: EmployeeSigningBonusService,
     //private payrollExecutionService: PayrollExecutionService,
-  ) { }
-
-  // need guards for auth and roles
-  //REC-018
-  //REC-018
-  async createOffer(dto: CreateOfferDto, userId?: string) {
-    const { applicationId, candidateId, role, benefits, conditions, insurances, content, deadline } = dto;
-
-    // STRICT: Always use the authenticated user's ID as the HR Employee ID
-    // We ignore any hrEmployeeId passed in the DTO to ensure security and source of truth
-    const hrEmployeeId = userId;
+    try {
+      await this.notificationService.create({
+        recipientId: [employeeId],
+        type: 'Info',
+        deliveryType: 'UNICAST',
+        title: 'Offer Approval Request',
+        // Do not include raw MongoDB offer id in notifications during testing — replace with AITESTING
+        message: `You have been added as an approver for offer AITESTING.`,
+        relatedModule: 'Recruitment',
+        isRead: false,
+      });
+    } catch (e) {
 
     if (!hrEmployeeId) {
       throw new BadRequestException('HR Employee ID is required');
@@ -241,7 +242,8 @@ export class RecruitmentService {
         type: 'Info',
         deliveryType: 'UNICAST',
         title: 'Offer Approval Request',
-        message: `You have been added as an approver for offer ${offerId}.`,
+        // Replace raw offer Mongo id with a test token to avoid leaking internal ids
+        message: `You have been added as an approver for offer AITESTING.`,
         relatedModule: 'Recruitment',
         isRead: false,
       });
@@ -431,15 +433,26 @@ export class RecruitmentService {
       );
 
       // Notify HR
-      await this.notificationService.create({
-        recipientId: [offer.hrEmployeeId.toString()],
-        type: 'Warning',
-        deliveryType: 'UNICAST',
-        title: 'Offer Rejected',
-        message: `Candidate has rejected the offer for ${offer.role}. ${notes || ''}`,
-        relatedModule: 'Recruitment',
-        isRead: false,
-      });
+        // Resolve candidate number for inclusion in notification
+        let candidateNumberForNotif = candidateId;
+        try {
+          const candidateObj = await this.candidateRepository.findById(candidateId);
+          if (candidateObj && candidateObj.candidateNumber) {
+            candidateNumberForNotif = candidateObj.candidateNumber;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch candidate for rejection notification', err);
+        }
+
+        await this.notificationService.create({
+          recipientId: [offer.hrEmployeeId.toString()],
+          type: 'Warning',
+          deliveryType: 'UNICAST',
+          title: 'Offer Rejected',
+          message: `Candidate (Number: ${candidateNumberForNotif}) has rejected the offer for ${offer.role}. ${notes || ''}`,
+          relatedModule: 'Recruitment',
+          isRead: false,
+        });
     }
 
     await offer.save();
@@ -2602,16 +2615,47 @@ export class RecruitmentService {
       }
     }
 
+    // Compute benifitsum for this single offer (use config service, fallback to offer-local values)
+    try {
+      let benifitsum = 0;
+      if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+        try {
+          benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+        } catch (e) {
+          console.warn('Failed to compute approved benefit sum for offer in getOfferById', e);
+        }
+
+        // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+        if (!benifitsum) {
+          benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+            if (typeof b === 'number') return acc + b;
+            if (b && typeof b === 'object') {
+              const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+              return acc + (typeof v === 'number' ? v : 0);
+            }
+            return acc;
+          }, 0);
+        }
+      }
+
+      offerObj.benifitsum = benifitsum;
+      offerObj.offerDocument = offerObj.content || '';
+    } catch (e) {
+      console.warn('Error while attaching benifitsum to offer', e);
+      offerObj.benifitsum = 0;
+      offerObj.offerDocument = offerObj.content || '';
+    }
+
     return offerObj;
   }
 
   // Get offers by candidate ID
   async getOffersByCandidateId(candidateId: string): Promise<any[]> {
-    // Filter to show only 'sent' offers (which means they are ready for candidate checks)
+    // Get offers that have been sent to the candidate
     const offers = await this.offerRepository.find({
       candidateId: new mongoose.Types.ObjectId(candidateId),
       finalStatus: 'sent'
-    });
+    })
 
     // Calculate benifitsum for each offer using terminationBenefitService
     const offersWithBenefits = await Promise.all(
@@ -2619,12 +2663,23 @@ export class RecruitmentService {
         const offerObj = offer.toObject ? offer.toObject() : offer;
         let benifitsum = 0;
 
-        // Calculate sum of approved benefits if benefits array exists
         if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
           try {
             benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
           } catch (error) {
             console.warn('Failed to calculate benefit sum for offer', error);
+          }
+
+          // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
           }
         }
 
@@ -2632,6 +2687,50 @@ export class RecruitmentService {
           ...offerObj,
           benifitsum,
           offerDocument: offerObj.content || '' // Map content to offerDocument for DTO compatibility
+        };
+      })
+    );
+
+    return offersWithBenefits;
+  }
+
+  /**
+   * Get offers by candidate ID without filtering by finalStatus.
+   * Useful for debugging or when candidates should see offers in other states.
+   */
+  async getAllOffersByCandidateId(candidateId: string): Promise<any[]> {
+    const offers = await this.offerRepository.find({
+      candidateId: new mongoose.Types.ObjectId(candidateId),
+    });
+
+    const offersWithBenefits = await Promise.all(
+      offers.map(async (offer) => {
+        const offerObj = offer.toObject ? offer.toObject() : offer;
+        let benifitsum = 0;
+
+        if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+          try {
+            benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+          } catch (error) {
+            console.warn('Failed to calculate benefit sum for offer', error);
+          }
+
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
+          }
+        }
+
+        return {
+          ...offerObj,
+          benifitsum,
+          offerDocument: offerObj.content || ''
         };
       })
     );
@@ -2681,6 +2780,18 @@ export class RecruitmentService {
               lastName: candidate.lastName,
               email: candidate.personalEmail || (candidate as any).email || 'N/A'
             };
+
+            // Get candidate's CV documents
+            try {
+              const cvDocuments = await this.documentRepository.findByOwnerId(offer.candidateId.toString());
+              offerObj.cvDocuments = cvDocuments.filter((doc: any) => {
+                const docObj = doc.toObject ? doc.toObject() : doc;
+                return docObj.type === 'cv' || docObj.type === 'resume';
+              });
+            } catch (e) {
+              console.warn('Failed to fetch CV documents', e);
+              offerObj.cvDocuments = [];
+            }
           }
         } catch (e) { console.warn('Failed to populate candidate', e); }
       }
@@ -2705,6 +2816,35 @@ export class RecruitmentService {
           }
         }
       }
+
+      // Calculate benefit sum for termination benefits
+      try {
+        let benifitsum = 0;
+        if (offerObj.benefits && Array.isArray(offerObj.benefits) && offerObj.benefits.length > 0) {
+          try {
+            benifitsum = await this.configSetupService.terminationBenefit.sumApprovedBenefits(offerObj.benefits);
+          } catch (e) {
+            console.warn('Failed to calculate benefit sum for offer', e);
+          }
+
+          // Fallback: if no approved configs matched, attempt to sum numeric/amounts present directly on the offer
+          if (!benifitsum) {
+            benifitsum = (offerObj.benefits || []).reduce((acc: number, b: any) => {
+              if (typeof b === 'number') return acc + b;
+              if (b && typeof b === 'object') {
+                const v = b.amount ?? b.value ?? b.amountValue ?? 0;
+                return acc + (typeof v === 'number' ? v : 0);
+              }
+              return acc;
+            }, 0);
+          }
+        }
+        offerObj.benifitsum = benifitsum;
+      } catch (e) {
+        console.warn('Error calculating benefit sum', e);
+        offerObj.benifitsum = 0;
+      }
+
       return offerObj;
     }));
   }

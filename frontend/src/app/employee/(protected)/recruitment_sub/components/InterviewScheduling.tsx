@@ -101,6 +101,10 @@ export function InterviewScheduling() {
       const interviewArrays = await Promise.all(interviewPromises);
       const allInterviews = interviewArrays.flat();
       setInterviews(allInterviews);
+      // Debug: log fetched interviews to help diagnose missing status in UI
+      // Remove this in production if not needed
+      // eslint-disable-next-line no-console
+      console.debug('InterviewScheduling: fetched interviews', allInterviews);
     } catch (error) {
       console.error('Failed to fetch interviews:', error);
       toast.error('Failed to load interviews');

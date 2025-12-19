@@ -23,7 +23,11 @@ async function bootstrap() {
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Authorization,Content-Type,Accept,Origin,User-Agent',
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Global validation pipe for DTO validation (useful for Swagger testing)

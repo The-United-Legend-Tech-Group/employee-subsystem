@@ -85,6 +85,9 @@ export function CandidateTracking() {
         })
       );
       setCandidateInterviews(interviewMap);
+      // Debug: log interview map to verify interviews and their status per application
+      // eslint-disable-next-line no-console
+      console.debug('CandidateTracking: interviewMap entries', Array.from(interviewMap.entries()));
 
       // Build referrals set and map from backend data (multiple referrals per candidate)
       const referralCandidateIds = new Set<string>();

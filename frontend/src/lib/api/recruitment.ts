@@ -209,6 +209,9 @@ export const recruitmentApi = {
   // Get my offers (candidate)
   getMyOffers: () => api.get('/recruitment/offers/my'),
 
+  // Get offers for a specific candidate (legacy / explicit)
+  getOffersByCandidateId: () => api.get(`/recruitment/offers/candidate/`),
+
   // Get offer by ID
   getOfferById: (offerId: string) => api.get(`/recruitment/offer/${offerId}`),
 

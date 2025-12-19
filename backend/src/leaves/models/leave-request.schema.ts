@@ -25,10 +25,6 @@ export class LeaveRequest {
   @Prop()
   justification?: string;
 
-  // Emergency leave flag (allows bypassing certain validations like notice period and balance at submit time)
-  @Prop({ default: false })
-  isEmergency?: boolean;
-
   @Prop({ type: Types.ObjectId, ref: 'Attachment' })
   attachmentId?: Types.ObjectId;
 

@@ -39,17 +39,21 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     response.cookie('candidateId', candidateId, {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     response.cookie('user_roles', JSON.stringify(['Job Candidate']), {
       secure: true,
       sameSite: 'none',
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     return {
@@ -86,11 +90,14 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     response.cookie('employeeid', employeeId, {
       secure: true,
       sameSite: 'none',
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     const rolesJson = JSON.stringify(roles);
@@ -99,6 +106,8 @@ export class AuthController {
     response.cookie('user_roles', rolesJson, {
       secure: true,
       sameSite: 'none',
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+      partitioned: true,
     });
 
     console.log('🍪 [AuthController.employeeLogin] All cookies set successfully');

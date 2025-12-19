@@ -37,15 +37,6 @@ export function getCookie(name: string): string | null {
 }
 
 /**
- * Get access token from cookie (if not httpOnly)
- * Note: In many setups this cookie is httpOnly and not readable from JS.
- * Callers should gracefully handle null and rely on cookie-auth via `credentials: 'include'`.
- */
-export function getAccessTokenFromCookie(): string | null {
-    return getCookie(COOKIE_ACCESS_TOKEN);
-}
-
-/**
  * Set a cookie with optional expiration
  */
 export function setCookie(name: string, value: string, days: number = 1): void {
@@ -173,3 +164,4 @@ export function getAccessToken(): string | null {
 
     return null;
 }
+

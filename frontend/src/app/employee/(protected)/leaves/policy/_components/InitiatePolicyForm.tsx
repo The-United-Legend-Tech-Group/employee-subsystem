@@ -106,9 +106,7 @@ export default function InitiatePolicyForm() {
       try {
         const token = getAccessToken();
         const res = await fetch(`${API_BASE}/leaves/leave-types`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
@@ -168,7 +166,7 @@ export default function InitiatePolicyForm() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),

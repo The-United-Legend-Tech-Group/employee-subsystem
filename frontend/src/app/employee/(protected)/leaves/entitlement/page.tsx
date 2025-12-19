@@ -204,9 +204,7 @@ export default function EntitlementPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
@@ -286,9 +284,7 @@ export default function EntitlementPage() {
         `${API_BASE}/leaves/update-entitlement-internal/${recalcForm.employeeId}/${recalcForm.leaveTypeId}`,
         {
           method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         }
       );
@@ -334,9 +330,7 @@ export default function EntitlementPage() {
         const res = await fetch(
           `${API_BASE}/leaves/leave-entitlements/${personalizedForm.employeeId}/${personalizedForm.leaveTypeId}`,
           {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: 'include',
           }
         );
@@ -418,7 +412,7 @@ export default function EntitlementPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -457,7 +451,7 @@ export default function EntitlementPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -511,7 +505,7 @@ export default function EntitlementPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -546,9 +540,7 @@ export default function EntitlementPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/adjustment-history/${historyEmployeeId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -581,9 +573,7 @@ export default function EntitlementPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-entitlements/${entitlementsEmployeeId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {

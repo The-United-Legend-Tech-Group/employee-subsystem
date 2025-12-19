@@ -46,7 +46,7 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
       if (!API_BASE) throw new Error('API base URL is not configured');
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
@@ -82,7 +82,10 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories/${editItem._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: 'include',
         body: JSON.stringify({
           name: editForm.name,
@@ -104,7 +107,7 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok && res.status !== 204) throw new Error(`Failed (${res.status})`);

@@ -143,7 +143,7 @@ export default function CalendarPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -192,9 +192,7 @@ export default function CalendarPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -225,9 +223,7 @@ export default function CalendarPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -257,9 +253,7 @@ export default function CalendarPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/blocked-periods/${numericYear}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -288,9 +282,7 @@ export default function CalendarPage() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/${viewYear}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -324,9 +316,7 @@ export default function CalendarPage() {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/sync-holidays/${targetYear}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 
@@ -364,9 +354,7 @@ export default function CalendarPage() {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/auto-sync-holidays`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 

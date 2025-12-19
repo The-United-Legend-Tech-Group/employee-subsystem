@@ -80,16 +80,14 @@ export default function ManagePoliciesList() {
     try {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/policies`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
       // Fetch leave types to map id to name
       const leaveTypeRes = await fetch(`${API_BASE}/leaves/leave-types`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       let leaveTypes: { _id: string; name: string }[] = [];
@@ -142,9 +140,7 @@ export default function ManagePoliciesList() {
       const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/policies/${deleteId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 

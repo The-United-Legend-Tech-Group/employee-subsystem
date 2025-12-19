@@ -38,6 +38,7 @@ import {
   SectionDefinition,
   SubmitCorrectionEssDto,
 } from "./types";
+import { getAccessToken } from "@/lib/auth-utils";
 
 /**
  * ESS Attendance Correction (SubmitCorrectionEssDto)
@@ -126,28 +127,32 @@ export default function TimeExceptionsSection({
   const [loadingCorrections, setLoadingCorrections] = React.useState(false);
 
   const fetchCorrectionHistory = React.useCallback(async () => {
-  if (!employeeId) return;
+    if (!employeeId) return;
 
-  try {
-    setLoadingCorrections(true);
+    try {
+      setLoadingCorrections(true);
 
-    const API_URL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 
-    const res = await fetch(
-      `${API_URL}/time/corrections/history/${employeeId}`
-    );
+      const res = await fetch(
+        `${API_URL}/time/corrections/history/${employeeId}`,
+        {
+          headers: (getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}) as Record<string, string>,
+          credentials: "include",
+        }
+      );
 
-    if (!res.ok) throw new Error("Failed to fetch correction history");
+      if (!res.ok) throw new Error("Failed to fetch correction history");
 
-    const data = await res.json();
-    setCorrectionHistory(Array.isArray(data) ? data : data?.data || []);
-  } catch (e) {
-    console.error("❌ Failed to load correction history", e);
-  } finally {
-    setLoadingCorrections(false);
-  }
-}, [employeeId]);
+      const data = await res.json();
+      setCorrectionHistory(Array.isArray(data) ? data : data?.data || []);
+    } catch (e) {
+      console.error("❌ Failed to load correction history", e);
+    } finally {
+      setLoadingCorrections(false);
+    }
+  }, [employeeId]);
 
 
   // Validation
@@ -234,7 +239,9 @@ export default function TimeExceptionsSection({
           {
             headers: {
               "Content-Type": "application/json",
+              ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
             },
+            credentials: "include",
           }
         );
 
@@ -367,9 +374,14 @@ export default function TimeExceptionsSection({
         typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_URL
           ? process.env.NEXT_PUBLIC_API_URL
           : "http://localhost:50000";
+      const token = getAccessToken();
       const res = await fetch(`${API_URL}/time/corrections/submit-ess`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {} as Record<string, string>),
+        },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -526,100 +538,104 @@ export default function TimeExceptionsSection({
                           <TableCell align="right" sx={{ minWidth: 160 }}>
                             {(ex.status === TimeExceptionStatus.OPEN ||
                               ex.status === TimeExceptionStatus.PENDING) && (
-                              <Stack
-                                direction="row"
-                                spacing={0.5}
-                                justifyContent="flex-end"
-                              >
-                                <Tooltip title="Approve">
-                                  <span>
-                                    <IconButton
-                                      size="small"
-                                      color="success"
-                                      onClick={async () => {
-                                        try {
-                                          if (onApprove) {
-                                            await onApprove(ex._id);
-                                          } else {
-                                            const API_URL =
-                                              typeof window !== "undefined" &&
-                                              process.env.NEXT_PUBLIC_API_URL
-                                                ? process.env
+                                <Stack
+                                  direction="row"
+                                  spacing={0.5}
+                                  justifyContent="flex-end"
+                                >
+                                  <Tooltip title="Approve">
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        color="success"
+                                        onClick={async () => {
+                                          try {
+                                            if (onApprove) {
+                                              await onApprove(ex._id);
+                                            } else {
+                                              const API_URL =
+                                                typeof window !== "undefined" &&
+                                                  process.env.NEXT_PUBLIC_API_URL
+                                                  ? process.env
                                                     .NEXT_PUBLIC_API_URL
-                                                : "http://localhost:50000";
-                                            await fetch(
-                                              `${API_URL}/time/corrections/${ex._id}/approve`,
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  lineManagerId,
-                                                }),
-                                              }
-                                            );
+                                                  : "http://localhost:50000";
+                                              await fetch(
+                                                `${API_URL}/time/corrections/${ex._id}/approve`,
+                                                {
+                                                  method: "POST",
+                                                  headers: {
+                                                    "Content-Type":
+                                                      "application/json",
+                                                    ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
+                                                  },
+                                                  credentials: "include",
+                                                  body: JSON.stringify({
+                                                    lineManagerId,
+                                                  }),
+                                                }
+                                              );
+                                            }
+                                            onCreated?.();
+                                          } catch (e) {
+                                            console.error("Approve failed", e);
                                           }
-                                          onCreated?.();
-                                        } catch (e) {
-                                          console.error("Approve failed", e);
-                                        }
-                                      }}
-                                    >
-                                      <CheckCircleOutlineIcon fontSize="small" />
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <span>
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={async () => {
-                                        const note = prompt(
-                                          "Optional rejection note:"
-                                        );
-                                        try {
-                                          if (onReject) {
-                                            await onReject(
-                                              ex._id,
-                                              note || undefined
-                                            );
-                                          } else {
-                                            const API_URL =
-                                              typeof window !== "undefined" &&
-                                              process.env.NEXT_PUBLIC_API_URL
-                                                ? process.env
+                                        }}
+                                      >
+                                        <CheckCircleOutlineIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                  <Tooltip title="Reject">
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={async () => {
+                                          const note = prompt(
+                                            "Optional rejection note:"
+                                          );
+                                          try {
+                                            if (onReject) {
+                                              await onReject(
+                                                ex._id,
+                                                note || undefined
+                                              );
+                                            } else {
+                                              const API_URL =
+                                                typeof window !== "undefined" &&
+                                                  process.env.NEXT_PUBLIC_API_URL
+                                                  ? process.env
                                                     .NEXT_PUBLIC_API_URL
-                                                : "http://localhost:50000";
-                                            await fetch(
-                                              `${API_URL}/time/corrections/${ex._id}/reject`,
-                                              {
-                                                method: "POST",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  lineManagerId,
-                                                  reason: note || undefined,
-                                                }),
-                                              }
-                                            );
+                                                  : "http://localhost:50000";
+                                              await fetch(
+                                                `${API_URL}/time/corrections/${ex._id}/reject`,
+                                                {
+                                                  method: "POST",
+                                                  headers: {
+                                                    "Content-Type":
+                                                      "application/json",
+                                                    ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
+                                                  },
+                                                  credentials: "include",
+                                                  body: JSON.stringify({
+                                                    lineManagerId,
+                                                    reason: note || undefined,
+                                                  }),
+                                                }
+                                              );
+                                            }
+                                            onCreated?.();
+                                          } catch (e) {
+                                            console.error("Reject failed", e);
                                           }
-                                          onCreated?.();
-                                        } catch (e) {
-                                          console.error("Reject failed", e);
-                                        }
-                                      }}
-                                    >
-                                      <CloseIcon fontSize="small" />
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                              </Stack>
-                            )}
+                                        }}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                </Stack>
+                              )}
                           </TableCell>
                           <TableCell sx={{ maxWidth: 240 }}>
                             <Typography
@@ -641,66 +657,66 @@ export default function TimeExceptionsSection({
         </CardContent>
       </Card>
       <Card variant="outlined" sx={{ mt: 3 }}>
-  <CardContent>
-    <Typography variant="h6" gutterBottom>
-      My Attendance Correction Requests
-    </Typography>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            My Attendance Correction Requests
+          </Typography>
 
-    {loadingCorrections ? (
-      <Skeleton height={120} />
-    ) : correctionHistory.length === 0 ? (
-      <Alert severity="info">
-        You haven’t submitted any attendance correction requests yet.
-      </Alert>
-    ) : (
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Date</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Reason</TableCell>
-            <TableCell align="right">Adjustment</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {correctionHistory.map((c) => (
-            <TableRow key={c._id}>
-              <TableCell>
-                {new Date(
-                  c.appliesFromDate || c.createdAt
-                ).toLocaleDateString()}
-              </TableCell>
+          {loadingCorrections ? (
+            <Skeleton height={120} />
+          ) : correctionHistory.length === 0 ? (
+            <Alert severity="info">
+              You haven’t submitted any attendance correction requests yet.
+            </Alert>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Reason</TableCell>
+                  <TableCell align="right">Adjustment</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {correctionHistory.map((c) => (
+                  <TableRow key={c._id}>
+                    <TableCell>
+                      {new Date(
+                        c.appliesFromDate || c.createdAt
+                      ).toLocaleDateString()}
+                    </TableCell>
 
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={c.status}
-                  color={
-                    c.status === "APPROVED"
-                      ? "success"
-                      : c.status === "REJECTED"
-                      ? "error"
-                      : "info"
-                  }
-                />
-              </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={c.status}
+                        color={
+                          c.status === "APPROVED"
+                            ? "success"
+                            : c.status === "REJECTED"
+                              ? "error"
+                              : "info"
+                        }
+                      />
+                    </TableCell>
 
-              <TableCell sx={{ maxWidth: 300 }}>
-                <Typography variant="body2" noWrap>
-                  {c.reason}
-                </Typography>
-              </TableCell>
+                    <TableCell sx={{ maxWidth: 300 }}>
+                      <Typography variant="body2" noWrap>
+                        {c.reason}
+                      </Typography>
+                    </TableCell>
 
-              <TableCell align="right">
-                {c.correctionType} {c.durationMinutes} min
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    )}
-  </CardContent>
-</Card>
+                    <TableCell align="right">
+                      {c.correctionType} {c.durationMinutes} min
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
 
       {/* ESS Correction Dialog */}
@@ -747,8 +763,8 @@ export default function TimeExceptionsSection({
                 touched.duration && durationMinutes <= 0
                   ? "Duration must be greater than 0"
                   : touched.duration && durationMinutes > 480
-                  ? "Duration cannot exceed 480 minutes (8 hours)"
-                  : "Maximum 480 minutes (8 hours)"
+                    ? "Duration cannot exceed 480 minutes (8 hours)"
+                    : "Maximum 480 minutes (8 hours)"
               }
               inputProps={{ min: 1, max: 480, step: 15 }}
             />
@@ -778,10 +794,9 @@ export default function TimeExceptionsSection({
                 touched.reason && !reason
                   ? "Reason is required"
                   : touched.reason && reason.trim().length < 10
-                  ? `Reason must be at least 10 characters (${
-                      reason.trim().length
+                    ? `Reason must be at least 10 characters (${reason.trim().length
                     }/10)`
-                  : `${reason.trim().length} characters`
+                    : `${reason.trim().length} characters`
               }
             />
 

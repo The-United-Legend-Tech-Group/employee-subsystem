@@ -39,6 +39,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import SectionHeading from "./SectionHeading";
 import AttendanceFilters, { AttendanceFilterState } from "./AttendanceFilters";
 import { AttendanceRecord, Punch, PunchType, SectionDefinition } from "./types";
+import { getAccessToken } from "@/lib/auth-utils";
 
 type PaginationInfo = {
   page: number;
@@ -387,11 +388,12 @@ export default function AttendanceRecordsSection({
       const apiUrl = getApiBase();
       const headers = {
         "Content-Type": "application/json",
-        ...(await getAuthHeader()),
+        ...getAuthHeader(),
       } as Record<string, string>;
       const res = await fetch(`${apiUrl}/time/attendance/corrections`, {
         method: "POST",
         headers,
+        credentials: "include",
         body: JSON.stringify({
           employeeId: targetEmployeeId,
           attendanceRecord: selectedRecordId,
@@ -438,11 +440,10 @@ export default function AttendanceRecordsSection({
                   </Typography>
                   {(localRecords !== null || pagination) && (
                     <Chip
-                      label={`${
-                        localRecords !== null
-                          ? localRecords.length
-                          : pagination?.total ?? 0
-                      } total`}
+                      label={`${localRecords !== null
+                        ? localRecords.length
+                        : pagination?.total ?? 0
+                        } total`}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -1007,9 +1008,8 @@ export default function AttendanceRecordsSection({
   );
 }
 
-async function getAuthHeader() {
-  if (typeof window === "undefined") return {} as Record<string, string>;
-  const token = window.localStorage.getItem("access_token");
+function getAuthHeader(): Record<string, string> {
+  const token = getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -1034,11 +1034,11 @@ function useAttendanceFetch(
     setLocalLoading(true);
     try {
       const apiUrl = getApiBase();
-      const headers = await getAuthHeader();
+      const headers = getAuthHeader();
       const endpoint = id
         ? `${apiUrl}/time/attendance/records/${id}`
         : `${apiUrl}/time/attendance/records?limit=50`;
-      const res = await fetch(endpoint, { headers });
+      const res = await fetch(endpoint, { headers, credentials: "include" });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt || `Status ${res.status}`);
@@ -1047,8 +1047,8 @@ function useAttendanceFetch(
       const rows = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : payload?.data || [];
+          ? payload
+          : payload?.data || [];
       setLocalRecords(rows as AttendanceRecord[]);
       if (typeof window !== "undefined" && id) {
         window.localStorage.setItem("last_employee_id", id);
@@ -1075,11 +1075,12 @@ function useCsvImport(
       const apiUrl = getApiBase();
       const headers = {
         "Content-Type": "application/json",
-        ...(await getAuthHeader()),
+        ...getAuthHeader(),
       };
       const res = await fetch(`${apiUrl}/time/attendance/import-csv`, {
         method: "POST",
         headers,
+        credentials: "include",
         body: JSON.stringify({}),
       });
       if (!res.ok) {
@@ -1121,13 +1122,14 @@ function useEmployeeSearch(
     setLocalLoading(true);
     try {
       const apiUrl = getApiBase();
-      const headers = await getAuthHeader();
+      const headers = getAuthHeader();
       const params = new URLSearchParams();
       params.set("page", "1");
       params.set("limit", "50");
       if (name) params.set("search", name);
       const res = await fetch(`${apiUrl}/employee?${params.toString()}`, {
         headers,
+        credentials: "include",
       });
       if (!res.ok) {
         const txt = await res.text();
@@ -1137,8 +1139,8 @@ function useEmployeeSearch(
       let items: any[] = Array.isArray(payload?.items)
         ? payload.items
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
       if (domain) {
         items = items.filter((e) => {
           const email = (e.email || "").toLowerCase();
@@ -1164,8 +1166,7 @@ function useEmployeeSearch(
         setEmployeeId(only._id);
         await fetchEmployee();
         setLocalInfo(
-          `Loaded attendance for ${only.firstName} ${only.lastName} (${
-            only.employeeNumber || only._id
+          `Loaded attendance for ${only.firstName} ${only.lastName} (${only.employeeNumber || only._id
           })`
         );
         return;

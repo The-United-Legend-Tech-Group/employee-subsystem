@@ -16,6 +16,8 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 
 import { ShiftDefinition, ScheduleRule } from "./types";
+import { getAccessToken } from "@/lib/auth-utils";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 
 type Employee = {
@@ -59,16 +61,11 @@ export default function AssignShiftModal(props: any) {
       setError(null);
 
       try {
-        const token = window.localStorage.getItem("access_token");
-        if (!token) {
-          setError("Not authenticated");
-          return;
-        }
+        const token = getAccessToken();
 
         const response = await fetch(`${API_BASE}/employee/s`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: (token ? { Authorization: `Bearer ${token}` } : {}) as Record<string, string>,
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -113,10 +110,7 @@ export default function AssignShiftModal(props: any) {
     setSubmitting(true);
 
     try {
-      const token = window.localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
+      const token = getAccessToken();
 
       // Build payload
       const payload: {
@@ -143,8 +137,9 @@ export default function AssignShiftModal(props: any) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {} as Record<string, string>),
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 

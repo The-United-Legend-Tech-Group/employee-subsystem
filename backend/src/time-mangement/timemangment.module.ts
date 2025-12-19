@@ -49,6 +49,7 @@ import { TimeExceptionRepository } from './repository/time-exception.repository'
 @Module({
   imports: [
     DatabaseModule,
+    LeavesModule,
     forwardRef(() => LeavesModule), // Use forwardRef to resolve circular dependency
     NotificationModule, // Import to send escalation notifications
     // Register feature schemas local to the time-management subsystem

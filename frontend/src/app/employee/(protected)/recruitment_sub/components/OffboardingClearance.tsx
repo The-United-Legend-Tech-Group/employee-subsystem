@@ -54,9 +54,7 @@ export function OffboardingClearance() {
     try {
       setLoading(true);
       const response = await offboardingApi.getAllOffboardingChecklists();
-      if (response.data.success) {
-        setOffboardingData(response.data.checklists || []);
-      }
+      setOffboardingData(Array.isArray(response.data) ? response.data : []);
     } catch (error: any) {
       console.error('Failed to fetch offboarding checklists:', error);
       toast.error(error.response?.data?.message || 'Failed to load offboarding checklists');
@@ -84,7 +82,7 @@ export function OffboardingClearance() {
 
       // Send the status as selected by the user. Do not introduce 'in_progress'.
       // When user selects 'under_review' it will be sent as 'under_review' (matches backend enum).
-      
+
       await offboardingApi.processDepartmentSignOff({
         clearanceChecklistId: checklistId,
         department: department,
@@ -96,7 +94,7 @@ export function OffboardingClearance() {
 
       // Refresh checklists
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = response.data.checklists || [];
+      const newChecklists = Array.isArray(response.data) ? response.data : [];
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -156,7 +154,7 @@ export function OffboardingClearance() {
 
       // Refresh checklists
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = response.data.checklists || [];
+      const newChecklists = Array.isArray(response.data) ? response.data : [];
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -198,7 +196,7 @@ export function OffboardingClearance() {
 
       // Refresh checklists
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = response.data.checklists || [];
+      const newChecklists = Array.isArray(response.data) ? response.data : [];
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -298,7 +296,7 @@ export function OffboardingClearance() {
             // Determine chip label and color based on overall status
             let statusLabel = 'In Progress';
             let statusColor: 'warning' | 'success' | 'error' = 'warning';
-            
+
             if (isFullyCleared) {
               statusLabel = 'Fully Cleared';
               statusColor = 'success';
@@ -595,7 +593,7 @@ export function OffboardingClearance() {
               {/* Department Clearances with Status Update */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" gutterBottom>Department Sign-offs</Typography>
-                
+
                 {/* Show warning if termination date has expired */}
                 {isTerminationDateExpired(selectedChecklist.termination?.terminationDate) && (
                   <Paper
@@ -620,7 +618,7 @@ export function OffboardingClearance() {
                     </Stack>
                   </Paper>
                 )}
-                
+
                 <Stack spacing={2}>
                   {(selectedChecklist.checklist.items || []).map((clearance: any, index: number) => {
                     const isApproved = clearance.status === 'approved';
@@ -686,16 +684,16 @@ export function OffboardingClearance() {
                             (() => {
                               const options: { value: string; label: string }[] = isUnderReview
                                 ? [
-                                    { value: 'under_review', label: 'Under Review' },
-                                    { value: 'approved', label: 'Approved' },
-                                    { value: 'rejected', label: 'Rejected' },
-                                  ]
+                                  { value: 'under_review', label: 'Under Review' },
+                                  { value: 'approved', label: 'Approved' },
+                                  { value: 'rejected', label: 'Rejected' },
+                                ]
                                 : [
-                                    { value: 'pending', label: 'Pending' },
-                                    { value: 'under_review', label: 'Under Review' },
-                                    { value: 'approved', label: 'Approved' },
-                                    { value: 'rejected', label: 'Rejected' },
-                                  ];
+                                  { value: 'pending', label: 'Pending' },
+                                  { value: 'under_review', label: 'Under Review' },
+                                  { value: 'approved', label: 'Approved' },
+                                  { value: 'rejected', label: 'Rejected' },
+                                ];
 
                               return (
                                 <FormControl size="small" sx={{ minWidth: 140 }}>

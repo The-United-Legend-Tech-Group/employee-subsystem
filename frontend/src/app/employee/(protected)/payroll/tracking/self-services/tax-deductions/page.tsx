@@ -38,6 +38,7 @@ interface TaxDeduction {
   calculatedAmount?: number;
   status: string;
   createdAt: string | null;
+  appliedTo?: number;
 }
 
 export default function TaxDeductionsPage() {

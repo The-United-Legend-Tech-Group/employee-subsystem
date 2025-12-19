@@ -250,7 +250,7 @@ export default function HRContracts() {
                                 // Ensure we preserve MIME type when opening the blob
                                 const blob = response.data instanceof Blob
                                   ? response.data
-                                  : new Blob([response.data], { type: response.headers?.['content-type'] || 'application/pdf' });
+                                  : new Blob([response.data], { type: 'application/pdf' });
 
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');

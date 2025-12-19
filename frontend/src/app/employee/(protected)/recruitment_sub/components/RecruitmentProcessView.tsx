@@ -118,9 +118,14 @@ export function RecruitmentProcessView() {
                 if (app.status === 'hired' || app.status === 'offer') {
                   try {
                     const historyResponse = await recruitmentApi.getApplicationHistory(app._id);
+                    // Handle both array and object response formats
+                    const historyData = historyResponse.data;
+                    const timeToHire = Array.isArray(historyData)
+                      ? undefined
+                      : (historyData as any)?.timeToHire;
                     return {
                       ...app,
-                      timeToHire: historyResponse.data.timeToHire
+                      timeToHire
                     };
                   } catch (error) {
                     console.error(`Failed to fetch history for application ${app._id}:`, error);

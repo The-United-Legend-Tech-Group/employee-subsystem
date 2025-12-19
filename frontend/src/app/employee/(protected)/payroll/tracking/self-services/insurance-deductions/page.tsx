@@ -36,6 +36,11 @@ interface InsuranceDeduction {
   maxSalary?: number;
   status: string;
   createdAt: string | null;
+  // Optional fields returned or computed for display
+  appliedTo?: number;
+  employeeContribution?: number;
+  employerContribution?: number;
+  payslipPeriod?: string | null;
 }
 
 export default function InsuranceDeductionsPage() {

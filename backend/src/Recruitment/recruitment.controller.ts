@@ -5,6 +5,8 @@ import { RecruitmentService } from './recruitment.service';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthGuard } from '../common/guards/authentication.guard';
 import { authorizationGuard } from '../common/guards/authorization.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { SystemRole } from '../employee-subsystem/employee/enums/employee-profile.enums';
 import { UploadSignedContractDto } from './DTO/upload-signed-contract.dto';
 import { UploadComplianceDocumentsDto } from './DTO/upload-compliance-documents.dto';
 import { HrSignContractDto } from './DTO/hr-sign-contract.dto';
@@ -51,81 +53,81 @@ export class RecruitmentController {
   constructor(private readonly recruitmentService: RecruitmentService) { }
 
   @Post('offer/create')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async createOffer(@Body() dto: CreateOfferDto, @Req() req: any) {
     return this.recruitmentService.createOffer(dto, req.user?.sub);
   }
 
   @Get('offers/all')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async getAllOffers() {
     return this.recruitmentService.getAllOffers();
   }
 
   @Get('offers/my')
-  // @Roles(SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getMyOffers(@Req() req: any) {
     // Assuming we want offers for the candidate
     return this.recruitmentService.getOffersByCandidateId(req.user.sub);
   }
 
   @Get('offer/:offerId')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async getOfferById(@Param('offerId') offerId: string) {
     return this.recruitmentService.getOfferById(offerId);
   }
 
   @Post('offer/add-approver')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async addOfferApprover(@Body() dto: AddOfferApproverDto) {
     return this.recruitmentService.addOfferApprover(dto);
   }
 
   @Post('offer/approve')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
   async approveOffer(@Body() dto: ApproveOfferDto, @Req() req: any) {
     return this.recruitmentService.approveOffer(dto, req.user.sub);
   }
 
   @Post('offer/send')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async sendOffer(@Body() dto: SendOfferDto) {
     return this.recruitmentService.sendOffer(dto);
   }
 
   @Post('offer/candidate-respond')
-  // @Roles(SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async candidateRespondOffer(@Body() dto: CandidateRespondOfferDto, @Req() req: any) {
     return this.recruitmentService.candidateRespondOffer(dto, req.user.sub);
   }
 
   @Get('offer/approvals/my')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
   async getMyApprovals(@Req() req: any) {
     const userId = req.user?.employeeId || req.user?.sub;
     return this.recruitmentService.getMyApprovals(userId);
   }
 
   @Get('contracts')
-  // @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async getAllContracts() {
     return this.recruitmentService.getAllContracts();
   }
 
   @Get('contracts/candidate/:candidateId')
-  // @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async getContractsByCandidateId(@Param('candidateId') candidateId: string) {
     return this.recruitmentService.getContractsByCandidateId(candidateId);
   }
 
   @Get('contracts/my')
-  // @Roles(SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getMyContracts(@Req() req: any) {
     return this.recruitmentService.getContractsByCandidateId(req.user.sub);
   }
 
   @Post('contract/sign')
-  // @Roles(SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   @UseInterceptors(FilesInterceptor('files'))
   async signContract(
     @Body() dto: UploadSignedContractDto,
@@ -136,13 +138,13 @@ export class RecruitmentController {
   }
 
   @Post('contract/hr-sign')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async hrSignContract(@Body() dto: HrSignContractDto, @Req() req: any) {
     return this.recruitmentService.hrSignContract(dto, req.user.sub);
   }
 
   @Post('documents/upload')
-  // @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @UseInterceptors(FilesInterceptor('files'))
   async uploadComplianceDocuments(
     @Body() dto: UploadComplianceDocumentsDto,
@@ -168,49 +170,49 @@ export class RecruitmentController {
   }
 
   @Post('onboarding/checklist')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async createOnboardingChecklist(@Body() dto: CreateOnboardingChecklistDto) {
     return this.recruitmentService.createOnboardingChecklist(dto);
   }
 
   @Post('onboarding/checklist/defaults')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async createOnboardingWithDefaults(@Body() dto: CreateOnboardingWithDefaultsDto) {
     return this.recruitmentService.createOnboardingWithDefaults(dto);
   }
 
   @Get('onboarding/checklists/all')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getAllOnboardingChecklists() {
     return this.recruitmentService.getAllOnboardingChecklists();
   }
 
   @Get('onboarding/checklist')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getOnboardingChecklist(@Query() dto: GetOnboardingChecklistDto) {
     return this.recruitmentService.getOnboardingChecklist(dto);
   }
 
   @Post('onboarding/reminders')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async sendOnboardingReminders(@Body() dto: SendOnboardingReminderDto) {
     return this.recruitmentService.sendOnboardingReminders(dto);
   }
 
   @Post('onboarding/reminders/all')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async sendAllOnboardingReminders(@Body() body: { daysBeforeDeadline?: number }) {
     return this.recruitmentService.sendAllOnboardingReminders(body.daysBeforeDeadline || 1);
   }
 
   @Patch('onboarding/task/status')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async updateTaskStatus(@Body() dto: UpdateTaskStatusDto, @Req() req: any) {
     return this.recruitmentService.updateTaskStatus(dto, req.user.sub);
   }
 
   @Post('onboarding/cancel')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async cancelOnboarding(@Body() dto: CancelOnboardingDto) {
     return this.recruitmentService.cancelOnboarding(dto);
   }
@@ -224,7 +226,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Post('createTemplate')
   @Public()
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async createJobTemplate(@Body() CreateJobTemplateDto: CreateJobTemplateDto): Promise<JobTemplateDocument> {
     return await this.recruitmentService.createjob_template(CreateJobTemplateDto)
   }
@@ -245,7 +247,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Job template not found' })
   @Post('Requisition')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
   async createJobRequisition(@Body() CreateJobRequisitionDto: CreateJobRequisitionDto, @Req() req: any): Promise<JobRequisitionDocument> {
     return await this.recruitmentService.createjob_requision(CreateJobRequisitionDto, req.user?.sub)
   }
@@ -259,7 +261,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Job requisition with specified ID not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Patch('Rrequisition/:requisitionid')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async updateJobRequision(@Param('requisitionid') id: string, @Body() UpdateJobRequisitionDto: UpdateJobRequisitionDto): Promise<JobRequisitionDocument> {
     return await this.recruitmentService.updatejob_requisition(id, UpdateJobRequisitionDto)
   }
@@ -313,7 +315,7 @@ export class RecruitmentController {
     return this.recruitmentService.createApplication(createApplicationDto, candidateId);
   }
   @Get('Application/my')
-  // @Roles(SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getMyApplications(@Req() req: any): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getallcandidateApplications(req.user.sub);
   }
@@ -324,7 +326,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of candidate applications', type: [Object] })
   @ApiResponse({ status: 400, description: 'Invalid candidate ID format' })
   @Get('Application/:candidateId')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getApplicationsByCandidate(@Param('candidateId') candidateId: string): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getallcandidateApplications(candidateId);
   }
@@ -357,7 +359,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Application or job requisition not found' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @Patch('Application/:applicationId/update/:hrId')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async updateApplication(
     @Param('applicationId') applicationId: string,
     @Param('hrId') hrId: string, // Kept for backward compatibility if needed, but prefer token
@@ -369,7 +371,7 @@ export class RecruitmentController {
   }
 
   @Patch('Application/:applicationId/update') // New clean endpoint
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async updateApplicationMe(
     @Param('applicationId') applicationId: string,
     @Body() updateApplicationDto: UpdateApplicationDto,
@@ -385,7 +387,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Application not found' })
   @ApiResponse({ status: 500, description: 'Failed to send notification' })
   @Post('Application/:applicationId/notify')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async sendApplicationNotification(
     @Param('applicationId') applicationId: string,
     @Body() notificationData?: SendNotificationDto
@@ -410,7 +412,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Application not found or invalid stage' })
   @ApiResponse({ status: 400, description: 'Invalid interview data' })
   @Post('Interview')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async createInterview(@Body() createInterviewDto: CreateInterviewDto, @Req() req: any): Promise<InterviewDocument> {
     // If hrId not supplied, try to derive it from authenticated user
     if (!createInterviewDto.hrId) {
@@ -441,7 +443,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Application not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('Interview/Application/:applicationId')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getInterviewsByApplication(@Param('applicationId') applicationId: string): Promise<InterviewDocument[]> {
     return this.recruitmentService.getInterviewByApplication(applicationId);
   }
@@ -465,7 +467,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Interview not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Patch('Interview/:interviewId')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async updateInterviewStatus(@Param('interviewId') interviewId: string, @Body() updateInterviewDto: UpdateInterviewDto): Promise<InterviewDocument> {
     return this.recruitmentService.updateInterview(interviewId, updateInterviewDto);
   }
@@ -478,7 +480,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Interview 2' })
   @ApiResponse({ status: 500, description: 'Internal 3' })
   @Post('Application/referral/:candidateId')
-  // @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async createReferral(@Param('candidateId') candidateId: string, @Body() createReferralDto: CreateReferralDto, @Req() req: any): Promise<ReferralDocument> {
     return this.recruitmentService.createReferral(candidateId, createReferralDto, req.user?.sub);
   }
@@ -486,7 +488,7 @@ export class RecruitmentController {
   @ApiOperation({ summary: 'Get all referrals', description: 'Fetch all referral records' })
   @ApiResponse({ status: 200, description: 'Referrals retrieved successfully' })
   @Get('referrals/all')
-  // @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async getAllReferrals(): Promise<ReferralDocument[]> {
     return this.recruitmentService.getAllReferrals();
   }
@@ -511,7 +513,7 @@ export class RecruitmentController {
   })
   @ApiResponse({ status: 200, description: 'List of all assessments' })
   @Get('Assessment/All')
-  // @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async getAllAssessments(): Promise<AssessmentResultDocument[]> {
     return this.recruitmentService.getAllAssessments();
   }

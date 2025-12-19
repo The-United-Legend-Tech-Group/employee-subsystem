@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EmployeeStatus } from './enums/employee-profile.enums';
+import { EmployeeStatus, SystemRole } from './enums/employee-profile.enums';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { LoginCandidateDto } from './dto/login-candidate.dto';
@@ -76,7 +76,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: candidate._id, email: candidate.personalEmail };
+    const payload = {
+      sub: candidate._id,
+      email: candidate.personalEmail,
+      roles: [SystemRole.JOB_CANDIDATE]
+    };
     return {
       access_token: this.jwtService.sign(payload),
       candidateId: candidate._id.toString(),

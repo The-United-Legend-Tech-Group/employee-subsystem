@@ -659,8 +659,14 @@ export class RecruitmentService {
 
       await this.contractRepository.updateById(contractId, updateData);
 
+      // Calculate next working day (skip weekends)
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 7); // Start date 7 days from now
+      startDate.setDate(startDate.getDate() + 1); // Next day
+      
+      // Skip weekends: if Saturday (6) or Sunday (0), move to Monday
+      while (startDate.getDay() === 0 || startDate.getDay() === 6) {
+        startDate.setDate(startDate.getDate() + 1);
+      }
 
       await this.createOnboardingWithDefaults({
         employeeId: employeeProfileId,
@@ -708,6 +714,31 @@ export class RecruitmentService {
           updatedContract.role,
           employeeData.employeeNumber
         );
+      }
+
+      // Decrement job requisition openings and update status if needed
+      if (offer.applicationId) {
+        try {
+          const application = await this.applicationRepository.findById(offer.applicationId.toString());
+          if (application && application.requisitionId) {
+            const requisition = await this.jobRequisitionRepository.findById(application.requisitionId.toString());
+            if (requisition && requisition.openings > 0) {
+              const newOpenings = requisition.openings - 1;
+              const updateData: any = { openings: newOpenings };
+              
+              // If openings reach 0, close the requisition
+              if (newOpenings === 0) {
+                updateData.publishStatus = 'closed';
+              }
+              
+              await this.jobRequisitionRepository.updateById(requisition._id.toString(), updateData);
+              console.log(`✅ Job requisition ${requisition.requisitionId} openings decremented to ${newOpenings}. Status: ${updateData.publishStatus || requisition.publishStatus}`);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to decrement job requisition openings:', error);
+          // Don't fail the contract signing if this fails
+        }
       }
 
       return updatedContract;
@@ -1898,6 +1929,33 @@ export class RecruitmentService {
   // Get applications by requisition ID
   async getApplicationsByRequisition(requisitionId: string): Promise<ApplicationDocument[]> {
     return this.applicationRepository.findByRequisitionId(requisitionId);
+  }
+
+  // Get application history with time-to-hire calculation
+  async getApplicationHistory(applicationId: string): Promise<any> {
+    const history = await this.applicationHistoryRepository.findByApplicationId(applicationId);
+    const application = await this.applicationRepository.findById(applicationId);
+    
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    // Calculate time-to-hire (from submission to hired/offer accepted)
+    let timeToHire: number | null = null;
+    if (application.status === 'hired' || application.status === 'offer') {
+      const createdAt = (application as any).createdAt || new Date();
+      const hiredDate = history.find(h => h.newStatus === 'hired' || h.newStatus === 'offer');
+      if (hiredDate && (hiredDate as any).createdAt) {
+        const diffInMs = new Date((hiredDate as any).createdAt).getTime() - new Date(createdAt).getTime();
+        timeToHire = Math.floor(diffInMs / (1000 * 60 * 60 * 24)); // Convert to days
+      }
+    }
+
+    return {
+      application,
+      history,
+      timeToHire,
+    };
   }
 
   // REC-017 part2 & REC-022: Update Application Status/Stage by candidateId and requisitionId

@@ -359,6 +359,15 @@ export class RecruitmentController {
     return this.recruitmentService.getApplicationsByRequisition(requisitionId);
   }
 
+  @ApiOperation({ summary: 'Get application history and time-to-hire' })
+  @ApiParam({ name: 'applicationId', description: 'Application MongoDB ObjectId' })
+  @ApiResponse({ status: 200, description: 'Application history with time-to-hire metric' })
+  @Get('Application/:applicationId/history')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  async getApplicationHistory(@Param('applicationId') applicationId: string) {
+    return this.recruitmentService.getApplicationHistory(applicationId);
+  }
+
   // REC-008 ,REC-022 ,REC-017 part 2: Update Application Status/Stage
   @ApiOperation({
     summary: 'Update application status and stage',

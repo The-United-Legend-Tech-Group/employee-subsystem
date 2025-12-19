@@ -401,6 +401,10 @@ export const recruitmentApi = {
     return api.get(`/recruitment/Application/${candidateId}`);
   },
 
+  getApplicationHistory: (applicationId: string) => {
+    return api.get(`/recruitment/Application/${applicationId}/history`);
+  },
+
   updateApplication: (applicationId: string, hrId: string, data: UpdateApplicationDto) => {
     return api.patch(`/recruitment/Application/${applicationId}/update/${hrId}`, data);
   },

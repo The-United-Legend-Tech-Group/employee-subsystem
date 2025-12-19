@@ -217,6 +217,28 @@ export function OnboardingChecklists() {
           <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
             Active Onboarding Checklists
           </Typography>
+
+          {/* Required Documents Information */}
+          <Card variant="outlined" sx={{ mb: 3, bgcolor: 'background.default' }}>
+            <CardContent>
+              <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+                📄 Required Documents from Candidates
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                New hires must upload the following documents during onboarding:
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                <Chip label="ID Document" size="small" color="primary" variant="outlined" />
+                <Chip label="Certificates" size="small" color="primary" variant="outlined" />
+                <Chip label="Signed Contract" size="small" color="success" variant="outlined" />
+                <Chip label="Additional Documents" size="small" color="default" variant="outlined" />
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Documents are automatically linked to tasks when uploaded through the compliance documents endpoint.
+              </Typography>
+            </CardContent>
+          </Card>
+
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />

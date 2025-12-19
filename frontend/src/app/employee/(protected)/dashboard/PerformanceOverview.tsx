@@ -23,7 +23,7 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useRouter } from 'next/navigation';
 
-import { decryptData } from '../../../../common/utils/encryption';
+import { getEmployeeIdFromCookie, isAuthenticated } from '../../../../lib/auth-utils';
 import { AppraisalRecord } from '../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
@@ -43,17 +43,14 @@ export default function PerformanceOverview({ employeeId: propEmployeeId, initia
 
     const fetchRecords = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            if (!isAuthenticated()) {
+                return;
+            }
 
             let employeeId = propEmployeeId;
 
             if (!employeeId) {
-                const encryptedEmployeeId = localStorage.getItem('employeeId');
-                if (!token || !encryptedEmployeeId) {
-                    // Fail silently or just don't fetch if auth is missing (dashboard might handle redirect)
-                    return;
-                }
-                employeeId = await decryptData(encryptedEmployeeId, token);
+                employeeId = getEmployeeIdFromCookie() ?? undefined;
             }
 
             if (!employeeId) throw new Error('Failed to resolve employee ID');
@@ -61,9 +58,7 @@ export default function PerformanceOverview({ employeeId: propEmployeeId, initia
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
 
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
 
             if (!response.ok) {

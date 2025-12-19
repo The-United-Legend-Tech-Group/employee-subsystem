@@ -21,6 +21,8 @@ import {
     logout
 } from '../../../lib/auth-utils';
 import { decryptData } from '../../../common/utils/encryption';
+import { AuthProvider } from '../../../context/AuthContext';
+import { ToastProvider } from '../../../lib/hooks/useToast';
 
 const xThemeComponents = {
     ...chartsCustomizations,
@@ -92,48 +94,52 @@ export default function CandidateLayout({ children }: LayoutProps) {
     }, [router]);
 
     return (
-        <AppTheme themeComponents={xThemeComponents}>
-            <CssBaseline enableColorScheme />
-            <Box sx={{ display: 'flex' }}>
-                <SideMenu user={candidate ? {
-                    name: `${candidate.firstName} ${candidate.lastName}`,
-                    email: candidate.personalEmail,
-                    image: candidate.profilePictureUrl || ''
-                } : undefined} />
-                <AppNavbar />
+        <AuthProvider initialRoles={[]} initialLoading={false}>
+            <ToastProvider>
+                <AppTheme themeComponents={xThemeComponents}>
+                    <CssBaseline enableColorScheme />
+                    <Box sx={{ display: 'flex' }}>
+                        <SideMenu user={candidate ? {
+                            name: `${candidate.firstName} ${candidate.lastName}`,
+                            email: candidate.personalEmail,
+                            image: candidate.profilePictureUrl || ''
+                        } : undefined} />
+                        <AppNavbar />
 
-                {/* Main Content Area */}
-                <Box
-                    component="main"
-                    sx={(theme) => ({
-                        flexGrow: 1,
-                        backgroundColor: theme.vars
-                            ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
-                            : alpha(theme.palette.background.default, 1),
-                        overflow: 'auto',
-                        height: '100vh',
-                    })}
-                >
-                    <Stack
-                        spacing={2}
-                        sx={{
-                            alignItems: 'center',
-                            mx: 3,
-                            pb: 5,
-                            mt: { xs: 8, md: 0 },
-                            height: '100%',
-                        }}
-                    >
-                        {/* Header is universal for this layout */}
-                        <Header notificationPath="/candidate/notifications" />
+                        {/* Main Content Area */}
+                        <Box
+                            component="main"
+                            sx={(theme) => ({
+                                flexGrow: 1,
+                                backgroundColor: theme.vars
+                                    ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
+                                    : alpha(theme.palette.background.default, 1),
+                                overflow: 'auto',
+                                height: '100vh',
+                            })}
+                        >
+                            <Stack
+                                spacing={2}
+                                sx={{
+                                    alignItems: 'center',
+                                    mx: 3,
+                                    pb: 5,
+                                    mt: { xs: 8, md: 0 },
+                                    height: '100%',
+                                }}
+                            >
+                                {/* Header is universal for this layout */}
+                                <Header notificationPath="/candidate/notifications" />
 
-                        {/* Page Content */}
-                        <Box sx={{ width: '100%', height: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
-                            {children}
+                                {/* Page Content */}
+                                <Box sx={{ width: '100%', height: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
+                                    {children}
+                                </Box>
+                            </Stack>
                         </Box>
-                    </Stack>
-                </Box>
-            </Box>
-        </AppTheme>
+                    </Box>
+                </AppTheme>
+            </ToastProvider>
+        </AuthProvider>
     );
 }

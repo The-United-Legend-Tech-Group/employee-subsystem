@@ -9,6 +9,7 @@ import PageContainer from '../../../../../../common/material-ui/crud-dashboard/c
 import EmployeeEditForm from '../EmployeeEditForm';
 import DialogsProvider from '../../../../../../common/material-ui/crud-dashboard/hooks/useDialogs/DialogsProvider';
 import NotificationsProvider from '../../../../../../common/material-ui/crud-dashboard/hooks/useNotifications/NotificationsProvider';
+import { logout } from '@/lib/auth-utils';
 
 interface Employee {
     _id: string;
@@ -36,12 +37,6 @@ function EmployeeEditContent() {
     const [error, setError] = React.useState('');
 
     const fetchEmployee = React.useCallback(async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            router.push('/employee/login');
-            return;
-        }
-
         try {
             const id = params.id as string;
             if (!id) throw new Error('No ID provided');
@@ -49,10 +44,13 @@ function EmployeeEditContent() {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/employee/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
+
+            if (response.status === 401) {
+                logout('/employee/login');
+                return;
+            }
 
             if (response.ok) {
                 const data = await response.json();

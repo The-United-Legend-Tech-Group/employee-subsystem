@@ -14,11 +14,18 @@ export class ApplicationRepository extends BaseRepository<ApplicationDocument> i
   }
 
   async findByRequisitionId(requisitionId: string): Promise<ApplicationDocument[]> {
-    return this.applicationModel.find({ requisitionId }).exec();
+    return this.applicationModel.find({ requisitionId: new Types.ObjectId(requisitionId) })
+      .populate('candidateId')
+      .exec();
   }
 
   async findByCandidateId(candidateId: string): Promise<ApplicationDocument[]> {
-    return this.applicationModel.find({ candidateId: new Types.ObjectId(candidateId) }).exec();
+    return this.applicationModel.find({ candidateId: new Types.ObjectId(candidateId) })
+      .populate({
+        path: 'requisitionId',
+        populate: { path: 'templateId' }
+      })
+      .exec();
   }
 
   async findByStatus(status: string): Promise<ApplicationDocument[]> {
@@ -34,5 +41,17 @@ export class ApplicationRepository extends BaseRepository<ApplicationDocument> i
       requisitionId: requisitionId,
       candidateId: candidateId
     }).exec();
+  }
+
+  async findAllPopulated(): Promise<ApplicationDocument[]> {
+    return this.applicationModel.find()
+      .populate([
+        { path: 'candidateId' },
+        {
+          path: 'requisitionId',
+          populate: { path: 'templateId' }
+        }
+      ])
+      .exec();
   }
 }

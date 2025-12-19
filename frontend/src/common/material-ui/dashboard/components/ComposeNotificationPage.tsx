@@ -20,6 +20,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs, { Dayjs } from 'dayjs';
+import { logout } from '@/lib/auth-utils';
 
 export interface Position {
     _id: string;
@@ -74,13 +75,16 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
 
         (async () => {
             setEmpLoading(true);
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             try {
                 // Fetch all employees for now (paginated by default but we ask for list)
                 const res = await fetch(`${apiUrl}/employee?limit=100`, { // Arbitrary limit for demo
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
                     if (active) {
@@ -113,12 +117,15 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
 
         (async () => {
             setPosLoading(true);
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             try {
                 const res = await fetch(`${apiUrl}/organization-structure/positions`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
                     if (active) {
@@ -141,7 +148,6 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
         e.preventDefault();
         setLoading(true);
 
-        const token = localStorage.getItem('access_token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
         const payload = {
@@ -163,11 +169,16 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
             const res = await fetch(`${apiUrl}/notification`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
+
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
 
             if (res.ok) {
                 setFeedback({ message: 'Notification sent successfully!', severity: 'success' });
@@ -255,7 +266,7 @@ export default function ComposeNotificationPage({ initialEmployees = [], initial
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <DateTimePicker
                                     value={deadline}
-                                    onChange={(newValue: Dayjs | null) => setDeadline(newValue)}
+                                    onChange={(newValue) => setDeadline(newValue as Dayjs | null)}
                                     slotProps={{ textField: { fullWidth: true, hiddenLabel: true } }}
                                 />
                             </LocalizationProvider>

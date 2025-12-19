@@ -31,7 +31,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useRouter } from 'next/navigation';
 import { AppraisalAssignment } from '@/types/performance';
-import { decryptData } from '@/common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 
 // Attendance record type based on the backend model
 interface AttendanceRecord {
@@ -80,25 +80,22 @@ export default function TeamAttendancePage() {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const managerId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) {
-                throw new Error('Authentication details missing');
-            }
-
-            const managerId = await decryptData(encryptedEmployeeId, token);
             if (!managerId) {
-                throw new Error('Failed to decrypt manager ID');
+                logout('/employee/login');
+                return;
             }
 
             const response = await fetch(`${API_URL}/performance/assignments?managerId=${managerId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                credentials: 'include',
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch assignments');
             }
             const data = await response.json();
@@ -118,11 +115,6 @@ export default function TeamAttendancePage() {
         setAttendanceData([]);
 
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                throw new Error('Authentication token missing');
-            }
-
             // Fetch last 30 days of attendance records
             const endDate = new Date();
             const startDate = new Date();
@@ -131,13 +123,15 @@ export default function TeamAttendancePage() {
             const response = await fetch(
                 `${API_URL}/time/attendance/records/${employeeId}?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&limit=50`,
                 {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    credentials: 'include',
                 }
             );
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch attendance records');
             }
 

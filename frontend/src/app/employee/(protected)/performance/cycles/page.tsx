@@ -1,17 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     Box,
     Button,
     Container,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Typography,
     IconButton,
     Chip,
@@ -25,19 +19,33 @@ import {
     Skeleton,
     Snackbar,
     Alert,
-    TablePagination,
+    InputAdornment,
+    FormControl,
+    InputLabel,
+    Select,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel } from '@mui/x-data-grid';
 import { AppraisalCycle, AppraisalTemplateType, CreateAppraisalCycleDto, UpdateAppraisalCycleDto, AppraisalCycleStatus } from './types';
+import { logout } from '../../../../../lib/auth-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
 export default function AppraisalCyclesPage() {
     const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('');
+    const [typeFilter, setTypeFilter] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [total, setTotal] = useState(0);
+    const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
+        page: 0,
+        pageSize: 10,
+    });
     const [openDialog, setOpenDialog] = useState(false);
     const [editingCycle, setEditingCycle] = useState<AppraisalCycle | null>(null);
     const [formData, setFormData] = useState<CreateAppraisalCycleDto>({
@@ -57,38 +65,123 @@ export default function AppraisalCyclesPage() {
         severity: 'success',
     });
 
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(6);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [cycleToDelete, setCycleToDelete] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadCycles();
-    }, []);
+    // Track if this is the initial mount to skip debounced search on first render
+    const isInitialMount = useRef(true);
+    // Track if we've ever loaded data (for skeleton vs loading overlay)
+    const hasLoadedOnce = useRef(false);
 
-    const handleCloseSnackbar = () => {
-        setSnackbar({ ...snackbar, open: false });
-    };
-
-    const loadCycles = async () => {
+    const loadCycles = useCallback(async () => {
         try {
+            setLoading(true);
             setError(null);
-            const response = await fetch(`${API_URL}/performance/cycles`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                },
+
+            const params = new URLSearchParams();
+            params.append('page', String(paginationModel.page + 1)); // API is 1-indexed
+            params.append('limit', String(paginationModel.pageSize));
+
+            if (searchQuery.trim()) {
+                params.append('search', searchQuery.trim());
+            }
+
+            if (statusFilter) {
+                params.append('status', statusFilter);
+            }
+
+            if (typeFilter) {
+                params.append('cycleType', typeFilter);
+            }
+
+            const response = await fetch(`${API_URL}/performance/cycles?${params.toString()}`, {
                 credentials: 'include',
             });
+
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch cycles: ${response.status} ${response.statusText} - ${errorText}`);
             }
+
             const data = await response.json();
-            setCycles(data);
+
+            // Handle both array response and paginated response
+            if (Array.isArray(data)) {
+                // Filter client-side if API doesn't support server-side filtering
+                let filteredData = data;
+
+                if (searchQuery.trim()) {
+                    const query = searchQuery.trim().toLowerCase();
+                    filteredData = filteredData.filter(cycle =>
+                        cycle.name.toLowerCase().includes(query) ||
+                        (cycle.description && cycle.description.toLowerCase().includes(query))
+                    );
+                }
+
+                if (statusFilter) {
+                    filteredData = filteredData.filter(cycle => cycle.status === statusFilter);
+                }
+
+                if (typeFilter) {
+                    filteredData = filteredData.filter(cycle => cycle.cycleType === typeFilter);
+                }
+
+                setTotal(filteredData.length);
+                // Apply client-side pagination
+                const start = paginationModel.page * paginationModel.pageSize;
+                const end = start + paginationModel.pageSize;
+                setCycles(filteredData.slice(start, end));
+            } else {
+                // Paginated response from API
+                setCycles(data.data || data);
+                setTotal(data.total || data.length);
+            }
         } catch (error: any) {
             console.error('Failed to load cycles', error);
             setError(error.message || 'Failed to load cycles');
         } finally {
             setLoading(false);
+            hasLoadedOnce.current = true;
         }
+    }, [paginationModel, searchQuery, statusFilter, typeFilter]);
+
+    // Single effect for all data loading
+    useEffect(() => {
+        // Skip the debounced search on initial mount
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            loadCycles();
+            return;
+        }
+
+        // For filter and pagination changes, load immediately
+        loadCycles();
+    }, [paginationModel, statusFilter, typeFilter]);
+
+    // Debounced search - only triggers after user types (skip initial mount)
+    useEffect(() => {
+        if (isInitialMount.current) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            // Reset to first page on search change
+            if (paginationModel.page !== 0) {
+                setPaginationModel(prev => ({ ...prev, page: 0 }));
+            } else {
+                loadCycles();
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     const handleOpenDialog = (cycle?: AppraisalCycle) => {
@@ -137,7 +230,6 @@ export default function AppraisalCyclesPage() {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                     },
                     body: JSON.stringify(formData),
                     credentials: 'include',
@@ -152,7 +244,6 @@ export default function AppraisalCyclesPage() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
                     },
                     body: JSON.stringify(formData),
                     credentials: 'include',
@@ -171,9 +262,6 @@ export default function AppraisalCyclesPage() {
         }
     };
 
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [cycleToDelete, setCycleToDelete] = useState<string | null>(null);
-
     const handleDeleteClick = (id: string) => {
         setCycleToDelete(id);
         setDeleteDialogOpen(true);
@@ -185,9 +273,6 @@ export default function AppraisalCyclesPage() {
         try {
             const response = await fetch(`${API_URL}/performance/cycles/${cycleToDelete}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                },
                 credentials: 'include',
             });
             if (!response.ok) {
@@ -205,18 +290,132 @@ export default function AppraisalCyclesPage() {
         }
     };
 
-    const handleChangePage = (event: unknown, newPage: number) => {
-        setPage(newPage);
+    const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+        switch (status) {
+            case AppraisalCycleStatus.ACTIVE:
+                return 'success';
+            case AppraisalCycleStatus.PLANNED:
+                return 'info';
+            case AppraisalCycleStatus.CLOSED:
+                return 'warning';
+            case AppraisalCycleStatus.ARCHIVED:
+                return 'default';
+            default:
+                return 'default';
+        }
     };
 
-    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
+    const getTypeColor = (type: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+        switch (type) {
+            case AppraisalTemplateType.ANNUAL:
+                return 'primary';
+            case AppraisalTemplateType.SEMI_ANNUAL:
+                return 'secondary';
+            case AppraisalTemplateType.PROBATIONARY:
+                return 'warning';
+            case AppraisalTemplateType.PROJECT:
+                return 'info';
+            case AppraisalTemplateType.AD_HOC:
+                return 'default';
+            default:
+                return 'default';
+        }
     };
+
+    const columns: GridColDef[] = [
+        {
+            field: 'name',
+            headerName: 'Name',
+            flex: 1,
+            minWidth: 150,
+        },
+        {
+            field: 'cycleType',
+            headerName: 'Type',
+            width: 140,
+            renderCell: (params: GridRenderCellParams) => {
+                const type = params.value as string;
+                return (
+                    <Chip
+                        label={type?.replace(/_/g, ' ')}
+                        color={getTypeColor(type)}
+                        size="small"
+                        variant="outlined"
+                    />
+                );
+            }
+        },
+        {
+            field: 'startDate',
+            headerName: 'Start Date',
+            width: 120,
+            valueFormatter: (value: any) => {
+                if (!value) return '-';
+                return new Date(value).toLocaleDateString();
+            }
+        },
+        {
+            field: 'endDate',
+            headerName: 'End Date',
+            width: 120,
+            valueFormatter: (value: any) => {
+                if (!value) return '-';
+                return new Date(value).toLocaleDateString();
+            }
+        },
+        {
+            field: 'status',
+            headerName: 'Status',
+            width: 120,
+            renderCell: (params: GridRenderCellParams) => {
+                const status = params.value as string;
+                return (
+                    <Chip
+                        label={status?.replace(/_/g, ' ')}
+                        color={getStatusColor(status)}
+                        size="small"
+                    />
+                );
+            }
+        },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            width: 120,
+            sortable: false,
+            align: 'center',
+            headerAlign: 'center',
+            renderCell: (params: GridRenderCellParams) => {
+                return (
+                    <Box>
+                        <IconButton
+                            size="small"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDialog(params.row);
+                            }}
+                        >
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                            size="small"
+                            color="error"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(params.row._id);
+                            }}
+                        >
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    </Box>
+                );
+            },
+        },
+    ];
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                 <Typography variant="h4" component="h1">
                     Appraisal Cycles
                 </Typography>
@@ -229,84 +428,112 @@ export default function AppraisalCyclesPage() {
                 </Button>
             </Box>
 
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Manage and configure appraisal cycles for performance reviews.
+            </Typography>
+
             {error && (
-                <Box mb={3} p={2} bgcolor="error.light" color="error.contrastText" borderRadius={1}>
-                    <Typography>{error}</Typography>
-                </Box>
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                </Alert>
             )}
 
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Type</TableCell>
-                            <TableCell>Start Date</TableCell>
-                            <TableCell>End Date</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loading ? (
-                            [...Array(rowsPerPage)].map((_, index) => (
-                                <TableRow key={index}>
-                                    <TableCell><Skeleton animation="wave" /></TableCell>
-                                    <TableCell><Skeleton animation="wave" /></TableCell>
-                                    <TableCell><Skeleton animation="wave" /></TableCell>
-                                    <TableCell><Skeleton animation="wave" /></TableCell>
-                                    <TableCell><Skeleton animation="wave" /></TableCell>
-                                    <TableCell align="right"><Skeleton animation="wave" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <>
-                                {(rowsPerPage > 0
-                                    ? cycles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                    : cycles
-                                ).map((cycle) => (
-                                    <TableRow key={cycle._id}>
-                                        <TableCell>{cycle.name}</TableCell>
-                                        <TableCell>{cycle.cycleType}</TableCell>
-                                        <TableCell>{new Date(cycle.startDate).toLocaleDateString()}</TableCell>
-                                        <TableCell>{new Date(cycle.endDate).toLocaleDateString()}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={cycle.status}
-                                                color={cycle.status === AppraisalCycleStatus.ACTIVE ? 'success' : 'default'}
-                                            />
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <IconButton onClick={() => handleOpenDialog(cycle)} size="small">
-                                                <EditIcon />
-                                            </IconButton>
-                                            <IconButton onClick={() => handleDeleteClick(cycle._id)} size="small" color="error">
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {cycles.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={6} align="center">
-                                            No appraisal cycles found.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                rowsPerPageOptions={[6, 10, 25]}
-                component="div"
-                count={cycles.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-            />
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                <TextField
+                    placeholder="Search by name or description..."
+                    variant="outlined"
+                    size="small"
+                    sx={{ flex: 1, minWidth: 250, backgroundColor: 'background.paper' }}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon color="action" />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                        value={statusFilter}
+                        label="Status"
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value);
+                            setPaginationModel(prev => ({ ...prev, page: 0 }));
+                        }}
+                    >
+                        <MenuItem value="">All Statuses</MenuItem>
+                        {Object.values(AppraisalCycleStatus).map((status) => (
+                            <MenuItem key={status} value={status}>
+                                {status.replace(/_/g, ' ')}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Type</InputLabel>
+                    <Select
+                        value={typeFilter}
+                        label="Type"
+                        onChange={(e) => {
+                            setTypeFilter(e.target.value);
+                            setPaginationModel(prev => ({ ...prev, page: 0 }));
+                        }}
+                    >
+                        <MenuItem value="">All Types</MenuItem>
+                        {Object.values(AppraisalTemplateType).map((type) => (
+                            <MenuItem key={type} value={type}>
+                                {type.replace(/_/g, ' ')}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
+
+            <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+                {loading && !hasLoadedOnce.current ? (
+                    <Box sx={{ p: 2 }}>
+                        {/* Header skeleton */}
+                        <Stack direction="row" spacing={2} sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                            <Skeleton variant="text" width="20%" height={32} />
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="15%" height={32} />
+                            <Skeleton variant="text" width="12%" height={32} />
+                            <Skeleton variant="text" width="12%" height={32} />
+                        </Stack>
+                        {/* Row skeletons */}
+                        {[...Array(paginationModel.pageSize)].map((_, index) => (
+                            <Stack key={index} direction="row" spacing={2} sx={{ py: 1.5 }}>
+                                <Skeleton variant="text" width="20%" height={24} />
+                                <Skeleton variant="rounded" width="15%" height={24} />
+                                <Skeleton variant="text" width="15%" height={24} />
+                                <Skeleton variant="text" width="15%" height={24} />
+                                <Skeleton variant="rounded" width="12%" height={24} />
+                                <Skeleton variant="text" width="12%" height={24} />
+                            </Stack>
+                        ))}
+                    </Box>
+                ) : (
+                    <DataGrid
+                        rows={cycles}
+                        columns={columns}
+                        getRowId={(row) => row._id}
+                        paginationMode="server"
+                        rowCount={total}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={setPaginationModel}
+                        pageSizeOptions={[10, 25, 50]}
+                        autoHeight
+                        disableRowSelectionOnClick
+                        loading={loading}
+                    />
+                )}
+            </Paper>
 
             <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
                 <DialogTitle>{editingCycle ? 'Edit Appraisal Cycle' : 'Create Appraisal Cycle'}</DialogTitle>

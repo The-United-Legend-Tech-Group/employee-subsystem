@@ -150,6 +150,8 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
     PayrollExceptionsQueryService,
 
     PayslipService,
+    EmployeeSigningBonusService,
+    EmployeeTerminationResignationService,
   ],
 })
-export class ExecutionModule {}
+export class ExecutionModule { }

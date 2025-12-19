@@ -49,7 +49,6 @@ export default function CreateDepartmentForm({ positions = [], onSuccess, onCanc
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const payload: any = {
@@ -64,8 +63,8 @@ export default function CreateDepartmentForm({ positions = [], onSuccess, onCanc
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
 

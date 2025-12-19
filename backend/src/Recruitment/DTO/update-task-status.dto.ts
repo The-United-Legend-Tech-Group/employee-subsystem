@@ -1,9 +1,9 @@
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class UpdateTaskStatusDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  employeeId: string;
+  employeeId?: string;
 
   @IsNotEmpty()
   @IsString()

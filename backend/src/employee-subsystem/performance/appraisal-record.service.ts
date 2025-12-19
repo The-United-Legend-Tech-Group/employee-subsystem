@@ -676,12 +676,11 @@ export class AppraisalRecordService {
                     // Still log but don't fail - notification was already sent
                     return;
                 }
-
+                let employeeProfile = await this.employeeProfileRepository.findById(employeeProfileId);
                 // Initiate termination review
                 try {
                     await this.offboardingService.initiateTerminationReview({
-                        employeeId: employeeProfileId,
-                        contractId: contractId,
+                        employeeNumber: employeeProfile?.employeeNumber || 'UNKNOWN',
                         initiator: TerminationInitiation.MANAGER,
                         reason: `Performance-based termination review: Employee has received ${minScoreCount} minimum-score appraisals.`,
                         hrComments: 'Automatically initiated due to repeated poor performance appraisals.',

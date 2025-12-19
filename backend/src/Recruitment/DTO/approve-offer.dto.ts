@@ -5,9 +5,7 @@ export class ApproveOfferDto {
     @IsMongoId()
     offerId: string;
 
-    @IsNotEmpty()
-    @IsMongoId()
-    employeeId: string; // Who is approving
+
 
     @IsNotEmpty()
     @IsEnum(['approved', 'rejected'])

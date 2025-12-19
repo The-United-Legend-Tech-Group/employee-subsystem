@@ -4,12 +4,7 @@ import { ApplicationStage } from '../enums/application-stage.enum';
 import { ApplicationStatus } from '../enums/application-status.enum';
 
 export class CreateApplicationDto {
-  @ApiProperty({
-    description: 'Candidate MongoDB ObjectId',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @IsMongoId()
-  candidateId: string;
+
 
   @ApiProperty({
     description: 'Job requisition ID (user-defined)',

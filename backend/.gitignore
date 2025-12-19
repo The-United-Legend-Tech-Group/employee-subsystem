@@ -26,3 +26,5 @@ lerna-debug.log*
 .tmp
 
 backend/node_modules/
+
+uploads

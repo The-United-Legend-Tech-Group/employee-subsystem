@@ -230,8 +230,8 @@ export default function TeamSummaryClient({
                     </Card>
                 </Grid>
 
-                {/* Row 2: Charts (Full Width Stacked) */}
-                <Grid size={{ xs: 12 }}>
+                {/* Row 2: Position Distribution and Role Distribution Side by Side */}
+                <Grid size={{ xs: 12, lg: 6 }}>
                     <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
                         <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <Typography variant="h6" fontWeight="bold" gutterBottom>Position Distribution</Typography>
@@ -256,6 +256,65 @@ export default function TeamSummaryClient({
                                     />
                                 ) : (
                                     <Typography color="text.secondary">No data available</Typography>
+                                )}
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid size={{ xs: 12, lg: 6 }}>
+                    <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="h6" fontWeight="bold" gutterBottom>Role Distribution</Typography>
+                            <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                {formattedRoleData.length > 0 ? (
+                                    <PieChart
+                                        series={[{
+                                            data: formattedRoleData,
+                                            highlightScope: { fade: 'global', highlight: 'item' },
+                                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
+                                            innerRadius: 30,
+                                            paddingAngle: 2,
+                                            cornerRadius: 4,
+                                        }]}
+                                        height={280}
+                                        slotProps={{ legend: { hidden: true } as any }}
+                                        margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    />
+                                ) : (
+                                    <Typography color="text.secondary">No data available</Typography>
+                                )}
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Department Distribution Chart */}
+                <Grid size={{ xs: 12 }}>
+                    <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="h6" fontWeight="bold" gutterBottom>Department Distribution</Typography>
+                            <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                {departmentData.length > 0 ? (
+                                    <BarChart
+                                        dataset={departmentData.map(d => ({
+                                            department: d.label,
+                                            count: d.value,
+                                        }))}
+                                        yAxis={[{ scaleType: 'band', dataKey: 'department' }]}
+                                        series={[{
+                                            dataKey: 'count',
+                                            label: 'Employees',
+                                            color: theme.palette.primary.main
+                                        }]}
+                                        layout="horizontal"
+                                        height={280}
+                                        margin={{ left: 120, right: 30, top: 10, bottom: 30 }}
+                                        borderRadius={8}
+                                        slotProps={{ legend: { hidden: true } as any }}
+                                    />
+                                ) : (
+                                    <Typography color="text.secondary">No department data available</Typography>
                                 )}
                             </Box>
                         </CardContent>
@@ -404,33 +463,6 @@ export default function TeamSummaryClient({
                     </>
                 )}
 
-                {/* Role Distribution - at end of page */}
-                <Grid size={{ xs: 12 }}>
-                    <Card sx={{ height: 380, borderRadius: 3, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                            <Typography variant="h6" fontWeight="bold" gutterBottom>Role Distribution</Typography>
-                            <Box sx={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                {formattedRoleData.length > 0 ? (
-                                    <PieChart
-                                        series={[{
-                                            data: formattedRoleData,
-                                            highlightScope: { fade: 'global', highlight: 'item' },
-                                            faded: { innerRadius: 30, additionalRadius: -30, color: 'gray' },
-                                            innerRadius: 30,
-                                            paddingAngle: 2,
-                                            cornerRadius: 4,
-                                        }]}
-                                        height={280}
-                                        slotProps={{ legend: { hidden: true } as any }}
-                                        margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                    />
-                                ) : (
-                                    <Typography color="text.secondary">No data available</Typography>
-                                )}
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
             </Grid>
         </Box>
     );

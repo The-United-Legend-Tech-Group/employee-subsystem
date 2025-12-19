@@ -77,7 +77,6 @@ export default function AssignEmployeeForm({
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const queryParams = new URLSearchParams();
@@ -87,9 +86,7 @@ export default function AssignEmployeeForm({
             queryParams.append('limit', '50'); // Reasonable limit for search results
 
             const response = await fetch(`${apiUrl}/employee?${queryParams.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -120,7 +117,6 @@ export default function AssignEmployeeForm({
         setSubmitting(true);
         setError(null);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const payload = {
@@ -134,8 +130,8 @@ export default function AssignEmployeeForm({
                 method: 'POST', // Changed from PATCH
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
 

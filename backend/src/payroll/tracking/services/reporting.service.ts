@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 const PDFDocument = require('pdfkit');
-import { payrollRuns, payrollRunsDocument } from '../../execution/models/payrollRuns.schema';
+import {
+  payrollRuns,
+  payrollRunsDocument,
+} from '../../execution/models/payrollRuns.schema';
+
 import {
   EmployeeProfile,
   EmployeeProfileDocument,
@@ -20,7 +28,8 @@ import { ExecutionService } from '../../execution/execution.service';
 @Injectable()
 export class ReportingService {
   constructor(
-    @InjectModel(payrollRuns.name) private payrollRunsModel: Model<payrollRunsDocument>,
+    @InjectModel(payrollRuns.name)
+    private payrollRunsModel: Model<payrollRunsDocument>,
     @InjectModel(EmployeeProfile.name)
     private employeeProfileModel: Model<EmployeeProfileDocument>,
     @InjectModel(Department.name)
@@ -33,13 +42,17 @@ export class ReportingService {
    */
   private validateTaxDocumentDto(dto: CreateTaxDocumentDto): void {
     if (!dto.document_id || dto.document_id.trim().length === 0) {
-      throw new BadRequestException('Document ID is required and cannot be empty');
+      throw new BadRequestException(
+        'Document ID is required and cannot be empty',
+      );
     }
     if (!dto.document_type) {
       throw new BadRequestException('Document type is required');
     }
     if (!dto.year || dto.year < 2000 || dto.year > 2100) {
-      throw new BadRequestException('Valid year is required (between 2000 and 2100)');
+      throw new BadRequestException(
+        'Valid year is required (between 2000 and 2100)',
+      );
     }
     if (!dto.file_url || dto.file_url.trim().length === 0) {
       throw new BadRequestException('File URL is required and cannot be empty');
@@ -49,15 +62,21 @@ export class ReportingService {
       dto.document_type !== 'Annual Tax Statement' &&
       dto.document_type !== 'Monthly Tax Summary'
     ) {
-      throw new BadRequestException('Document type must be either "Annual Tax Statement" or "Monthly Tax Summary"');
+      throw new BadRequestException(
+        'Document type must be either "Annual Tax Statement" or "Monthly Tax Summary"',
+      );
     }
 
     if (dto.document_type === 'Monthly Tax Summary') {
       if (!dto.month) {
-        throw new BadRequestException('Month is required for Monthly Tax Summary (1-12)');
+        throw new BadRequestException(
+          'Month is required for Monthly Tax Summary (1-12)',
+        );
       }
       if (dto.month < 1 || dto.month > 12) {
-        throw new BadRequestException('Invalid month. Must be a number between 1 and 12');
+        throw new BadRequestException(
+          'Invalid month. Must be a number between 1 and 12',
+        );
       }
     }
 
@@ -69,11 +88,17 @@ export class ReportingService {
   /**
    * Calculates tax amount from a single payslip
    */
-  private calculateTaxFromPayslip(payslip: any): { totalAmount: number; breakdown: any[] } {
+  private calculateTaxFromPayslip(payslip: any): {
+    totalAmount: number;
+    breakdown: any[];
+  } {
     let totalAmount = 0;
     const breakdown: any[] = [];
 
-    if (payslip.deductionsDetails?.taxes && Array.isArray(payslip.deductionsDetails.taxes)) {
+    if (
+      payslip.deductionsDetails?.taxes &&
+      Array.isArray(payslip.deductionsDetails.taxes)
+    ) {
       for (const tax of payslip.deductionsDetails.taxes) {
         // Extract tax name as string - handle cases where it might be an object
         let taxName: string;
@@ -87,7 +112,8 @@ export class ReportingService {
         }
 
         // Extract rate - ensure it's a number
-        const taxRate = typeof tax.rate === 'number' ? tax.rate : (parseFloat(tax.rate) || 0);
+        const taxRate =
+          typeof tax.rate === 'number' ? tax.rate : parseFloat(tax.rate) || 0;
         const taxAmount = (payslip.totalGrossSalary * taxRate) / 100;
         totalAmount += taxAmount;
 
@@ -113,12 +139,16 @@ export class ReportingService {
   private calculateInsuranceFromPayslip(payslip: any): number {
     let totalAmount = 0;
 
-    if (payslip.deductionsDetails?.insurances && Array.isArray(payslip.deductionsDetails.insurances)) {
+    if (
+      payslip.deductionsDetails?.insurances &&
+      Array.isArray(payslip.deductionsDetails.insurances)
+    ) {
       for (const insurance of payslip.deductionsDetails.insurances) {
         if (insurance.amount) {
           totalAmount += insurance.amount;
         } else if (insurance.employeeRate) {
-          totalAmount += (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
+          totalAmount +=
+            (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
         }
       }
     }
@@ -132,7 +162,10 @@ export class ReportingService {
   private calculateBenefitsFromPayslip(payslip: any): number {
     let totalAmount = 0;
 
-    if (payslip.earningsDetails?.benefits && Array.isArray(payslip.earningsDetails.benefits)) {
+    if (
+      payslip.earningsDetails?.benefits &&
+      Array.isArray(payslip.earningsDetails.benefits)
+    ) {
       for (const benefit of payslip.earningsDetails.benefits) {
         totalAmount += benefit.amount || 0;
       }
@@ -159,7 +192,10 @@ export class ReportingService {
       createTaxDocumentDto.month,
     );
 
-    const payslips = await this.executionService.getPayslipsByDateRange(startDate, endDate);
+    const payslips = await this.executionService.getPayslipsByDateRange(
+      startDate,
+      endDate,
+    );
 
     if (payslips.length === 0) {
       throw new NotFoundException('No payslips found for the specified period');
@@ -179,7 +215,9 @@ export class ReportingService {
     const grandTaxBreakdown: any[] = [];
 
     for (const group of groupedData) {
-      const groupReport = this.calculateTaxInsuranceBenefitsFromPayslips(group.payslips);
+      const groupReport = this.calculateTaxInsuranceBenefitsFromPayslips(
+        group.payslips,
+      );
 
       reportGroups.push({
         period: group.period,
@@ -198,7 +236,9 @@ export class ReportingService {
 
       if (groupReport.taxBreakdown) {
         groupReport.taxBreakdown.forEach((tax: any) => {
-          const existing = grandTaxBreakdown.find((t) => t.taxName === tax.taxName);
+          const existing = grandTaxBreakdown.find(
+            (t) => t.taxName === tax.taxName,
+          );
           if (existing) {
             existing.amount += tax.amount;
           } else {
@@ -217,10 +257,14 @@ export class ReportingService {
       generatedBy: createTaxDocumentDto.generated_by,
       approvedBy: createTaxDocumentDto.approved_by,
       groups: reportGroups,
-      grandTotalTaxAmount: grandTotalTaxAmount > 0 ? grandTotalTaxAmount : undefined,
-      grandTotalInsuranceAmount: grandTotalInsuranceAmount > 0 ? grandTotalInsuranceAmount : undefined,
-      grandTotalBenefitsAmount: grandTotalBenefitsAmount > 0 ? grandTotalBenefitsAmount : undefined,
-      grandTaxBreakdown: grandTaxBreakdown.length > 0 ? grandTaxBreakdown : undefined,
+      grandTotalTaxAmount:
+        grandTotalTaxAmount > 0 ? grandTotalTaxAmount : undefined,
+      grandTotalInsuranceAmount:
+        grandTotalInsuranceAmount > 0 ? grandTotalInsuranceAmount : undefined,
+      grandTotalBenefitsAmount:
+        grandTotalBenefitsAmount > 0 ? grandTotalBenefitsAmount : undefined,
+      grandTaxBreakdown:
+        grandTaxBreakdown.length > 0 ? grandTaxBreakdown : undefined,
       totalPayslipsCount: payslips.length,
       generatedAt: new Date(),
     };
@@ -231,10 +275,22 @@ export class ReportingService {
     documentType: string,
     _year: number,
     _month?: number,
-  ): Array<{ period: string; periodLabel: string; startDate: Date; endDate: Date; payslips: any[] }> {
+  ): Array<{
+    period: string;
+    periodLabel: string;
+    startDate: Date;
+    endDate: Date;
+    payslips: any[];
+  }> {
     const groups: Map<
       string,
-      { period: string; periodLabel: string; startDate: Date; endDate: Date; payslips: any[] }
+      {
+        period: string;
+        periodLabel: string;
+        startDate: Date;
+        endDate: Date;
+        payslips: any[];
+      }
     > = new Map();
 
     for (const payslip of payslips) {
@@ -269,14 +325,22 @@ export class ReportingService {
         ];
         periodKey = `${updatedYear}-${month.toString().padStart(2, '0')}`;
         periodLabel = `${monthNames[updatedMonth]} ${updatedYear}`;
-        startDate = new Date(Date.UTC(updatedYear, updatedMonth, 1, 0, 0, 0, 0));
-        endDate = new Date(Date.UTC(updatedYear, updatedMonth + 1, 0, 23, 59, 59, 999));
+        startDate = new Date(
+          Date.UTC(updatedYear, updatedMonth, 1, 0, 0, 0, 0),
+        );
+        endDate = new Date(
+          Date.UTC(updatedYear, updatedMonth + 1, 0, 23, 59, 59, 999),
+        );
       } else {
         const month = updatedMonth + 1;
         periodKey = `${updatedYear}-${month.toString().padStart(2, '0')}`;
         periodLabel = `${updatedAt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-        startDate = new Date(Date.UTC(updatedYear, updatedMonth, 1, 0, 0, 0, 0));
-        endDate = new Date(Date.UTC(updatedYear, updatedMonth + 1, 0, 23, 59, 59, 999));
+        startDate = new Date(
+          Date.UTC(updatedYear, updatedMonth, 1, 0, 0, 0, 0),
+        );
+        endDate = new Date(
+          Date.UTC(updatedYear, updatedMonth + 1, 0, 23, 59, 59, 999),
+        );
       }
 
       if (!groups.has(periodKey)) {
@@ -304,7 +368,7 @@ export class ReportingService {
     for (const payslip of payslips) {
       const taxResult = this.calculateTaxFromPayslip(payslip);
       totalTaxAmount += taxResult.totalAmount;
-      
+
       taxResult.breakdown.forEach((tax) => {
         const existing = taxBreakdown.find((t) => t.taxName === tax.taxName);
         if (existing) {
@@ -321,8 +385,10 @@ export class ReportingService {
     return {
       taxBreakdown: taxBreakdown.length > 0 ? taxBreakdown : undefined,
       totalTaxAmount: totalTaxAmount > 0 ? totalTaxAmount : undefined,
-      totalInsuranceAmount: totalInsuranceAmount > 0 ? totalInsuranceAmount : undefined,
-      totalBenefitsAmount: totalBenefitsAmount > 0 ? totalBenefitsAmount : undefined,
+      totalInsuranceAmount:
+        totalInsuranceAmount > 0 ? totalInsuranceAmount : undefined,
+      totalBenefitsAmount:
+        totalBenefitsAmount > 0 ? totalBenefitsAmount : undefined,
     };
   }
 
@@ -350,22 +416,27 @@ export class ReportingService {
     });
 
     if (payrollRunsInPeriod.length === 0) {
-      throw new NotFoundException('No approved payroll runs found for the specified period');
+      throw new NotFoundException(
+        'No approved payroll runs found for the specified period',
+      );
     }
 
-    const payrollRunIds = payrollRunsInPeriod.map((run) => run._id as Types.ObjectId);
+    const payrollRunIds = payrollRunsInPeriod.map(
+      (run) => run._id as Types.ObjectId,
+    );
 
     let totalTaxAmount = 0;
     let totalInsuranceAmount = 0;
     let totalBenefitsAmount = 0;
     const taxBreakdown: any[] = [];
 
-    const payslips = await this.executionService.getPayslipsByPayrollRunIds(payrollRunIds);
+    const payslips =
+      await this.executionService.getPayslipsByPayrollRunIds(payrollRunIds);
 
     for (const payslip of payslips) {
       const taxResult = this.calculateTaxFromPayslip(payslip);
       totalTaxAmount += taxResult.totalAmount;
-      
+
       taxResult.breakdown.forEach((tax) => {
         const existing = taxBreakdown.find((t) => t.taxName === tax.taxName);
         if (existing) {
@@ -389,14 +460,20 @@ export class ReportingService {
       approvedBy: createTaxDocumentDto.approved_by,
       taxBreakdown: taxBreakdown.length > 0 ? taxBreakdown : undefined,
       totalTaxAmount: totalTaxAmount > 0 ? totalTaxAmount : undefined,
-      totalInsuranceAmount: totalInsuranceAmount > 0 ? totalInsuranceAmount : undefined,
-      totalBenefitsAmount: totalBenefitsAmount > 0 ? totalBenefitsAmount : undefined,
+      totalInsuranceAmount:
+        totalInsuranceAmount > 0 ? totalInsuranceAmount : undefined,
+      totalBenefitsAmount:
+        totalBenefitsAmount > 0 ? totalBenefitsAmount : undefined,
       payrollRunsCount: payrollRunsInPeriod.length,
       generatedAt: new Date(),
     };
   }
 
-  private calculatePeriodStartDate(documentType: string, year: number, month?: number): Date {
+  private calculatePeriodStartDate(
+    documentType: string,
+    year: number,
+    month?: number,
+  ): Date {
     if (documentType === 'Annual Tax Statement') {
       return new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
     } else if (documentType === 'Monthly Tax Summary') {
@@ -406,7 +483,11 @@ export class ReportingService {
     return new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
   }
 
-  private calculatePeriodEndDate(documentType: string, year: number, month?: number): Date {
+  private calculatePeriodEndDate(
+    documentType: string,
+    year: number,
+    month?: number,
+  ): Date {
     if (documentType === 'Annual Tax Statement') {
       return new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
     } else if (documentType === 'Monthly Tax Summary') {
@@ -416,24 +497,39 @@ export class ReportingService {
     return new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
   }
 
-  async generatePayrollSummary(employeeId: string, createSummaryDto: CreatePayrollSummaryDto): Promise<any> {
+  async generatePayrollSummary(
+    employeeId: string,
+    createSummaryDto: CreatePayrollSummaryDto,
+  ): Promise<any> {
     validateAndConvertObjectId(employeeId, 'Employee ID');
 
-    if (!createSummaryDto.year || createSummaryDto.year < 2000 || createSummaryDto.year > 2100) {
-      throw new BadRequestException('Valid year is required (between 2000 and 2100)');
+    if (
+      !createSummaryDto.year ||
+      createSummaryDto.year < 2000 ||
+      createSummaryDto.year > 2100
+    ) {
+      throw new BadRequestException(
+        'Valid year is required (between 2000 and 2100)',
+      );
     }
 
     if (!createSummaryDto.summary_type) {
-      throw new BadRequestException('Summary type is required (Month-End or Year-End)');
+      throw new BadRequestException(
+        'Summary type is required (Month-End or Year-End)',
+      );
     }
 
     if (createSummaryDto.summary_type === 'Month-End') {
       if (!createSummaryDto.month) {
-        throw new BadRequestException('Month is required for Month-End summary (1-12)');
+        throw new BadRequestException(
+          'Month is required for Month-End summary (1-12)',
+        );
       }
 
       if (createSummaryDto.month < 1 || createSummaryDto.month > 12) {
-        throw new BadRequestException('Invalid month. Must be a number between 1 and 12');
+        throw new BadRequestException(
+          'Invalid month. Must be a number between 1 and 12',
+        );
       }
     }
 
@@ -463,10 +559,13 @@ export class ReportingService {
     }
 
     // Get payroll run IDs to fetch payslips
-    const payrollRunIds = payrollRunsInPeriod.map((run) => run._id as Types.ObjectId);
-    
+    const payrollRunIds = payrollRunsInPeriod.map(
+      (run) => run._id as Types.ObjectId,
+    );
+
     // Fetch all payslips for these payroll runs
-    const payslips = await this.executionService.getPayslipsByPayrollRunIds(payrollRunIds);
+    const payslips =
+      await this.executionService.getPayslipsByPayrollRunIds(payrollRunIds);
 
     // Initialize totals
     let totalExceptions = 0;
@@ -526,21 +625,30 @@ export class ReportingService {
       totalBaseSalary += payslip.earningsDetails?.baseSalary || 0;
 
       // Allowances
-      if (payslip.earningsDetails?.allowances && Array.isArray(payslip.earningsDetails.allowances)) {
+      if (
+        payslip.earningsDetails?.allowances &&
+        Array.isArray(payslip.earningsDetails.allowances)
+      ) {
         payslip.earningsDetails.allowances.forEach((allowance: any) => {
           totalAllowances += allowance.amount || 0;
         });
       }
 
       // Bonuses
-      if (payslip.earningsDetails?.bonuses && Array.isArray(payslip.earningsDetails.bonuses)) {
+      if (
+        payslip.earningsDetails?.bonuses &&
+        Array.isArray(payslip.earningsDetails.bonuses)
+      ) {
         payslip.earningsDetails.bonuses.forEach((bonus: any) => {
           totalBonuses += bonus.amount || 0;
         });
       }
 
       // Benefits
-      if (payslip.earningsDetails?.benefits && Array.isArray(payslip.earningsDetails.benefits)) {
+      if (
+        payslip.earningsDetails?.benefits &&
+        Array.isArray(payslip.earningsDetails.benefits)
+      ) {
         payslip.earningsDetails.benefits.forEach((benefit: any) => {
           totalBenefits += benefit.amount || 0;
         });
@@ -553,14 +661,17 @@ export class ReportingService {
       // Insurance deductions and employer contributions
       const insurances = payslip.deductionsDetails?.insurances || [];
       insurances.forEach((insurance: any) => {
-        const employeeInsurance = (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
-        const employerInsurance = (payslip.totalGrossSalary * (insurance.employerRate || 0)) / 100;
+        const employeeInsurance =
+          (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
+        const employerInsurance =
+          (payslip.totalGrossSalary * (insurance.employerRate || 0)) / 100;
         totalInsuranceDeductions += employeeInsurance;
         totalEmployerContributions += employerInsurance;
       });
 
       // Total deductions
-      totalDeductions += (payslip.totalGrossSalary || 0) - (payslip.netPay || 0);
+      totalDeductions +=
+        (payslip.totalGrossSalary || 0) - (payslip.netPay || 0);
     });
 
     // Use unique employee count from payslips
@@ -577,7 +688,10 @@ export class ReportingService {
       periodEnd: endDate.toISOString(),
       summaryType: createSummaryDto.summary_type,
       year: year,
-      month: createSummaryDto.summary_type === 'Month-End' ? createSummaryDto.month : undefined,
+      month:
+        createSummaryDto.summary_type === 'Month-End'
+          ? createSummaryDto.month
+          : undefined,
       departmentId: null,
       departmentName: 'All Departments',
       departmentCode: null,
@@ -588,8 +702,10 @@ export class ReportingService {
       totalNetPay: Math.round(totalNetPay * 100) / 100,
       totalGrossPay: Math.round(totalGrossPay * 100) / 100,
       totalTaxDeductions: Math.round(totalTaxDeductions * 100) / 100,
-      totalInsuranceDeductions: Math.round(totalInsuranceDeductions * 100) / 100,
-      totalEmployerContributions: Math.round(totalEmployerContributions * 100) / 100,
+      totalInsuranceDeductions:
+        Math.round(totalInsuranceDeductions * 100) / 100,
+      totalEmployerContributions:
+        Math.round(totalEmployerContributions * 100) / 100,
       totalBaseSalary: Math.round(totalBaseSalary * 100) / 100,
       totalAllowances: Math.round(totalAllowances * 100) / 100,
       totalBonuses: Math.round(totalBonuses * 100) / 100,
@@ -616,7 +732,10 @@ export class ReportingService {
       .populate('payrollManagerId');
   }
 
-  async getTaxInsuranceBenefitsReports(_employeeId: string, _documentType?: string): Promise<any[]> {
+  async getTaxInsuranceBenefitsReports(
+    _employeeId: string,
+    _documentType?: string,
+  ): Promise<any[]> {
     return await this.payrollRunsModel
       .find({
         status: PayRollStatus.APPROVED,
@@ -624,7 +743,10 @@ export class ReportingService {
       .sort({ payrollPeriod: -1 });
   }
 
-  async downloadTaxInsuranceBenefitsReportPDF(employeeId: string, reportData: any): Promise<Buffer> {
+  async downloadTaxInsuranceBenefitsReportPDF(
+    employeeId: string,
+    reportData: any,
+  ): Promise<Buffer> {
     validateAndConvertObjectId(employeeId, 'Employee ID');
 
     return new Promise((resolve, reject) => {
@@ -658,13 +780,28 @@ export class ReportingService {
         }
       };
 
-      const drawLine = (y: number, width = 495, color = '#cccccc', lineWidth = 0.5) => {
-        doc.moveTo(50, y).lineTo(50 + width, y).strokeColor(color).lineWidth(lineWidth).stroke();
+      const drawLine = (
+        y: number,
+        width = 495,
+        color = '#cccccc',
+        lineWidth = 0.5,
+      ) => {
+        doc
+          .moveTo(50, y)
+          .lineTo(50 + width, y)
+          .strokeColor(color)
+          .lineWidth(lineWidth)
+          .stroke();
       };
 
-      const drawSectionHeader = (y: number, title: string, bgColor = '#f8f9fa') => {
+      const drawSectionHeader = (
+        y: number,
+        title: string,
+        bgColor = '#f8f9fa',
+      ) => {
         const headerHeight = 30;
-        doc.rect(50, y, 495, headerHeight)
+        doc
+          .rect(50, y, 495, headerHeight)
           .fillColor(bgColor)
           .fill()
           .strokeColor('#d0d0d0')
@@ -678,7 +815,8 @@ export class ReportingService {
       const startY = 50;
       let currentY = startY;
 
-      doc.rect(50, currentY, 495, 70)
+      doc
+        .rect(50, currentY, 495, 70)
         .fillColor('#1976d2')
         .fill()
         .strokeColor('#1565c0')
@@ -694,7 +832,8 @@ export class ReportingService {
       currentY += 85;
 
       const infoBoxHeight = 120;
-      doc.rect(50, currentY, 495, infoBoxHeight)
+      doc
+        .rect(50, currentY, 495, infoBoxHeight)
         .fillColor('#fafafa')
         .fill()
         .strokeColor('#e0e0e0')
@@ -714,7 +853,11 @@ export class ReportingService {
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Year:', leftColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(String(reportData.year || 'N/A'), leftColX + 50, infoY + infoLineSpacing);
+      doc.text(
+        String(reportData.year || 'N/A'),
+        leftColX + 50,
+        infoY + infoLineSpacing,
+      );
 
       if (reportData.period) {
         doc.font('Helvetica').fillColor('#666666');
@@ -731,12 +874,20 @@ export class ReportingService {
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Payroll Runs:', rightColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(String(reportData.payrollRunsCount || 0), rightColX + 100, infoY + infoLineSpacing);
+      doc.text(
+        String(reportData.payrollRunsCount || 0),
+        rightColX + 100,
+        infoY + infoLineSpacing,
+      );
 
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Total Payslips:', rightColX, infoY + infoLineSpacing * 2);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(String(reportData.totalPayslipsCount || 0), rightColX + 100, infoY + infoLineSpacing * 2);
+      doc.text(
+        String(reportData.totalPayslipsCount || 0),
+        rightColX + 100,
+        infoY + infoLineSpacing * 2,
+      );
 
       currentY += infoBoxHeight + 25;
 
@@ -749,7 +900,11 @@ export class ReportingService {
             currentY = 50;
           }
 
-          currentY = drawSectionHeader(currentY, `PERIOD: ${group.periodLabel}`, '#e3f2fd');
+          currentY = drawSectionHeader(
+            currentY,
+            `PERIOD: ${group.periodLabel}`,
+            '#e3f2fd',
+          );
           currentY += 5;
           drawLine(currentY, 495, '#2196f3', 1);
           currentY += 15;
@@ -759,7 +914,11 @@ export class ReportingService {
           const amountX = 470;
           const itemSpacing = 18;
 
-          doc.text(`Payslips: ${group.payslipsCount || 0}`, descriptionX, currentY);
+          doc.text(
+            `Payslips: ${group.payslipsCount || 0}`,
+            descriptionX,
+            currentY,
+          );
           currentY += itemSpacing + 5;
           drawLine(currentY, 495, '#cccccc', 0.5);
           currentY += 10;
@@ -772,16 +931,24 @@ export class ReportingService {
 
             group.taxBreakdown.forEach((tax: any) => {
               doc.text(`${tax.taxName} (${tax.rate}%)`, descriptionX, currentY);
-              doc.text(formatCurrency(tax.amount), amountX, currentY, { align: 'right', width: 75 });
+              doc.text(formatCurrency(tax.amount), amountX, currentY, {
+                align: 'right',
+                width: 75,
+              });
               currentY += itemSpacing;
             });
 
             doc.font('Helvetica-Bold').fillColor('#d32f2f');
             doc.text('Total Tax:', descriptionX, currentY);
-            doc.text(formatCurrency(group.totalTaxAmount || 0), amountX, currentY, {
-              align: 'right',
-              width: 75,
-            });
+            doc.text(
+              formatCurrency(group.totalTaxAmount || 0),
+              amountX,
+              currentY,
+              {
+                align: 'right',
+                width: 75,
+              },
+            );
             currentY += itemSpacing + 10;
             drawLine(currentY, 495, '#cccccc', 0.5);
             currentY += 10;
@@ -794,10 +961,15 @@ export class ReportingService {
             doc.fontSize(10).font('Helvetica').fillColor('#000000');
             doc.text('Total Insurance:', descriptionX, currentY);
             doc.font('Helvetica-Bold').fillColor('#d32f2f');
-            doc.text(formatCurrency(group.totalInsuranceAmount), amountX, currentY, {
-              align: 'right',
-              width: 75,
-            });
+            doc.text(
+              formatCurrency(group.totalInsuranceAmount),
+              amountX,
+              currentY,
+              {
+                align: 'right',
+                width: 75,
+              },
+            );
             currentY += itemSpacing + 10;
             drawLine(currentY, 495, '#cccccc', 0.5);
             currentY += 10;
@@ -810,10 +982,15 @@ export class ReportingService {
             doc.fontSize(10).font('Helvetica').fillColor('#000000');
             doc.text('Total Benefits:', descriptionX, currentY);
             doc.font('Helvetica-Bold').fillColor('#2e7d32');
-            doc.text(formatCurrency(group.totalBenefitsAmount), amountX, currentY, {
-              align: 'right',
-              width: 75,
-            });
+            doc.text(
+              formatCurrency(group.totalBenefitsAmount),
+              amountX,
+              currentY,
+              {
+                align: 'right',
+                width: 75,
+              },
+            );
             currentY += itemSpacing + 10;
           }
 
@@ -835,7 +1012,10 @@ export class ReportingService {
         const amountX = 470;
         const itemSpacing = 20;
 
-        if (reportData.grandTaxBreakdown && reportData.grandTaxBreakdown.length > 0) {
+        if (
+          reportData.grandTaxBreakdown &&
+          reportData.grandTaxBreakdown.length > 0
+        ) {
           doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000');
           doc.text('Total Tax Breakdown', descriptionX, currentY);
           currentY += 20;
@@ -843,7 +1023,10 @@ export class ReportingService {
 
           reportData.grandTaxBreakdown.forEach((tax: any) => {
             doc.text(`${tax.taxName} (${tax.rate}%)`, descriptionX, currentY);
-            doc.text(formatCurrency(tax.amount), amountX, currentY, { align: 'right', width: 75 });
+            doc.text(formatCurrency(tax.amount), amountX, currentY, {
+              align: 'right',
+              width: 75,
+            });
             currentY += itemSpacing;
           });
 
@@ -855,30 +1038,45 @@ export class ReportingService {
         if (reportData.grandTotalTaxAmount) {
           doc.font('Helvetica-Bold').fillColor('#d32f2f');
           doc.text('Grand Total Tax:', descriptionX, currentY);
-          doc.text(formatCurrency(reportData.grandTotalTaxAmount), amountX, currentY, {
-            align: 'right',
-            width: 75,
-          });
+          doc.text(
+            formatCurrency(reportData.grandTotalTaxAmount),
+            amountX,
+            currentY,
+            {
+              align: 'right',
+              width: 75,
+            },
+          );
           currentY += itemSpacing;
         }
 
         if (reportData.grandTotalInsuranceAmount) {
           doc.font('Helvetica-Bold').fillColor('#d32f2f');
           doc.text('Grand Total Insurance:', descriptionX, currentY);
-          doc.text(formatCurrency(reportData.grandTotalInsuranceAmount), amountX, currentY, {
-            align: 'right',
-            width: 75,
-          });
+          doc.text(
+            formatCurrency(reportData.grandTotalInsuranceAmount),
+            amountX,
+            currentY,
+            {
+              align: 'right',
+              width: 75,
+            },
+          );
           currentY += itemSpacing;
         }
 
         if (reportData.grandTotalBenefitsAmount) {
           doc.font('Helvetica-Bold').fillColor('#2e7d32');
           doc.text('Grand Total Benefits:', descriptionX, currentY);
-          doc.text(formatCurrency(reportData.grandTotalBenefitsAmount), amountX, currentY, {
-            align: 'right',
-            width: 75,
-          });
+          doc.text(
+            formatCurrency(reportData.grandTotalBenefitsAmount),
+            amountX,
+            currentY,
+            {
+              align: 'right',
+              width: 75,
+            },
+          );
           currentY += itemSpacing;
         }
       } else {
@@ -889,19 +1087,33 @@ export class ReportingService {
 
       const footerY = doc.page.height - 50;
       doc.fontSize(8).font('Helvetica').fillColor('#999999');
-      doc.text('This is a computer-generated document. No signature is required.', 50, footerY, {
-        align: 'center',
-        width: 495,
-      });
+      doc.text(
+        'This is a computer-generated document. No signature is required.',
+        50,
+        footerY,
+        {
+          align: 'center',
+          width: 495,
+        },
+      );
 
       doc.end();
     });
   }
 
-  async getTaxDocuments(employeeId: string, documentType?: string): Promise<any[]> {
-    const employeeObjectId = validateAndConvertObjectId(employeeId, 'Employee ID');
+  async getTaxDocuments(
+    employeeId: string,
+    documentType?: string,
+  ): Promise<any[]> {
+    const employeeObjectId = validateAndConvertObjectId(
+      employeeId,
+      'Employee ID',
+    );
 
-    const payslips = await this.executionService.getPayslipsByEmployeeIdWithTaxes(employeeObjectId);
+    const payslips =
+      await this.executionService.getPayslipsByEmployeeIdWithTaxes(
+        employeeObjectId,
+      );
 
     const taxDocuments = payslips.map((payslip) => {
       const taxResult = this.calculateTaxFromPayslip(payslip);
@@ -928,12 +1140,20 @@ export class ReportingService {
   /**
    * Generates an annual tax statement PDF for an employee for a specific year
    */
-  async generateAnnualTaxDocumentPDF(employeeId: string, year: number): Promise<Buffer> {
-    const employeeObjectId = validateAndConvertObjectId(employeeId, 'Employee ID');
-    
+  async generateAnnualTaxDocumentPDF(
+    employeeId: string,
+    year: number,
+  ): Promise<Buffer> {
+    const employeeObjectId = validateAndConvertObjectId(
+      employeeId,
+      'Employee ID',
+    );
+
     // Validate year
     if (!year || year < 2000 || year > 2100) {
-      throw new BadRequestException('Valid year is required (between 2000 and 2100)');
+      throw new BadRequestException(
+        'Valid year is required (between 2000 and 2100)',
+      );
     }
 
     // Get employee profile
@@ -943,14 +1163,20 @@ export class ReportingService {
     }
 
     // Get all payslips for the employee
-    const allPayslips = await this.executionService.getPayslipsByEmployeeIdWithTaxes(employeeObjectId);
-    
+    const allPayslips =
+      await this.executionService.getPayslipsByEmployeeIdWithTaxes(
+        employeeObjectId,
+      );
+
     // Filter payslips by year
     const yearStart = new Date(year, 0, 1);
     const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-    
+
     const payslipsForYear = allPayslips.filter((payslip) => {
-      const payslipDate = new Date((payslip as any).createdAt || (payslip as any).payrollRunId?.payrollPeriod);
+      const payslipDate = new Date(
+        (payslip as any).createdAt ||
+          (payslip as any).payrollRunId?.payrollPeriod,
+      );
       return payslipDate >= yearStart && payslipDate <= yearEnd;
     });
 
@@ -972,11 +1198,13 @@ export class ReportingService {
     payslipsForYear.forEach((payslip) => {
       totalGrossSalary += payslip.totalGrossSalary || 0;
       totalNetPay += payslip.netPay || 0;
-      
+
       // Get date from payrollPeriod (preferred) or createdAt (fallback) - same as page
       let payrollPeriodDate: Date;
       if ((payslip.payrollRunId as any)?.payrollPeriod) {
-        payrollPeriodDate = new Date((payslip.payrollRunId as any).payrollPeriod);
+        payrollPeriodDate = new Date(
+          (payslip.payrollRunId as any).payrollPeriod,
+        );
       } else if ((payslip as any).createdAt) {
         payrollPeriodDate = new Date((payslip as any).createdAt);
       } else {
@@ -1003,7 +1231,8 @@ export class ReportingService {
           taxName = 'Unknown Tax';
         }
 
-        const taxRate = typeof tax.rate === 'number' ? tax.rate : (parseFloat(tax.rate) || 0);
+        const taxRate =
+          typeof tax.rate === 'number' ? tax.rate : parseFloat(tax.rate) || 0;
         const taxAmount = (taxBase * taxRate) / 100;
         totalTaxDeductions += taxAmount;
 
@@ -1058,14 +1287,25 @@ export class ReportingService {
         }
       };
 
-      const drawLine = (y: number, width = 495, color = '#cccccc', lineWidth = 0.5) => {
-        doc.moveTo(50, y).lineTo(50 + width, y).strokeColor(color).lineWidth(lineWidth).stroke();
+      const drawLine = (
+        y: number,
+        width = 495,
+        color = '#cccccc',
+        lineWidth = 0.5,
+      ) => {
+        doc
+          .moveTo(50, y)
+          .lineTo(50 + width, y)
+          .strokeColor(color)
+          .lineWidth(lineWidth)
+          .stroke();
       };
 
       let currentY = 50;
 
       // Header
-      doc.rect(50, currentY, 495, 70)
+      doc
+        .rect(50, currentY, 495, 70)
         .fillColor('#1976d2')
         .fill()
         .strokeColor('#1565c0')
@@ -1087,7 +1327,8 @@ export class ReportingService {
       currentY += 90;
 
       // Employee Information Section
-      doc.rect(50, currentY, 495, 100)
+      doc
+        .rect(50, currentY, 495, 100)
         .fillColor('#f8f9fa')
         .fill()
         .strokeColor('#d0d0d0')
@@ -1105,12 +1346,21 @@ export class ReportingService {
 
       doc.text('Employee Name:', leftColX, infoY);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(`${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A', leftColX + 110, infoY);
+      doc.text(
+        `${employee.firstName || ''} ${employee.lastName || ''}`.trim() ||
+          'N/A',
+        leftColX + 110,
+        infoY,
+      );
 
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Employee Number:', leftColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(employee.employeeNumber || 'N/A', leftColX + 110, infoY + infoLineSpacing);
+      doc.text(
+        employee.employeeNumber || 'N/A',
+        leftColX + 110,
+        infoY + infoLineSpacing,
+      );
 
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Tax Year:', rightColX, infoY);
@@ -1120,12 +1370,17 @@ export class ReportingService {
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Generated Date:', rightColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(formatDate(new Date()), rightColX + 100, infoY + infoLineSpacing);
+      doc.text(
+        formatDate(new Date()),
+        rightColX + 100,
+        infoY + infoLineSpacing,
+      );
 
       currentY += 120;
 
       // Summary Section
-      doc.rect(50, currentY, 495, 80)
+      doc
+        .rect(50, currentY, 495, 80)
         .fillColor('#ffffff')
         .fill()
         .strokeColor('#d0d0d0')
@@ -1141,12 +1396,20 @@ export class ReportingService {
 
       doc.text('Total Gross Salary:', leftColX, infoY);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(formatCurrency(totalGrossSalary), leftColX + summaryColWidth, infoY);
+      doc.text(
+        formatCurrency(totalGrossSalary),
+        leftColX + summaryColWidth,
+        infoY,
+      );
 
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Total Tax Deductions:', leftColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#d32f2f');
-      doc.text(formatCurrency(totalTaxDeductions), leftColX + summaryColWidth, infoY + infoLineSpacing);
+      doc.text(
+        formatCurrency(totalTaxDeductions),
+        leftColX + summaryColWidth,
+        infoY + infoLineSpacing,
+      );
 
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Total Net Pay:', rightColX, infoY);
@@ -1156,7 +1419,11 @@ export class ReportingService {
       doc.font('Helvetica').fillColor('#666666');
       doc.text('Number of Payslips:', rightColX, infoY + infoLineSpacing);
       doc.font('Helvetica-Bold').fillColor('#000000');
-      doc.text(payslipsForYear.length.toString(), rightColX + summaryColWidth, infoY + infoLineSpacing);
+      doc.text(
+        payslipsForYear.length.toString(),
+        rightColX + summaryColWidth,
+        infoY + infoLineSpacing,
+      );
 
       currentY += 100;
 
@@ -1166,8 +1433,9 @@ export class ReportingService {
         const maxRowsPerPage = 20;
         const rowsToShow = Math.min(allTaxDeductions.length, maxRowsPerPage);
         const sectionHeight = 40 + rowsToShow * 25;
-        
-        doc.rect(50, currentY, 495, sectionHeight)
+
+        doc
+          .rect(50, currentY, 495, sectionHeight)
           .fillColor('#ffffff')
           .fill()
           .strokeColor('#d0d0d0')
@@ -1198,18 +1466,24 @@ export class ReportingService {
           if (taxNameDisplay.length > 30) {
             taxNameDisplay = taxNameDisplay.substring(0, 27) + '...';
           }
-          
+
           doc.text(taxNameDisplay, 70, currentY, { width: 120 });
           doc.text(tax.payslipPeriod || 'N/A', 200, currentY, { width: 110 });
           doc.text(`${tax.rate.toFixed(2)}%`, 320, currentY);
-          doc.text(formatCurrency(tax.calculatedAmount), 420, currentY, { align: 'right' });
+          doc.text(formatCurrency(tax.calculatedAmount), 420, currentY, {
+            align: 'right',
+          });
           currentY += 20;
         });
 
         // If there are more entries, add a note
         if (allTaxDeductions.length > maxRowsPerPage) {
           doc.fontSize(8).font('Helvetica').fillColor('#999999');
-          doc.text(`... and ${allTaxDeductions.length - maxRowsPerPage} more entries`, 70, currentY);
+          doc.text(
+            `... and ${allTaxDeductions.length - maxRowsPerPage} more entries`,
+            70,
+            currentY,
+          );
           currentY += 15;
         }
 
@@ -1219,7 +1493,13 @@ export class ReportingService {
       // Monthly Breakdown Section
       if (payslipsForYear.length > 0) {
         currentY += 20;
-        doc.rect(50, currentY, 495, 40 + Math.min(payslipsForYear.length, 12) * 25)
+        doc
+          .rect(
+            50,
+            currentY,
+            495,
+            40 + Math.min(payslipsForYear.length, 12) * 25,
+          )
           .fillColor('#ffffff')
           .fill()
           .strokeColor('#d0d0d0')
@@ -1243,14 +1523,20 @@ export class ReportingService {
         drawLine(currentY - 5, 495);
 
         // Group payslips by month
-        const monthlyData = new Map<string, { gross: number; tax: number; net: number }>();
+        const monthlyData = new Map<
+          string,
+          { gross: number; tax: number; net: number }
+        >();
         payslipsForYear.forEach((payslip) => {
-          const payslipDate = new Date((payslip as any).createdAt || (payslip as any).payrollRunId?.payrollPeriod);
+          const payslipDate = new Date(
+            (payslip as any).createdAt ||
+              (payslip as any).payrollRunId?.payrollPeriod,
+          );
           const monthKey = `${payslipDate.getFullYear()}-${String(payslipDate.getMonth() + 1).padStart(2, '0')}`;
-          
+
           const taxResult = this.calculateTaxFromPayslip(payslip);
           const existing = monthlyData.get(monthKey);
-          
+
           if (existing) {
             existing.gross += payslip.totalGrossSalary || 0;
             existing.tax += taxResult.totalAmount;
@@ -1271,8 +1557,11 @@ export class ReportingService {
         doc.fontSize(9).font('Helvetica').fillColor('#000000');
         sortedMonths.forEach(([monthKey, data]) => {
           const [year, month] = monthKey.split('-');
-          const monthDisplayName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-          
+          const monthDisplayName = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+          ).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
           doc.text(monthDisplayName, 70, currentY);
           doc.text(formatCurrency(data.gross), 200, currentY);
           doc.text(formatCurrency(data.tax), 320, currentY, { align: 'right' });
@@ -1287,13 +1576,13 @@ export class ReportingService {
       const pageHeight = doc.page.height;
       const footerY = pageHeight - 50;
       drawLine(footerY, 495);
-      
+
       doc.fontSize(8).font('Helvetica').fillColor('#999999');
       doc.text(
         'This document is generated automatically and is for informational purposes only.',
         50,
         footerY + 10,
-        { width: 495, align: 'center' }
+        { width: 495, align: 'center' },
       );
 
       doc.end();
@@ -1306,8 +1595,14 @@ export class ReportingService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<any> {
-    const employeeObjectId = validateAndConvertObjectId(employeeId, 'Employee ID');
-    const departmentObjectId = validateAndConvertObjectId(departmentId, 'Department ID');
+    const employeeObjectId = validateAndConvertObjectId(
+      employeeId,
+      'Employee ID',
+    );
+    const departmentObjectId = validateAndConvertObjectId(
+      departmentId,
+      'Department ID',
+    );
 
     const department = await this.departmentModel.findById(departmentObjectId);
 
@@ -1321,7 +1616,9 @@ export class ReportingService {
     });
 
     if (employees.length === 0) {
-      throw new NotFoundException('No active employees found in this department');
+      throw new NotFoundException(
+        'No active employees found in this department',
+      );
     }
 
     const employeeIds = employees.map((emp) => emp._id);
@@ -1340,7 +1637,9 @@ export class ReportingService {
       payrollRunQuery.payrollPeriod = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    const payrollRuns = await this.payrollRunsModel.find(payrollRunQuery).sort({ payrollPeriod: -1 });
+    const payrollRuns = await this.payrollRunsModel
+      .find(payrollRunQuery)
+      .sort({ payrollPeriod: -1 });
     const payrollRunIds = payrollRuns.map((run) => run._id as Types.ObjectId);
 
     if (payrollRunIds.length === 0 && startDate && endDate) {
@@ -1368,10 +1667,11 @@ export class ReportingService {
       };
     }
 
-    const payslips = await this.executionService.getPayslipsByEmployeeIdsAndPayrollRunIds(
-      employeeIds,
-      payrollRunIds,
-    );
+    const payslips =
+      await this.executionService.getPayslipsByEmployeeIdsAndPayrollRunIds(
+        employeeIds,
+        payrollRunIds,
+      );
 
     const reportByPeriod: any = {};
     let totalGrossPay = 0;
@@ -1382,7 +1682,9 @@ export class ReportingService {
 
     payslips.forEach((payslip) => {
       const period = (payslip.payrollRunId as any)?.payrollPeriod;
-      const periodKey = period ? new Date(period).toISOString().split('T')[0] : 'unknown';
+      const periodKey = period
+        ? new Date(period).toISOString().split('T')[0]
+        : 'unknown';
 
       if (!reportByPeriod[periodKey]) {
         reportByPeriod[periodKey] = {
@@ -1399,7 +1701,8 @@ export class ReportingService {
       const employeeData = {
         employeeId: (payslip.employeeId as any)?._id,
         employeeNumber: (payslip.employeeId as any)?.employeeNumber,
-        employeeName: `${(payslip.employeeId as any)?.firstName || ''} ${(payslip.employeeId as any)?.lastName || ''}`.trim(),
+        employeeName:
+          `${(payslip.employeeId as any)?.firstName || ''} ${(payslip.employeeId as any)?.lastName || ''}`.trim(),
         baseSalary: payslip.earningsDetails?.baseSalary || 0,
         grossSalary: payslip.totalGrossSalary,
         netPay: payslip.netPay,
@@ -1415,12 +1718,15 @@ export class ReportingService {
 
       const insurances = payslip.deductionsDetails?.insurances || [];
       insurances.forEach((insurance: any) => {
-        const employeeInsurance = (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
-        const employerInsurance = (payslip.totalGrossSalary * (insurance.employerRate || 0)) / 100;
+        const employeeInsurance =
+          (payslip.totalGrossSalary * (insurance.employeeRate || 0)) / 100;
+        const employerInsurance =
+          (payslip.totalGrossSalary * (insurance.employerRate || 0)) / 100;
         employeeData.insuranceDeductions += employeeInsurance;
         employeeData.employerContributions += employerInsurance;
         reportByPeriod[periodKey].totalInsuranceDeductions += employeeInsurance;
-        reportByPeriod[periodKey].totalEmployerContributions += employerInsurance;
+        reportByPeriod[periodKey].totalEmployerContributions +=
+          employerInsurance;
         totalInsuranceDeductions += employeeInsurance;
         totalEmployerContributions += employerInsurance;
       });
@@ -1444,7 +1750,10 @@ export class ReportingService {
         endDate: endDate || null,
       },
       summary: {
-        totalEmployees: payslips.length > 0 ? new Set(payslips.map((p) => p.employeeId?.toString())).size : 0,
+        totalEmployees:
+          payslips.length > 0
+            ? new Set(payslips.map((p) => p.employeeId?.toString())).size
+            : 0,
         totalPayrollRuns: payrollRuns.length,
         totalGrossPay,
         totalNetPay,
@@ -1453,9 +1762,8 @@ export class ReportingService {
         totalEmployerContributions,
       },
       reportByPeriod: Object.values(reportByPeriod),
-        generatedAt: new Date(),
-        generatedBy: employeeObjectId.toString(),
-      };
+      generatedAt: new Date(),
+      generatedBy: employeeObjectId.toString(),
+    };
   }
 }
-

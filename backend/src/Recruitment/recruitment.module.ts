@@ -5,6 +5,7 @@ import { RecruitmentController } from './recruitment.controller';
 import { RecruitmentService } from './recruitment.service';
 import { OffboardingController } from './offboarding.controller';
 import { OffboardingService } from './offboarding.service';
+import { RecruitmentSchedulerService } from './recruitment-scheduler.service';
 import { AuthGuard } from '../common/guards/authentication.guard';
 import { authorizationGuard } from '../common/guards/authorization.guard';
 
@@ -118,6 +119,7 @@ import { PayrollModule } from '../payroll/payroll.module';
   ],
   providers: [
     RecruitmentService,
+    RecruitmentSchedulerService,
     OffboardingService,
     // Repository implementations
     JobTemplateRepository,

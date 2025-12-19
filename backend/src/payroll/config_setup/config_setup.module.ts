@@ -104,4 +104,4 @@ import {
   ],
   exports: [ConfigSetupService, TerminationBenefitService], // export the facade service and termination benefit service
 })
-export class ConfigSetupModule {}
+export class ConfigSetupModule { }

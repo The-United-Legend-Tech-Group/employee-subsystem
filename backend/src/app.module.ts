@@ -1,6 +1,6 @@
-// Core NestJS modules
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Configuration
 import configuration from './config/configuration';
@@ -31,6 +31,9 @@ import { TimeMangementModule } from './time-mangement/timemangment.module';
     // Central database connection and shared schemas
     DatabaseModule,
 
+    // Enable scheduling
+    ScheduleModule.forRoot(),
+
     // Feature modules (alphabetically organized)
     EmployeeSubsystemModule,
     LeavesModule,
@@ -42,4 +45,4 @@ import { TimeMangementModule } from './time-mangement/timemangment.module';
   providers: [AppService, AppConfigService],
   exports: [AppConfigService],
 })
-export class AppModule {}
+export class AppModule { }

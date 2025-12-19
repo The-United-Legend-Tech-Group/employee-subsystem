@@ -84,8 +84,10 @@ export function AppSidebar() {
   const { role } = useUser();
 
   // Filter navigation items based on current role
-  const visibleNavItems = navItems.filter((item) => item.roles.some(role => hasRole(role)));
-
+const visibleNavItems = role
+    ? navItems.filter((item) => item.roles.includes(role))
+    : [];
+    
   return (
     <aside className="fixed left-0 top-0 z-[40] h-screen w-64 border-r border-sidebar-border bg-sidebar transition-all">
       <div className="flex h-full flex-col mt-7">

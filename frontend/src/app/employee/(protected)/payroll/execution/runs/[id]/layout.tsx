@@ -35,28 +35,32 @@ export default function PayrollRunLayout({
       href: `/employee/payroll/execution/runs/${payrollId}/draft`,
       icon: FileEdit,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/draft`
+        pathname === `/employee/payroll/execution/runs/${payrollId}/draft`,
+      specialistOnly: false
     },
     {
       name: 'Exceptions',
       href: `/employee/payroll/execution/runs/${payrollId}/exceptions`,
       icon: AlertTriangle,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/exceptions`
+        pathname === `/employee/payroll/execution/runs/${payrollId}/exceptions`,
+      specialistOnly: false
     },
     {
       name: 'Review & Approval',
       href: `/employee/payroll/execution/runs/${payrollId}/review`,
       icon: FileText,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/review`
+        pathname === `/employee/payroll/execution/runs/${payrollId}/review`,
+      specialistOnly: false
     },
     {
       name: 'Payslips',
       href: `/employee/payroll/execution/runs/${payrollId}/payslips`,
       icon: Users,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/payslips`
+        pathname === `/employee/payroll/execution/runs/${payrollId}/payslips`,
+      specialistOnly: false
     },
     {
       name: 'Controls',
@@ -64,7 +68,8 @@ export default function PayrollRunLayout({
       icon: LockIcon,
       current:
         pathname === `/employee/payroll/execution/runs/${payrollId}/controls`,
-      managerOnly: true
+      managerOnly: true,
+      specialistOnly: false
     }
   ];
 

@@ -403,6 +403,65 @@ export class EmployeeService {
     return { managerId, items };
   }
 
+  /**
+   * Get the manager (direct supervisor) for an employee
+   * Returns the employee who holds the position specified in employee's supervisorPositionId
+   */
+  async getManagerForEmployee(employeeId: string): Promise<any | null> {
+    const employee = await this.employeeProfileRepository.findById(employeeId);
+    if (!employee) return null;
+
+    // Helper to normalize potential ObjectId/string values
+    const toObjectId = (v: any): Types.ObjectId | null => {
+      if (!v) return null;
+      try {
+        if (v instanceof Types.ObjectId) return v;
+        if (typeof v === 'string') return new Types.ObjectId(v);
+        if (typeof v === 'object' && (v as any)._id) {
+          const id = (v as any)._id;
+          return id instanceof Types.ObjectId ? id : new Types.ObjectId(String(id));
+        }
+        return new Types.ObjectId(String(v));
+      } catch {
+        return null;
+      }
+    };
+
+    // 1) Try the stored supervisorPositionId directly
+    let supervisorPositionId = toObjectId((employee as any).supervisorPositionId);
+
+    // 2) If missing, derive from the employee's current position
+    if (!supervisorPositionId && (employee as any).primaryPositionId) {
+      const pos = await this.positionRepository.findById((employee as any).primaryPositionId);
+      if (pos?.reportsToPositionId) {
+        supervisorPositionId = toObjectId(pos.reportsToPositionId);
+      }
+      // If still missing, try department head as supervisor unless employee IS the head
+      if (!supervisorPositionId && pos?.departmentId) {
+        const Department = this.employeeProfileModel.db.model('Department');
+        const dept = await Department.findById(pos.departmentId)
+          .select('headPositionId')
+          .lean<{ headPositionId?: Types.ObjectId }>()
+          .exec();
+        const deptHeadId = toObjectId(dept?.headPositionId);
+        const empPosId = toObjectId((employee as any).primaryPositionId);
+        if (deptHeadId && (!empPosId || deptHeadId.toString() !== empPosId.toString())) {
+          supervisorPositionId = deptHeadId;
+        }
+      }
+    }
+
+    if (!supervisorPositionId) return null;
+
+    // 3) Find the employee who holds that supervisor position as primary
+    const manager = await this.employeeProfileModel
+      .findOne({ primaryPositionId: supervisorPositionId })
+      .lean()
+      .exec();
+
+    return manager || null;
+  }
+
   async updateStatus(
     id: string,
     updateEmployeeStatusDto: UpdateEmployeeStatusDto,

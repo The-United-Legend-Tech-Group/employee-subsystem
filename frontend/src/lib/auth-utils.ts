@@ -142,3 +142,26 @@ export function hasAllRoles(requiredRoles: string[]): boolean {
     const roles = getUserRolesFromCookie();
     return requiredRoles.every(role => roles.includes(role));
 }
+
+/**
+ * Get access token from cookie, with localStorage fallback.
+ * For cookie-based auth, the backend sends httpOnly cookies automatically.
+ * This function is for backward compatibility during migration.
+ * 
+ * NOTE: When using `credentials: 'include'` in fetch, the browser
+ * automatically sends cookies, so the Authorization header is optional.
+ * However, keeping the fallback ensures compatibility during migration.
+ */
+export function getAccessToken(): string | null {
+    // Try cookie first (non-httpOnly token if available)
+    const cookieToken = getCookie(COOKIE_ACCESS_TOKEN);
+    if (cookieToken) return cookieToken;
+
+    // Fallback to localStorage for backward compatibility
+    if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem('access_token');
+    }
+
+    return null;
+}
+

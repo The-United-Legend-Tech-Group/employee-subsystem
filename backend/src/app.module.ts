@@ -1,7 +1,6 @@
 // Core NestJS modules
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 
 // Configuration
 import configuration from './config/configuration';
@@ -20,6 +19,7 @@ import { LeavesModule } from './leaves/leaves.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { RecruitmentModule } from './Recruitment/recruitment.module';
 import { TimeMangementModule } from './time-mangement/timemangment.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -29,6 +29,8 @@ import { TimeMangementModule } from './time-mangement/timemangment.module';
       isGlobal: true,
       load: [configuration],
     }),
+
+    ScheduleModule.forRoot(),
 
     // Central database connection and shared schemas
     DatabaseModule,

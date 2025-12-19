@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import Link from 'next/link';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 const accrualOptions = [
@@ -74,36 +76,36 @@ export default function SpecialLeaveTypesPage() {
     return Number.isNaN(n) ? undefined : n;
   }
 
-    // Load leave categories to select by name
-    useEffect(() => {
-      async function loadCategories() {
-        if (!API_BASE) return;
-        setLoadingCategories(true);
-        setCategoriesError(null);
-        try {
-          const token = localStorage.getItem('access_token');
-      const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        credentials: 'include',
-      });
-          if (!res.ok) throw new Error(`Failed to load categories (${res.status})`);
-          const data = await res.json();
-          const normalized = Array.isArray(data) ? data : [];
-          setCategories(
-            normalized.map((c: any) => ({
-              _id: c._id,
-              name: c.name ?? 'Unnamed category',
-            })),
-          );
-        } catch (err: any) {
-          setCategoriesError(err?.message ?? 'Failed to load categories');
-        } finally {
-          setLoadingCategories(false);
-        }
+  // Load leave categories to select by name
+  useEffect(() => {
+    async function loadCategories() {
+      if (!API_BASE) return;
+      setLoadingCategories(true);
+      setCategoriesError(null);
+      try {
+        const token = getAccessToken();
+        const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error(`Failed to load categories (${res.status})`);
+        const data = await res.json();
+        const normalized = Array.isArray(data) ? data : [];
+        setCategories(
+          normalized.map((c: any) => ({
+            _id: c._id,
+            name: c.name ?? 'Unnamed category',
+          })),
+        );
+      } catch (err: any) {
+        setCategoriesError(err?.message ?? 'Failed to load categories');
+      } finally {
+        setLoadingCategories(false);
       }
-  
-      loadCategories();
-    }, []);
+    }
+
+    loadCategories();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,7 +143,7 @@ export default function SpecialLeaveTypesPage() {
         policy: policyPayload,
       };
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/special-leave-types-with-rules`, {
         method: 'POST',
         headers: {
@@ -201,11 +203,11 @@ export default function SpecialLeaveTypesPage() {
     >
       <Box sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={600} gutterBottom>
-        Special Leave Types with Rules
-      </Typography>
+          Special Leave Types with Rules
+        </Typography>
         <Typography variant="body2" color="text.secondary">
           Create and manage special absence or mission types with tailored policy rules.
-      </Typography>
+        </Typography>
       </Box>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

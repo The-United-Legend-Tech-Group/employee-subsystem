@@ -18,6 +18,8 @@ import {
   Divider,
 } from '@mui/material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type LeaveCategory = {
@@ -42,9 +44,10 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
     setError(null);
     try {
       if (!API_BASE) throw new Error('API base URL is not configured');
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
         headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
@@ -76,10 +79,11 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
     if (!editItem) return;
     try {
       if (!API_BASE) throw new Error('API base URL is not configured');
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories/${editItem._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: JSON.stringify({
           name: editForm.name,
           description: editForm.description || undefined,
@@ -97,10 +101,11 @@ export default function LeaveCategoryList({ refreshToken = 0 }: { refreshToken?:
   async function handleDelete(id: string) {
     try {
       if (!API_BASE) throw new Error('API base URL is not configured');
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
       });
       if (!res.ok && res.status !== 204) throw new Error(`Failed (${res.status})`);
       load();

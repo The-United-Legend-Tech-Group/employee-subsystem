@@ -13,6 +13,8 @@ import {
   FormControlLabel,
 } from '@mui/material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 const accrualOptions = [
@@ -37,7 +39,7 @@ type PolicyInput = {
   maxCarryForward?: number;
   maxConsecutiveDays?: number;
   minNoticeDays?: number;
-  roundingRule?: string;  
+  roundingRule?: string;
   expiryAfterMonths?: number;
 };
 
@@ -109,7 +111,7 @@ export default function ConfigurePolicySettingsForm(props: Props) {
         roundingRule: settings.roundingRule,
         expiryAfterMonths: toNumber(settings.expiryAfterMonths),
       };
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(
         `${API_BASE}/leaves/configure-settings/${leaveTypeId}`,
         {
@@ -118,6 +120,7 @@ export default function ConfigurePolicySettingsForm(props: Props) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
+          credentials: 'include',
           body: JSON.stringify(payload),
         }
       );
@@ -210,7 +213,7 @@ export default function ConfigurePolicySettingsForm(props: Props) {
             onChange={(e) => onChange('minNoticeDays', e.target.value)}
           />
         </Stack>
-        
+
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField
             select
@@ -235,7 +238,7 @@ export default function ConfigurePolicySettingsForm(props: Props) {
             onChange={(e) => onChange('expiryAfterMonths', e.target.value)}
           />
         </Stack>
-        
+
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField
             label="Max Consecutive Days"

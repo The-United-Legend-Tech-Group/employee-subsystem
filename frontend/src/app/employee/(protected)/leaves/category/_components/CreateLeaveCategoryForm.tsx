@@ -5,6 +5,8 @@ import { Box, Stack, TextField, Button, Typography } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type Props = {
@@ -26,13 +28,14 @@ export default function CreateLeaveCategoryForm({ onCreated }: Props) {
     setSuccess(null);
     try {
       if (!API_BASE) throw new Error('API base URL is not configured');
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           name: form.name,
           description: form.description || undefined,

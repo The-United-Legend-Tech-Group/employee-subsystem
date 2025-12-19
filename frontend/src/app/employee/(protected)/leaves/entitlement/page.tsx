@@ -25,6 +25,8 @@ import {
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 const adjustmentOptions = [
@@ -155,7 +157,7 @@ export default function EntitlementPage() {
 
   // Helper to decode JWT token and get current user ID
   const getCurrentUserId = () => {
-    const token = localStorage.getItem('access_token');
+    const token = getAccessToken();
     if (!token) return null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -200,11 +202,12 @@ export default function EntitlementPage() {
     setLeaveTypesLoading(true);
     setLeaveTypesError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
       const data = await res.json();
@@ -226,13 +229,14 @@ export default function EntitlementPage() {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getAccessToken();
         const query = new URLSearchParams();
         if (search) query.append('search', search);
         query.append('limit', '50');
 
         const res = await fetch(`${API_BASE}/employee?${query.toString()}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          credentials: 'include',
         });
 
         if (!res.ok) throw new Error(`Failed to load employees (${res.status})`);
@@ -277,14 +281,15 @@ export default function EntitlementPage() {
     setRecalcSuccess(null);
     setRecalcLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(
         `${API_BASE}/leaves/update-entitlement-internal/${recalcForm.employeeId}/${recalcForm.leaveTypeId}`,
         {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          credentials: 'include',
         }
       );
       if (!res.ok) throw new Error(`Failed (${res.status})`);
@@ -325,13 +330,14 @@ export default function EntitlementPage() {
       }
 
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getAccessToken();
         const res = await fetch(
           `${API_BASE}/leaves/leave-entitlements/${personalizedForm.employeeId}/${personalizedForm.leaveTypeId}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
-            }
+            },
+            credentials: 'include',
           }
         );
 
@@ -407,13 +413,14 @@ export default function EntitlementPage() {
       if (pending !== undefined) payload.pending = pending;
       if (remaining !== undefined) payload.remaining = remaining;
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/personalized-entitlement`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -445,13 +452,14 @@ export default function EntitlementPage() {
       if (annualResetForm.employeeIds.length > 0) payload.employeeIds = annualResetForm.employeeIds;
       if (annualResetForm.leaveTypeIds.length > 0) payload.leaveTypeIds = annualResetForm.leaveTypeIds;
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/execute-annual-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -498,13 +506,14 @@ export default function EntitlementPage() {
         hrUserId: currentUserId,
       };
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/manual-adjustment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -535,11 +544,12 @@ export default function EntitlementPage() {
     setAdjustments([]);
     setHistoryLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/adjustment-history/${historyEmployeeId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         if (res.status === 404) {
@@ -569,11 +579,12 @@ export default function EntitlementPage() {
     setEntitlements([]);
     setEntitlementsLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-entitlements/${entitlementsEmployeeId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         if (res.status === 404) {
@@ -724,177 +735,177 @@ export default function EntitlementPage() {
               </Typography>
               <Box component="form" onSubmit={handlePersonalizedSubmit}>
                 <Grid container spacing={2} columns={12}>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <Autocomplete
-                        options={personalizedEmployees.options}
-                        loading={personalizedEmployees.loading}
-                        getOptionLabel={getEmployeeLabel}
-                        value={personalizedEmployees.ensureOption(personalizedForm.employeeId)}
-                        isOptionEqualToValue={(opt, val) => opt._id === val._id}
-                        onChange={(_, value) =>
-                          setPersonalizedForm((f) => ({ ...f, employeeId: value?._id ?? '' }))
-                        }
-                        onInputChange={(_, value) => personalizedEmployees.load(value)}
-                        slotProps={autoNoIcons}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Employee"
-                            required
-                            fullWidth
-                            size="small"
-                            helperText={personalizedEmployees.error ?? 'Search by employee number or name'}
-                          />
-                        )}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Leave Type"
-                        select
-                        value={personalizedForm.leaveTypeId}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({ ...f, leaveTypeId: e.target.value }))
-                        }
-                        required
-                        fullWidth
-                        size="small"
-                        helperText={leaveTypesError ?? 'Choose the leave type'}
-                        disabled={leaveTypesLoading || !leaveTypes.length}
-                      >
-                        {leaveTypes.map((lt) => (
-                          <MenuItem key={lt._id} value={lt._id}>
-                            {getLeaveTypeLabel(lt)}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Yearly Entitlement"
-                        type="number"
-                        value={personalizedForm.yearlyEntitlement}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            yearlyEntitlement: e.target.value,
-                          }))
-                        }
-                        placeholder="Set yearly entitlement"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Accrued Actual"
-                        type="number"
-                        value={personalizedForm.accruedActual}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            accruedActual: e.target.value,
-                          }))
-                        }
-                        placeholder="Actual accrued days"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Accrued Rounded"
-                        type="number"
-                        value={personalizedForm.accruedRounded}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            accruedRounded: e.target.value,
-                          }))
-                        }
-                        placeholder="Rounded accrued days"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Carry Forward"
-                        type="number"
-                        value={personalizedForm.carryForward}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            carryForward: e.target.value,
-                          }))
-                        }
-                        placeholder="Carried forward days"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Taken"
-                        type="number"
-                        value={personalizedForm.taken}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            taken: e.target.value,
-                          }))
-                        }
-                        placeholder="Days taken"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Pending"
-                        type="number"
-                        value={personalizedForm.pending}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            pending: e.target.value,
-                          }))
-                        }
-                        placeholder="Pending days"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        label="Remaining"
-                        type="number"
-                        value={personalizedForm.remaining}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({
-                            ...f,
-                            remaining: e.target.value,
-                          }))
-                        }
-                        placeholder="Remaining days"
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <TextField
-                        label="Reason"
-                        value={personalizedForm.reason}
-                        onChange={(e) =>
-                          setPersonalizedForm((f) => ({ ...f, reason: e.target.value }))
-                        }
-                        required
-
-                        fullWidth
-                        size="small"
-                      />
-                    </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Autocomplete
+                      options={personalizedEmployees.options}
+                      loading={personalizedEmployees.loading}
+                      getOptionLabel={getEmployeeLabel}
+                      value={personalizedEmployees.ensureOption(personalizedForm.employeeId)}
+                      isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                      onChange={(_, value) =>
+                        setPersonalizedForm((f) => ({ ...f, employeeId: value?._id ?? '' }))
+                      }
+                      onInputChange={(_, value) => personalizedEmployees.load(value)}
+                      slotProps={autoNoIcons}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Employee"
+                          required
+                          fullWidth
+                          size="small"
+                          helperText={personalizedEmployees.error ?? 'Search by employee number or name'}
+                        />
+                      )}
+                    />
                   </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Leave Type"
+                      select
+                      value={personalizedForm.leaveTypeId}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({ ...f, leaveTypeId: e.target.value }))
+                      }
+                      required
+                      fullWidth
+                      size="small"
+                      helperText={leaveTypesError ?? 'Choose the leave type'}
+                      disabled={leaveTypesLoading || !leaveTypes.length}
+                    >
+                      {leaveTypes.map((lt) => (
+                        <MenuItem key={lt._id} value={lt._id}>
+                          {getLeaveTypeLabel(lt)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Yearly Entitlement"
+                      type="number"
+                      value={personalizedForm.yearlyEntitlement}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          yearlyEntitlement: e.target.value,
+                        }))
+                      }
+                      placeholder="Set yearly entitlement"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Accrued Actual"
+                      type="number"
+                      value={personalizedForm.accruedActual}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          accruedActual: e.target.value,
+                        }))
+                      }
+                      placeholder="Actual accrued days"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Accrued Rounded"
+                      type="number"
+                      value={personalizedForm.accruedRounded}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          accruedRounded: e.target.value,
+                        }))
+                      }
+                      placeholder="Rounded accrued days"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Carry Forward"
+                      type="number"
+                      value={personalizedForm.carryForward}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          carryForward: e.target.value,
+                        }))
+                      }
+                      placeholder="Carried forward days"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Taken"
+                      type="number"
+                      value={personalizedForm.taken}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          taken: e.target.value,
+                        }))
+                      }
+                      placeholder="Days taken"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Pending"
+                      type="number"
+                      value={personalizedForm.pending}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          pending: e.target.value,
+                        }))
+                      }
+                      placeholder="Pending days"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Remaining"
+                      type="number"
+                      value={personalizedForm.remaining}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({
+                          ...f,
+                          remaining: e.target.value,
+                        }))
+                      }
+                      placeholder="Remaining days"
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <TextField
+                      label="Reason"
+                      value={personalizedForm.reason}
+                      onChange={(e) =>
+                        setPersonalizedForm((f) => ({ ...f, reason: e.target.value }))
+                      }
+                      required
+
+                      fullWidth
+                      size="small"
+                    />
+                  </Grid>
+                </Grid>
 
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Button
@@ -971,7 +982,7 @@ export default function EntitlementPage() {
                             : 'Leave empty for all employees'
                         }
                         size="small"
-                            helperText={annualResetEmployees.error ?? 'Select employees by number or name'}
+                        helperText={annualResetEmployees.error ?? 'Select employees by number or name'}
                         InputProps={{
                           ...params.InputProps,
                           startAdornment: null,
@@ -1026,33 +1037,33 @@ export default function EntitlementPage() {
                       />
                     )}
                   />
-                    <Button
-                      variant="contained"
-                      type="submit"
-                      disabled={annualResetLoading}
-                      sx={{
-                        alignSelf: 'flex-start',
-                        px: 4,
-                        borderRadius: 999,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        backgroundColor: 'common.white',
-                        color: 'primary.main',
-                        '&:hover': {
-                          backgroundColor: 'grey.100',
-                        },
-                      }}
-                    >
-                      {annualResetLoading ? 'Executing…' : 'Execute Annual Reset'}
-                    </Button>
-                    {annualResetSuccess && (
-                      <CheckCircleOutlineIcon color="success" fontSize="medium" />
-                    )}
-                    {annualResetError && (
-                      <CancelOutlinedIcon color="error" fontSize="medium" />
-                    )}
-                  </Stack>
-                </Box>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    disabled={annualResetLoading}
+                    sx={{
+                      alignSelf: 'flex-start',
+                      px: 4,
+                      borderRadius: 999,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      backgroundColor: 'common.white',
+                      color: 'primary.main',
+                      '&:hover': {
+                        backgroundColor: 'grey.100',
+                      },
+                    }}
+                  >
+                    {annualResetLoading ? 'Executing…' : 'Execute Annual Reset'}
+                  </Button>
+                  {annualResetSuccess && (
+                    <CheckCircleOutlineIcon color="success" fontSize="medium" />
+                  )}
+                  {annualResetError && (
+                    <CancelOutlinedIcon color="error" fontSize="medium" />
+                  )}
+                </Stack>
+              </Box>
             </Stack>
           </Grid>
         )}
@@ -1179,204 +1190,204 @@ export default function EntitlementPage() {
 
         {/* Adjustment History */}
         {activeSection === 'history' && (
-        <Grid component="div" size={{ xs: 12, md: 6 }}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Adjustment History
-              </Typography>
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1}>
-                  <Autocomplete
-                    options={historyEmployees.options}
-                    loading={historyEmployees.loading}
-                    getOptionLabel={getEmployeeLabel}
-                    value={historyEmployees.ensureOption(historyEmployeeId)}
-                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
-                    onChange={(_, value) => setHistoryEmployeeId(value?._id ?? '')}
-                    onInputChange={(_, value) => historyEmployees.load(value)}
-                    slotProps={autoNoIcons}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Employee"
-                        size="small"
-                        placeholder="Enter employee"
-                        helperText={historyEmployees.error}
-                      />
-                    )}
-                    sx={{ flex: 1 }}
-                  />
-                  <Button variant="outlined" onClick={handleLoadHistory} disabled={historyLoading || !historyEmployeeId.trim()}>
-                    {historyLoading ? <CircularProgress size={20} /> : 'Load'}
-                  </Button>
-                </Stack>
-                {historyError && (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CancelOutlinedIcon color="error" fontSize="small" />
-                    <Typography variant="body2" color="error">
-                      {historyError}
-                    </Typography>
+          <Grid component="div" size={{ xs: 12, md: 6 }}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Adjustment History
+                </Typography>
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1}>
+                    <Autocomplete
+                      options={historyEmployees.options}
+                      loading={historyEmployees.loading}
+                      getOptionLabel={getEmployeeLabel}
+                      value={historyEmployees.ensureOption(historyEmployeeId)}
+                      isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                      onChange={(_, value) => setHistoryEmployeeId(value?._id ?? '')}
+                      onInputChange={(_, value) => historyEmployees.load(value)}
+                      slotProps={autoNoIcons}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Employee"
+                          size="small"
+                          placeholder="Enter employee"
+                          helperText={historyEmployees.error}
+                        />
+                      )}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button variant="outlined" onClick={handleLoadHistory} disabled={historyLoading || !historyEmployeeId.trim()}>
+                      {historyLoading ? <CircularProgress size={20} /> : 'Load'}
+                    </Button>
                   </Stack>
-                )}
-                {adjustments.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Found {adjustments.length} adjustment(s)
-                    </Typography>
-                    <Stack spacing={2} mt={1}>
-                      {adjustments.map((adj) => (
-                        <Box
-                          key={adj._id}
-                          sx={{
-                            p: 2,
-                            border: '1px solid #eee',
-                            borderRadius: 1,
-                            bgcolor: 'background.paper',
-                          }}
-                        >
-                          <Stack spacing={1}>
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={1}>
-                              <Chip
-                                label={adj.adjustmentType.toUpperCase()}
-                                color={getAdjustmentColor(adj.adjustmentType) as any}
-                                size="small"
-                              />
-                              <Typography variant="body2" fontWeight={600}>
-                                Amount: {adj.amount}
-                              </Typography>
-                            </Stack>
-                            <Typography variant="body2">
-                              <strong>Leave Type ID:</strong> {adj.leaveTypeId}
-                            </Typography>
-                            <Typography variant="body2">
-                              <strong>Reason:</strong> {adj.reason}
-                            </Typography>
-                            <Typography variant="body2">
-                              <strong>HR User ID:</strong> {adj.hrUserId}
-                            </Typography>
-                            {adj.createdAt && (
-                              <Typography variant="caption" color="text.secondary">
-                                Created: {new Date(adj.createdAt).toLocaleString()}
-                              </Typography>
-                            )}
-                          </Stack>
-                        </Box>
-                      ))}
+                  {historyError && (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CancelOutlinedIcon color="error" fontSize="small" />
+                      <Typography variant="body2" color="error">
+                        {historyError}
+                      </Typography>
                     </Stack>
-                  </Box>
-                )}
-                {adjustments.length === 0 && !historyLoading && !historyError && historyEmployeeId && (
-                  <Typography variant="body2" color="text.secondary">
-                    No adjustments found for this employee.
-                  </Typography>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+                  )}
+                  {adjustments.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Found {adjustments.length} adjustment(s)
+                      </Typography>
+                      <Stack spacing={2} mt={1}>
+                        {adjustments.map((adj) => (
+                          <Box
+                            key={adj._id}
+                            sx={{
+                              p: 2,
+                              border: '1px solid #eee',
+                              borderRadius: 1,
+                              bgcolor: 'background.paper',
+                            }}
+                          >
+                            <Stack spacing={1}>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={1}>
+                                <Chip
+                                  label={adj.adjustmentType.toUpperCase()}
+                                  color={getAdjustmentColor(adj.adjustmentType) as any}
+                                  size="small"
+                                />
+                                <Typography variant="body2" fontWeight={600}>
+                                  Amount: {adj.amount}
+                                </Typography>
+                              </Stack>
+                              <Typography variant="body2">
+                                <strong>Leave Type ID:</strong> {adj.leaveTypeId}
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>Reason:</strong> {adj.reason}
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>HR User ID:</strong> {adj.hrUserId}
+                              </Typography>
+                              {adj.createdAt && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Created: {new Date(adj.createdAt).toLocaleString()}
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                  {adjustments.length === 0 && !historyLoading && !historyError && historyEmployeeId && (
+                    <Typography variant="body2" color="text.secondary">
+                      No adjustments found for this employee.
+                    </Typography>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         )}
 
         {/* View Leave Entitlements */}
         {activeSection === 'entitlements' && (
-        <Grid component="div" size={{ xs: 12, md: 6 }}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                View Leave Entitlements
-              </Typography>
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1}>
-                  <Autocomplete
-                    options={entitlementEmployees.options}
-                    loading={entitlementEmployees.loading}
-                    getOptionLabel={getEmployeeLabel}
-                    value={entitlementEmployees.ensureOption(entitlementsEmployeeId)}
-                    isOptionEqualToValue={(opt, val) => opt._id === val._id}
-                    onChange={(_, value) => setEntitlementsEmployeeId(value?._id ?? '')}
-                    onInputChange={(_, value) => entitlementEmployees.load(value)}
-                    slotProps={autoNoIcons}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Employee"
-                        size="small"
-                        placeholder="Enter employee"
-                        helperText={entitlementEmployees.error}
-                      />
-                    )}
-                    sx={{ flex: 1 }}
-                  />
-                  <Button variant="outlined" onClick={handleLoadEntitlements} disabled={entitlementsLoading || !entitlementsEmployeeId.trim()}>
-                    {entitlementsLoading ? <CircularProgress size={20} /> : 'Load'}
-                  </Button>
-                </Stack>
-                {entitlementsError && (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CancelOutlinedIcon color="error" fontSize="small" />
-                    <Typography variant="body2" color="error">
-                      {entitlementsError}
-                    </Typography>
+          <Grid component="div" size={{ xs: 12, md: 6 }}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  View Leave Entitlements
+                </Typography>
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1}>
+                    <Autocomplete
+                      options={entitlementEmployees.options}
+                      loading={entitlementEmployees.loading}
+                      getOptionLabel={getEmployeeLabel}
+                      value={entitlementEmployees.ensureOption(entitlementsEmployeeId)}
+                      isOptionEqualToValue={(opt, val) => opt._id === val._id}
+                      onChange={(_, value) => setEntitlementsEmployeeId(value?._id ?? '')}
+                      onInputChange={(_, value) => entitlementEmployees.load(value)}
+                      slotProps={autoNoIcons}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Employee"
+                          size="small"
+                          placeholder="Enter employee"
+                          helperText={entitlementEmployees.error}
+                        />
+                      )}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button variant="outlined" onClick={handleLoadEntitlements} disabled={entitlementsLoading || !entitlementsEmployeeId.trim()}>
+                      {entitlementsLoading ? <CircularProgress size={20} /> : 'Load'}
+                    </Button>
                   </Stack>
-                )}
-                {entitlements.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Found {entitlements.length} entitlement(s)
-                    </Typography>
-                    <Stack spacing={2} mt={1}>
-                      {entitlements.map((ent) => (
-                        <Box
-                          key={ent._id}
-                          sx={{
-                            p: 2,
-                            border: '1px solid #eee',
-                            borderRadius: 1,
-                            bgcolor: 'background.paper',
-                          }}
-                        >
-                          <Stack spacing={1}>
-                            <Typography variant="body2" fontWeight={600}>
-                              Leave Type ID: {ent.leaveTypeId}
-                            </Typography>
-                            <Divider />
-                            <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                              <Chip label={`Yearly: ${ent.yearlyEntitlement}`} size="small" />
-                              <Chip label={`Remaining: ${ent.remaining}`} color="success" size="small" />
-                              <Chip label={`Taken: ${ent.taken}`} color="error" size="small" />
-                              <Chip label={`Pending: ${ent.pending}`} color="warning" size="small" />
-                            </Stack>
-                            <Stack spacing={0.5} mt={1}>
-                              <Typography variant="body2">
-                                <strong>Accrued (Actual):</strong> {ent.accruedActual}
-                              </Typography>
-                              <Typography variant="body2">
-                                <strong>Accrued (Rounded):</strong> {ent.accruedRounded}
-                              </Typography>
-                              <Typography variant="body2">
-                                <strong>Carry Forward:</strong> {ent.carryForward}
-                              </Typography>
-                              {ent.nextResetDate && (
-                                <Typography variant="body2">
-                                  <strong>Next Reset:</strong> {new Date(ent.nextResetDate).toLocaleDateString()}
-                                </Typography>
-                              )}
-                            </Stack>
-                          </Stack>
-                        </Box>
-                      ))}
+                  {entitlementsError && (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CancelOutlinedIcon color="error" fontSize="small" />
+                      <Typography variant="body2" color="error">
+                        {entitlementsError}
+                      </Typography>
                     </Stack>
-                  </Box>
-                )}
-                {entitlements.length === 0 && !entitlementsLoading && !entitlementsError && entitlementsEmployeeId && (
-                  <Typography variant="body2" color="text.secondary">
-                    No entitlements found for this employee.
-                  </Typography>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+                  )}
+                  {entitlements.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Found {entitlements.length} entitlement(s)
+                      </Typography>
+                      <Stack spacing={2} mt={1}>
+                        {entitlements.map((ent) => (
+                          <Box
+                            key={ent._id}
+                            sx={{
+                              p: 2,
+                              border: '1px solid #eee',
+                              borderRadius: 1,
+                              bgcolor: 'background.paper',
+                            }}
+                          >
+                            <Stack spacing={1}>
+                              <Typography variant="body2" fontWeight={600}>
+                                Leave Type ID: {ent.leaveTypeId}
+                              </Typography>
+                              <Divider />
+                              <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
+                                <Chip label={`Yearly: ${ent.yearlyEntitlement}`} size="small" />
+                                <Chip label={`Remaining: ${ent.remaining}`} color="success" size="small" />
+                                <Chip label={`Taken: ${ent.taken}`} color="error" size="small" />
+                                <Chip label={`Pending: ${ent.pending}`} color="warning" size="small" />
+                              </Stack>
+                              <Stack spacing={0.5} mt={1}>
+                                <Typography variant="body2">
+                                  <strong>Accrued (Actual):</strong> {ent.accruedActual}
+                                </Typography>
+                                <Typography variant="body2">
+                                  <strong>Accrued (Rounded):</strong> {ent.accruedRounded}
+                                </Typography>
+                                <Typography variant="body2">
+                                  <strong>Carry Forward:</strong> {ent.carryForward}
+                                </Typography>
+                                {ent.nextResetDate && (
+                                  <Typography variant="body2">
+                                    <strong>Next Reset:</strong> {new Date(ent.nextResetDate).toLocaleDateString()}
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+                  {entitlements.length === 0 && !entitlementsLoading && !entitlementsError && entitlementsEmployeeId && (
+                    <Typography variant="body2" color="text.secondary">
+                      No entitlements found for this employee.
+                    </Typography>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         )}
       </Grid>
     </Box>

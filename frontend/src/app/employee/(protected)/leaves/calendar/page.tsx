@@ -25,6 +25,8 @@ import PaginatedSyncedHolidays from './PaginatedSyncedHolidays';
 import PaginatedCalendarHolidays from './PaginatedCalendarHolidays';
 import PaginatedBlockedPeriods from './PaginatedBlockedPeriods';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type BlockedPeriod = {
@@ -126,7 +128,7 @@ export default function CalendarPage() {
     setConfigSuccess(null);
     setConfigLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const payload = {
         year: Number(configForm.year),
         holidays: configForm.holidays,
@@ -143,6 +145,7 @@ export default function CalendarPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -187,11 +190,12 @@ export default function CalendarPage() {
     setHolidayOptionsLoading(true);
     setHolidayOptionsError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         throw new Error(`Failed to load holidays for year ${year} (${res.status})`);
@@ -219,11 +223,12 @@ export default function CalendarPage() {
     setViewHolidayOptionsLoading(true);
     setViewHolidayOptionsError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/holidays/${numericYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         throw new Error(`Failed to load holidays for year ${year} (${res.status})`);
@@ -250,11 +255,12 @@ export default function CalendarPage() {
     setViewBlockedPeriodsLoading(true);
     setViewBlockedPeriodsError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/blocked-periods/${numericYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         throw new Error(`Failed to load blocked periods for year ${year} (${res.status})`);
@@ -280,11 +286,12 @@ export default function CalendarPage() {
     setCalendar(null);
     setViewLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/${viewYear}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) {
         if (res.status === 404) {
@@ -314,12 +321,13 @@ export default function CalendarPage() {
     setSyncResult(null);
     setSyncLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/sync-holidays/${targetYear}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -353,12 +361,13 @@ export default function CalendarPage() {
     setSyncResult(null);
     setAutoSyncLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/calendar/auto-sync-holidays`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -595,37 +604,37 @@ export default function CalendarPage() {
                       alignItems="stretch"
                     >
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={600} gutterBottom>
-                            Holidays ({calendar.holidays?.length || 0})
+                        <Typography variant="body2" fontWeight={600} gutterBottom>
+                          Holidays ({calendar.holidays?.length || 0})
+                        </Typography>
+                        {viewHolidayOptionsLoading && (
+                          <CircularProgress size={20} />
+                        )}
+                        {viewHolidayOptionsError && (
+                          <Typography variant="caption" color="error">
+                            {viewHolidayOptionsError}
                           </Typography>
-                          {viewHolidayOptionsLoading && (
-                            <CircularProgress size={20} />
-                          )}
-                          {viewHolidayOptionsError && (
-                            <Typography variant="caption" color="error">
-                              {viewHolidayOptionsError}
-                            </Typography>
-                          )}
-                          {calendar.holidays && calendar.holidays.length > 0 && !viewHolidayOptionsLoading && (
-                            <PaginatedCalendarHolidays
-                              holidays={calendar.holidays.map((id) => {
-                                const opt = viewHolidayOptions.find((o) => o.id === id);
-                                return {
-                                  id,
-                                  name: opt?.name,
-                                  startDate: opt?.startDate,
-                                  endDate: opt?.endDate,
-                                };
-                              })}
-                              perPage={10}
-                            />
-                          )}
-                          {calendar.holidays && calendar.holidays.length === 0 && !viewHolidayOptionsLoading && (
-                            <Typography variant="caption" color="text.secondary">
-                              No holidays configured
-                            </Typography>
-                          )}
-                        </Box>
+                        )}
+                        {calendar.holidays && calendar.holidays.length > 0 && !viewHolidayOptionsLoading && (
+                          <PaginatedCalendarHolidays
+                            holidays={calendar.holidays.map((id) => {
+                              const opt = viewHolidayOptions.find((o) => o.id === id);
+                              return {
+                                id,
+                                name: opt?.name,
+                                startDate: opt?.startDate,
+                                endDate: opt?.endDate,
+                              };
+                            })}
+                            perPage={10}
+                          />
+                        )}
+                        {calendar.holidays && calendar.holidays.length === 0 && !viewHolidayOptionsLoading && (
+                          <Typography variant="caption" color="text.secondary">
+                            No holidays configured
+                          </Typography>
+                        )}
+                      </Box>
 
                       <Box
                         sx={(theme) => ({

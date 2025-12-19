@@ -33,6 +33,8 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type AccrualStatus = {
@@ -105,7 +107,7 @@ export default function LeaveAutomationPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       // Ensure no double slashes in URL
       const baseUrl = API_BASE?.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
       const url = `${baseUrl}/leaves-report/automation/status`;
@@ -139,7 +141,7 @@ export default function LeaveAutomationPanel() {
     setAccrualResult(null);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       // Ensure no double slashes in URL
       const baseUrl = API_BASE?.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
       const url = `${baseUrl}/leaves-report/automation/process-accrual`;
@@ -161,23 +163,23 @@ export default function LeaveAutomationPanel() {
       }
 
       const data = await res.json();
-      
+
       // Handle both array and object formats
-      const result: AccrualResult = Array.isArray(data) 
+      const result: AccrualResult = Array.isArray(data)
         ? {
-            processed: data.length,
-            successful: data.length,
-            failed: 0,
-            details: data.map((r: any) => ({
-              employeeId: typeof r.employeeId === 'object' ? r.employeeId.toString() : r.employeeId,
-              leaveTypeId: typeof r.leaveTypeId === 'object' ? r.leaveTypeId.toString() : r.leaveTypeId,
-              accrualAmount: r.adjustedAccrual || 0,
-              adjustedForUnpaidLeave: (r.unpaidDays || 0) > 0,
-              unpaidDays: r.unpaidDays || 0,
-            })),
-          }
+          processed: data.length,
+          successful: data.length,
+          failed: 0,
+          details: data.map((r: any) => ({
+            employeeId: typeof r.employeeId === 'object' ? r.employeeId.toString() : r.employeeId,
+            leaveTypeId: typeof r.leaveTypeId === 'object' ? r.leaveTypeId.toString() : r.leaveTypeId,
+            accrualAmount: r.adjustedAccrual || 0,
+            adjustedForUnpaidLeave: (r.unpaidDays || 0) > 0,
+            unpaidDays: r.unpaidDays || 0,
+          })),
+        }
         : data;
-      
+
       setAccrualResult(result);
       const successful = (result as any).successful ?? (Array.isArray(data) ? data.length : 0);
       const failed = (result as any).failed ?? 0;
@@ -200,7 +202,7 @@ export default function LeaveAutomationPanel() {
     setCarryForwardResult(null);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       // Ensure no double slashes in URL
       const baseUrl = API_BASE?.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
       const url = `${baseUrl}/leaves-report/automation/process-carry-forward`;
@@ -220,24 +222,24 @@ export default function LeaveAutomationPanel() {
       }
 
       const data = await res.json();
-      
+
       // Handle both array and object formats
       const result: CarryForwardResult = Array.isArray(data)
         ? {
-            processed: data.length,
-            successful: data.length,
-            failed: 0,
-            details: data.map((r: any) => ({
-              employeeId: typeof r.employeeId === 'object' ? r.employeeId.toString() : r.employeeId,
-              leaveTypeId: typeof r.leaveTypeId === 'object' ? r.leaveTypeId.toString() : r.leaveTypeId,
-              previousRemaining: 0,
-              carriedForward: r.carriedForward || 0,
-              expired: 0,
-              cappedAt: r.carriedForward || 0,
-            })),
-          }
+          processed: data.length,
+          successful: data.length,
+          failed: 0,
+          details: data.map((r: any) => ({
+            employeeId: typeof r.employeeId === 'object' ? r.employeeId.toString() : r.employeeId,
+            leaveTypeId: typeof r.leaveTypeId === 'object' ? r.leaveTypeId.toString() : r.leaveTypeId,
+            previousRemaining: 0,
+            carriedForward: r.carriedForward || 0,
+            expired: 0,
+            cappedAt: r.carriedForward || 0,
+          })),
+        }
         : data;
-      
+
       setCarryForwardResult(result);
       const successful = (result as any).successful ?? (Array.isArray(data) ? data.length : 0);
       const failed = (result as any).failed ?? 0;

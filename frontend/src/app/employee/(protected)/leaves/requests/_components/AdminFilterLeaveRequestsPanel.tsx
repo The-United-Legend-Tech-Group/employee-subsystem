@@ -29,6 +29,8 @@ import {
 } from '@mui/material';
 import { Refresh as RefreshIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type LeaveType = {
@@ -128,7 +130,7 @@ export default function AdminFilterLeaveRequestsPanel() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState('');
-  
+
   // Approval flow dialog state
   const [approvalFlowDialog, setApprovalFlowDialog] = useState<{
     open: boolean;
@@ -149,7 +151,7 @@ export default function AdminFilterLeaveRequestsPanel() {
     if (!API_BASE) return;
     setLeaveTypesLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
@@ -175,8 +177,8 @@ export default function AdminFilterLeaveRequestsPanel() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('access_token');
-      
+      const token = getAccessToken();
+
       // Build query parameters - only leaveTypeId is required
       const params = new URLSearchParams();
       params.append('leaveTypeId', selectedLeaveTypeId);
@@ -254,7 +256,7 @@ export default function AdminFilterLeaveRequestsPanel() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(
         `${API_BASE}/leaves/admin/${approvalFlowDialog.requestId}/set-approval-flow`,
         {
@@ -408,8 +410,8 @@ export default function AdminFilterLeaveRequestsPanel() {
                                     flow.status === 'approved'
                                       ? 'success'
                                       : flow.status === 'rejected'
-                                      ? 'error'
-                                      : 'default'
+                                        ? 'error'
+                                        : 'default'
                                   }
                                 />
                               ))}

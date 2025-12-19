@@ -16,6 +16,8 @@ import {
   FormControl,
 } from '@mui/material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 // Basic list of roles; using strings keeps it flexible.
@@ -83,7 +85,7 @@ export default function ConfigureLeaveParametersForm({
         minNoticeDays: toNumber(form.minNoticeDays),
       };
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(
         `${API_BASE}/leaves/configure-leave-parameters/${leaveTypeId}`,
         {
@@ -92,6 +94,7 @@ export default function ConfigureLeaveParametersForm({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
+          credentials: 'include',
           body: JSON.stringify(payload),
         },
       );

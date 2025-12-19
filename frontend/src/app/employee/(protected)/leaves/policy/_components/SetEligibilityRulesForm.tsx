@@ -16,6 +16,8 @@ import {
   Chip,
 } from '@mui/material';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 // Reference enums from backend (mirrored here for the UI)
@@ -100,13 +102,14 @@ export default function SetEligibilityRulesForm({ policy, onSaved, onCancel }: P
         contractTypesAllowed: form.contractTypesAllowed,
       };
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/set-eligibility`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -139,11 +142,11 @@ export default function SetEligibilityRulesForm({ policy, onSaved, onCancel }: P
             {success}
           </Alert>
         )}
-        
+
         <Typography variant="body2" color="text.secondary">
           Leave Type: <strong>{policy.leaveTypeId ?? 'N/A'}</strong>
         </Typography>
-        
+
         <TextField
           label="Minimum Tenure (Months)"
           type="number"

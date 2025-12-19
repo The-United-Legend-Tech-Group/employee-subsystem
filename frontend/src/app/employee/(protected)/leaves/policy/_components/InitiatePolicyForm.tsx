@@ -21,6 +21,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import Grid from '@mui/material/Grid';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 // Use NEXT_PUBLIC_API_URL to point to backend (e.g., http://localhost:3000/api)
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -102,11 +104,12 @@ export default function InitiatePolicyForm() {
       setLoadingTypes(true);
       setTypesError(null);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getAccessToken();
         const res = await fetch(`${API_BASE}/leaves/leave-types`, {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          credentials: 'include',
         });
         if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
         const data = await res.json();
@@ -160,13 +163,14 @@ export default function InitiatePolicyForm() {
         payload.eligibility = eligibility;
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/initiate-policy`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);

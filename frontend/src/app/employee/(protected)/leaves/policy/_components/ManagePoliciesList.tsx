@@ -28,6 +28,8 @@ import ConfigurePolicySettingsForm from './ConfigurePolicySettingsForm';
 import SetEligibilityRulesForm from './SetEligibilityRulesForm';
 import ConfigureLeaveParametersForm from './ConfigureLeaveParametersForm';
 
+import { getAccessToken } from '@/lib/auth-utils';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 type Policy = {
@@ -76,17 +78,19 @@ export default function ManagePoliciesList() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/policies`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
       // Fetch leave types to map id to name
       const leaveTypeRes = await fetch(`${API_BASE}/leaves/leave-types`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
       });
       let leaveTypes: { _id: string; name: string }[] = [];
       if (leaveTypeRes.ok) {
@@ -135,12 +139,13 @@ export default function ManagePoliciesList() {
     if (!deleteId) return;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAccessToken();
       const res = await fetch(`${API_BASE}/leaves/policies/${deleteId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        credentials: 'include',
       });
 
       if (!res.ok) throw new Error('Failed to delete policy');

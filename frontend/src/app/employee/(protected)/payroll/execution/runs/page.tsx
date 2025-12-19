@@ -56,14 +56,6 @@ export default function PayrollRunsPage() {
     }
   };
 
-  const getEmployeeName = (
-    employee: string | EmployeeInfo | undefined
-  ): string => {
-    if (!employee) return 'Unknown';
-    if (typeof employee === 'string') return employee;
-    return "${employee.firstName} ${employee.lastName}";
-  };
-
   const getStatusVariant = (
     status?: string
   ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -87,7 +79,7 @@ export default function PayrollRunsPage() {
     (status ?? 'unknown').replace(/_/g, ' ');
 
   const handleRowClick = (payrollId: string) => {
-  router.push(`/employee/payroll/execution/runs/${payrollId}/draft`);
+    router.push(`/employee/payroll/execution/runs/${payrollId}/draft`);
   };
 
   if (loading) {
@@ -183,15 +175,18 @@ export default function PayrollRunsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Employees
+            </CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-            {payrolls.reduce((sum, p) => {
-  const employees = typeof p.employees === 'number' ? p.employees : 0;
-  return sum + employees;
-}, 0)}
+              {payrolls.reduce((sum, p) => {
+                const employees =
+                  typeof p.employees === 'number' ? p.employees : 0;
+                return sum + employees;
+              }, 0)}
             </div>
           </CardContent>
         </Card>
@@ -215,7 +210,6 @@ export default function PayrollRunsPage() {
                 <TableHead>Employees</TableHead>
                 <TableHead>Total Net Pay</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created By</TableHead>
                 <TableHead>Created At</TableHead>
               </TableRow>
             </TableHeader>
@@ -243,15 +237,15 @@ export default function PayrollRunsPage() {
 
                   <TableCell>{payroll.employees}</TableCell>
 
-                  <TableCell>${payroll.totalnetpay?.toLocaleString() || '0'}</TableCell>
+                  <TableCell>
+                    ${payroll.totalnetpay?.toLocaleString() || '0'}
+                  </TableCell>
 
                   <TableCell>
                     <Badge variant={getStatusVariant(payroll.status)}>
                       {formatStatusLabel(payroll.status)}
                     </Badge>
                   </TableCell>
-
-                  <TableCell>{getEmployeeName(payroll.payrollSpecialistId)}</TableCell>
 
                   <TableCell>
                     {payroll.createdAt &&

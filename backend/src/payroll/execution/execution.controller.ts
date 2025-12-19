@@ -192,13 +192,10 @@ export class ExecutionController {
 
   /**
    * Clear exceptions for a specific employee in a payroll run
+   * Only Payroll Managers can resolve exceptions
    */
   @Patch('employee/:employeeId/clear-exceptions')
-  @Roles(
-    SystemRole.PAYROLL_SPECIALIST,
-    SystemRole.PAYROLL_MANAGER,
-    SystemRole.FINANCE_STAFF,
-  )
+  @Roles(SystemRole.PAYROLL_MANAGER)
   async clearEmployeeExceptions(
     @Param('employeeId') employeeId: string,
     @Body('payrollRunId') payrollRunId: string,

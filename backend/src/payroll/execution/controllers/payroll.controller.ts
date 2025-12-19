@@ -98,7 +98,7 @@ export class PayrollController {
     );
   }
 
-  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @Patch('employee/:employeeId/clear-exceptions')
   async clearEmployeeExceptions(
     @Param('employeeId') employeeId: string,

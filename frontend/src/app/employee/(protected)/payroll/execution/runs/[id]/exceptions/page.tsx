@@ -12,15 +12,17 @@ function getAccessToken(): string {
 
 function getAuthConfig() {
   const token = getAccessToken();
-  
+
   // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    console.log('[RunExceptions] No localStorage token - relying on httpOnly cookies');
+    console.log(
+      '[RunExceptions] No localStorage token - relying on httpOnly cookies'
+    );
   }
 
   return {
     withCredentials: true, // Primary: send httpOnly cookies
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   } as const;
 }
 
@@ -38,6 +40,7 @@ import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import type { Exception } from '@/payroll/libs/types';
 import { useToast } from '@/payroll/hooks/use-toast';
 import { cn } from '@/payroll/libs/utils';
+import { useUser } from '@/payroll/libs/user-context';
 
 type Priority = 'high' | 'medium' | 'low';
 
@@ -75,6 +78,7 @@ export default function ExceptionsPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { role } = useUser();
 
   const payrollRunId = params.id as string;
 
@@ -99,16 +103,13 @@ export default function ExceptionsPage() {
           process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
 
         // GET /payroll/exceptions?payrollRunId=...&employeeId=...
-        const res = await axios.get(
-          `${BACKEND_URL}/payroll/exceptions`,
-          {
-            ...getAuthConfig(),
-            params: {
-              payrollRunId,
-              employeeId: employeeIdFilter || undefined
-            }
+        const res = await axios.get(`${BACKEND_URL}/payroll/exceptions`, {
+          ...getAuthConfig(),
+          params: {
+            payrollRunId,
+            employeeId: employeeIdFilter || undefined
           }
-        );
+        });
 
         const list: any[] = Array.isArray(res?.data)
           ? res.data
@@ -145,6 +146,17 @@ export default function ExceptionsPage() {
   }, [payrollRunId, employeeIdFilter, router]);
 
   const handleResolve = async (id: string) => {
+    // Only Payroll Managers can resolve exceptions
+    if (role !== 'Payroll Manager') {
+      toast({
+        title: 'Access Denied',
+        description:
+          'Only Payroll Managers can resolve escalated irregularities.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
       const exception = exceptions.find((exc) => exc.id === id);
       if (!exception) return;

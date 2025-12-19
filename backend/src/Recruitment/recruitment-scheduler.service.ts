@@ -12,7 +12,7 @@ export class RecruitmentSchedulerService {
      * Automatically sends onboarding reminders every day at midnight.
      * Logic:
      * - Daily countdown alerts for employees (1-7 days overdue)
-     * - HR escalation (8+ days overdue)
+     * - System Admin escalation (8+ days overdue)
      * - Upcoming deadline reminders (within threshold)
      */
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {

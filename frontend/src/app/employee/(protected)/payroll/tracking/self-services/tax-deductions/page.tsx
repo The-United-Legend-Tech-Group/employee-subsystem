@@ -34,6 +34,7 @@ interface TaxDeduction {
   taxName: string;
   description: string;
   rate: number;
+  appliedTo?: number;
   calculatedAmount?: number;
   status: string;
   createdAt: string | null;

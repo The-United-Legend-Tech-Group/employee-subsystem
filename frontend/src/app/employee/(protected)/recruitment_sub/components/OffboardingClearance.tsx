@@ -279,6 +279,23 @@ export function OffboardingClearance() {
             const clearedCount = progress.clearedCount;
             const allCleared = progress.allCleared;
 
+            // Get overall status from backend (in_progress, fully_cleared, clearance_issues)
+            const overallStatus = checklist.overallStatus || 'in_progress';
+            const isFullyCleared = overallStatus === 'fully_cleared';
+            const hasClearanceIssues = overallStatus === 'clearance_issues';
+
+            // Determine chip label and color based on overall status
+            let statusLabel = 'In Progress';
+            let statusColor: 'warning' | 'success' | 'error' = 'warning';
+            
+            if (isFullyCleared) {
+              statusLabel = 'Fully Cleared';
+              statusColor = 'success';
+            } else if (hasClearanceIssues) {
+              statusLabel = 'Clearance Issues';
+              statusColor = 'error';
+            }
+
             return (
               <Card key={checklist._id} variant="outlined">
                 <CardContent>
@@ -295,8 +312,8 @@ export function OffboardingClearance() {
                       </Typography>
                     </Box>
                     <Chip
-                      label={allCleared ? 'Fully Cleared' : 'In Progress'}
-                      color={allCleared ? 'success' : 'warning'}
+                      label={statusLabel}
+                      color={statusColor}
                       size="small"
                     />
                   </Stack>
@@ -602,25 +619,43 @@ export function OffboardingClearance() {
                             )}
                           </Box>
 
-                          {/* Status Dropdown - Only show if not already approved */}
-                            {!isApproved && (
-                              <FormControl size="small" sx={{ minWidth: 140 }}>
-                                <Select
-                                  value={clearance.status || 'pending'}
-                                  onChange={(e) => {
-                                    handleUpdateDepartmentStatus(
-                                      selectedChecklist.checklist._id,
-                                      deptLabel,
-                                      e.target.value
-                                    );
-                                  }}
-                                >
-                                <MenuItem value="pending">Pending</MenuItem>
-                                <MenuItem value="under_review">Under Review</MenuItem>
-                                <MenuItem value="approved">Approved</MenuItem>
-                                <MenuItem value="rejected">Rejected</MenuItem>
-                              </Select>
-                            </FormControl>
+                          {/* Status Dropdown - Only show when status is not final (approved/rejected) */}
+                          {!(isApproved || isRejected) && (
+                            (() => {
+                              const options: { value: string; label: string }[] = isUnderReview
+                                ? [
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ]
+                                : [
+                                    { value: 'pending', label: 'Pending' },
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ];
+
+                              return (
+                                <FormControl size="small" sx={{ minWidth: 140 }}>
+                                  <Select
+                                    value={clearance.status || 'pending'}
+                                    onChange={(e) => {
+                                      handleUpdateDepartmentStatus(
+                                        selectedChecklist.checklist._id,
+                                        deptLabel,
+                                        e.target.value
+                                      );
+                                    }}
+                                  >
+                                    {options.map((opt) => (
+                                      <MenuItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              );
+                            })()
                           )}
                         </Stack>
                       </Paper>

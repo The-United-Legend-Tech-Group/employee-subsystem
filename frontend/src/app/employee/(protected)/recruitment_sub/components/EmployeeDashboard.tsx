@@ -44,6 +44,7 @@ export function EmployeeDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAssessmentForms, setShowAssessmentForms] = useState(false);
   const [showApprovals, setShowApprovals] = useState(false);
+  const [showOffboarding, setShowOffboarding] = useState(false);
   const [onboardingData, setOnboardingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [employeeId, setEmployeeId] = useState('');
@@ -317,11 +318,12 @@ export function EmployeeDashboard() {
       {/* Navigation Tabs */}
       <Paper variant="outlined" sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs
-          value={showOnboarding ? 0 : showAssessmentForms ? 1 : showApprovals ? 2 : 0}
+          value={showOnboarding ? 0 : showAssessmentForms ? 1 : showApprovals ? 2 : showOffboarding ? 3 : 0}
           onChange={(_, value) => {
             setShowOnboarding(value === 0);
             setShowAssessmentForms(value === 1);
             setShowApprovals(value === 2);
+            setShowOffboarding(value === 3);
           }}
           variant="scrollable"
           scrollButtons="auto"
@@ -329,6 +331,7 @@ export function EmployeeDashboard() {
           <Tab label="Onboarding" />
           <Tab label="Assessments" />
           <Tab label="Approvals" />
+          <Tab label="Offboarding" />
         </Tabs>
       </Paper>
 
@@ -675,8 +678,8 @@ export function EmployeeDashboard() {
         </Card>
       )}
 
-      {/* Resignation Request */}
-      {showOnboarding && (
+      {/* Resignation Request (moved to Offboarding tab) */}
+      {showOffboarding && (
         <Card variant="outlined">
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -774,7 +777,7 @@ export function EmployeeDashboard() {
       )}
 
       {/* Resignation Status */}
-      {showOnboarding && (
+      {showOffboarding && (
         <Card variant="outlined">
           <CardContent>
             <Typography variant="h6" gutterBottom>

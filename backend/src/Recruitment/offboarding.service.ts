@@ -23,7 +23,7 @@ import { TerminationInitiation } from './enums/termination-initiation.enum';
 import { ApprovalStatus } from './enums/approval-status.enum';
 import { TerminationRequest } from './models/termination-request.schema';
 import { ClearanceChecklist } from './models/clearance-checklist.schema';
-import { EmployeeStatus } from '../employee-subsystem/employee/enums/employee-profile.enums';
+import { EmployeeStatus, SystemRole } from '../employee-subsystem/employee/enums/employee-profile.enums';
 import { EmployeeService } from '../employee-subsystem/employee/employee.service';
 import { NotificationService } from '../employee-subsystem/notification/notification.service';
 import { AppraisalRecordService } from 'src/employee-subsystem/performance/appraisal-record.service';
@@ -253,7 +253,6 @@ export class OffboardingService {
       const terminationBenefitDto = {
         employeeId: employeeId,
         benefitName: benefitName,
-        terminationId: savedTerminationRequest._id.toString(),
       };
 
       const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
@@ -524,6 +523,48 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
 
     console.log(`Offboarding checklist created successfully with ID ${savedChecklist._id}`);
 
+    // Send notifications to HR managers and system admins about checklist creation
+    try {
+      const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+      const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+      const employeeName = employee?.profile 
+        ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+        : 'Employee';
+
+      // Send to HR Managers using role-based delivery (same pattern as recruitment.service.ts)
+      await this.notificationService.create({
+        recipientId: [],
+        type: 'Info',
+        deliveryType: 'BROADCAST',
+        deliverToRole: SystemRole.HR_MANAGER,
+        title: `Offboarding Checklist Created - ${employeeNumber}`,
+        message: `A new offboarding checklist has been created for ${employeeName} (${employeeNumber}).
+
+Checklist Details:
+- Checklist ID: ${savedChecklist._id}
+- Termination Request ID: ${dto.terminationId}
+- Employee: ${employeeName} (${employeeNumber})
+- Total Departments: ${departmentItems.length}
+- Total Equipment Items: ${equipmentItems.length}
+
+Departments to be cleared:
+${departmentItems.map(item => `  • ${item.department} - ${item.status}`).join('\n')}
+
+Equipment to be returned:
+${equipmentItems.map(item => `  • ${item.name} - Not returned`).join('\n')}
+
+Please monitor the clearance progress and ensure all items are completed.`,
+        relatedEntityId: savedChecklist._id.toString(),
+        relatedModule: 'Recruitment',
+        isRead: false,
+      } as any);
+
+      console.log(`Checklist creation notification sent to HR managers`);
+    } catch (error) {
+      console.error(`Failed to send checklist creation notification: ${error.message}`);
+      // Continue execution even if notification fails
+    }
+
     return savedChecklist;
   }
 
@@ -757,6 +798,42 @@ Please contact HR if you have any questions regarding your final settlement or b
 
     console.log(`Informational notification sent to terminated employee ${terminationRequest.employeeId}`);
 
+    // Send notification to HR Managers about employee revocation from system
+    try {
+      await this.notificationService.create({
+        recipientId: [],
+        type: 'Alert',
+        deliveryType: 'BROADCAST',
+        deliverToRole: SystemRole.HR_MANAGER,
+        title: `Employee Revoked from System - ${employee.profile.employeeNumber}`,
+        message: `Employee ${employee.profile.employeeNumber} (${employee.profile.firstName} ${employee.profile.lastName}) has been revoked from the system by System Admin.
+
+Revocation Details:
+- Employee Number: ${employee.profile.employeeNumber}
+- Employee Name: ${employee.profile.firstName} ${employee.profile.lastName}
+- Status: ${EmployeeStatus.TERMINATED}
+- Revocation Date: ${new Date().toISOString()}
+- Revoked By: System Admin
+
+Termination Details:
+- Termination Request ID: ${terminationRequest._id}
+- Initiator: ${terminationRequest.initiator}
+- Reason: ${terminationRequest.reason}
+${terminationRequest.terminationDate ? `- Termination Date: ${new Date(terminationRequest.terminationDate).toLocaleDateString()}` : ''}
+${dto.revocationReason ? `- Revocation Reason: ${dto.revocationReason}` : ''}
+
+All system and account access has been permanently revoked. The employee can no longer access company systems.`,
+        relatedEntityId: terminationRequest._id.toString(),
+        relatedModule: 'Recruitment',
+        isRead: false,
+      } as any);
+
+      console.log(`Employee revocation notification sent to HR managers for employee ${employee.profile.employeeNumber}`);
+    } catch (error) {
+      console.error(`Failed to send employee revocation notification: ${error.message}`);
+      // Continue execution even if notification fails
+    }
+
     console.log(`Access revocation completed successfully for employee ${terminationRequest.employeeId}`);
 
     return {
@@ -955,12 +1032,11 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       throw new NotFoundException(`Unable to find contract for employee. ${error.message}`);
     }
 
-    const existingTerminationRequest = await this.terminationRequestRepository
-      .findActiveByEmployeeId(dto.employeeId);
-
-    if (existingTerminationRequest) {
-      console.warn(`Employee ${dto.employeeId} already has an active resignation/termination request`);
-      throw new BadRequestException(`You already have an active resignation/termination request with status: ${existingTerminationRequest.status}`);
+    // Check if employee has ANY existing termination request (active or not)
+    const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(dto.employeeId);
+    if (existingTerminations && existingTerminations.length > 0) {
+      console.warn(`Employee ${dto.employeeId} already has existing termination/resignation request(s)`);
+      throw new BadRequestException(`You cannot submit a resignation request because you already have an existing termination/resignation request.`);
     }
 
       // Validate proposed last working day is not in the past
@@ -1057,7 +1133,6 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       const terminationBenefitDto = {
         employeeId: dto.employeeId,
         benefitName: benefitName,
-        terminationId: savedResignation._id.toString(),
       };
 
       const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
@@ -1367,10 +1442,32 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     console.log(`Department item found for ${dto.department}. Current status: ${departmentItem.status}`);
 
     const previousStatus = departmentItem.status;
+    const newStatus = dto.status;
 
-    // Store status directly as received from frontend (TerminationStatus enum values)
-    // Accepts: 'pending', 'under_review', 'approved', 'rejected'
-    departmentItem.status = dto.status as any;
+    // Transition rules:
+    // - Once a department is 'approved' or 'rejected' the status is final and cannot be changed
+    // - 'pending' -> 'under_review' | 'approved' | 'rejected' allowed
+    // - 'under_review' -> 'approved' | 'rejected' allowed (cannot go back to 'pending')
+    // - Prevent reverting to 'pending' from any non-pending status
+
+    if (previousStatus === 'approved' || previousStatus === 'rejected') {
+      // Final states
+      if (newStatus !== previousStatus) {
+        throw new BadRequestException(`Cannot change department status once it is '${previousStatus}'`);
+      }
+    }
+
+    if (newStatus === 'pending' && previousStatus !== 'pending') {
+      // Do not allow reverting back to pending
+      throw new BadRequestException('Cannot revert department status back to pending');
+    }
+
+    if (previousStatus === 'under_review' && !(newStatus === 'under_review' || newStatus === 'approved' || newStatus === 'rejected')) {
+      throw new BadRequestException(`Invalid transition from 'under_review' to '${newStatus}'`);
+    }
+
+    // If all checks pass, apply the new status
+    departmentItem.status = newStatus as any;
     if (approverObjectId) {
       departmentItem.updatedBy = approverObjectId; // Track who made the approval/rejection (if provided)
     }
@@ -1607,6 +1704,47 @@ Clearance Progress:
 
         console.log(`Rejection alert sent to HR for ${dto.department}`);
       }
+      // Send notification to HR managers and system admins about department sign-off update
+      try {
+        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+        const employeeName = employee?.profile 
+          ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+          : 'Employee';
+
+        // Send to HR Managers using role-based delivery (same pattern as recruitment.service.ts)
+        await this.notificationService.create({
+          recipientId: [],
+          type: 'Info',
+          deliveryType: 'BROADCAST',
+          deliverToRole: SystemRole.HR_MANAGER,
+          title: `Department Clearance Update - ${employeeNumber}`,
+                    message: `Department clearance sign-off updated for ${employeeName} (${employeeNumber}).
+
+Update Details:
+- Department: ${dto.department}
+- Previous Status: ${previousStatus}
+- New Status: ${newStatus}
+${dto.comments ? `- Comments: ${dto.comments}` : ''}
+
+Clearance Progress:
+- Total Departments: ${totalDepartments}
+- Approved: ${approvedCount}
+- Rejected: ${rejectedCount}
+- Pending: ${pendingCount}
+
+${allDepartmentsApproved ? '✓ All departments have approved clearance!' : pendingDepartments.length > 0 ? `Pending departments: ${pendingDepartments.join(', ')}` : ''}
+${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review required.' : ''}`,
+          relatedEntityId: clearanceChecklist._id.toString(),
+          relatedModule: 'Recruitment',
+          isRead: false,
+        } as any);
+
+        console.log(`Department sign-off notification sent to HR managers`);
+      } catch (error) {
+        console.error(`Failed to send department sign-off notification: ${error.message}`);
+        // Continue execution even if notification fails
+      }
     }
     console.log(`Department sign-off processing completed successfully for ${dto.department}`);
 
@@ -1685,7 +1823,50 @@ Clearance Progress:
     const terminationRequest = await this.terminationRequestRepository
       .findById(clearanceChecklist.terminationId.toString());
 
+    // Send notification to HR managers and system admins about equipment update
     if (terminationRequest) {
+      try {
+        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+        const employeeName = employee?.profile 
+          ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+          : 'Employee';
+
+        const unreturned = clearanceChecklist.equipmentList
+          .filter(item => !item.returned)
+          .map(item => item.name);
+
+        // Send to HR Managers using role-based delivery (same pattern as recruitment.service.ts)
+        await this.notificationService.create({
+          recipientId: [],
+          type: 'Info',
+          deliveryType: 'BROADCAST',
+          deliverToRole: SystemRole.HR_MANAGER,
+          title: `Equipment Return Update - ${employeeNumber}`,
+          message: `Equipment return status updated for ${employeeName} (${employeeNumber}).
+
+Update Details:
+- Equipment: ${equipmentName}
+- Status: ${returned ? 'Returned' : 'Not Returned'}
+- Previous Status: ${previousStatus ? 'Returned' : 'Not Returned'}
+
+Equipment Status:
+- Total Items: ${clearanceChecklist.equipmentList.length}
+- Returned: ${clearanceChecklist.equipmentList.filter(item => item.returned).length}
+- Pending: ${unreturned.length}
+
+${allEquipmentReturned ? '✓ All equipment has been returned!' : unreturned.length > 0 ? `Unreturned items: ${unreturned.join(', ')}` : ''}`,
+          relatedEntityId: clearanceChecklist._id.toString(),
+          relatedModule: 'Recruitment',
+          isRead: false,
+        } as any);
+
+        console.log(`Equipment update notification sent to HR managers`);
+      } catch (error) {
+        console.error(`Failed to send equipment update notification: ${error.message}`);
+        // Continue execution even if notification fails
+      }
+
       // Retrieve employee profile for name
       let employeeName = 'Employee';
       let employeeDepartment = 'N/A';
@@ -1801,6 +1982,42 @@ ${allEquipmentReturned ? 'All equipment has been returned! Thank you.' : 'Please
     // Get termination request for employee information and notifications
     const terminationRequest = await this.terminationRequestRepository
       .findById(clearanceChecklist.terminationId.toString());
+
+    // Send notification to HR managers and system admins about card return update
+    if (terminationRequest) {
+      try {
+        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+        const employeeName = employee?.profile 
+          ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+          : 'Employee';
+
+        // Send to HR Managers using role-based delivery (same pattern as recruitment.service.ts)
+        await this.notificationService.create({
+          recipientId: [],
+          type: 'Info',
+          deliveryType: 'BROADCAST',
+          deliverToRole: SystemRole.HR_MANAGER,
+          title: `Access Card Return Update - ${employeeNumber}`,
+          message: `Access card return status updated for ${employeeName} (${employeeNumber}).
+
+Update Details:
+- Item: Access Card
+- Status: ${cardReturned ? 'Returned' : 'Not Returned'}
+- Previous Status: ${previousStatus ? 'Returned' : 'Not Returned'}
+
+${cardReturned ? '✓ Access card has been returned.' : '⚠ Access card still pending return.'}`,
+          relatedEntityId: clearanceChecklist._id.toString(),
+          relatedModule: 'Recruitment',
+          isRead: false,
+        } as any);
+
+        console.log(`Access card update notification sent to HR managers`);
+      } catch (error) {
+        console.error(`Failed to send access card update notification: ${error.message}`);
+        // Continue execution even if notification fails
+      }
+    }
 
     if (terminationRequest) {
       // Retrieve employee profile for name
@@ -2060,6 +2277,67 @@ The employee is now ready for system access revocation. Please navigate to Syste
 
     console.log(`Termination request ${dto.terminationRequestId} status updated from ${previousStatus} to ${dto.status}`);
 
+    // Send notifications to employee, HR manager, and system admin about the status update
+    try {
+      const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+      const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
+      const employeeName = employee?.profile 
+        ? `${employee.profile.firstName} ${employee.profile.lastName}` 
+        : 'Employee';
+
+      // Notification to employee
+      const employeeNotificationPayload = {
+        recipientId: [terminationRequest.employeeId],
+        type: dto.status === TerminationStatus.APPROVED ? 'Info' : 'Alert',
+        deliveryType: 'UNICAST',
+        title: `Termination Request ${dto.status === TerminationStatus.APPROVED ? 'Approved' : 'Updated'}`,
+        message: `Your termination request has been ${dto.status.toLowerCase()}.
+
+Request ID: ${terminationRequest._id}
+Status: ${dto.status}
+Previous Status: ${previousStatus}
+${dto.hrComments ? `\nHR Comments: ${dto.hrComments}` : ''}
+
+${dto.status === TerminationStatus.APPROVED ? 'Your termination has been approved. Please complete any remaining clearance items.' : 'Please check with HR for more details.'}`,
+        relatedEntityId: terminationRequest._id.toString(),
+        relatedModule: 'Recruitment',
+        isRead: false,
+      };
+
+      await this.notificationService.create(employeeNotificationPayload as any);
+      console.log(`Notification sent to employee ${employeeNumber}`);
+
+      // Notification to HR managers using role-based delivery (same pattern as recruitment.service.ts)
+      await this.notificationService.create({
+        recipientId: [],
+        type: 'Info',
+        deliveryType: 'BROADCAST',
+        deliverToRole: SystemRole.HR_MANAGER,
+        title: `Termination Request ${dto.status} - ${employeeNumber}`,
+        message: `Termination request for ${employeeName} (${employeeNumber}) has been ${dto.status.toLowerCase()}.
+
+Request Details:
+- Request ID: ${terminationRequest._id}
+- Employee: ${employeeName} (${employeeNumber})
+- Status: ${dto.status}
+- Previous Status: ${previousStatus}
+- Initiator: ${terminationRequest.initiator}
+- Reason: ${terminationRequest.reason}
+${dto.hrComments ? `- HR Comments: ${dto.hrComments}` : ''}
+${terminationRequest.terminationDate ? `- Termination Date: ${new Date(terminationRequest.terminationDate).toLocaleDateString()}` : ''}
+
+${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved and is ready for processing.' : 'Status has been updated. Further action may be required.'}`,
+        relatedEntityId: terminationRequest._id.toString(),
+        relatedModule: 'Recruitment',
+        isRead: false,
+      } as any);
+
+      console.log(`Notification sent to HR managers`);
+    } catch (error) {
+      console.error(`Failed to send termination approval notifications: ${error.message}`);
+      // Continue execution even if notifications fail
+    }
+
     return terminationRequest;
   }
 
@@ -2132,8 +2410,37 @@ The employee is now ready for system access revocation. Please navigate to Syste
           ).length || 0;
           const progressPercent = totalClearances > 0 ? Math.round((clearedCount / totalClearances) * 100) : 0;
 
+          // Calculate overall status dynamically
+          const anyDepartmentRejected = checklist.items?.some(
+            (item: any) => item.status === 'rejected'
+          ) || false;
+          
+          const allDepartmentsApproved = checklist.items?.every(
+            (item: any) => item.status === 'approved'
+          ) || false;
+          
+          const allEquipmentReturned = checklist.equipmentList?.every(
+            (equipment: any) => equipment.returned === true
+          ) || false;
+          
+          const cardReturned = checklist.cardReturned === true;
+          
+          // Determine overall status
+          let overallStatus = 'in_progress';
+          if (anyDepartmentRejected) {
+            overallStatus = 'clearance_issues'; // One or more departments rejected
+          } else if (allDepartmentsApproved && allEquipmentReturned && cardReturned) {
+            overallStatus = 'fully_cleared'; // Everything completed and approved
+          }
+
+          // Convert checklist to plain object to preserve all properties
+          const checklistObj = checklist.toObject ? checklist.toObject() : checklist;
+
           return {
-            checklist,
+            checklist: {
+              ...checklistObj,
+              overallStatus, // Add calculated overall status to checklist object
+            },
             termination,
             employee: employeeData,
             progress: {
@@ -2141,6 +2448,7 @@ The employee is now ready for system access revocation. Please navigate to Syste
               clearedCount,
               progress: progressPercent,
               allCleared: clearedCount === totalClearances && totalClearances > 0,
+              overallStatus, // Also include in progress object for easy access
             },
           };
         })

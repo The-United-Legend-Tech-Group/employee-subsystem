@@ -23,6 +23,7 @@ import {
   LeavePolicyRepository,
   CalendarRepository,
 } from '../repository';
+import { PayrollCalculationService } from '../../payroll/execution/services/payroll-calculation.service';
 
 @Injectable()
 export class LeavesRequestService {
@@ -35,6 +36,7 @@ export class LeavesRequestService {
     private readonly calendarRepository: CalendarRepository,
     private readonly notificationService: NotificationService,
     private readonly employeeService: EmployeeService,
+    private readonly payrollCalculationService: PayrollCalculationService,
   ) {}
 
   // ---------- REQ-015: Submit Leave Request ----------
@@ -1693,6 +1695,24 @@ export class LeavesRequestService {
           // remaining unchanged (already reduced on submit)
           remaining,
         } as any);
+
+        // Real-time payroll sync: if leave type is unpaid, record payroll penalty
+        try {
+          const leaveType = await this.leaveTypeRepository.findById(leaveTypeId);
+          const isUnpaid = leaveType ? !(leaveType as any).paid : false;
+          if (isUnpaid) {
+            await this.payrollCalculationService.recordUnpaidLeavePenalty(
+              employeeId,
+              d,
+              `Unpaid leave (${(leaveType as any)?.code || 'N/A'}) for ${d} day(s)`,
+            );
+          }
+        } catch (syncErr) {
+          console.error(
+            `[applyFinalEntitlementAdjustments] Payroll sync failed for request ${request._id}:`,
+            syncErr,
+          );
+        }
       } else if (finalStatus === LeaveStatus.REJECTED) {
         await this.leaveEntitlementRepository.updateById(entitlement._id.toString(), {
           pending: Math.max(0, pending - d),

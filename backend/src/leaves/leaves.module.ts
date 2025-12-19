@@ -48,6 +48,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-subsystem/employee/models/employee-system-role.schema';
 import { LeaveCategoryRepository } from './repository/leave-category.repository';
+import { ExecutionModule } from '../payroll/execution/execution.module';
 
 @Module({
   imports: [
@@ -77,6 +78,8 @@ import { LeaveCategoryRepository } from './repository/leave-category.repository'
     EmployeeModule,
     NotificationModule,
     OrganizationStructureModule,
+    // Import payroll execution to enable real-time penalty recording
+    ExecutionModule,
   ],
   controllers: [
     LeavesPolicyController,

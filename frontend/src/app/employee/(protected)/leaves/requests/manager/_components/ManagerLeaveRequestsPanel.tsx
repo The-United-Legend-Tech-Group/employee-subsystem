@@ -110,6 +110,30 @@ function formatDate(value: any): string {
   return d.toLocaleDateString();
 }
 
+// Robust formatter to display a leave type label from various possible shapes
+function formatLeaveTypeLabel(raw: any): string {
+  if (!raw) return 'N/A';
+  // If the value is nested under leaveType or leaveTypeId, unwrap it
+  const lt = typeof raw === 'object' ? (raw.leaveType || raw.leaveTypeId || raw) : raw;
+
+  // If it's a plain string (likely an id), display a short form
+  if (typeof lt === 'string') return lt.length > 12 ? lt.slice(-8) : lt;
+
+  // Try common fields first
+  const code = lt.code ?? lt.leaveTypeCode ?? lt.typeCode ?? lt.shortCode;
+  const name = lt.name ?? lt.leaveTypeName ?? lt.typeName ?? lt.title ?? lt.label;
+
+  if (name && code) return `${code} ${name}`.trim();
+  if (name) return String(name);
+  if (code) return String(code);
+
+  // Fallback to _id when available
+  if (lt._id) return String(lt._id);
+
+  // Avoid rendering raw objects (e.g., showing __v). Return a safe default.
+  return 'N/A';
+}
+
 type TeamBalanceEntry = {
   employeeId: any;
   employeeName: string;
@@ -1075,11 +1099,7 @@ export default function ManagerLeaveRequestsPanel() {
                           })()}
                         </TableCell>
                         <TableCell>
-                          {(() => {
-                            const lt = (item as any).leaveType;
-                            if (lt && typeof lt === 'object') return `${lt.code || ''} ${lt.name || ''}`.trim() || lt._id || 'N/A';
-                            return typeof lt === 'string' ? lt.slice(-8) : 'N/A';
-                          })()}
+                          {formatLeaveTypeLabel((item as any).leaveType)}
                         </TableCell>
                         <TableCell>
                           {'startDate' in item ? formatDate(item.startDate) : '-'}

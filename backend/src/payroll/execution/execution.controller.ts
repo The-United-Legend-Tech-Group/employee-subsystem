@@ -166,9 +166,10 @@ export class ExecutionController {
   /**
    * REQ-PY-8: Generate and distribute payslips after approval
    * Automatically triggered after finance approval and manager lock
+   * Only Payroll Specialist can send emails
    */
   @Post('payslips/generate')
-  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   async generateAndDistributePayslips(
     @Body() generateDto: GeneratePayslipsDto,
   ): Promise<any> {
@@ -192,7 +193,7 @@ export class ExecutionController {
 
   /**
    * Clear exceptions for a specific employee in a payroll run
-   * Only Payroll Managers can resolve exceptions
+   * Only Payroll Manager can resolve escalated irregularities
    */
   @Patch('employee/:employeeId/clear-exceptions')
   @Roles(SystemRole.PAYROLL_MANAGER)

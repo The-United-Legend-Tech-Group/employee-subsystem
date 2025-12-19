@@ -1,4 +1,6 @@
 "use client"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Hero3D } from "@/components/hero-3d"
 import { Navigation } from "@/components/navigation"
 import { Features } from "@/components/features"

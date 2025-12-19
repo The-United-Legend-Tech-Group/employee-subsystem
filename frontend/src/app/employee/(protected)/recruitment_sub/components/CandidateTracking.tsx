@@ -33,6 +33,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { recruitmentApi, employeeApi } from '@/lib/api';
 import { useMutation } from '@/lib/hooks/useApi';
 import { useToast } from '@/lib/hooks/useToast';
+import LinearProgress from '@mui/material/LinearProgress';
 
 export function CandidateTracking() {
   const toast = useToast();
@@ -43,6 +44,7 @@ export function CandidateTracking() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [referrals, setReferrals] = useState<Set<string>>(new Set());
   const [referralData, setReferralData] = useState<Map<string, any[]>>(new Map());
+  const [candidateInterviews, setCandidateInterviews] = useState<Map<string, any[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filterPosition, setFilterPosition] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
@@ -65,7 +67,24 @@ export function CandidateTracking() {
         recruitmentApi.getAllReferrals()
       ]);
 
-      setCandidates(applicationsResponse.data || []);
+      const applications = applicationsResponse.data || [];
+      setCandidates(applications);
+
+      // Fetch interviews for each application
+      const interviewMap = new Map<string, any[]>();
+      await Promise.all(
+        applications.map(async (app: any) => {
+          try {
+            const interviewsResponse = await recruitmentApi.getInterviewsByApplication(app._id);
+            if (interviewsResponse.data && interviewsResponse.data.length > 0) {
+              interviewMap.set(app._id, interviewsResponse.data);
+            }
+          } catch (error) {
+            // Silently handle - some applications may not have interviews
+          }
+        })
+      );
+      setCandidateInterviews(interviewMap);
 
       // Build referrals set and map from backend data (multiple referrals per candidate)
       const referralCandidateIds = new Set<string>();
@@ -137,15 +156,10 @@ export function CandidateTracking() {
         return;
       }
 
-      // Check for duplicate referral from same employee (normalize ids)
+      // Check if candidate already has a referral (backend prevents duplicates per candidate)
       const existingReferrals = referralData.get(candidateKey) || [];
-      const isDuplicate = existingReferrals.some((ref: any) => {
-        const refEmployeeId = ref.referringEmployeeId?._id || ref.referringEmployeeId;
-        return (refEmployeeId && refEmployeeId.toString()) === (employee._id && employee._id.toString());
-      });
-
-      if (isDuplicate) {
-        toast.error(`This candidate is already referred by employee ${employee.employeeNumber}`);
+      if (existingReferrals.length > 0) {
+        toast.error(`This candidate already has a referral. Candidates can only be referred once.`);
         setIsSubmitting(false);
         return;
       }
@@ -167,10 +181,10 @@ export function CandidateTracking() {
         const next = new Map(prev);
         const existing = next.get(candidateKey) || [];
         // Prevent accidental duplicates by checking referring employee id or referral _id
-        const newRef = { ...newReferral.data, referringEmployeeId: employee };
+        const newRef = { ...(newReferral?.data ?? {}), referringEmployeeId: employee } as any;
         const already = existing.some((r: any) => {
           const a = r._id ? r._id.toString() : null;
-          const b = newRef._id ? newRef._id.toString() : null;
+          const b = (newRef as any)._id ? (newRef as any)._id.toString() : null;
           if (a && b) return a === b;
           const ra = r.referringEmployeeId?._id || r.referringEmployeeId;
           const rb = newRef.referringEmployeeId?._id || newRef.referringEmployeeId;
@@ -242,6 +256,22 @@ export function CandidateTracking() {
     department_interview: 'Department Interview',
     hr_interview: 'HR Interview',
     offer: 'Offer'
+  };
+
+  // Calculate progress percentage based on stage
+  const getStageProgress = (stage: string): number => {
+    switch (stage) {
+      case 'screening':
+        return 10;
+      case 'department_interview':
+        return 50; // 10 + 40
+      case 'hr_interview':
+        return 90; // 10 + 40 + 40
+      case 'offer':
+        return 100; // 10 + 40 + 40 + 10
+      default:
+        return 0;
+    }
   };
 
   // Check if a candidate is a referral
@@ -535,6 +565,72 @@ export function CandidateTracking() {
                           </Typography>
                         </Stack>
                       </Stack>
+
+                      {/* Progress Bar */}
+                      {!rejected && candidate.currentStage && (
+                        <Box sx={{ mt: 2 }}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Progress
+                            </Typography>
+                            <Typography variant="caption" fontWeight={600} color="primary.main">
+                              {getStageProgress(candidate.currentStage)}%
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate"
+                            value={getStageProgress(candidate.currentStage)}
+                            sx={{
+                              height: 6,
+                              borderRadius: 1,
+                              bgcolor: 'action.hover',
+                              '& .MuiLinearProgress-bar': {
+                                borderRadius: 1,
+                                bgcolor: candidate.currentStage === 'offer' ? 'success.main' : 'primary.main'
+                              }
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      {/* Interview Status */}
+                      {!rejected && candidateInterviews.has(candidate._id) && (() => {
+                        const interviews = candidateInterviews.get(candidate._id) || [];
+                        const latestInterview = interviews.sort((a, b) =>
+                          new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime()
+                        )[0];
+                        const getInterviewStatusColor = (status: string) => {
+                          switch (status) {
+                            case 'scheduled': return 'info';
+                            case 'completed': return 'success';
+                            case 'cancelled': return 'error';
+                            default: return 'default';
+                          }
+                        };
+                        return (
+                          <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 2 }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption" fontWeight={600} color="text.secondary">
+                                Latest Interview
+                              </Typography>
+                              <Chip
+                                label={latestInterview.status || 'scheduled'}
+                                size="small"
+                                color={getInterviewStatusColor(latestInterview.status || 'scheduled') as any}
+                                sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                              />
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {new Date(latestInterview.scheduledDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })} • {latestInterview.method}
+                            </Typography>
+                          </Box>
+                        );
+                      })()}
 
                       {/* Actions Row */}
                       <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>

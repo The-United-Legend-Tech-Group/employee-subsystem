@@ -9,11 +9,29 @@ import {
   HttpCode,
   HttpStatus,
   Request,
+  UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
-import mongoose from 'mongoose';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ConfigSetupService } from './config_setup.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../common/guards/authorization.guard';
+import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
+
+// Use SystemRole-compatible Roles decorator with type casting
+import { Roles as SystemRoles } from '../../employee-subsystem/employee/decorators/roles.decorator';
+const Roles = (...roles: SystemRole[]) => SystemRoles(...(roles as any));
+
+import { Query } from '@nestjs/common';
+import { PaginationQueryDto, InsuranceBracketPaginationDto } from './dto/pagination.dto';
 
 // Import DTOs
 import { CreateAllowanceDto } from './dto/createAllowanceDto';
@@ -35,32 +53,43 @@ import { UpdateTaxRuleDto } from './dto/updateTaxRuleDto';
 import { CreateTerminationBenefitsDto } from './dto/createTerminationBenefitsDto';
 import { UpdateTerminationBenefitsDto } from './dto/updateTerminationBenefitsDto';
 
-// Mock ObjectIds for testing (will be replaced with real auth)
-const MOCK_USER_ID = new mongoose.Types.ObjectId().toString();
-const MOCK_APPROVER_ID = new mongoose.Types.ObjectId().toString();
-
 @ApiTags('Payroll Config Setup')
+@ApiBearerAuth()
+@UseGuards(AuthGuard, authorizationGuard)
 @Controller('config-setup')
 export class ConfigSetupController {
-  constructor(private readonly configSetupService: ConfigSetupService) {}
+  constructor(private readonly configSetupService: ConfigSetupService) { }
+
+  // ==================== Pending Approvals Route ====================
+  @Get('pending-approvals')
+
+  @ApiOperation({ summary: 'Get count of pending draft configurations' })
+  @ApiResponse({ status: 200, description: 'Counts of pending approvals by type' })
+  async getPendingApprovals() {
+    return this.configSetupService.getPendingApprovals();
+  }
 
   // ==================== Allowance Routes ====================
   @Post('allowances')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new allowance' })
   @ApiBody({ type: CreateAllowanceDto })
   @ApiResponse({ status: 201, description: 'Allowance created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   createAllowance(@Body() dto: CreateAllowanceDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.allowance.createWithUser(dto, userId);
   }
 
   @Get('allowances')
   @ApiOperation({ summary: 'Get all allowances' })
   @ApiResponse({ status: 200, description: 'List of all allowances' })
-  findAllAllowances() {
-    return this.configSetupService.allowance.findAll();
+  findAllAllowances(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.allowance.findAll(query);
   }
+
+  // ... (keeping other methods same)
+
 
   @Get('allowances/:id')
   @ApiOperation({ summary: 'Get allowance by ID' })
@@ -72,6 +101,7 @@ export class ConfigSetupController {
   }
 
   @Patch('allowances/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update allowance data (without status)' })
   @ApiParam({ name: 'id', description: 'Allowance ID' })
   @ApiBody({ type: UpdateAllowanceDto })
@@ -82,6 +112,7 @@ export class ConfigSetupController {
   }
 
   @Patch('allowances/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update allowance status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Allowance ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -93,11 +124,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.allowance.updateStatus(id, dto, approverId);
   }
 
   @Delete('allowances/:id')
+  @Roles(SystemRole.PAYROLL_MANAGER, SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete allowance by ID' })
   @ApiParam({ name: 'id', description: 'Allowance ID' })
@@ -109,6 +141,7 @@ export class ConfigSetupController {
 
   // ==================== Company Settings Routes ====================
   @Post('company-settings')
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({
     summary: 'Create company-wide settings',
     description: 'System admin creates company settings (no approval required)',
@@ -140,6 +173,7 @@ export class ConfigSetupController {
   }
 
   @Patch('company-settings/:id')
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @ApiOperation({ summary: 'Update company settings by ID' })
   @ApiParam({ name: 'id', description: 'Company settings ID' })
   @ApiBody({ type: updateCompanyWideSettingsDto })
@@ -153,6 +187,7 @@ export class ConfigSetupController {
   }
 
   @Delete('company-settings/:id')
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete company settings by ID' })
   @ApiParam({ name: 'id', description: 'Company settings ID' })
@@ -164,20 +199,21 @@ export class ConfigSetupController {
 
   // ==================== Insurance Bracket Routes ====================
   @Post('insurance-brackets')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new insurance bracket' })
   @ApiBody({ type: CreateInsuranceBracketsDto })
   @ApiResponse({ status: 201, description: 'Insurance bracket created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   createInsuranceBracket(@Body() dto: CreateInsuranceBracketsDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.insuranceBracket.createWithUser(dto, userId);
   }
 
   @Get('insurance-brackets')
   @ApiOperation({ summary: 'Get all insurance brackets' })
   @ApiResponse({ status: 200, description: 'List of all insurance brackets' })
-  findAllInsuranceBrackets() {
-    return this.configSetupService.insuranceBracket.findAll();
+  findAllInsuranceBrackets(@Query() query: InsuranceBracketPaginationDto) {
+    return this.configSetupService.insuranceBracket.findAll(query);
   }
 
   @Get('insurance-brackets/:id')
@@ -200,6 +236,7 @@ export class ConfigSetupController {
   }
 
   @Patch('insurance-brackets/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update insurance bracket data (without status)' })
   @ApiParam({ name: 'id', description: 'Insurance bracket ID' })
   @ApiBody({ type: UpdateInsuranceBracketsDto })
@@ -213,6 +250,7 @@ export class ConfigSetupController {
   }
 
   @Patch('insurance-brackets/:id/status')
+  @Roles(SystemRole.HR_MANAGER)
   @ApiOperation({ summary: 'Update insurance bracket status (HR Manager only)' })
   @ApiParam({ name: 'id', description: 'Insurance bracket ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -223,11 +261,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.insuranceBracket.updateStatus(id, dto, approverId);
   }
 
   @Delete('insurance-brackets/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete insurance bracket by ID' })
   @ApiParam({ name: 'id', description: 'Insurance bracket ID' })
@@ -239,20 +278,21 @@ export class ConfigSetupController {
 
   // ==================== Pay Grade Routes ====================
   @Post('pay-grades')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new pay grade' })
   @ApiBody({ type: CreatePayGradeDto })
   @ApiResponse({ status: 201, description: 'Pay grade created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   createPayGrade(@Body() dto: CreatePayGradeDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.payGrade.createWithUser(dto, userId);
   }
 
   @Get('pay-grades')
   @ApiOperation({ summary: 'Get all pay grades' })
   @ApiResponse({ status: 200, description: 'List of all pay grades' })
-  findAllPayGrades() {
-    return this.configSetupService.payGrade.findAll();
+  findAllPayGrades(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.payGrade.findAll(query);
   }
 
   @Get('pay-grades/:id')
@@ -273,6 +313,7 @@ export class ConfigSetupController {
   }
 
   @Patch('pay-grades/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update pay grade data (without status)' })
   @ApiParam({ name: 'id', description: 'Pay grade ID' })
   @ApiBody({ type: UpdatePayGradeDto })
@@ -283,6 +324,7 @@ export class ConfigSetupController {
   }
 
   @Patch('pay-grades/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update pay grade status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Pay grade ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -294,11 +336,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.payGrade.updateStatus(id, dto, approverId);
   }
 
   @Delete('pay-grades/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete pay grade by ID' })
   @ApiParam({ name: 'id', description: 'Pay grade ID' })
@@ -310,20 +353,21 @@ export class ConfigSetupController {
 
   // ==================== Payroll Policy Routes ====================
   @Post('payroll-policies')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new payroll policy' })
   @ApiBody({ type: CreatePayrollPolicyDto })
   @ApiResponse({ status: 201, description: 'Payroll policy created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   createPayrollPolicy(@Body() dto: CreatePayrollPolicyDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.payrollPolicy.createWithUser(dto, userId);
   }
 
   @Get('payroll-policies')
   @ApiOperation({ summary: 'Get all payroll policies' })
   @ApiResponse({ status: 200, description: 'List of all payroll policies' })
-  findAllPayrollPolicies() {
-    return this.configSetupService.payrollPolicy.findAll();
+  findAllPayrollPolicies(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.payrollPolicy.findAll(query);
   }
 
   @Get('payroll-policies/:id')
@@ -356,6 +400,7 @@ export class ConfigSetupController {
   }
 
   @Patch('payroll-policies/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update payroll policy data (without status)' })
   @ApiParam({ name: 'id', description: 'Payroll policy ID' })
   @ApiBody({ type: UpdatePayrollPolicyDto })
@@ -369,6 +414,7 @@ export class ConfigSetupController {
   }
 
   @Patch('payroll-policies/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update payroll policy status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Payroll policy ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -380,11 +426,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.payrollPolicy.updateStatus(id, dto, approverId);
   }
 
   @Delete('payroll-policies/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete payroll policy by ID' })
   @ApiParam({ name: 'id', description: 'Payroll policy ID' })
@@ -396,21 +443,22 @@ export class ConfigSetupController {
 
   // ==================== Pay Type Routes ====================
   @Post('pay-types')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new pay type' })
   @ApiBody({ type: CreatePayTypeDto })
   @ApiResponse({ status: 201, description: 'Pay type created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 409, description: 'Pay type already exists' })
   createPayType(@Body() dto: CreatePayTypeDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.payType.createWithUser(dto, userId);
   }
 
   @Get('pay-types')
   @ApiOperation({ summary: 'Get all pay types' })
   @ApiResponse({ status: 200, description: 'List of all pay types' })
-  findAllPayTypes() {
-    return this.configSetupService.payType.findAll();
+  findAllPayTypes(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.payType.findAll(query);
   }
 
   @Get('pay-types/:id')
@@ -423,6 +471,7 @@ export class ConfigSetupController {
   }
 
   @Patch('pay-types/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update pay type data (without status)' })
   @ApiParam({ name: 'id', description: 'Pay type ID' })
   @ApiBody({ type: UpdatePayTypeDto })
@@ -433,6 +482,7 @@ export class ConfigSetupController {
   }
 
   @Patch('pay-types/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update pay type status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Pay type ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -444,11 +494,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.payType.updateStatus(id, dto, approverId);
   }
 
   @Delete('pay-types/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete pay type by ID' })
   @ApiParam({ name: 'id', description: 'Pay type ID' })
@@ -460,21 +511,22 @@ export class ConfigSetupController {
 
   // ==================== Signing Bonus Routes ====================
   @Post('signing-bonuses')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new signing bonus' })
   @ApiBody({ type: CreateSigningBonusDto })
   @ApiResponse({ status: 201, description: 'Signing bonus created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 409, description: 'Signing bonus already exists' })
   createSigningBonus(@Body() dto: CreateSigningBonusDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.signingBonus.createWithUser(dto, userId);
   }
 
   @Get('signing-bonuses')
   @ApiOperation({ summary: 'Get all signing bonuses' })
   @ApiResponse({ status: 200, description: 'List of all signing bonuses' })
-  findAllSigningBonuses() {
-    return this.configSetupService.signingBonus.findAll();
+  findAllSigningBonuses(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.signingBonus.findAll(query);
   }
 
   @Get('signing-bonuses/:id')
@@ -487,6 +539,7 @@ export class ConfigSetupController {
   }
 
   @Patch('signing-bonuses/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update signing bonus data (without status)' })
   @ApiParam({ name: 'id', description: 'Signing bonus ID' })
   @ApiBody({ type: UpdateSigningBonusDto })
@@ -500,6 +553,7 @@ export class ConfigSetupController {
   }
 
   @Patch('signing-bonuses/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update signing bonus status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Signing bonus ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -511,11 +565,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.signingBonus.updateStatus(id, dto, approverId);
   }
 
   @Delete('signing-bonuses/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete signing bonus by ID' })
   @ApiParam({ name: 'id', description: 'Signing bonus ID' })
@@ -527,21 +582,22 @@ export class ConfigSetupController {
 
   // ==================== Tax Rule Routes ====================
   @Post('tax-rules')
+  @Roles(SystemRole.LEGAL_POLICY_ADMIN, SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new tax rule' })
   @ApiBody({ type: CreateTaxRuleDto })
   @ApiResponse({ status: 201, description: 'Tax rule created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 409, description: 'Tax rule already exists' })
   createTaxRule(@Body() dto: CreateTaxRuleDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.taxRule.createWithUser(dto, userId);
   }
 
   @Get('tax-rules')
   @ApiOperation({ summary: 'Get all tax rules' })
   @ApiResponse({ status: 200, description: 'List of all tax rules' })
-  findAllTaxRules() {
-    return this.configSetupService.taxRule.findAll();
+  findAllTaxRules(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.taxRule.findAll(query);
   }
 
   @Get('tax-rules/:id')
@@ -554,6 +610,7 @@ export class ConfigSetupController {
   }
 
   @Patch('tax-rules/:id')
+  @Roles(SystemRole.LEGAL_POLICY_ADMIN, SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update tax rule data (without status)' })
   @ApiParam({ name: 'id', description: 'Tax rule ID' })
   @ApiBody({ type: UpdateTaxRuleDto })
@@ -564,6 +621,7 @@ export class ConfigSetupController {
   }
 
   @Patch('tax-rules/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update tax rule status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Tax rule ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -575,11 +633,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.taxRule.updateStatus(id, dto, approverId);
   }
 
   @Delete('tax-rules/:id')
+  @Roles(SystemRole.LEGAL_POLICY_ADMIN, SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete tax rule by ID' })
   @ApiParam({ name: 'id', description: 'Tax rule ID' })
@@ -591,21 +650,22 @@ export class ConfigSetupController {
 
   // ==================== Termination Benefit Routes ====================
   @Post('termination-benefits')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Create a new termination benefit' })
   @ApiBody({ type: CreateTerminationBenefitsDto })
   @ApiResponse({ status: 201, description: 'Termination benefit created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 409, description: 'Termination benefit already exists' })
   createTerminationBenefit(@Body() dto: CreateTerminationBenefitsDto, @Request() req) {
-    const userId = req.user?.id || MOCK_USER_ID;
+    const userId = this.getEmployeeId(req);
     return this.configSetupService.terminationBenefit.createWithUser(dto, userId);
   }
 
   @Get('termination-benefits')
   @ApiOperation({ summary: 'Get all termination benefits' })
   @ApiResponse({ status: 200, description: 'List of all termination benefits' })
-  findAllTerminationBenefits() {
-    return this.configSetupService.terminationBenefit.findAll();
+  findAllTerminationBenefits(@Query() query: PaginationQueryDto) {
+    return this.configSetupService.terminationBenefit.findAll(query);
   }
 
   @Get('termination-benefits/:id')
@@ -618,6 +678,7 @@ export class ConfigSetupController {
   }
 
   @Patch('termination-benefits/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @ApiOperation({ summary: 'Update termination benefit data (without status)' })
   @ApiParam({ name: 'id', description: 'Termination benefit ID' })
   @ApiBody({ type: UpdateTerminationBenefitsDto })
@@ -631,6 +692,7 @@ export class ConfigSetupController {
   }
 
   @Patch('termination-benefits/:id/status')
+  @Roles(SystemRole.PAYROLL_MANAGER)
   @ApiOperation({ summary: 'Update termination benefit status (approve/reject)' })
   @ApiParam({ name: 'id', description: 'Termination benefit ID' })
   @ApiBody({ type: UpdateStatusDto })
@@ -642,11 +704,12 @@ export class ConfigSetupController {
     @Body() dto: UpdateStatusDto,
     @Request() req,
   ) {
-    const approverId = req.user?.id || MOCK_APPROVER_ID;
+    const approverId = this.getEmployeeId(req);
     return this.configSetupService.terminationBenefit.updateStatus(id, dto, approverId);
   }
 
   @Delete('termination-benefits/:id')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete termination benefit by ID' })
   @ApiParam({ name: 'id', description: 'Termination benefit ID' })
@@ -654,6 +717,14 @@ export class ConfigSetupController {
   @ApiResponse({ status: 404, description: 'Termination benefit not found' })
   deleteTerminationBenefit(@Param('id') id: string) {
     return this.configSetupService.terminationBenefit.delete(id);
+  }
+
+  private getEmployeeId(req: any): string {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('User ID not found in security context');
+    }
+    return userId.toString();
   }
 }
 

@@ -7,8 +7,10 @@ import {
   Patch,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Types } from 'mongoose';
 import { LeavesReportService } from './leave-reports.service';
 import { FilterLeaveHistoryDto } from '../dtos/filter-leave-history.dto';
 import { ManagerFilterTeamDataDto } from '../dtos/manager-filter-team-data.dto';
@@ -39,6 +41,19 @@ export class LeavesReportController {
   @ApiResponse({ status: 404, description: 'Employee not found' })
   async getEmployeeBalances(@Param('employeeId') employeeId: string) {
     return this.leavesReportService.getEmployeeLeaveBalances(employeeId);
+  }
+
+  // Get current employee's leave balances
+  @Get('my-balances')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get all leave balances for current employee' })
+  @ApiResponse({ status: 200, description: 'Leave balances retrieved successfully' })
+  async getMyBalances(@Req() req: any) {
+    const user: any = (req as any).user;
+    const employeeId = user?.sub || user?.employeeId;
+    return this.leavesReportService.getEmployeeLeaveBalances(
+      new Types.ObjectId(employeeId).toString(),
+    );
   }
 
   // Get leave balance for a specific leave type
@@ -74,6 +89,25 @@ async getEmployeeLeaveHistory(
 ) {
   return this.leavesReportService.getEmployeeLeaveHistory(employeeId, filters);
 }
+
+// Get current employee's leave history
+@Get('my-history')
+@UseGuards(AuthGuard)
+@ApiOperation({ summary: 'Get filtered leave history for current employee' })
+@ApiQuery({ type: FilterLeaveHistoryDto, description: 'Filter options' })
+@ApiResponse({ status: 200, description: 'Leave history retrieved successfully' })
+@ApiResponse({ status: 400, description: 'Invalid filter parameters' })
+async getMyLeaveHistory(
+  @Req() req: any,
+  @Query() filters: FilterLeaveHistoryDto,
+) {
+  const user: any = (req as any).user;
+  const employeeId = user?.sub || user?.employeeId;
+  return this.leavesReportService.getEmployeeLeaveHistory(
+    new Types.ObjectId(employeeId).toString(),
+    filters,
+  );
+}
 // =============================
 // REQ-035 — Manager Filter Team Data
 // =============================
@@ -86,8 +120,11 @@ async getEmployeeLeaveHistory(
 @ApiResponse({ status: 400, description: 'Invalid filter parameters' })
 async getManagerTeamData(
   @Query() filters: ManagerFilterTeamDataDto,
+  @Req() req: any,
 ) {
-  return this.leavesReportService.getManagerTeamData(filters);
+  const user = (req as any).user || {};
+  const managerId = user?.sub || user?.employeeId;
+  return this.leavesReportService.getManagerTeamData(filters, new Types.ObjectId(managerId).toString());
 }
   // =============================
   // REQ-039 — Flag Irregular Patterns
@@ -137,5 +174,65 @@ async submitPostLeave(
 ) {
   return this.leavesReportService.submitPostLeave(employeeId, body);
 }
+
+  // =============================
+  // REQ-040, REQ-041, REQ-042 — Leave Automation
+  // =============================
+
+  /**
+   * REQ-040: Process automatic accrual for all employees
+   */
+  /*@Post('automation/process-accrual')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: 'Process automatic leave accrual for all employees',
+    description:
+      'Automatically adds leave days to each employee balance according to company policy. Accrual is adjusted for unpaid leave periods.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Accrual processed successfully',
+  })
+  async processAccrual() {
+    return this.leavesReportService.accrueLeaves();
+  }
+
+  /**
+   * REQ-041: Process year-end/period carry-forward
+   */
+  /*@Post('automation/process-carry-forward')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: 'Process year-end/period carry-forward',
+    description:
+      'Automatically processes carry-forward of unused leave days',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Carry-forward processed successfully',
+  })
+  async processCarryForward() {
+    return this.leavesReportService.carryForwardLeaves();
+  }*/
+
+  /**
+   * Get accrual automation status
+   */
+  @Get('automation/status')
+  @UseGuards(AuthGuard, authorizationGuard)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: 'Get accrual automation status',
+    description: 'Returns information about accrual processing status',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Status retrieved successfully',
+  })
+  async getAutomationStatus() {
+    return this.leavesReportService.getAccrualStatus();
+  }
 
 }

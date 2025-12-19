@@ -1,19 +1,25 @@
-import { IsString, IsNumber, IsEnum, IsDate, Min, IsOptional, IsMongoId } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsNumber, IsEnum, Min, Max, IsOptional, IsMongoId, ValidateIf } from 'class-validator';
 
 export class CreatePayrollSummaryDto {
-  @IsDate()
-  @Type(() => Date)
-  period: Date;
+  @IsNumber()
+  @Min(2000)
+  @Max(2100)
+  year: number;
 
-  @IsMongoId()
-  departmentId: string;
+  @ValidateIf((o) => o.summary_type === 'Month-End')
+  @IsNumber()
+  @Min(1)
+  @Max(12)
+  @IsOptional()
+  month?: number; // Required for Month-End, not used for Year-End
+
+  @ValidateIf((o) => o.departmentId !== undefined && o.departmentId !== null && o.departmentId !== '')
+  @IsMongoId({ message: 'departmentId must be a valid MongoDB ObjectId' })
+  @IsOptional()
+  departmentId?: string; // Optional - if not provided, generate for all departments
 
   @IsEnum(['Month-End', 'Year-End'])
   summary_type: 'Month-End' | 'Year-End';
-
-  @IsString()
-  file_url: string;
 
   @IsEnum(['Generated', 'Approved', 'Finalized'])
   @IsOptional()
@@ -48,9 +54,5 @@ export class CreatePayrollSummaryDto {
   @Min(0)
   @IsOptional()
   total_employer_contributions?: number;
-
-  @IsString()
-  @IsOptional()
-  currency?: string;
 }
 

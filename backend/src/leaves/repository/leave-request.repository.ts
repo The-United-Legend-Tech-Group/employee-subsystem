@@ -14,6 +14,54 @@ export class LeaveRequestRepository extends BaseRepository<LeaveRequestDocument>
   ) {
     super(model);
   }
+  // ...other methods...
+
+  async updateWithApprovalFlow(
+    leaveRequestId: string,
+    updateData: any,
+    role?: string,
+    approveOrReject?: {
+      updateFields: { status: string; decidedBy: Types.ObjectId; decidedAt: Date; justification?: string };
+    }
+  ): Promise<LeaveRequestDocument | null> {
+    if (role && approveOrReject) {
+      // First try to update existing pending entry for this role
+      const arrayFilters = [
+        { 'elem.role': role, 'elem.status': 'pending' },
+      ];
+      const setData: any = {};
+      Object.entries(approveOrReject.updateFields).forEach(([key, val]) => {
+        setData[`approvalFlow.$[elem].${key}`] = val;
+      });
+
+      let result = await this.model.findByIdAndUpdate(
+        leaveRequestId,
+        { $set: setData, ...updateData },
+        { arrayFilters, new: true }
+      ).exec();
+
+      // If no entry was updated (no existing pending entry for this role), add a new one
+      if (!result) {
+        const pushData = {
+          approvalFlow: {
+            role,
+            ...approveOrReject.updateFields,
+          },
+        };
+        result = await this.model.findByIdAndUpdate(
+          leaveRequestId,
+          { $push: pushData, ...updateData },
+          { new: true }
+        ).exec();
+      }
+
+      return result;
+    }
+    // Legacy: fallback to standard update (push, etc)
+    return this.model.findByIdAndUpdate(leaveRequestId, updateData, { new: true }).exec();
+  }
+
+  // ...existing methods...
 
   async findByEmployeeId(employeeId: string): Promise<LeaveRequestDocument[]> {
     return this.model.find({ employeeId }).exec();
@@ -59,12 +107,14 @@ export class LeaveRequestRepository extends BaseRepository<LeaveRequestDocument>
       status: { $in: ['APPROVED', 'PENDING'] },
       'dates.from': { $gte: today },
     })
-    .populate('leaveTypeId employeeId')
-    .lean()
-    .exec();
+      .populate('leaveTypeId employeeId')
+      .lean()
+      .exec();
   }
 
-  async updateWithApprovalFlow(leaveRequestId: string, updateData: any): Promise<LeaveRequestDocument | null> {
-    return this.model.findByIdAndUpdate(leaveRequestId, updateData, { new: true }).exec();
+  async findAllSorted(): Promise<LeaveRequestDocument[]> {
+    // Simple sorted find; higher-level services are responsible for enriching
+    // with employee profiles and leave type details without cross-subsystem populate.
+    return this.model.find({}).sort({ createdAt: -1 }).exec();
   }
 }

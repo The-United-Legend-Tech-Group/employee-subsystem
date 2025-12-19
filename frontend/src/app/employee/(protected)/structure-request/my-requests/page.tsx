@@ -15,7 +15,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useRouter } from 'next/navigation';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ListAltIcon from '@mui/icons-material/ListAlt';
-import { decryptData } from '../../../../../common/utils/encryption';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 
 interface StructureRequest {
     _id: string;
@@ -53,24 +53,24 @@ export default function MyRequestsPage() {
 
     useEffect(() => {
         const fetchRequests = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) {
-                router.push('/employee/login');
+            if (!employeeId) {
+                logout('/employee/login');
                 return;
             }
 
             try {
-                const employeeId = await decryptData(encryptedEmployeeId, token);
-                if (!employeeId) throw new Error('Decryption failed');
-
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const res = await fetch(`${apiUrl}/organization-structure/requests/user/${employeeId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
+                    credentials: 'include'
                 });
 
                 if (!res.ok) {
+                    if (res.status === 401) {
+                        logout('/employee/login');
+                        return;
+                    }
                     throw new Error('Failed to fetch requests');
                 }
 

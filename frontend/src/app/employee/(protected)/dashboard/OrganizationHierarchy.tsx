@@ -15,6 +15,7 @@ import Fade from '@mui/material/Fade';
 import { alpha, useTheme } from '@mui/material/styles';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
+import { getEmployeeIdFromCookie, isAuthenticated } from '../../../../lib/auth-utils';
 
 interface HierarchyNode {
     _id: string;
@@ -259,29 +260,41 @@ export default function OrganizationHierarchy() {
     React.useEffect(() => {
         const fetchUserInfo = async () => {
             try {
-                const token = localStorage.getItem('access_token');
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-                const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-                if (encryptedEmployeeId && token) {
-                    const { decryptData } = await import('../../../../common/utils/encryption');
-                    const employeeId = await decryptData(encryptedEmployeeId, token);
+                // Try cookie-based auth first (new approach)
+                let employeeId = getEmployeeIdFromCookie();
+                
+                //DEPRECATED!!
+                // // Fallback to localStorage during migration
+                // if (!employeeId) {
+                //     const token = localStorage.getItem('access_token');
+                //     const encryptedEmployeeId = localStorage.getItem('employeeId');
 
-                    if (employeeId) {
-                        setCurrentEmployeeId(employeeId);
+                //     if (token && encryptedEmployeeId) {
+                //         try {
+                //             const { decryptData } = await import('../../../../common/utils/encryption');
+                //             employeeId = await decryptData(encryptedEmployeeId, token);
+                //         } catch {
+                //             employeeId = null;
+                //         }
+                //     }
+                // }
 
-                        const profileRes = await fetch(`${apiUrl}/employee/${employeeId}`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
+                if (employeeId) {
+                    setCurrentEmployeeId(employeeId);
 
-                        if (profileRes.ok) {
-                            const profileData = await profileRes.json();
-                            const p = profileData.profile || profileData;
-                            const posId = p.position?._id || p.primaryPositionId?._id || (typeof p.primaryPositionId === 'string' ? p.primaryPositionId : null);
+                    const profileRes = await fetch(`${apiUrl}/employee/${employeeId}`, {
+                        credentials: 'include', // Send httpOnly cookies
+                    });
 
-                            if (posId) {
-                                setCurrentPositionId(posId);
-                            }
+                    if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        const p = profileData.profile || profileData;
+                        const posId = p.position?._id || p.primaryPositionId?._id || (typeof p.primaryPositionId === 'string' ? p.primaryPositionId : null);
+
+                        if (posId) {
+                            setCurrentPositionId(posId);
                         }
                     }
                 }
@@ -309,10 +322,10 @@ export default function OrganizationHierarchy() {
             setError(null);
 
             try {
-                const token = localStorage.getItem('access_token');
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-                if (!token) {
+                // Check authentication (cookie or localStorage fallback)
+                if (!isAuthenticated() && !localStorage.getItem('access_token')) {
                     throw new Error('Authentication details missing');
                 }
 
@@ -324,7 +337,7 @@ export default function OrganizationHierarchy() {
                 }
 
                 const hierarchyRes = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include', // Send httpOnly cookies
                 });
 
                 if (!hierarchyRes.ok) throw new Error('Failed to fetch hierarchy data');

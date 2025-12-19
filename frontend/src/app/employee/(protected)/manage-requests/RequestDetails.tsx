@@ -53,10 +53,9 @@ export default function RequestDetails({ request, onApprove, onReject }: Request
         if (!request) return;
         setFetchingEmployee(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
             const response = await fetch(`${apiUrl}/employee/${request.employeeProfileId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (response.ok) {
                 const data = await response.json();

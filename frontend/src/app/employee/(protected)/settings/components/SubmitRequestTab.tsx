@@ -52,8 +52,6 @@ export default function SubmitRequestTab({ employeeId }: SubmitRequestTabProps) 
         setSubmitting(true);
 
         try {
-            const token = localStorage.getItem('access_token');
-
             const payload: any = {
                 requestDescription,
                 reason,
@@ -76,9 +74,9 @@ export default function SubmitRequestTab({ employeeId }: SubmitRequestTabProps) 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify(payload),
+                credentials: 'include',
             });
 
             if (response.ok) {

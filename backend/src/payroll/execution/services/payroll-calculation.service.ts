@@ -7,10 +7,7 @@ import {
   employeePayrollDetailsDocument,
 } from '../models/employeePayrollDetails.schema';
 
-import {
-  taxRules,
-  taxRulesDocument,
-} from '../../config_setup/models/taxRules.schema';
+import { taxRules, taxRulesDocument } from '../../config_setup/models/taxRules.schema';
 
 import {
   insuranceBrackets,
@@ -19,7 +16,6 @@ import {
 
 import { ConfigStatus } from '../../config_setup/enums/payroll-configuration-enums';
 import { refunds } from 'src/payroll/tracking/models/refunds.schema';
-import { CalculateSalaryDto } from '../dto/createSalary.dto';
 import { EmployeeSystemRole } from 'src/employee-subsystem/employee/models/employee-system-role.schema';
 import { EmployeeProfile } from 'src/employee-subsystem/employee/models/employee-profile.schema';
 import { employeePenalties } from '../models/employeePenalties.schema';
@@ -27,10 +23,17 @@ import {
   employeeSigningBonus,
   employeeSigningBonusDocument,
 } from '../models/EmployeeSigningBonus.schema';
+import { BenefitStatus } from '../enums/payroll-execution-enum';
+
 import { BonusStatus, BankStatus } from '../enums/payroll-execution-enum';
 import { EmployeePenaltyService } from './EmployeePenalty.service';
 import { ConfigSetupService } from '../../config_setup/config_setup.service';
 import { AttendanceService } from '../../../time-mangement/services/attendance.service';
+import {
+  EmployeeTerminationResignation,
+  EmployeeTerminationResignationDocument
+} from '../models/EmployeeTerminationResignation.schema';
+
 
 @Injectable()
 export class PayrollCalculationService {
@@ -58,30 +61,54 @@ export class PayrollCalculationService {
 
     @InjectModel(employeeSigningBonus.name)
     private readonly employeeSigningBonusModel: Model<employeeSigningBonusDocument>,
-    private readonly employeePenaltyService: EmployeePenaltyService,
 
+    @InjectModel(EmployeeTerminationResignation.name)
+    private readonly employeeTerminationResignationModel: Model<EmployeeTerminationResignationDocument>,
+
+    private readonly employeePenaltyService: EmployeePenaltyService,
     private readonly configSetupService: ConfigSetupService,
     private readonly attendanceService: AttendanceService,
-  ) {}
+  ) { }
 
-  private async getActiveTaxRule(): Promise<{
-    rule: taxRules | null;
-    rateFraction: number;
-  }> {
+  //Leaves Ghoraba
+  async getDailyRate(employeeId: string): Promise<number> {
+    const empRole = await this.employeeSystemRoleModel
+      .findOne({ employeeProfileId: employeeId })
+      .exec();
+
+    const role = empRole ? empRole.roles?.[0] || '' : '';
+    const payGrade = await this.configSetupService.payGrade.getPayGradeByName(role);
+    if (!payGrade) {
+      throw new Error(`No pay grade found for role: ${role}`);
+    }
+    return Number((payGrade.grossSalary / 30).toFixed(2));
+  }
+
+  //Leaves Ghoraba
+  async recordUnpaidLeavePenalty(
+    employeeId: string,
+    days: number,
+    reason: string = 'unpaid leave',
+  ) {
+    if (!days || days <= 0) return null;
+    const dailyRate = await this.getDailyRate(employeeId);
+    const amount = Number((dailyRate * days).toFixed(2));
+    return this.employeePenaltyService.createEmployeePenalties({
+      employeeId,
+      penalties: [{ reason, amount }],
+    });
+  }
+
+  private async getActiveTaxRate(): Promise<number> {
     const rule = await this.taxRulesModel
       .findOne({ status: ConfigStatus.APPROVED })
       .sort({ approvedAt: -1 })
       .exec();
 
-    if (!rule) return { rule: null, rateFraction: 0.1 };
-
-    return {
-      rule,
-      rateFraction: rule.rate / 100,
-    };
+    return rule ? rule.rate / 100 : 0.1;
   }
 
-  private async getInsuranceBracketAndAmounts(grossSalary: number) {
+  private async getInsuranceAmount(grossSalary: number) {
     const bracket = await this.insuranceBracketsModel
       .findOne({
         status: ConfigStatus.APPROVED,
@@ -93,164 +120,57 @@ export class PayrollCalculationService {
 
     if (!bracket) {
       return {
-        bracket: null,
         employeeInsurance: Number((0.05 * grossSalary).toFixed(2)),
         employerInsurance: 0,
       };
     }
 
-    const employeeInsurance = Number(
-      ((bracket.employeeRate / 100) * grossSalary).toFixed(2),
-    );
-
-    const employerInsurance = Number(
-      ((bracket.employerRate / 100) * grossSalary).toFixed(2),
-    );
-
     return {
-      bracket,
-      employeeInsurance,
-      employerInsurance,
+      employeeInsurance: Number(
+        ((bracket.employeeRate / 100) * grossSalary).toFixed(2),
+      ),
+      employerInsurance: Number(
+        ((bracket.employerRate / 100) * grossSalary).toFixed(2),
+      ),
     };
   }
 
-  //MAIN SALARY METHOD
-  async calculateSalary(dto: CalculateSalaryDto) {
-    const employee = await this.employeeSystemRoleModel
-      .findOne({ employeeProfileId: dto.employeeId })
-      .exec();
-
-    const role = employee ? employee.roles[0] : '';
-    const grossFromGrade =
-      await this.configSetupService.payGrade.getPayGradeByName(role);
-    if (!grossFromGrade) {
-      throw new Error(`No pay grade found for role: ${role}`);
-    }
-
-    // Allowances
-    const allowances = await this.configSetupService.allowance.findAll();
-    let totalallowances = 0;
-
-    // now actually adds
-    for (const allowance of allowances) {
-      totalallowances += allowance.amount;
-    }
-
-    // Penalties
-    const penalties = await this.employeePenaltiesModel
-      .find({ employeeId: dto.employeeId, status: 'approved' })
-      .exec();
-
-    let deductionsTotal = 0;
-    for (const penalty of penalties) {
-      if (penalty.penalties) {
-        for (const p of penalty.penalties) {
-          deductionsTotal += p.amount;
-        }
-      }
-    }
-
-    // Signing bonus
-    const signingBonusList = await this.employeeSigningBonusModel
-      .find({ employeeId: dto.employeeId, status: BonusStatus.APPROVED })
-      .exec();
-
-    let totalBonus = 0;
-    for (const bonus of signingBonusList) {
-      totalBonus += bonus.givenAmount;
-    }
-
-    if (!totalBonus) {
-      totalBonus = 0;
-    }
-
-    const totalGrossSalary = grossFromGrade.baseSalary + totalBonus;
-
-    // Tax
-    const { rateFraction } = await this.getActiveTaxRule();
-    const tax = Number((rateFraction * totalGrossSalary).toFixed(2));
-
-    // Insurance
-    const { employeeInsurance } =
-      await this.getInsuranceBracketAndAmounts(totalGrossSalary);
-
-    // Refunds
-    const refundsList = await this.refundsModel
-      .find({ employeeId: dto.employeeId, status: 'approved' })
-      .exec();
-
-    let totalRefunds = 0;
-    for (const refund of refundsList) {
-      totalRefunds += refund.refundDetails.amount;
-    }
-
-    //MISSING HOURS PENALTY
-    const now = new Date();
-    const missingPenaltyData = await this.calculateMissingHoursPenalty(
-      dto.employeeId,
-      now.getMonth() + 1,
-      now.getFullYear(),
+  private monthRange(payrollPeriod: Date) {
+    const start = new Date(payrollPeriod.getFullYear(), payrollPeriod.getMonth(), 1);
+    const end = new Date(
+      payrollPeriod.getFullYear(),
+      payrollPeriod.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
     );
-
-    const missingHoursPenalty = missingPenaltyData.penalties?.reduce(
-      (sum, p) => sum + p.amount,
-      0
-    ) ?? 0;
-
-    // Add missing hours to deductions
-    deductionsTotal += missingHoursPenalty;
-
-    // Final net salary
-    const totalDeductions = tax + employeeInsurance;
-    const netSalary = Number((totalGrossSalary - totalDeductions).toFixed(2));
-
-    const netPay = Number(
-      (netSalary - deductionsTotal + totalRefunds).toFixed(2),
-    );
-
-    const employeeProfile = await this.employeeProfileModel
-      .findById(dto.employeeId)
-      .exec();
-    const isvalidBankStatus = employeeProfile?.bankName ? true : false;
-
-    const employeeDetails = new this.employeePayrollDetailsModel({
-      employeeId: dto.employeeId,
-      baseSalary: grossFromGrade,
-      allowances: totalallowances,
-      deductions: totalDeductions + deductionsTotal,
-      missingHoursPenalty,
-      netSalary,
-      netPay,
-      bankStatus: isvalidBankStatus ? BankStatus.VALID : BankStatus.MISSING,
-    });
-
-    return { employeeDetails };
+    return { start, end };
   }
 
-  async saveEmployeePayrollRecord(data: any) {
-    return await this.employeePayrollDetailsModel.create(data);
-  }
-
-  async calculateMissingHoursPenalty(
+  /**
+   * Compute missing-hours penalty amount WITHOUT saving any penalties.
+   * Used during DRAFT generation (pure computation).
+   */
+  private async computeMissingHoursPenaltyAmount(
     employeeId: string,
-    month: number,
-    year: number,
-  ) {
-    // Sync attendance data from time management module
+    payrollPeriod: Date,
+  ): Promise<number> {
+    const month = payrollPeriod.getMonth() + 1; // 1..12
+    const year = payrollPeriod.getFullYear();
+
     const attendanceData = await this.attendanceService.syncEmployeeAttendanceToPayroll(
       employeeId,
-      month - 1, // JavaScript months are 0-indexed
+      month - 1, // attendance service expects 0-indexed month
       year,
     );
 
-    // Calculate missing hours based on expected work hours
-    // Assuming 8 hours per day, calculate expected vs actual
-    const expectedMinutesPerDay = 8 * 60; // 480 minutes
+    const expectedMinutesPerDay = 8 * 60;
     const daysPresent = attendanceData?.attendance?.daysPresent ?? 0;
-    
-    // Calculate total expected minutes and missing minutes
     const totalExpectedMinutes = expectedMinutesPerDay * daysPresent;
     const totalActualMinutes = attendanceData?.attendance?.totalWorkedMinutes ?? 0;
+
     const missingMinutes = Math.max(0, totalExpectedMinutes - totalActualMinutes);
     const missingHours = missingMinutes / 60;
 
@@ -258,21 +178,167 @@ export class PayrollCalculationService {
       .findOne({ employeeProfileId: employeeId })
       .exec();
 
-    const role = emp ? emp.roles[0] : '';
-    const gross =
-      await this.configSetupService.payGrade.getPayGradeByName(role);
-    if (!gross) {
-      throw new Error(`No pay grade found for role: ${role}`);
-    }
+    const role = emp?.roles?.[0] ?? '';
+    const defaultPayGrade = { baseSalary: 6000, grossSalary: 6000 };
 
-    const hourlyRate = gross.grossSalary / 30 / 8;
+    const payGrade =
+      (await this.configSetupService.payGrade.getPayGradeByName(role)) ||
+      defaultPayGrade;
 
-    const penaltyAmount = Number((missingHours * hourlyRate).toFixed(2));
-    const req = {
-      employeeId: employeeId,
+    const hourlyRate = payGrade.grossSalary / 30 / 8;
+    return Number((missingHours * hourlyRate).toFixed(2));
+  }
+
+  /**
+   * Use this ONLY when the run is approved/finalized (NOT during draft).
+   * This persists the penalty into DB (no payrollRunId because schema can't change).
+   */
+  async saveMissingHoursPenalty(employeeId: string, payrollPeriod: Date) {
+    const penaltyAmount = await this.computeMissingHoursPenaltyAmount(
+      employeeId,
+      payrollPeriod,
+    );
+
+    return await this.employeePenaltyService.createEmployeePenalties({
+      employeeId,
       penalties: [{ reason: 'missing hours', amount: penaltyAmount }],
-    };
+    });
+  }
 
-    return await this.employeePenaltyService.createEmployeePenalties(req);
+  /**
+   * Draft-safe calculation:
+   * - DOES NOT write penalties
+   * - Uses payrollPeriod provided (no new Date() inside)
+   * - Approved penalties are filtered by payroll month (no schema changes)
+   */
+  async calculateEmployeeSalary(employeeId: string, payrollPeriod: Date) {
+    const empRole = await this.employeeSystemRoleModel
+      .findOne({ employeeProfileId: employeeId })
+      .exec();
+
+    const role = empRole?.roles?.[0] ?? '';
+
+    const defaultPayGrade = { baseSalary: 6000, grossSalary: 6000 };
+    const fetchedPayGrade = await this.configSetupService.payGrade.getPayGradeByName(role);
+
+    const payGradeFound = !!fetchedPayGrade;
+    const payGrade = fetchedPayGrade || defaultPayGrade;
+
+    // Allowances (kept as-is)
+    const allowancesList = await this.configSetupService.allowance.findAll();
+    const totalAllowances = allowancesList.reduce((sum, a) => sum + a.amount, 0);
+
+    // Payroll month range (used for penalties already; we also use it to scope HR-event records)
+    const { start, end } = this.monthRange(payrollPeriod);
+
+    // Signing bonuses (approved) -> "new hire event inferred through signing bonus"
+    const bonusList = await this.employeeSigningBonusModel
+      .find({
+        employeeId,
+        status: BonusStatus.APPROVED,
+        // If your schema doesn't have createdAt, remove this filter
+        createdAt: { $gte: start, $lte: end },
+      })
+      .exec();
+    const totalBonus = bonusList.reduce((sum, b) => sum + b.givenAmount, 0);
+
+    // Termination/Resignation benefits (approved) -> "offboarding event inferred through benefits"
+    // IMPORTANT: ensure your injected model name matches this property.
+    const terminationBenefitsList = await this.employeeTerminationResignationModel
+      .find({
+        employeeId,
+        status: BenefitStatus.APPROVED,
+        // If your schema doesn't have createdAt, remove this filter
+        createdAt: { $gte: start, $lte: end },
+      })
+      .exec();
+    const totalTerminationResignationBenefit = terminationBenefitsList.reduce(
+      (sum, b) => sum + (b.givenAmount ?? 0),
+      0,
+    );
+
+    const benefit = totalTerminationResignationBenefit;
+
+    // Gross (your current implementation style)
+    const grossSalary = payGrade.baseSalary + totalAllowances + totalBonus + benefit;
+
+    // ✅ Tax MUST be % of Base Salary (per spec)
+    const taxRate = await this.getActiveTaxRate();
+    const taxBase = Number(payGrade.baseSalary ?? 0);
+    const tax = Number((taxRate * taxBase).toFixed(2));
+
+    // Insurance (kept as-is; if you want strict spec, you might base it on payGrade.grossSalary)
+    const { employeeInsurance } = await this.getInsuranceAmount(grossSalary);
+
+    // Refunds (kept as-is; consider month scoping later to avoid repeating)
+    const refundList = await this.refundsModel
+      .find({ employeeId, status: 'approved' })
+      .exec();
+    const totalRefunds = refundList.reduce(
+      (sum, r) => sum + r.refundDetails.amount,
+      0,
+    );
+
+    // Missing hours penalty (computed only)
+    const missingHoursPenalty = await this.computeMissingHoursPenaltyAmount(
+      employeeId,
+      payrollPeriod,
+    );
+
+    // Approved penalties filtered by payroll period month
+    const approvedPenalties = await this.employeePenaltiesModel
+      .find({
+        employeeId,
+        status: 'approved',
+        createdAt: { $gte: start, $lte: end },
+      })
+      .exec();
+
+    const approvedPenaltiesSum = approvedPenalties.reduce(
+      (sum, p) =>
+        sum + (p.penalties?.reduce((s, pen) => s + pen.amount, 0) || 0),
+      0,
+    );
+
+    const totalPenalties = approvedPenaltiesSum + missingHoursPenalty;
+
+    const netSalary = grossSalary - tax - employeeInsurance;
+    const netPay = netSalary - totalPenalties + totalRefunds;
+
+    const employeeProfile = await this.employeeProfileModel
+      .findById(employeeId)
+      .exec();
+    const bankStatus = employeeProfile?.bankName
+      ? BankStatus.VALID
+      : BankStatus.MISSING;
+
+    const employeeDetails = new this.employeePayrollDetailsModel({
+      employeeId,
+      baseSalary: payGrade.baseSalary,
+      allowances: totalAllowances,
+      deductions: tax + employeeInsurance + totalPenalties,
+      netSalary,
+      netPay,
+      bankStatus,
+      bonus: totalBonus,
+      benefit,
+      payrollRunId: undefined, // set when saving row
+    });
+
+    return {
+      employeeDetails: {
+        ...employeeDetails.toObject(),
+        grossSalary,
+        payGradeFound,
+        payGradeRef: role || null,
+        // UI-only value (NOT stored):
+        missingHoursPenalty,
+      },
+    };
+  }
+
+
+  async saveEmployeePayrollRecord(data: any) {
+    return await this.employeePayrollDetailsModel.create(data);
   }
 }

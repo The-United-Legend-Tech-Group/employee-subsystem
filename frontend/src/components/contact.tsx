@@ -143,7 +143,7 @@ export function Contact() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © 2025 NEXUSHR. All rights reserved.
+          © 2025 Arcana. All rights reserved.
         </div>
       </div>
     </section>

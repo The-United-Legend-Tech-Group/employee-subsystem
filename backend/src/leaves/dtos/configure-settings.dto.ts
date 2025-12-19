@@ -32,6 +32,10 @@ export class ConfigureSettingsDto {
   roundingRule?: RoundingRule = RoundingRule.NONE;
 
   @IsOptional()
+  @IsNumber({}, { message: 'maxConsecutiveDays must be a number' })
+  maxConsecutiveDays?: number = 0;
+
+  @IsOptional()
   @IsNumber({}, { message: 'Expiry must be a number' })
   expiryAfterMonths?: number =0;
 }

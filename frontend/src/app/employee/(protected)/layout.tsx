@@ -16,6 +16,12 @@ import {
     datePickersCustomizations,
     treeViewCustomizations,
 } from '../../../common/material-ui/dashboard/theme/customizations';
+import {
+    getEmployeeIdFromCookie,
+    getUserRolesFromCookie,
+    isAuthenticated,
+    logout
+} from '../../../lib/auth-utils';
 import { decryptData } from '../../../common/utils/encryption';
 import { AuthProvider } from '../../../context/AuthContext';
 import { SystemRole } from '../../../types/auth';
@@ -49,28 +55,39 @@ export default function EmployeeLayout({ children }: LayoutProps) {
 
     React.useEffect(() => {
         const fetchEmployee = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            // Try cookie-based auth first (new approach)
+            let employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) {
-                // No credentials found
-                router.push('/employee/login');
+            // Fallback to localStorage during migration
+            if (!employeeId) {
+                const token = localStorage.getItem('access_token');
+                const encryptedEmployeeId = localStorage.getItem('employeeId');
+
+                if (token && encryptedEmployeeId) {
+                    try {
+                        employeeId = await decryptData(encryptedEmployeeId, token);
+                    } catch {
+                        employeeId = null;
+                    }
+                }
+            }
+
+            // If no employeeId from either source, redirect to login
+            if (!employeeId) {
+                logout('/employee/login');
                 return;
             }
 
+            // Try to get roles from cookie first
+            const cookieRoles = getUserRolesFromCookie();
+            if (cookieRoles.length > 0) {
+                setUserRoles(cookieRoles as SystemRole[]);
+            }
+
             try {
-                // Decrypt employeeId
-                const employeeId = await decryptData(encryptedEmployeeId, token);
-
-                if (!employeeId) {
-                    throw new Error('Failed to decrypt employee ID. Please login again.');
-                }
-
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
                 const response = await fetch(`${apiUrl}/employee/${employeeId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    credentials: 'include', // Send httpOnly cookies
                 });
 
                 if (response.ok) {
@@ -83,15 +100,11 @@ export default function EmployeeLayout({ children }: LayoutProps) {
                     setRolesLoading(false);
                 } else {
                     console.error('Failed to fetch employee profile', response.status, response.statusText);
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('employeeId');
-                    router.push('/employee/login');
+                    logout('/employee/login');
                 }
             } catch (error) {
                 console.error('Failed to fetch employee profile for layout', error);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('employeeId');
-                router.push('/employee/login');
+                logout('/employee/login');
             }
         };
 

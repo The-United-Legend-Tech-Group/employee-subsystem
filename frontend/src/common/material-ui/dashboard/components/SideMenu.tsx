@@ -5,9 +5,11 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Skeleton from '@mui/material/Skeleton';
 import MenuContent from './MenuContent';
 import OptionsMenu from './OptionsMenu';
 import ArcanaLogo from './ArcanaLogo';
+import { usePathname } from "next/navigation";
 
 const drawerWidth = 240;
 
@@ -31,11 +33,13 @@ interface SideMenuProps {
 }
 
 export default function SideMenu({ user }: SideMenuProps) {
-  const userData = user || {
-    name: 'Riley Carter',
-    email: 'riley@email.com',
-    image: '',
-  };
+  const pathname = usePathname();
+  const isLoading = !user;
+
+  // Hide the SideMenu when in /employee/payroll/execution/(anything)
+  if (pathname.startsWith("/employee/payroll/execution/")) {
+    return null;
+  }
 
   return (
     <Drawer
@@ -77,17 +81,24 @@ export default function SideMenu({ user }: SideMenuProps) {
           borderColor: 'divider',
         }}
       >
-        <Avatar
-          sizes="small"
-          alt={userData.name}
-          src={userData.image}
-          sx={{ width: 36, height: 36 }}
-        />
+        {isLoading ? (
+          <Skeleton variant="circular" width={36} height={36} />
+        ) : (
+          <Avatar
+            sizes="small"
+            alt={user.name}
+            src={user.image}
+            sx={{ width: 36, height: 36 }}
+          />
+        )}
         <Box sx={{ mr: 'auto' }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: '16px' }}>
-            {userData.name}
-          </Typography>
-
+          {isLoading ? (
+            <Skeleton variant="text" width={80} />
+          ) : (
+            <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: '16px' }}>
+              {user.name}
+            </Typography>
+          )}
         </Box>
         <OptionsMenu />
       </Stack>

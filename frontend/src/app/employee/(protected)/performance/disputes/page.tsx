@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
     Box,
-    Container,
     Typography,
-    Paper,
     CircularProgress,
     Alert,
     TextField,
@@ -13,7 +12,6 @@ import {
     MenuItem,
     Select,
     FormControl,
-    InputLabel,
     Tabs,
     Tab,
     Table,
@@ -27,47 +25,23 @@ import {
     DialogContent,
     DialogActions,
     Chip,
-    IconButton,
-    Tooltip,
     Grid,
     Divider,
     TablePagination,
     Card,
-    CardContent,
-    Snackbar
+    Snackbar,
+    Stack,
+    Fade
 } from '@mui/material';
-import { decryptData } from '../../../../../common/utils/encryption';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import HistoryIcon from '@mui/icons-material/History';
+import { getEmployeeIdFromCookie, logout } from '@/lib/auth-utils';
 import { AppraisalRecord, AppraisalDispute, AppraisalDisputeStatus } from '../../../../../types/performance';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
-interface TabPanelProps {
-    children?: React.ReactNode;
-    index: number;
-    value: number;
-}
-
-function CustomTabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
-
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`simple-tabpanel-${index}`}
-            aria-labelledby={`simple-tab-${index}`}
-            {...other}
-        >
-            {value === index && (
-                <Box sx={{ p: 3 }}>
-                    {children}
-                </Box>
-            )}
-        </div>
-    );
-}
-
 export default function DisputesPage() {
+    const theme = useTheme();
     const [activeTab, setActiveTab] = useState(0);
     const [records, setRecords] = useState<AppraisalRecord[]>([]);
     const [myDisputes, setMyDisputes] = useState<AppraisalDispute[]>([]);
@@ -83,7 +57,7 @@ export default function DisputesPage() {
 
     // Pagination State (My Disputes)
     const [myDisputesPage, setMyDisputesPage] = useState(0);
-    const [myDisputesRowsPerPage, setMyDisputesRowsPerPage] = useState(4);
+    const [myDisputesRowsPerPage, setMyDisputesRowsPerPage] = useState(5);
 
     // View Dispute Details State
     const [selectedDispute, setSelectedDispute] = useState<AppraisalDispute | null>(null);
@@ -113,23 +87,28 @@ export default function DisputesPage() {
 
     const fetchRecords = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) return;
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
-            if (!employeeId) throw new Error('Failed to decrypt employee ID');
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
+            }
 
             const url = `${API_URL}/performance/records/employee/${employeeId}/final`;
             const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                setRecords(data);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                throw new Error('Failed to fetch records');
             }
+
+            const data = await response.json();
+            setRecords(data);
         } catch (err) {
             console.error('Error fetching records:', err);
         }
@@ -137,16 +116,12 @@ export default function DisputesPage() {
 
     const fetchMyDisputes = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) return;
-
-            const employeeId = await decryptData(encryptedEmployeeId, token);
             if (!employeeId) return;
 
             const response = await fetch(`${API_URL}/performance/disputes/employee/${employeeId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -169,12 +144,13 @@ export default function DisputesPage() {
         setSubmitting(true);
 
         try {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
+            const employeeId = getEmployeeIdFromCookie();
 
-            if (!token || !encryptedEmployeeId) throw new Error('Authentication required');
+            if (!employeeId) {
+                logout('/employee/login');
+                return;
+            }
 
-            const employeeId = await decryptData(encryptedEmployeeId, token);
             const selectedRecord = records.find(r => r._id === selectedRecordId);
 
             if (!selectedRecord) throw new Error('Selected record not found');
@@ -183,8 +159,8 @@ export default function DisputesPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     appraisalId: selectedRecord._id,
                     assignmentId: selectedRecord.assignmentId,
@@ -196,6 +172,10 @@ export default function DisputesPage() {
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to submit dispute');
             }
@@ -222,6 +202,15 @@ export default function DisputesPage() {
         }
     };
 
+    // Sorted and paginated disputes
+    const sortedDisputes = [...myDisputes].sort((a, b) =>
+        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
+    const paginatedDisputes = sortedDisputes.slice(
+        myDisputesPage * myDisputesRowsPerPage,
+        myDisputesPage * myDisputesRowsPerPage + myDisputesRowsPerPage
+    );
+
     if (loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -231,158 +220,252 @@ export default function DisputesPage() {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Paper sx={{ p: 2 }}>
-                <Typography variant="h4" gutterBottom>
-                    Appraisal Disputes
-                </Typography>
+        <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' }, p: 3 }}>
+            {/* Header */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                <Box>
+                    <Typography variant="h4" fontWeight={600}>
+                        Appraisal Disputes
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Raise and track your appraisal disputes
+                    </Typography>
+                </Box>
+            </Stack>
 
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tabs value={activeTab} onChange={handleTabChange} aria-label="dispute tabs">
-                        <Tab label="Raise Dispute" />
-                        <Tab label="My Disputes" />
+            {/* Main Card */}
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                {/* Tabs */}
+                <Box sx={{
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    px: 2,
+                    pt: 1
+                }}>
+                    <Tabs
+                        value={activeTab}
+                        onChange={handleTabChange}
+                        aria-label="dispute tabs"
+                        sx={{
+                            '& .MuiTab-root': {
+                                textTransform: 'none',
+                                fontWeight: 500,
+                                fontSize: '0.95rem',
+                                minHeight: 48,
+                                px: 3
+                            },
+                            '& .MuiTabs-indicator': {
+                                height: 3,
+                                borderRadius: '3px 3px 0 0'
+                            }
+                        }}
+                    >
+                        <Tab
+                            label={
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <AddCircleOutlineIcon fontSize="small" />
+                                    <span>Raise Dispute</span>
+                                </Stack>
+                            }
+                        />
+                        <Tab
+                            label={
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <HistoryIcon fontSize="small" />
+                                    <span>My Disputes</span>
+                                    {myDisputes.length > 0 && (
+                                        <Chip
+                                            label={myDisputes.length}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ height: 20, fontSize: '0.75rem' }}
+                                        />
+                                    )}
+                                </Stack>
+                            }
+                        />
                     </Tabs>
                 </Box>
 
-
-
-                <CustomTabPanel value={activeTab} index={0}>
-                    <Typography variant="h6" gutterBottom>
-                        Raise a New Dispute
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary" paragraph>
-                        If you disagree with your appraisal rating, you can raise a formal dispute here.
-                    </Typography>
-
-                    <Box component="form" onSubmit={handleSubmitDispute} sx={{ mt: 2 }}>
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                Select Appraisal Record *
+                {/* Tab Content with Fade Transitions */}
+                <Box sx={{ position: 'relative', minHeight: 300 }}>
+                    {/* Raise Dispute Tab */}
+                    <Fade in={activeTab === 0} timeout={300}>
+                        <Box sx={{
+                            display: activeTab === 0 ? 'block' : 'none',
+                            p: 3
+                        }}>
+                            <Typography variant="h6" fontWeight={600} gutterBottom>
+                                Raise a New Dispute
                             </Typography>
-                            <FormControl fullWidth required>
-                                <Select
-                                    value={selectedRecordId}
-                                    onChange={(e) => setSelectedRecordId(e.target.value)}
-                                    displayEmpty
-                                >
-                                    <MenuItem value="" disabled>
-                                        <em>Select a record</em>
-                                    </MenuItem>
-                                    {records.length === 0 ? (
-                                        <MenuItem disabled value="">
-                                            No records available
-                                        </MenuItem>
-                                    ) : (
-                                        records.map((record) => (
-                                            <MenuItem key={record._id} value={record._id}>
-                                                {record.cycleName || 'Appraisal'} - {record.overallRatingLabel || 'No Rating'}
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                If you disagree with your appraisal rating, you can raise a formal dispute here.
+                            </Typography>
+
+                            <Box component="form" onSubmit={handleSubmitDispute}>
+                                <Box sx={{ mb: 3 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Select Appraisal Record *
+                                    </Typography>
+                                    <FormControl fullWidth required>
+                                        <Select
+                                            value={selectedRecordId}
+                                            onChange={(e) => setSelectedRecordId(e.target.value)}
+                                            displayEmpty
+                                            sx={{ borderRadius: 2 }}
+                                        >
+                                            <MenuItem value="" disabled>
+                                                <em>Select a record</em>
                                             </MenuItem>
-                                        ))
-                                    )}
-                                </Select>
-                            </FormControl>
+                                            {records.length === 0 ? (
+                                                <MenuItem disabled value="">
+                                                    No records available
+                                                </MenuItem>
+                                            ) : (
+                                                records.map((record) => (
+                                                    <MenuItem key={record._id} value={record._id}>
+                                                        {record.cycleName || 'Appraisal'} - {record.overallRatingLabel || 'No Rating'}
+                                                    </MenuItem>
+                                                ))
+                                            )}
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+
+                                <Box sx={{ mb: 3 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Reason for Dispute *
+                                    </Typography>
+                                    <TextField
+                                        fullWidth
+                                        required
+                                        placeholder="Enter the reason for your dispute"
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Box>
+
+                                <Box sx={{ mb: 3 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                        Detailed Explanation
+                                    </Typography>
+                                    <TextField
+                                        fullWidth
+                                        multiline
+                                        rows={1}
+                                        placeholder="Provide more details about your dispute..."
+                                        value={details}
+                                        onChange={(e) => setDetails(e.target.value)}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Box>
+
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    color="primary"
+                                    size="large"
+                                    disabled={submitting || !selectedRecordId || !reason}
+                                    sx={{ borderRadius: 2, px: 4 }}
+                                >
+                                    {submitting ? <CircularProgress size={24} /> : 'Submit Dispute'}
+                                </Button>
+                            </Box>
                         </Box>
+                    </Fade>
 
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                Reason for Dispute *
-                            </Typography>
-                            <TextField
-                                fullWidth
-                                required
-                                placeholder="Enter the reason for your dispute"
-                                value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                            />
-                        </Box>
-
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                Detailed Explanation
-                            </Typography>
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={1}
-                                placeholder="Provide more details about your dispute..."
-                                value={details}
-                                onChange={(e) => setDetails(e.target.value)}
-                            />
-                        </Box>
-
-                        <Button
-                            type="submit"
-                            variant="contained"
-                            color="primary"
-                            size="large"
-                            disabled={submitting || !selectedRecordId}
-                            sx={{ mt: 1 }}
-                        >
-                            {submitting ? <CircularProgress size={24} /> : 'Submit Dispute'}
-                        </Button>
-                    </Box>
-                </CustomTabPanel>
-
-                <CustomTabPanel value={activeTab} index={1}>
-                    <Typography variant="h6" gutterBottom>
-                        My Disputes
-                    </Typography>
-
-                    {myDisputes.length === 0 ? (
-                        <Alert severity="info">You have not raised any disputes.</Alert>
-                    ) : (
-                        <>
-                            <TableContainer>
-                                <Table>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Date</TableCell>
-                                            <TableCell>Reason</TableCell>
-                                            <TableCell>Status</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {myDisputes
-                                            .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-                                            .slice(myDisputesPage * myDisputesRowsPerPage, myDisputesPage * myDisputesRowsPerPage + myDisputesRowsPerPage)
-                                            .map((dispute) => (
-                                                <TableRow
-                                                    key={dispute._id}
-                                                    hover
-                                                    onClick={() => handleRowClick(dispute)}
-                                                    sx={{ cursor: 'pointer' }}
-                                                >
-                                                    <TableCell>{new Date(dispute.submittedAt).toLocaleDateString()}</TableCell>
-                                                    <TableCell>{dispute.reason}</TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            label={dispute.status}
-                                                            color={getStatusColor(dispute.status) as any}
-                                                            size="small"
-                                                        />
-                                                    </TableCell>
+                    {/* My Disputes Tab */}
+                    <Fade in={activeTab === 1} timeout={300}>
+                        <Box sx={{
+                            display: activeTab === 1 ? 'block' : 'none',
+                            p: 2
+                        }}>
+                            {myDisputes.length === 0 ? (
+                                <Alert severity="info" sx={{ borderRadius: 2, m: 1 }}>
+                                    You have not raised any disputes.
+                                </Alert>
+                            ) : (
+                                <>
+                                    <TableContainer>
+                                        <Table>
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Reason</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                                                 </TableRow>
-                                            ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                            <TablePagination
-                                rowsPerPageOptions={[4, 10, 25]}
-                                component="div"
-                                count={myDisputes.length}
-                                rowsPerPage={myDisputesRowsPerPage}
-                                page={myDisputesPage}
-                                onPageChange={handleChangeMyDisputesPage}
-                                onRowsPerPageChange={handleChangeMyDisputesRowsPerPage}
-                            />
-                        </>
-                    )}
-                </CustomTabPanel>
-            </Paper>
+                                            </TableHead>
+                                            <TableBody>
+                                                {paginatedDisputes.map((dispute) => (
+                                                    <TableRow
+                                                        key={dispute._id}
+                                                        onClick={() => handleRowClick(dispute)}
+                                                        sx={{
+                                                            cursor: 'pointer',
+                                                            transition: 'background-color 0.15s ease',
+                                                            '&:hover': {
+                                                                bgcolor: alpha(theme.palette.primary.main, 0.04)
+                                                            }
+                                                        }}
+                                                    >
+                                                        <TableCell>{new Date(dispute.submittedAt).toLocaleDateString()}</TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="body2" sx={{
+                                                                maxWidth: 400,
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap'
+                                                            }}>
+                                                                {dispute.reason}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Chip
+                                                                label={dispute.status}
+                                                                color={getStatusColor(dispute.status) as any}
+                                                                size="small"
+                                                                variant="filled"
+                                                                sx={{ fontWeight: 500 }}
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                    <TablePagination
+                                        rowsPerPageOptions={[5, 10, 25]}
+                                        component="div"
+                                        count={myDisputes.length}
+                                        rowsPerPage={myDisputesRowsPerPage}
+                                        page={myDisputesPage}
+                                        onPageChange={handleChangeMyDisputesPage}
+                                        onRowsPerPageChange={handleChangeMyDisputesRowsPerPage}
+                                    />
+                                </>
+                            )}
+                        </Box>
+                    </Fade>
+                </Box>
+            </Card>
 
             {/* View Details Dialog */}
-            <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Dispute Details</DialogTitle>
+            <Dialog
+                open={viewDialogOpen}
+                onClose={() => setViewDialogOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        backgroundImage: 'none'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ pb: 1, fontWeight: 600 }}>
+                    Dispute Details
+                </DialogTitle>
                 <DialogContent>
                     {selectedDispute && (
                         <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -400,10 +483,7 @@ export default function DisputesPage() {
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>
                                 <Typography variant="subtitle2" color="textSecondary">Raised By</Typography>
-                                <Typography>
-                                    {/* Assuming raisedBy is self, but for completeness/consistency */}
-                                    Me
-                                </Typography>
+                                <Typography>Me</Typography>
                             </Grid>
 
                             <Grid size={12}>
@@ -430,7 +510,7 @@ export default function DisputesPage() {
                                         <Divider sx={{ my: 1 }} />
                                     </Grid>
                                     <Grid size={12}>
-                                        <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 1 }}>Resolution</Typography>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Resolution</Typography>
                                     </Grid>
 
                                     {selectedDispute.resolvedAt && (
@@ -453,9 +533,11 @@ export default function DisputesPage() {
                                     {selectedDispute.resolutionSummary && (
                                         <Grid size={12}>
                                             <Typography variant="subtitle2" color="textSecondary">Resolution Summary</Typography>
-                                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', bgcolor: 'action.hover', p: 1, borderRadius: 1 }}>
-                                                {selectedDispute.resolutionSummary}
-                                            </Typography>
+                                            <Card variant="outlined" sx={{ mt: 1, p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.05) }}>
+                                                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                                    {selectedDispute.resolutionSummary}
+                                                </Typography>
+                                            </Card>
                                         </Grid>
                                     )}
                                 </>
@@ -463,20 +545,28 @@ export default function DisputesPage() {
                         </Grid>
                     )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button
+                        onClick={() => setViewDialogOpen(false)}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, px: 3 }}
+                    >
+                        Close
+                    </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Snackbars */}
             <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                <Alert onClose={() => setError(null)} severity="error" variant="filled" sx={{ width: '100%' }}>
+                <Alert onClose={() => setError(null)} severity="error" variant="filled" sx={{ width: '100%', borderRadius: 2 }}>
                     {error}
                 </Alert>
             </Snackbar>
             <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-                <Alert onClose={() => setSuccess(null)} severity="success" variant="filled" sx={{ width: '100%' }}>
+                <Alert onClose={() => setSuccess(null)} severity="success" variant="filled" sx={{ width: '100%', borderRadius: 2 }}>
                     {success}
                 </Alert>
             </Snackbar>
-        </Container>
+        </Box>
     );
 }

@@ -21,7 +21,7 @@ export class authorizationGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectModel(EmployeeSystemRole.name)
     private employeeSystemRoleModel: Model<EmployeeSystemRole>,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(
@@ -36,6 +36,35 @@ export class authorizationGuard implements CanActivate {
     if (!user) {
       this.logger.error('Authorization failed: No user attached to request');
       throw new UnauthorizedException('no user attached');
+    }
+
+    // Extract JWT roles once at the beginning
+    const jwtRoles: string[] | undefined = Array.isArray(user.roles)
+      ? user.roles
+      : user.role
+        ? [user.role]
+        : undefined;
+
+    const isCandidate = jwtRoles?.includes(SystemRole.JOB_CANDIDATE);
+
+    // If user is a candidate, skip EmployeeSystemRole lookup and use JWT roles directly
+    if (isCandidate) {
+      if (!jwtRoles || jwtRoles.length === 0) {
+        this.logger.warn(`Authorization denied for candidate ${user.sub}: no roles found in JWT`);
+        throw new ForbiddenException('unauthorized access');
+      }
+
+      const hasRoleFromJwt = requiredRoles.some((role) =>
+        jwtRoles.includes(role),
+      );
+
+      if (!hasRoleFromJwt) {
+        this.logger.warn(`Authorization denied (JWT) for candidate ${user.sub}: required one of [${requiredRoles}], but user has [${jwtRoles}]`);
+        throw new ForbiddenException('unauthorized access');
+      }
+
+      this.logger.verbose(`Authorization granted (JWT) for candidate ${user.sub}: matched roles ${jwtRoles}`);
+      return true;
     }
 
     // Prefer employee id from cookies (note: cookie name is 'employeeid' in auth.controller)
@@ -82,13 +111,7 @@ export class authorizationGuard implements CanActivate {
       }
     }
 
-    // Fallback: rely on JWT payload roles (employees) or single role (candidates/others)
-    const jwtRoles: string[] | undefined = Array.isArray(user.roles)
-      ? user.roles
-      : user.role
-        ? [user.role]
-        : undefined;
-
+    // Fallback: rely on JWT payload roles (already extracted above)
     if (!jwtRoles || jwtRoles.length === 0) {
       this.logger.warn(`Authorization denied for user ${user.sub}: no roles found in JWT`);
       throw new ForbiddenException('unauthorized access');

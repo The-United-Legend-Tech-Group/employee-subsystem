@@ -7,7 +7,7 @@ export type taxRulesDocument = HydratedDocument<taxRules>;
 
 @Schema({ timestamps: true })
 export class taxRules {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, }) // unique removed for execution module
   name: string;
   @Prop()
   description?: string;

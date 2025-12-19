@@ -5,9 +5,8 @@ import { BaseRepository } from '../../common/repository/base.repository';
 
 /**
  * ApprovalWorkflowRepository
- * 
+ *
  * Handles queries related to approval workflow for corrections
- * Supports finding pending corrections by manager, status filtering, etc.
  */
 @Injectable()
 export class ApprovalWorkflowRepository extends BaseRepository<any> {
@@ -18,9 +17,6 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
     super(model);
   }
 
-  /**
-   * Find all pending corrections for a specific line manager
-   */
   async findPendingByLineManager(lineManagerId: string) {
     return this.find({
       status: 'SUBMITTED',
@@ -28,34 +24,18 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
     } as any);
   }
 
-  /**
-   * Find all corrections in a specific status
-   */
   async findByStatus(status: string) {
-    return this.find({
-      status,
-    } as any);
+    return this.find({ status } as any);
   }
 
-  /**
-   * Find all corrections submitted by an employee
-   */
   async findByEmployeeId(employeeId: string) {
-    return this.find({
-      employeeId,
-    } as any);
+    return this.find({ employeeId } as any);
   }
 
-  /**
-   * Find corrections with approval flow history
-   */
-  async findWithApprovalFlow(correctionId: string) {
-    return this.findById(correctionId);
+  async findWithApprovalFlow(correctionId: any) {
+    return this.model.findOne({ _id: correctionId });
   }
 
-  /**
-   * Count pending corrections for a manager
-   */
   async countPendingByManager(lineManagerId: string): Promise<number> {
     const pending = await this.find({
       status: 'SUBMITTED',
@@ -64,10 +44,6 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
     return pending?.length || 0;
   }
 
-  /**
-   * Find corrections ready to be applied to payroll
-   * (Approved and not yet applied)
-   */
   async findApprovedForPayroll() {
     return this.find({
       status: 'APPROVED',
@@ -75,9 +51,6 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
     } as any);
   }
 
-  /**
-   * Find corrections by date range
-   */
   async findByDateRange(startDate: Date, endDate: Date) {
     return this.find({
       createdAt: {
@@ -87,9 +60,6 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
     } as any);
   }
 
-  /**
-   * Find corrections by employee and date range
-   */
   async findByEmployeeAndDateRange(
     employeeId: string,
     startDate: Date,
@@ -105,10 +75,10 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
   }
 
   /**
-   * Update approval flow status for a correction
+   * ✅ FIXED: Use findOneAndUpdate with ObjectId-safe query
    */
   async updateApprovalFlow(
-    correctionId: string,
+    correctionId: any,
     approvalEntry: {
       role: string;
       status: string;
@@ -116,21 +86,14 @@ export class ApprovalWorkflowRepository extends BaseRepository<any> {
       decidedAt: Date;
     },
   ) {
-    return this.model.findByIdAndUpdate(
-      correctionId,
-      {
-        $push: {
-          approvalFlow: approvalEntry,
-        },
-      },
+    return this.model.findOneAndUpdate(
+      { _id: correctionId },
+      { $push: { approvalFlow: approvalEntry } },
       { new: true },
     );
   }
 
-  /**
-   * Mark correction as applied to payroll
-   */
-  async markAsAppliedToPayroll(correctionId: string) {
+  async markAsAppliedToPayroll(correctionId: any) {
     return this.update(
       { _id: correctionId } as any,
       { appliedToPayroll: true } as any,

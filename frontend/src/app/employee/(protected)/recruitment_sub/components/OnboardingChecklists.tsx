@@ -79,7 +79,7 @@ export function OnboardingChecklists() {
     try {
       setLoading(true);
       const response = await recruitmentApi.getAllOnboardingChecklists();
-      setChecklists(response.data.checklists || []);
+      setChecklists(Array.isArray(response.data) ? response.data : []);
     } catch (error: any) {
       toast.error('Failed to load checklists');
       console.error(error);
@@ -176,7 +176,7 @@ export function OnboardingChecklists() {
 
       // Refresh checklists and update selected checklist if modal is open
       const response = await recruitmentApi.getAllOnboardingChecklists();
-      const newChecklists = response.data.checklists || [];
+      const newChecklists = Array.isArray(response.data) ? response.data : [];
       setChecklists(newChecklists);
 
       // Update selected checklist if modal is open
@@ -217,6 +217,28 @@ export function OnboardingChecklists() {
           <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
             Active Onboarding Checklists
           </Typography>
+
+          {/* Required Documents Information */}
+          <Card variant="outlined" sx={{ mb: 3, bgcolor: 'background.default' }}>
+            <CardContent>
+              <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+                📄 Required Documents from Candidates
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                New hires must upload the following documents during onboarding:
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                <Chip label="ID Document" size="small" color="primary" variant="outlined" />
+                <Chip label="Certificates" size="small" color="primary" variant="outlined" />
+                <Chip label="Signed Contract" size="small" color="success" variant="outlined" />
+                <Chip label="Additional Documents" size="small" color="default" variant="outlined" />
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Documents are automatically linked to tasks when uploaded through the compliance documents endpoint.
+              </Typography>
+            </CardContent>
+          </Card>
+
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
@@ -458,15 +480,6 @@ export function OnboardingChecklists() {
                 </Box>
               </Paper>
 
-              {/* Contract Info */}
-              {selectedChecklist.onboarding.contractId && (
-                <Paper sx={{ p: 2, mb: 3, bgcolor: 'primary.50', border: 1, borderColor: 'primary.main', color: 'text.primary' }}>
-                  <Typography variant="body2">
-                    <strong>Contract ID:</strong> {selectedChecklist.onboarding.contractId}
-                  </Typography>
-                </Paper>
-              )}
-
               {/* All Tasks */}
               <Box>
                 <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
@@ -639,19 +652,6 @@ export function OnboardingChecklists() {
                     placeholder="Enter employee number (e.g. EMP-1001)"
                     required
                     helperText="Required"
-                    sx={{ '& .MuiInputBase-input': { padding: '10px 12px' } }}
-                  />
-                </Box>
-
-                <Box>
-                  <Typography variant="body2" sx={{ mb: 1 }}>Contract ID</Typography>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    value={contractId}
-                    onChange={(e) => setContractId(e.target.value)}
-                    placeholder="Enter contract ID"
-                    helperText="Required only for new checklists"
                     sx={{ '& .MuiInputBase-input': { padding: '10px 12px' } }}
                   />
                 </Box>

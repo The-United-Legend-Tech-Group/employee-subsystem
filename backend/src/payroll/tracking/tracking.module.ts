@@ -24,6 +24,18 @@ import {
   DepartmentSchema,
 } from '../../employee-subsystem/organization-structure/models/department.schema';
 import { AuthModule } from '../../employee-subsystem/employee/auth.module';
+import { Notification } from '../../employee-subsystem/notification/models/notification.schema';
+import { NotificationSchema } from '../../employee-subsystem/notification/models/notification.schema';
+// Service imports
+import { DisputeService } from './services/dispute.service';
+import { ClaimService } from './services/claim.service';
+import { RefundService } from './services/refund.service';
+import { PayslipService } from './services/payslip.service';
+import { ReportingService } from './services/reporting.service';
+import { DeductionService } from './services/deduction.service';
+import { CompensationService } from './services/compensation.service';
+import { SalaryHistoryService } from './services/salary-history.service';
+import { NotificationUtil } from './services/shared/notification.util';
 
 @Module({
   imports: [
@@ -41,10 +53,22 @@ import { AuthModule } from '../../employee-subsystem/employee/auth.module';
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: Department.name, schema: DepartmentSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
   ],
   controllers: [TrackingController],
-  providers: [TrackingService],
+  providers: [
+    TrackingService,
+    DisputeService,
+    ClaimService,
+    RefundService,
+    PayslipService,
+    ReportingService,
+    DeductionService,
+    CompensationService,
+    SalaryHistoryService,
+    NotificationUtil,
+  ],
   exports: [TrackingService],
 })
 export class TrackingModule {}

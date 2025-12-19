@@ -112,4 +112,16 @@ export class EmployeeTerminationResignationService {
       throw err;
     }
   }
+
+async getAllEmployeeTerminationBenefits(): Promise<EmployeeTerminationResignation[]> {
+        return this.terminationModel
+            .find()
+            .populate({
+                path: 'employeeId',
+                model: 'EmployeeProfile'
+            })
+            .populate('benefitId')
+            .populate('terminationId')
+            .exec();
+    }
 }

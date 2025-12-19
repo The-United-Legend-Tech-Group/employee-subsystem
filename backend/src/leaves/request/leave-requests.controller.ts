@@ -5,6 +5,9 @@ import {
   Param,
   Get,
   Patch,
+  Req,
+  UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import { LeavesRequestService } from './leave-requests.service';
@@ -16,9 +19,17 @@ import { LeaveStatus } from '../enums/leave-status.enum';
 import { LeaveRequest } from '../models/leave-request.schema';
 import { Attachment } from '../models/attachment.schema';
 import { Types } from 'mongoose';
+import { AuthGuard } from '../../common/guards/authentication.guard';
+import { authorizationGuard } from '../../common/guards/authorization.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
+import { FilterLeaveRequestsByTypeDto } from '../dtos/filter-leave-requests-by-type.dto';
+import { SetApprovalFlowDto } from '../dtos/set-approval-flow.dto';
+// (no-op) remove unused import
 
 @ApiTags('Leaves Requests')
 @Controller('leaves')
+@UseGuards(AuthGuard,authorizationGuard)
 export class LeavesRequestController {
   constructor(
     private readonly leavesRequestService: LeavesRequestService,
@@ -43,6 +54,17 @@ export class LeavesRequestController {
   @ApiResponse({ status: 400, description: 'Invalid file or upload failed' })
   async uploadAttachment(@Body() dto: UploadAttachmentDto): Promise<Attachment> {
     return this.leavesRequestService.uploadAttachment(dto);
+  }
+
+  @Get('attachments/:attachmentId')
+  @ApiOperation({ summary: 'Get attachment metadata (for viewing documents)' })
+  @ApiParam({ name: 'attachmentId', description: 'Attachment ID' })
+  @ApiResponse({ status: 200, description: 'Attachment retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Attachment not found' })
+  async getAttachment(
+    @Param('attachmentId') attachmentId: string,
+  ): Promise<Attachment> {
+    return this.leavesRequestService.getAttachmentById(attachmentId);
   }
 
   // Optional: attach an already uploaded document to an existing leave request
@@ -85,6 +107,29 @@ export class LeavesRequestController {
   async cancelRequest(@Param('id') id: string) {
     return this.leavesRequestService.cancelPendingRequest(id);
   }
+
+  // ---------- My Requests (for current employee) ----------
+  @Get('my-requests')
+  @ApiOperation({ summary: 'Get all leave requests for the current employee' })
+  @ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
+  async getMyRequests(@Req() req: any): Promise<LeaveRequest[]> {
+    const user: any = (req as any).user;
+    const employeeId = user?.sub || user?.employeeId;
+    return this.leavesRequestService.getRequestsForEmployee(
+      new Types.ObjectId(employeeId).toString(),
+    );
+  }
+
+  @Get('my-pending-requests')
+  @ApiOperation({ summary: 'Get pending leave requests for the current employee' })
+  @ApiResponse({ status: 200, description: 'Pending leave requests retrieved successfully' })
+  async getMyPendingRequests(@Req() req: any): Promise<LeaveRequest[]> {
+    const user: any = (req as any).user;
+    const employeeId = user?.sub || user?.employeeId;
+    return this.leavesRequestService.getPendingRequestsForEmployee(
+      new Types.ObjectId(employeeId).toString(),
+    );
+  }
 // ------------------------------
 // REQ-020: Manager Review Request
 // ------------------------------
@@ -93,12 +138,76 @@ export class LeavesRequestController {
 @ApiParam({ name: 'managerId', description: 'Manager ID' })
 @ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
 @ApiResponse({ status: 404, description: 'Manager not found' })
+@Roles(SystemRole.DEPARTMENT_HEAD)
 async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise<LeaveRequest[]> {
   return this.leavesRequestService.getLeaveRequestsForManager(managerId);
 }
 
+// Get leave requests for current authenticated manager
+@Get('my-team-requests')
+@Roles(SystemRole.DEPARTMENT_HEAD)
+@ApiOperation({ summary: 'Get leave requests for current manager\'s team' })
+@ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
+async getMyTeamRequests(@Req() req: any): Promise<LeaveRequest[]> {
+  const user: any = (req as any).user;
+  const managerId = user?.sub || user?.employeeId;
+  return this.leavesRequestService.getLeaveRequestsForManager(
+    new Types.ObjectId(managerId).toString(),
+  );
+}
+
+// ------------------------------
+// HR Manager: Get All Leave Requests
+// ------------------------------
+@Get('hr/all-requests')
+@Roles(SystemRole.HR_MANAGER)
+@ApiOperation({ summary: 'Get all leave requests for HR manager review' })
+@ApiResponse({ status: 200, description: 'Leave requests retrieved successfully' })
+async getAllLeaveRequestsForHR(): Promise<LeaveRequest[]> {
+  return this.leavesRequestService.getAllLeaveRequestsForHR();
+}
+
+// ------------------------------
+// Admin: Get Leave Requests by Type and Approval Flow
+// ------------------------------
+@Get('admin/filter-by-type')
+@Roles(SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+@ApiOperation({ 
+  summary: 'Get all leave requests filtered by leave type and approval flow status/role',
+  description: 'Allows filtering leave requests by specific leave type and approval flow criteria'
+})
+@ApiResponse({ status: 200, description: 'Filtered leave requests retrieved successfully' })
+@ApiResponse({ status: 400, description: 'Invalid filter parameters' })
+async getLeaveRequestsByTypeAndApprovalFlow(
+  @Query() dto: FilterLeaveRequestsByTypeDto,
+): Promise<LeaveRequest[]> {
+  return this.leavesRequestService.getLeaveRequestsByTypeAndApprovalFlow(dto);
+}
+
+// ------------------------------
+// Admin: Set Approval Flow for Leave Request
+// ------------------------------
+@Patch('admin/:id/set-approval-flow')
+@Roles(SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+@ApiOperation({ 
+  summary: 'Set approval flow roles for a leave request',
+  description: 'Sets which roles need to approve the leave request. All roles will have status "pending" initially.'
+})
+@ApiParam({ name: 'id', description: 'Leave request ID' })
+@ApiBody({ type: SetApprovalFlowDto })
+@ApiResponse({ status: 200, description: 'Approval flow set successfully' })
+@ApiResponse({ status: 400, description: 'Invalid input data' })
+@ApiResponse({ status: 404, description: 'Leave request not found' })
+async setApprovalFlow(
+  @Param('id') id: string,
+  @Body() dto: SetApprovalFlowDto,
+): Promise<LeaveRequest | null> {
+  return this.leavesRequestService.setApprovalFlow(id, dto);
+}
+
     // ---------- REQ-021: Manager Approves a request ----------
   @Patch(':id/approve')
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Manager approves leave request' })
   @ApiParam({ name: 'id', description: 'Leave request ID' })
   @ApiBody({ type: ManagerApprovalDto })
@@ -115,6 +224,7 @@ async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise
 
     // ---------- REQ-022: Manager Rejects a request ----------
   @Patch(':id/reject')
+  @Roles(SystemRole.DEPARTMENT_HEAD)
   @ApiOperation({ summary: 'Manager rejects leave request' })
   @ApiParam({ name: 'id', description: 'Leave request ID' })
   @ApiBody({ type: ManagerApprovalDto })
@@ -130,9 +240,60 @@ async getLeaveRequestsForManager(@Param('managerId') managerId: string): Promise
   }
 
 // ------------------------------
+// HR: Normal Approve/Reject (updates HR role status in approval flow)
+// ------------------------------
+@Patch('hr/:id/approve-normal')
+@Roles(SystemRole.HR_MANAGER)
+@ApiOperation({ summary: 'HR normal approve (updates HR role status without finalizing)' })
+@ApiParam({ name: 'id', description: 'Leave request ID' })
+@ApiBody({ schema: {
+  type: 'object',
+  properties: {
+    hrUserId: { type: 'string' },
+    justification: { type: 'string' }
+  }
+} })
+async hrApproveNormal(
+  @Param('id') id: string,
+  @Body() body: { hrUserId: string; justification?: string }
+) {
+  const dto: ManagerApprovalDto = {
+    role: 'HR Manager',
+    decidedBy: body.hrUserId,
+    justification: body.justification,
+    status: LeaveStatus.APPROVED,
+  } as any;
+  return this.leavesRequestService.approveRequest(id, dto);
+}
+
+@Patch('hr/:id/reject-normal')
+@Roles(SystemRole.HR_MANAGER)
+@ApiOperation({ summary: 'HR normal reject (updates HR role status without finalizing)' })
+@ApiParam({ name: 'id', description: 'Leave request ID' })
+@ApiBody({ schema: {
+  type: 'object',
+  properties: {
+    hrUserId: { type: 'string' },
+    justification: { type: 'string' }
+  }
+} })
+async hrRejectNormal(
+  @Param('id') id: string,
+  @Body() body: { hrUserId: string; justification?: string }
+) {
+  const dto: ManagerApprovalDto = {
+    role: 'HR Manager',
+    decidedBy: body.hrUserId,
+    justification: body.justification,
+    status: LeaveStatus.REJECTED,
+  } as any;
+  return this.leavesRequestService.rejectRequest(id, dto);
+}
+// ------------------------------
 // REQ-025: HR Finalization
 // ------------------------------
 @Post('finalize/:leaveRequestId')
+@Roles(SystemRole.HR_MANAGER)
 @ApiOperation({ summary: 'HR finalizes leave request processing' })
 @ApiParam({ name: 'leaveRequestId', description: 'Leave request ID' })
 @ApiBody({
@@ -170,6 +331,7 @@ async finalizeLeaveRequest(
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Leave request overridden successfully' })
 @ApiResponse({ status: 400, description: 'Invalid override data' })
 @ApiResponse({ status: 404, description: 'Leave request not found' })
@@ -190,17 +352,19 @@ async hrOverrideRequest(
     type: 'object',
     properties: {
       leaveRequestIds: { type: 'array', items: { type: 'string' }, description: 'Array of leave request IDs' },
-      action: { type: 'string', description: 'Action to perform (approve/reject/finalize)' },
-      hrUserId: { type: 'string', description: 'HR user ID performing the action' }
+      action: { type: 'string', description: 'Action to perform (approve/reject/finalize/override_approve/override_reject)' },
+      hrUserId: { type: 'string', description: 'HR user ID performing the action' },
+      reason: { type: 'string', description: 'Optional reason for override actions' }
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Bulk processing completed' })
 @ApiResponse({ status: 400, description: 'Invalid bulk processing data' })
 async bulkProcessRequests(
-  @Body() body: { leaveRequestIds: string[]; action: string; hrUserId: string }
+  @Body() body: { leaveRequestIds: string[]; action: string; hrUserId: string; reason?: string }
 ): Promise<{ processed: number; failed: number }> {
-  return this.leavesRequestService.bulkProcessRequests(body.leaveRequestIds, body.action, body.hrUserId);
+  return this.leavesRequestService.bulkProcessRequests(body.leaveRequestIds, body.action, body.hrUserId, body.reason);
 }
 
 // ------------------------------
@@ -219,6 +383,7 @@ async bulkProcessRequests(
     }
   }
 })
+@Roles(SystemRole.HR_MANAGER)
 @ApiResponse({ status: 200, description: 'Medical documents verified successfully' })
 @ApiResponse({ status: 400, description: 'Invalid verification data' })
 @ApiResponse({ status: 404, description: 'Leave request not found' })
@@ -233,6 +398,7 @@ async verifyMedicalDocuments(
 // REQ-029: Auto Update Balance After Approval
 // ------------------------------
 @Post('auto-update-balances')
+@Roles(SystemRole.HR_MANAGER)
 @ApiOperation({ summary: 'Automatically update leave balances for approved requests' })
 @ApiResponse({ status: 200, description: 'Balances updated successfully' })
 async autoUpdateBalances(): Promise<{ updated: number }> {

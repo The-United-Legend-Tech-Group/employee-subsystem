@@ -49,7 +49,7 @@ export function Features() {
               key={index}
               sx={{
                 bgcolor: "transparent",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(253, 253, 253, 0.1)",
                 transition: "border-color 0.3s",
                 "&:hover": {
                   borderColor: "rgba(255, 255, 255, 0.2)",
@@ -61,7 +61,7 @@ export function Features() {
             >
               <CardContent sx={{ p: 4 }}>
                 <feature.icon className="feature-icon w-12 h-12 mb-6 text-foreground transition-transform" />
-                <h3 className="text-2xl font-bold mb-3 tracking-tight">{feature.title}</h3>
+                <h3 className="text-muted-foreground font-bold mb-3 tracking-tight">{feature.title}</h3>
                 <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
               </CardContent>
             </Card>
@@ -77,7 +77,7 @@ export function Features() {
         >
           <CardContent sx={{ p: 6, textAlign: "center" }}>
             <div className="max-w-3xl mx-auto">
-              <h3 className="text-3xl md:text-5xl font-bold mb-6 tracking-tighter text-balance">
+              <h3 className="text-muted-foreground md:text-5xl font-bold mb-6 tracking-tighter text-balance">
                 READY TO TRANSFORM YOUR HR OPERATIONS?
               </h3>
               <p className="text-muted-foreground text-lg mb-8 leading-relaxed">

@@ -29,8 +29,8 @@ import {
   Close as CloseIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
-import { recruitmentApi } from '@/lib/api';
-import { useToast } from '@/lib/hooks/useToast';
+import { recruitmentApi } from '../../../../../lib/api';
+import { useToast } from '../../../../../lib/hooks/useToast';
 
 interface CandidateOffersProps {
   // No props needed
@@ -127,6 +127,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
   };
 
   const canRespond = (offer: any) => {
+    // Can respond if offer is sent and applicant hasn't responded yet
     return offer.finalStatus === 'sent' && offer.applicantResponse === 'pending';
   };
 
@@ -249,7 +250,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                             </Box>
                             <Box>
                               <Typography variant="caption" color="text.secondary">
-                                Annual Salary
+                                Gross Salary
                               </Typography>
                               <Typography variant="h6" fontWeight={600} color="success.main">
                                 ${offer.grossSalary?.toLocaleString() || '0'}
@@ -277,6 +278,32 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                                 </Typography>
                                 <Typography variant="h6" fontWeight={600} color="secondary.main">
                                   ${offer.signingBonus?.toLocaleString()}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          )}
+                          {offer.benifitsum > 0 && (
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Box
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 1.5,
+                                  bgcolor: 'info.50',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <AttachMoneyIcon sx={{ fontSize: 20, color: 'info.main' }} />
+                              </Box>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+
+                                  its Value
+                                </Typography>
+                                <Typography variant="h6" fontWeight={600} color="info.main">
+                                  ${offer.benifitsum?.toLocaleString()}
                                 </Typography>
                               </Box>
                             </Stack>
@@ -423,15 +450,105 @@ export function CandidateOffers({ }: CandidateOffersProps) {
         <DialogContent dividers>
           {selectedOffer && (
             <Stack spacing={3}>
+              {/* Job Details Section - NEW */}
+              {selectedOffer.jobDetails && (
+                <Paper variant="outlined" sx={{ p: 2.5, bgcolor: 'info.50', borderColor: 'info.main' }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom fontWeight={600}>
+                    📋 Job Posting Details
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 1.5 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Job Title
+                        </Typography>
+                        <Typography variant="body1" fontWeight={600}>
+                          {selectedOffer.jobDetails.title}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Department
+                        </Typography>
+                        <Typography variant="body1" fontWeight={600}>
+                          {selectedOffer.jobDetails.department}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Location
+                        </Typography>
+                        <Typography variant="body1" fontWeight={600}>
+                          📍 {selectedOffer.jobDetails.location || 'Not specified'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Requisition ID
+                        </Typography>
+                        <Typography variant="body1" fontWeight={600}>
+                          #{selectedOffer.jobDetails.requisitionId}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    {selectedOffer.jobDetails.description && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Job Description
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                          {selectedOffer.jobDetails.description}
+                        </Typography>
+                      </Box>
+                    )}
+                    {selectedOffer.jobDetails.qualifications && selectedOffer.jobDetails.qualifications.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500} gutterBottom>
+                          Required Qualifications
+                        </Typography>
+                        <Stack spacing={0.5} sx={{ mt: 1 }}>
+                          {selectedOffer.jobDetails.qualifications.map((qual: string, idx: number) => (
+                            <Typography key={idx} variant="body2" color="text.secondary">
+                              • {qual}
+                            </Typography>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    {selectedOffer.jobDetails.skills && selectedOffer.jobDetails.skills.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Required Skills
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
+                          {selectedOffer.jobDetails.skills.map((skill: string, idx: number) => (
+                            <Chip
+                              key={idx}
+                              label={skill}
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                              sx={{ mb: 1 }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
               {/* Position Info */}
               <Paper variant="outlined" sx={{ p: 2, bgcolor: 'primary.50' }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Position Details
+                  Offer Status
                 </Typography>
                 <Stack spacing={2}>
                   <Box>
                     <Typography variant="caption" color="text.secondary">
-                      Role
+                      Position
                     </Typography>
                     <Typography variant="h6" fontWeight={600}>
                       {selectedOffer.role}
@@ -439,7 +556,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                   </Box>
                   <Box>
                     <Typography variant="caption" color="text.secondary">
-                      Status
+                      Your Response
                     </Typography>
                     <Box sx={{ mt: 0.5 }}>{getStatusBadge(selectedOffer)}</Box>
                   </Box>
@@ -458,7 +575,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                         <AttachMoneyIcon sx={{ fontSize: 20, color: 'success.main' }} />
                         <Box>
                           <Typography variant="caption" color="text.secondary">
-                            Annual Gross Salary
+                            Gross Salary
                           </Typography>
                           <Typography variant="h6" fontWeight={600}>
                             ${selectedOffer.grossSalary?.toLocaleString() || '0'}
@@ -476,6 +593,21 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                             </Typography>
                             <Typography variant="h6" fontWeight={600}>
                               ${selectedOffer.signingBonus?.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    )}
+                    {selectedOffer.benifitsum > 0 && (
+                      <Box>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <AttachMoneyIcon sx={{ fontSize: 20, color: 'info.main' }} />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Benefits Value
+                            </Typography>
+                            <Typography variant="h6" fontWeight={600}>
+                              ${selectedOffer.benifitsum?.toLocaleString()}
                             </Typography>
                           </Box>
                         </Stack>
@@ -664,7 +796,7 @@ export function CandidateOffers({ }: CandidateOffersProps) {
                   <Divider />
                   <Box>
                     <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      Annual Salary
+                      Gross Salary
                     </Typography>
                     <Typography variant="body1" fontWeight={600} color="text.primary">
                       ${selectedOffer.grossSalary?.toLocaleString()}

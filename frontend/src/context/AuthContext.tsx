@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import { SystemRole } from '@/types/auth';
+import { SystemRole } from '../types/auth';
 
 interface AuthContextType {
     roles: SystemRole[];

@@ -1,4 +1,4 @@
-import api from '@/lib/axios';
+import { apiClient, ApiResponse } from '../../common/utils/api/client';
 
 // =================== TYPES ===================
 
@@ -76,79 +76,90 @@ export interface UpdateEquipmentReturnDto {
   updatedById: string;
 }
 
+// Helper to maintain compatibility with existing UI (axios-like behavior)
+async function handleResponse<T>(promise: Promise<ApiResponse<T>>) {
+  const response = await promise;
+  if (response.error) {
+    const error: any = new Error(response.error);
+    error.response = { data: { message: response.error } };
+    throw error;
+  }
+  return response as { data: T };
+}
+
 // =================== OFFBOARDING API ===================
 
 export const offboardingApi = {
   // =================== TERMINATION ENDPOINTS ===================
 
   initiateTerminationReview: (data: InitiateTerminationReviewDto) => {
-    return api.post('/offboarding/initiate-termination-review', data);
+    return handleResponse(apiClient.post('/offboarding/initiate-termination-review', data));
   },
 
   approveTermination: (data: ApproveTerminationDto) => {
-    return api.patch('/offboarding/approve-termination', data);
+    return handleResponse(apiClient.patch('/offboarding/approve-termination', data));
   },
 
   getAllTerminationRequests: () => {
-    return api.get('/offboarding/termination-requests/all');
+    return handleResponse(apiClient.get<any[]>('/offboarding/termination-requests/all'));
   },
 
   // =================== OFFBOARDING CHECKLIST ENDPOINTS ===================
 
   initiateOffboardingChecklist: (data: InitiateOffboardingChecklistDto) => {
-    return api.post('/offboarding/initiate-checklist', data);
+    return handleResponse(apiClient.post('/offboarding/initiate-checklist', data));
   },
 
   getChecklistByTerminationId: (terminationId: string) => {
-    return api.get(`/offboarding/checklist/${terminationId}`, {
+    return handleResponse(apiClient.get<any>(`/offboarding/checklist/${terminationId}`, {
       params: { terminationId }
-    });
+    }));
   },
 
   getAllOffboardingChecklists: () => {
-    return api.get('/offboarding/checklists/all');
+    return handleResponse(apiClient.get<any[]>('/offboarding/checklists/all'));
   },
 
   processDepartmentSignOff: (data: DepartmentClearanceSignOffDto) => {
-    return api.post('/offboarding/department-signoff', data);
+    return handleResponse(apiClient.post('/offboarding/department-signoff', data));
   },
 
   updateEquipmentReturn: (data: UpdateEquipmentReturnDto) => {
-    return api.post('/offboarding/update-equipment-return', data);
+    return handleResponse(apiClient.post('/offboarding/update-equipment-return', data));
   },
 
   updateAccessCardReturn: (data: { clearanceChecklistId: string; cardReturned: boolean }) => {
-    return api.post('/offboarding/update-access-card-return', data);
+    return handleResponse(apiClient.post('/offboarding/update-access-card-return', data));
   },
 
   // =================== SYSTEM ACCESS REVOCATION ===================
 
   revokeSystemAccess: (data: RevokeSystemAccessDto) => {
-    return api.post('/offboarding/revoke-access', data);
+    return handleResponse(apiClient.post('/offboarding/revoke-access', data));
   },
 
   getEmployeesReadyForRevocation: () => {
-    return api.get('/offboarding/employees-ready-for-revocation');
+    return handleResponse(apiClient.get<any[]>('/offboarding/employees-ready-for-revocation'));
   },
 
   // =================== RESIGNATION ENDPOINTS ===================
 
   submitResignation: (data: SubmitResignationDto) => {
-    return api.post('/offboarding/submit-resignation', data);
+    return handleResponse(apiClient.post('/offboarding/submit-resignation', data));
   },
 
   trackResignationStatus: (params: TrackResignationStatusDto) => {
-    return api.get('/offboarding/track-resignation-status', { params });
+    return handleResponse(apiClient.get<any>('/offboarding/track-resignation-status', { params }));
   },
 
   // =================== REMINDER & EXPIRY ENDPOINTS ===================
 
   sendOffboardingReminder: (terminationRequestId: string) => {
-    return api.post('/offboarding/send-reminder/:terminationRequestId', { terminationRequestId });
+    return handleResponse(apiClient.post<any>(`/offboarding/send-reminder/${terminationRequestId}`, { terminationRequestId }));
   },
 
   checkExpiryWarnings: () => {
-    return api.post('/offboarding/check-expiry-warnings');
+    return handleResponse(apiClient.post('/offboarding/check-expiry-warnings'));
   },
 };
 

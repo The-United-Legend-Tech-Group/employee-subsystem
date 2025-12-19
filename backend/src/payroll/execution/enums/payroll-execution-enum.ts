@@ -17,7 +17,7 @@ export enum BenefitStatus {
 
 export enum PayRollStatus {
   DRAFT = 'draft',
-  UNDER_REVIEW = 'under review', // pending manager Approval
+  UNDER_REVIEW = 'under review', // when specialist publishes for manager approval
   PENDING_FINANCE_APPROVAL = 'pending finance approval',
   REJECTED = 'rejected',
   APPROVED = 'approved', // when both manager and finance approved

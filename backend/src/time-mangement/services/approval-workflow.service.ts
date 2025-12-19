@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Types } from 'mongoose';
 import { ApprovalWorkflowRepository } from '../repository/approval-workflow.repository';
 import { PermissionDurationConfigService } from './permission-duration-config.service';
 import { SubmitCorrectionEssDto } from '../dto/submit-correction-ess.dto';
@@ -6,12 +11,8 @@ import { ApproveRejectCorrectionDto } from '../dto/approve-reject-correction.dto
 
 /**
  * ApprovalWorkflowService
- * 
+ *
  * Manages the approval workflow for correction requests
- * - Routes corrections to Line Manager for approval
- * - Validates against permission duration limits
- * - Marks approved corrections for payroll application
- * - Tracks approval history (approvalFlow)
  */
 @Injectable()
 export class ApprovalWorkflowService {
@@ -20,16 +21,11 @@ export class ApprovalWorkflowService {
     private readonly permissionConfigService: PermissionDurationConfigService,
   ) {}
 
-  /**
-   * Submit a correction request from employee ESS
-   * Validates duration limits, routes to manager, sets initial status
-   */
   async submitCorrectionFromESS(
     dto: SubmitCorrectionEssDto,
     correctionRequest: any,
   ) {
     try {
-      // Validate duration against configured limits
       const durationValidation =
         await this.permissionConfigService.validateCorrectionDuration(
           dto.durationMinutes,
@@ -39,7 +35,6 @@ export class ApprovalWorkflowService {
         throw new BadRequestException(durationValidation.message);
       }
 
-      // Enhance correction request with workflow data
       correctionRequest.lineManagerId = dto.lineManagerId;
       correctionRequest.durationMinutes = dto.durationMinutes;
       correctionRequest.correctionType = dto.correctionType || 'ADD';
@@ -49,7 +44,6 @@ export class ApprovalWorkflowService {
       correctionRequest.status = 'SUBMITTED';
       correctionRequest.appliedToPayroll = false;
 
-      // Initialize approval flow
       correctionRequest.approvalFlow = [
         {
           role: 'INITIATOR',
@@ -67,43 +61,34 @@ export class ApprovalWorkflowService {
     }
   }
 
-  /**
-   * Get pending corrections for a line manager
-   */
   async getPendingCorrectionsForManager(lineManagerId: string) {
-    const pending =
-      await this.workflowRepository.findPendingByLineManager(lineManagerId);
-    return pending || [];
+    return this.workflowRepository.findPendingByLineManager(lineManagerId);
   }
 
-  /**
-   * Count pending corrections for a manager
-   */
   async countPendingForManager(lineManagerId: string): Promise<number> {
     return this.workflowRepository.countPendingByManager(lineManagerId);
   }
 
   /**
-   * Process manager approval or rejection of a correction
+   * ✅ FIXED: ObjectId casting
    */
   async processApprovalDecision(
     correctionId: string,
     dto: ApproveRejectCorrectionDto,
   ) {
-    // Find the correction
-    const correction = await this.workflowRepository.findById(correctionId);
+    const objectId = new Types.ObjectId(correctionId);
+
+    const correction = await this.workflowRepository.findById(objectId as any);
     if (!correction) {
       throw new NotFoundException(`Correction ${correctionId} not found`);
     }
 
-    // Validate that correction is in SUBMITTED status
     if (correction.status !== 'SUBMITTED') {
       throw new BadRequestException(
         `Correction is in ${correction.status} status. Only SUBMITTED corrections can be reviewed.`,
       );
     }
 
-    // Build approval entry
     const approvalEntry = {
       role: dto.approverRole || 'LINE_MANAGER',
       status: dto.decision,
@@ -111,36 +96,29 @@ export class ApprovalWorkflowService {
       decidedAt: new Date(),
     };
 
-    // Handle approval
     if (dto.decision === 'APPROVED') {
-      return this.approveCorrection(correctionId, dto, approvalEntry);
-    } else {
-      return this.rejectCorrection(correctionId, dto, approvalEntry);
+      return this.approveCorrection(objectId as any, dto, approvalEntry);
     }
+
+    return this.rejectCorrection(objectId as any, dto, approvalEntry);
   }
 
-  /**
-   * Approve a correction and optionally apply to payroll
-   */
   private async approveCorrection(
-    correctionId: string,
+    correctionId: any,
     dto: ApproveRejectCorrectionDto,
     approvalEntry: any,
   ) {
     try {
-      // Update approval flow
       await this.workflowRepository.updateApprovalFlow(
         correctionId,
         approvalEntry,
       );
 
-      // Check if should apply to payroll
       const shouldApplyToPayroll =
         (dto.applyToPayroll !== false &&
           (await this.permissionConfigService.shouldAffectPayroll())) ||
         false;
 
-      // Update correction status
       const updated = await this.workflowRepository.update(
         { _id: correctionId } as any,
         {
@@ -148,15 +126,6 @@ export class ApprovalWorkflowService {
           appliedToPayroll: shouldApplyToPayroll,
         } as any,
       );
-
-      if (shouldApplyToPayroll) {
-        // Log for payroll subsystem
-        console.info('CORRECTION APPROVED AND APPLIED TO PAYROLL', {
-          correctionId,
-          approverId: dto.approverId,
-          appliedAt: new Date(),
-        });
-      }
 
       return updated;
     } catch (error) {
@@ -166,22 +135,17 @@ export class ApprovalWorkflowService {
     }
   }
 
-  /**
-   * Reject a correction with reason
-   */
   private async rejectCorrection(
-    correctionId: string,
+    correctionId: any,
     dto: ApproveRejectCorrectionDto,
     approvalEntry: any,
   ) {
     try {
-      // Update approval flow
       await this.workflowRepository.updateApprovalFlow(
         correctionId,
         approvalEntry,
       );
 
-      // Update correction status
       const updated = await this.workflowRepository.update(
         { _id: correctionId } as any,
         {
@@ -191,13 +155,6 @@ export class ApprovalWorkflowService {
         } as any,
       );
 
-      console.info('CORRECTION REJECTED', {
-        correctionId,
-        approverId: dto.approverId,
-        reason: dto.rejectionReason,
-        rejectedAt: new Date(),
-      });
-
       return updated;
     } catch (error) {
       throw new BadRequestException(
@@ -206,33 +163,15 @@ export class ApprovalWorkflowService {
     }
   }
 
-  /**
-   * Get all approved corrections ready for payroll
-   */
   async getApprovedForPayroll() {
     return this.workflowRepository.findApprovedForPayroll();
   }
 
-  /**
-   * Mark a correction as applied to payroll
-   * Called by payroll subsystem after processing
-   */
   async markAsAppliedToPayroll(correctionId: string) {
-    const updated = await this.workflowRepository.markAsAppliedToPayroll(
-      correctionId,
-    );
-
-    console.info('CORRECTION MARKED AS APPLIED TO PAYROLL', {
-      correctionId,
-      appliedAt: new Date(),
-    });
-
-    return updated;
+    const objectId = new Types.ObjectId(correctionId);
+    return this.workflowRepository.markAsAppliedToPayroll(objectId as any);
   }
 
-  /**
-   * Get correction submission history for an employee
-   */
   async getSubmissionHistoryForEmployee(
     employeeId: string,
     startDate?: Date,
@@ -249,17 +188,12 @@ export class ApprovalWorkflowService {
     return this.workflowRepository.findByEmployeeId(employeeId);
   }
 
-  /**
-   * Get all corrections by status
-   */
   async getCorrectionsByStatus(status: string) {
     return this.workflowRepository.findByStatus(status);
   }
 
-  /**
-   * Get detailed correction with approval history
-   */
   async getCorrectionWithHistory(correctionId: string) {
-    return this.workflowRepository.findById(correctionId);
+    const objectId = new Types.ObjectId(correctionId);
+    return this.workflowRepository.findById(objectId as any);
   }
 }

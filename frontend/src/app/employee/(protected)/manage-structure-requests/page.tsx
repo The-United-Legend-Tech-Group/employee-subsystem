@@ -24,6 +24,7 @@ import Tab from '@mui/material/Tab';
 import RequestDetails from './RequestDetails';
 import StructureChangeLogsTable from './StructureChangeLogsTable';
 import StructureApprovalsTable from './StructureApprovalsTable';
+import { logout } from '@/lib/auth-utils';
 
 interface StructureChangeRequest {
     _id: string;
@@ -64,15 +65,20 @@ export default function ManageStructureRequestsPage() {
     const fetchRequests = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             // Fetch all requests
             const response = await fetch(`${apiUrl}/organization-structure/requests`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
-            if (!response.ok) throw new Error('Failed to fetch requests');
+            if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
+                throw new Error('Failed to fetch requests');
+            }
 
             const data = await response.json();
             setRequests(data);
@@ -87,14 +93,11 @@ export default function ManageStructureRequestsPage() {
 
     const handleApprove = async (id: string) => {
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/requests/${id}/approve`, {
                 method: 'POST', // Controller Uses POST for approve
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             if (!response.ok) throw new Error('Failed to approve request');
@@ -116,15 +119,14 @@ export default function ManageStructureRequestsPage() {
 
     const handleReject = async (id: string, reason: string) => {
         try {
-            const token = localStorage.getItem('access_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
 
             const response = await fetch(`${apiUrl}/organization-structure/requests/${id}/reject`, {
                 method: 'POST', // Controller Uses POST for reject
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ comment: reason }) // API uses `comment` in body
             });
 

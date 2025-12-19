@@ -44,6 +44,12 @@ export class AuthController {
     response.cookie('candidateId', candidateId, {
       secure: true,
       sameSite: 'none',
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+    });
+
+    response.cookie('user_roles', JSON.stringify(['Job Candidate']), {
+      secure: true,
+      sameSite: 'none',
     });
 
     return {

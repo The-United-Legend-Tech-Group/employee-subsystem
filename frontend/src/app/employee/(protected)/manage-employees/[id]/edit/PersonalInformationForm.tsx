@@ -59,7 +59,7 @@ export default function PersonalInformationForm({ formData, handleChange, handle
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>Date of Birth</Typography>
                     <DatePicker
                         value={formData.dateOfBirth}
-                        onChange={(newValue) => handleDateChange('dateOfBirth', newValue)}
+                        onChange={(newValue) => handleDateChange('dateOfBirth', newValue as Dayjs | null)}
                         slotProps={{ textField: { fullWidth: true, variant: 'outlined', size: 'small' } }}
                     />
                 </Grid>

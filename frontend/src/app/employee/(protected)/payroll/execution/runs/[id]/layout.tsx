@@ -35,24 +35,21 @@ export default function PayrollRunLayout({
       href: `/employee/payroll/execution/runs/${payrollId}/draft`,
       icon: FileEdit,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/draft`,
-      specialistOnly: false
+        pathname === `/employee/payroll/execution/runs/${payrollId}/draft`
     },
     {
       name: 'Exceptions',
       href: `/employee/payroll/execution/runs/${payrollId}/exceptions`,
       icon: AlertTriangle,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/exceptions`,
-      specialistOnly: false
+        pathname === `/employee/payroll/execution/runs/${payrollId}/exceptions`
     },
     {
       name: 'Review & Approval',
       href: `/employee/payroll/execution/runs/${payrollId}/review`,
       icon: FileText,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/review`,
-      specialistOnly: false
+        pathname === `/employee/payroll/execution/runs/${payrollId}/review`
     },
     {
       name: 'Payslips',
@@ -68,19 +65,16 @@ export default function PayrollRunLayout({
       icon: LockIcon,
       current:
         pathname === `/employee/payroll/execution/runs/${payrollId}/controls`,
-      managerOnly: true,
-      specialistOnly: false
+      managerOnly: true
     }
   ];
 
   // Filter tabs based on role
   const tabs = allTabs.filter((tab) => {
-    if (tab.specialistOnly && role !== 'Payroll Specialist') return false;
     if (tab.managerOnly && role !== 'Payroll Manager') return false;
     return true;
   });
 
-  console.log(role);
   return (
     <div>
       {/* Navigation */}

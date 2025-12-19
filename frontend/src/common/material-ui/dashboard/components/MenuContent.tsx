@@ -49,7 +49,7 @@ export const mainListItems: MenuItem[] = [
     icon: <CalendarMonthRoundedIcon />,
     path: "/employee/calendar",
   },
-  { text: "Team", icon: <PeopleRoundedIcon />, path: "/employee/team", roles: ["department head"] },
+  { text: "Manager Hub", icon: <PeopleRoundedIcon />, path: "/employee/team", roles: ["department head"] },
   {
     text: "Time Management",
     icon: <AccessTimeRoundedIcon />,
@@ -255,7 +255,7 @@ export default function MenuContent() {
 
   const isSelected = (text: string) => {
     if (text === 'Home' && (pathname === '/employee/dashboard' || pathname === '/candidate/dashboard')) return true;
-    if (text === 'Team' && pathname === '/employee/team') return true;
+    if (text === 'Manager Hub' && pathname === '/employee/team') return true;
     if (text === 'Analytics' && pathname === '/employee/analytics') return true;
     if (text === 'Settings' && pathname === '/employee/settings') return true;
     if (text === 'Calendar' && pathname === '/employee/calendar') return true;
@@ -314,7 +314,7 @@ export default function MenuContent() {
         router.push("/employee/dashboard");
       }
     }
-    if (text === 'Team') router.push('/employee/team');
+    if (text === 'Manager Hub') router.push('/employee/team');
     if (text === 'Analytics') router.push('/employee/analytics');
     if (text === 'Settings') router.push('/employee/settings');
     if (text === 'Calendar') router.push('/employee/calendar');

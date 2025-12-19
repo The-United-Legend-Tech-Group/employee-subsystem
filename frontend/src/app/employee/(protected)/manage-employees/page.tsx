@@ -29,6 +29,7 @@ import {
     GridEventListener,
     gridClasses,
 } from '@mui/x-data-grid';
+import { logout } from '@/lib/auth-utils';
 
 import PageContainer from '../../../../common/material-ui/crud-dashboard/components/PageContainer';
 import DialogsProvider from '../../../../common/material-ui/crud-dashboard/hooks/useDialogs/DialogsProvider';
@@ -126,12 +127,6 @@ function EmployeeListContent() {
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                router.push('/employee/login');
-                return;
-            }
-
             const queryPage = paginationModel.page + 1; // Backend is 1-indexed
             let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000'}/employee?page=${queryPage}&limit=${paginationModel.pageSize}`;
 
@@ -140,12 +135,14 @@ function EmployeeListContent() {
             }
 
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout('/employee/login');
+                    return;
+                }
                 throw new Error('Failed to fetch employees');
             }
 

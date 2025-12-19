@@ -9,6 +9,7 @@ import { CreateTerminationBenefitsDto } from '../dto/createTerminationBenefitsDt
 import { UpdateTerminationBenefitsDto } from '../dto/updateTerminationBenefitsDto';
 import { UpdateStatusDto } from '../dto/update-status.dto';
 import { ConfigStatus } from '../enums/payroll-configuration-enums';
+import { PaginationQueryDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class TerminationBenefitService {
@@ -28,8 +29,61 @@ export class TerminationBenefitService {
     return this.repository.create(data as any);
   }
 
-  async findAll(): Promise<terminationAndResignationBenefitsDocument[]> {
-    return this.repository.findAll();
+  async findAll(): Promise<terminationAndResignationBenefitsDocument[]>;
+  async findAll(query: PaginationQueryDto): Promise<{
+    data: terminationAndResignationBenefitsDocument[];
+    total: number;
+    page: number;
+    lastPage: number;
+  }>;
+  async findAll(query?: PaginationQueryDto): Promise<
+    | terminationAndResignationBenefitsDocument[]
+    | {
+      data: terminationAndResignationBenefitsDocument[];
+      total: number;
+      page: number;
+      lastPage: number;
+    }
+  > {
+    if (!query || Object.keys(query).length === 0) {
+      return this.repository.findAll();
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+    } = query;
+
+    const filter: any = {};
+    if (status) {
+      filter.status = status;
+    }
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.repository.getModel()
+        .find(filter)
+        .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.repository.getModel().countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 
   async findById(
@@ -50,23 +104,30 @@ export class TerminationBenefitService {
     return this.repository.findMany(filter);
   }
 
-  async update(
-    id: string,
-    dto: UpdateTerminationBenefitsDto,
-  ): Promise<terminationAndResignationBenefitsDocument> {
-    const entity = await this.repository.findById(id);
-    if (!entity) {
-      throw new NotFoundException(`object with ID ${id} not found`);
-    }
-    if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
-    }
-    const updated = await this.repository.updateById(id, dto as any);
-    if (!updated) {
-      throw new NotFoundException(`Termination Benefit with ID ${id} not found`);
-    }
-    return updated;
+  // async update(
+  //   id: string,
+  //   dto: UpdateTerminationBenefitsDto,
+  // ): Promise<terminationAndResignationBenefitsDocument> {
+  //       const entity = await this.repository.findById(id);
+  //       if (!entity) {
+  //         throw new NotFoundException(`object with ID ${id} not found`);
+  //       }
+  //       if (entity.status !== ConfigStatus.DRAFT) {
+  //         throw new ForbiddenException('Editing is allowed when status is DRAFT only');
+  //         throw new ForbiddenException('Editing is allowed when status is DRAFT only');
+  //       }
+  //   const updated = await this.repository.updateById(id, dto as any);
+
+  async countPending(): Promise<number> {
+    return this.repository.getModel().countDocuments({ status: ConfigStatus.DRAFT }).exec();
   }
+
+  //   const updated = await this.repository.updateById(id, dto as any);
+  //   if (!updated) {
+  //     throw new NotFoundException(`Termination Benefit with ID ${id} not found`);
+  //   }
+  //   return updated;
+  // }
 
   async updateWithoutStatus(
     id: string,
@@ -120,6 +181,7 @@ export class TerminationBenefitService {
       throw new NotFoundException(`Termination Benefit with ID ${id} not found`);
     }
   }
+
   async sumApprovedBenefits(benefitNames: string[]): Promise<number> {
     if (!benefitNames || benefitNames.length === 0) {
       return 0;
@@ -132,5 +194,4 @@ export class TerminationBenefitService {
 
     return approvedBenefits.reduce((sum, benefit) => sum + (benefit.amount || 0), 0);
   }
-
 }

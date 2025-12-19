@@ -22,6 +22,7 @@ import { TimeMangementModule } from './time-mangement/timemangment.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     // Load configuration with structured config
     ConfigModule.forRoot({
       isGlobal: true,

@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
+import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
@@ -18,6 +19,7 @@ import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
@@ -29,6 +31,7 @@ import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
 import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { SystemRole } from "@/types/auth";
 
 // Type definition for menu items
 export interface MenuItem {
@@ -61,7 +64,11 @@ export const mainListItems: MenuItem[] = [
   { text: 'Manage Employees', icon: <PeopleRoundedIcon />, path: '/employee/manage-employees', roles: ["HR Admin", "HR Manager"] },
   { text: 'Compose Notification', icon: <SendTwoToneIcon />, path: '/employee/compose-notification', roles: ["System Admin", "HR Admin", "HR Manager", "department head"] },
   { text: 'Organization Changes', icon: <AssignmentRoundedIcon />, path: '/employee/manage-structure-requests', roles: ["System Admin", "HR Manager"] },
-
+  {
+    text: "Payroll",
+    icon: <AccountBalanceRoundedIcon />,
+    path: "/employee/payroll",
+  },
 ];
 
 export const performanceSubItems: MenuItem[] = [
@@ -122,7 +129,52 @@ export const performanceSubItems: MenuItem[] = [
     text: "Disputes",
     icon: <ReportProblemRoundedIcon />,
     path: "/employee/performance/disputes",
-    roles: ["HR Employee", "department employee"]
+  },
+];
+
+export const payrollSubItems: MenuItem[] = [
+  {
+    text: "Configuration",
+    icon: <SettingsRoundedIcon />,
+    path: "/employee/payroll/config_setup",
+    roles: ["Payroll Specialist", "Payroll Manager", "System Admin", "Legal & Policy Admin", "HR Manager"],
+  },
+  {
+    text: "Execution",
+    icon: <AccountBalanceRoundedIcon />,
+    path: "/employee/payroll/execution",
+    roles: ["Payroll Specialist", "Payroll Manager", "Finance Staff"],
+  },
+  {
+    text: "Tracking",
+    icon: <VisibilityRoundedIcon />,
+    path: "/employee/payroll/tracking",
+  },
+];
+
+export const trackingSubItems: MenuItem[] = [
+  {
+    text: "Self Service",
+    icon: <VisibilityRoundedIcon />,
+    path: "/employee/payroll/tracking/self-services",
+  },
+  {
+    text: "Specialist Services",
+    icon: <AssignmentRoundedIcon />,
+    path: "/employee/payroll/tracking/specialist-services",
+    roles: ["Payroll Specialist"],
+  },
+  {
+    text: "Manager Services",
+    icon: <AccountBalanceRoundedIcon />,
+    path: "/employee/payroll/tracking/manager-services",
+    roles: ["Payroll Manager"],
+  },
+  {
+    text: "Finance Services",
+    icon: <AccountBalanceRoundedIcon />,
+    path: "/employee/payroll/tracking/finance-services",
+    roles: ["Finance Staff"],
   },
 ];
 
@@ -133,6 +185,8 @@ export const recruitmentSubItems: MenuItem[] = [
   { text: 'HR Manager', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/hr-manager', roles: ['HR Manager'] },
   { text: 'System Admin', icon: <PeopleRoundedIcon />, path: '/employee/recruitment_sub/system-admin', roles: ['System Admin'] },
 ];
+
+
 
 export const candidateRecruitmentSubItems: MenuItem[] = [
   { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/candidate/recruitment_sub' },
@@ -147,13 +201,30 @@ const secondaryListItems = [
 export default function MenuContent() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // State for expandables
+  const [payrollOpen, setPayrollOpen] = useState(false);
+  const [trackingOpen, setTrackingOpen] = useState(false);
   const [performanceOpen, setPerformanceOpen] = useState(false);
+
+  // Hooks
   const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const { roles: userRoles, loading } = useAuth();
 
   const isCandidate = pathname.startsWith("/candidate");
   const isPerformancePath = pathname.startsWith("/employee/performance");
   const isRecruitmentPath = pathname.includes('/recruitment_sub');
+
+  // Auto-expand payroll menu if on any payroll route
+  useEffect(() => {
+    if (pathname.startsWith("/employee/payroll")) {
+      setPayrollOpen(true);
+      // Auto-expand tracking menu if on tracking route
+      if (pathname.startsWith("/employee/payroll/tracking")) {
+        setTrackingOpen(true);
+      }
+    }
+  }, [pathname]);
 
   const visibleListItems = mainListItems.filter((item) => {
     // For candidates, only show the Home button
@@ -162,8 +233,7 @@ export default function MenuContent() {
     }
     // Only apply role-based filtering after roles are loaded
     if (!loading) {
-      // @ts-ignore
-      if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+      if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role as SystemRole))) {
         return false;
       }
     }
@@ -182,6 +252,12 @@ export default function MenuContent() {
     if (text === 'Compose Notification') return pathname === '/employee/compose-notification';
     if (text === 'Organization Changes') return pathname === '/employee/manage-structure-requests';
     if (text === 'Time Management') return pathname === '/employee/time-mangemeant';
+
+    // Payroll Check
+    if (text === "Payroll" && pathname.startsWith("/employee/payroll")) return true;
+    if (text === "Tracking" && pathname.startsWith("/employee/payroll/tracking")) return true;
+
+    // Performance Checks
     if (text === 'Dashboard' && pathname === '/employee/performance/dashboard') return true;
     if (text === 'Performance Templates' && pathname === '/employee/performance/templates') return true;
     if (text === 'Appraisal Cycles' && pathname === '/employee/performance/cycles') return true;
@@ -196,7 +272,23 @@ export default function MenuContent() {
     return false;
   };
 
+  const isTrackingSubItemSelected = (path: string) => {
+    if (!path) return false;
+    // For self-services, check if it's the exact path or starts with it
+    if (path === "/employee/payroll/tracking/self-services") {
+      return pathname === path || pathname.startsWith(path + "/");
+    }
+    // For other services, check if pathname starts with the path
+    return pathname.startsWith(path);
+  };
+
   const handleNavigation = (text: string, path?: string) => {
+    // Special Handler for Payroll Toggle
+    if (text === "Payroll") {
+      setPayrollOpen(!payrollOpen);
+      return;
+    }
+
     if (path) {
       router.push(path);
       return;
@@ -214,7 +306,7 @@ export default function MenuContent() {
     if (text === 'Settings') router.push('/employee/settings');
     if (text === 'Calendar') router.push('/employee/calendar');
     if (text === 'Organization Changes') router.push('/employee/manage-structure-requests');
-    if (text === 'Manage Organization') router.push('/employee/manage-organization'); // Assuming this was already there or handled generally
+    if (text === 'Manage Organization') router.push('/employee/manage-organization');
     if (text === 'Employee Requests') router.push('/employee/manage-requests');
     if (text === 'Manage Employees') router.push('/employee/manage-employees');
     if (text === 'Compose Notification') router.push('/employee/compose-notification');
@@ -224,17 +316,105 @@ export default function MenuContent() {
   return (
     <Stack sx={{ flexGrow: 1, p: 1, justifyContent: "space-between" }}>
       <List dense>
-        {visibleListItems.map((item, index) => (
-          <ListItem key={index} disablePadding sx={{ display: "block" }}>
-            <ListItemButton
-              selected={isSelected(item.text)}
-              onClick={() => handleNavigation(item.text, item.path)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+        {visibleListItems.map((item, index) => {
+          // --- PAYROLL RENDER LOGIC ---
+          if (item.text === "Payroll") {
+            return (
+              <ListItem key={index} disablePadding sx={{ display: "block" }}>
+                <ListItemButton
+                  selected={isSelected(item.text)}
+                  onClick={() => handleNavigation(item.text)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                  {payrollOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </ListItemButton>
+                <Collapse in={payrollOpen} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding dense>
+                    {payrollSubItems.map((subItem, subIndex) => {
+                      // Role check for items with roles
+                      if (!loading) {
+                        if (subItem.roles && subItem.roles.length > 0) {
+                          if (!subItem.roles.some(role => userRoles.includes(role as SystemRole))) {
+                            return null;
+                          }
+                        }
+                      }
+
+                      // Special handling for Tracking - make it expandable
+                      if (subItem.text === "Tracking") {
+                        return (
+                          <Box key={subIndex} component="div">
+                            <ListItemButton
+                              sx={{ pl: 4 }}
+                              selected={isSelected(subItem.text)}
+                              onClick={() => setTrackingOpen(!trackingOpen)}
+                            >
+                              <ListItemIcon>{subItem.icon}</ListItemIcon>
+                              <ListItemText primary={subItem.text} />
+                              {trackingOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            </ListItemButton>
+                            <Collapse in={trackingOpen} timeout="auto" unmountOnExit>
+                              <List component="div" disablePadding dense>
+                                {trackingSubItems.map((trackingItem, trackingIndex) => {
+                                  // Role check for tracking sub-items
+                                  if (!loading) {
+                                    if (trackingItem.roles && trackingItem.roles.length > 0) {
+                                      if (!trackingItem.roles.some(role => userRoles.includes(role as SystemRole))) {
+                                        return null;
+                                      }
+                                    }
+                                  }
+
+                                  return (
+                                    <ListItemButton
+                                      key={trackingIndex}
+                                      sx={{ pl: 6 }}
+                                      selected={isTrackingSubItemSelected(trackingItem.path || "")}
+                                      onClick={() => trackingItem.path && router.push(trackingItem.path)}
+                                    >
+                                      <ListItemIcon>{trackingItem.icon}</ListItemIcon>
+                                      <ListItemText primary={trackingItem.text} />
+                                    </ListItemButton>
+                                  );
+                                })}
+                              </List>
+                            </Collapse>
+                          </Box>
+                        );
+                      }
+
+                      // Regular sub-items (Configuration, Execution)
+                      return (
+                        <ListItemButton
+                          key={subIndex}
+                          sx={{ pl: 4 }}
+                          selected={pathname === subItem.path}
+                          onClick={() => subItem.path && router.push(subItem.path)}
+                        >
+                          <ListItemIcon>{subItem.icon}</ListItemIcon>
+                          <ListItemText primary={subItem.text} />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </ListItem>
+            );
+          }
+
+          return (
+            <ListItem key={index} disablePadding sx={{ display: "block" }}>
+              <ListItemButton
+                selected={isSelected(item.text)}
+                onClick={() => handleNavigation(item.text, item.path)}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          )
+        })}
 
         {/* Performance Dropdown - Only show for employees, not candidates */}
         {!isCandidate && (
@@ -257,8 +437,7 @@ export default function MenuContent() {
                 {performanceSubItems.map((item, index) => {
                   // Only apply role-based filtering after roles are loaded
                   if (!loading) {
-                    // @ts-ignore
-                    if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role))) {
+                    if (item.roles && item.roles.length > 0 && !item.roles.some((role) => userRoles.includes(role as SystemRole))) {
                       return null;
                     }
                   }

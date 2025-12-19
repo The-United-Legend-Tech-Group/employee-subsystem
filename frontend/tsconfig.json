@@ -13,7 +13,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -24,9 +24,11 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/payroll/components/*": ["./src/app/employee/(protected)/payroll/execution/_components/*"],
+      "@/payroll/libs/*": ["./src/app/employee/(protected)/payroll/execution/_libs/*"],
+      "@/payroll/hooks/*": ["./src/app/employee/(protected)/payroll/execution/_hooks/*"],
+      "@/payroll/types/*": ["./src/app/employee/(protected)/payroll/execution/_types/*"],
     }
   },
   "include": [

@@ -228,7 +228,10 @@ export class OrganizationStructureController {
 
   @Get('departments')
   @UseGuards(AuthGuard, authorizationGuard)
-  @Roles(SystemRole.SYSTEM_ADMIN)
+  @Roles(
+    SystemRole.SYSTEM_ADMIN,
+    SystemRole.PAYROLL_SPECIALIST,
+  )
   @ApiOperation({ summary: 'List departments' })
   @ApiResponse({
     status: 200,

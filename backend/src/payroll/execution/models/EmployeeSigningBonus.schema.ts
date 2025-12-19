@@ -23,8 +23,8 @@ export class employeeSigningBonus {
   })
   signingBonusId: mongoose.Types.ObjectId;
 
-  @Prop({required: true})
-    givenAmount:number; // for sake of editing signingBonus amount manually given to this employee
+  @Prop({ required: true })
+  givenAmount: number; // for sake of editing signingBonus amount manually given to this employee
 
   @Prop({ type: Date })
   paymentDate?: Date;

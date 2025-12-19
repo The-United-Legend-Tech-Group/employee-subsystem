@@ -9,8 +9,4 @@ export class RejectPayrollDto {
   @IsNotEmpty()
   @MinLength(10)
   rejectionReason: string;
-
-  @IsMongoId()
-  @IsNotEmpty()
-  rejectedBy: string; // manager or finance staff ID
 }

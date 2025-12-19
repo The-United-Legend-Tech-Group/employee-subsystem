@@ -1,3 +1,5 @@
+# backup files
+/backups
 # Nestjs specific
 /dist
 /node_modules

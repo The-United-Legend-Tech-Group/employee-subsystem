@@ -21,7 +21,7 @@ export class authorizationGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectModel(EmployeeSystemRole.name)
     private employeeSystemRoleModel: Model<EmployeeSystemRole>,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(

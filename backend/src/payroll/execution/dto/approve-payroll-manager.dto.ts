@@ -4,8 +4,4 @@ export class ApprovePayrollManagerDto {
   @IsMongoId()
   @IsNotEmpty()
   payrollRunId: string;
-
-  @IsMongoId()
-  @IsNotEmpty()
-  managerId: string;
 }

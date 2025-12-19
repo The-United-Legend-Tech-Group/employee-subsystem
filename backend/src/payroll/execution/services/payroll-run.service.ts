@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+
 import { payrollRuns, payrollRunsDocument } from '../models/payrollRuns.schema';
 import { GenerateDraftDto } from '../dto/generateDraft.dto';
+
+import {
+  employeePayrollDetails,
+  employeePayrollDetailsDocument,
+} from '../models/employeePayrollDetails.schema';
+
 import { PayrollEventsService } from './payroll-events.service';
 import { PayrollCalculationService } from './payroll-calculation.service';
 import { PayrollExceptionsService } from './payroll-exceptions.service';
-import { PayslipService } from './payslip.service';
+
 import {
   PayRollStatus,
   PayRollPaymentStatus,
@@ -17,121 +24,147 @@ export class PayrollRunService {
   constructor(
     @InjectModel(payrollRuns.name)
     private payrollRunModel: Model<payrollRunsDocument>,
+
+    @InjectModel(employeePayrollDetails.name)
+    private readonly employeePayrollDetailsModel: Model<employeePayrollDetailsDocument>,
+
     private readonly payrollEventsService: PayrollEventsService,
     private readonly payrollCalculationService: PayrollCalculationService,
     private readonly payrollExceptionsService: PayrollExceptionsService,
-    private readonly payslipService: PayslipService,
-  ) {}
+  ) { }
 
   async generateDraft(dto: GenerateDraftDto) {
-    // Get all active employees
+    const payrollPeriod = new Date(dto.payrollPeriod);
+
     const employees = await this.payrollEventsService.getEmployeesForPayroll();
 
-    // If specific employees are selected
-    let selected = employees;
-    if (dto.employeeIds?.length) {
-      const ids = dto.employeeIds.map((i) => i.toString());
-      selected = employees.filter((e: any) => ids.includes(e._id.toString()));
-    }
+    const selected = dto.employeeIds?.length
+      ? employees.filter((e) => dto.employeeIds!.includes(e._id.toString()))
+      : employees;
 
     if (!selected.length) {
-      return { message: 'No employees found for payroll generation' };
+      return {
+        message: 'No employees found for payroll generation',
+        employees: [],
+      };
     }
 
     const now = new Date();
-    const runId = `PR-${now.getFullYear()}-${String(now.getTime()).slice(-6)}`;
+    // More unique + readable runId (safe for multiple runs in same month)
+    const runId = `PR-${now.getFullYear()}-${String(
+      now.getMonth() + 1,
+    ).padStart(2, '0')}-${now.getTime()}`;
 
     const payrollRun = await this.payrollRunModel.create({
       runId,
-      payrollPeriod: new Date(dto.payrollPeriod),
+      payrollPeriod,
       status: PayRollStatus.DRAFT,
       entity: dto.entity,
       employees: selected.length,
       exceptions: 0,
       totalnetpay: 0,
-      payrollSpecialistId: new Types.ObjectId(),
       paymentStatus: PayRollPaymentStatus.PENDING,
+      payrollSpecialistId: new Types.ObjectId(), // TODO: from auth
+      payrollManagerId: new Types.ObjectId(), // TODO: assignment workflow
     } as any);
 
     let exceptionsCount = 0;
     let totalNet = 0;
 
-    for (const employee of selected) {
-      // Collect penalties and bonuses from Events Service
-      const penaltiesDoc = await this.payrollEventsService.getEmployeePenalties(
-        employee._id,
+    const employeesPayload: any[] = [];
+
+    for (const emp of selected) {
+      const employeeId = emp._id;
+
+      const hrEvents = await this.payrollEventsService.getEmployeeHREvents(
+        employeeId,
+        payrollPeriod,
       );
 
-      const employeePayload = {
-        employeeId: employee._id.toString(),
-      };
-
-      // Run salary calculation (YOUR REAL IMPLEMENTATION)
       const result =
-        await this.payrollCalculationService.calculateSalary(employeePayload);
+        await this.payrollCalculationService.calculateEmployeeSalary(
+          employeeId.toString(),
+          payrollPeriod,
+        );
 
-      // result = { employeeDetails }
-      const details = result.employeeDetails;
+      const details: any = result.employeeDetails;
 
-      const ex = await this.payrollExceptionsService.detectExceptions({
-        employeeId: employee._id,
+      const computedGross =
+        Number(details.baseSalary ?? 0) +
+        Number(details.allowances ?? 0) +
+        Number(details.bonus ?? 0) +
+        Number(details.benefit ?? 0);
+
+      const exFlags = await this.payrollExceptionsService.detectExceptions({
+        employeeId: details.employeeId ?? employeeId,
         bankStatus: details.bankStatus,
-        netPay: details.netPay,
-        payGradeId: (employee as any).payGradeId,
-      });
-
-      if (ex?.length) exceptionsCount += ex.length;
-
-      totalNet += details.netPay;
-
-      // Save payroll record
-      await this.payrollCalculationService.saveEmployeePayrollRecord({
-        employeeId: details.employeeId,
         baseSalary: details.baseSalary,
-        allowances: details.allowances ?? 0,
-        deductions: details.deductions,
+        grossSalary: computedGross,
         netSalary: details.netSalary,
         netPay: details.netPay,
-        bankStatus: details.bankStatus,
-        payrollRunId: payrollRun._id,
-        exceptions: ex?.join('; ') ?? '',
+        payGradeFound: details.payGradeFound,
+        hrEvents,
+        bonus: details.bonus,
+        benefit: details.benefit,
       });
 
-      // Create payslip (safe)
-      try {
-        await this.payslipService.createPayslip({
-          employeeId: details.employeeId,
-          payrollRunId: payrollRun._id,
-          earningsDetails: {
-            baseSalary: details.baseSalary,
-            allowances: [],
-          },
-          deductionsDetails: {
-            taxes: [], // your calculateSalary() does not return a breakdown
-            insurances: [],
-            penalties: penaltiesDoc?.penalties ?? undefined,
-          },
-          totaDeductions: details.deductions,
-          totalGrossSalary: details.baseSalary, // no gross returned in your service
-          netPay: details.netPay,
-        });
-      } catch (err) {
-        // ignore payslip errors in draft mode
-      }
+      const hasExceptions = (exFlags?.length ?? 0) > 0;
+
+      exceptionsCount += exFlags?.length ?? 0;
+      totalNet += Number(details.netPay ?? 0);
+
+      // Save only schema-safe fields
+      await this.payrollCalculationService.saveEmployeePayrollRecord({
+        employeeId: details.employeeId ?? employeeId,
+        baseSalary: Number(details.baseSalary ?? 0),
+        allowances: Number(details.allowances ?? 0),
+        deductions: Number(details.deductions ?? 0),
+        netSalary: Number(details.netSalary ?? 0),
+        netPay: Number(details.netPay ?? 0),
+        bankStatus: details.bankStatus,
+        payrollRunId: payrollRun._id,
+        exceptions: hasExceptions
+          ? exFlags.map((e: any) => e.message).join('; ')
+          : '',
+        bonus: Number(details.bonus ?? 0),
+        benefit: Number(details.benefit ?? 0),
+      });
+
+      employeesPayload.push({
+        employeeId: String(details.employeeId ?? employeeId),
+        payrollRunId: String(payrollRun._id),
+
+        baseSalary: Number(details.baseSalary ?? 0),
+        allowances: Number(details.allowances ?? 0),
+        deductions: Number(details.deductions ?? 0),
+        bonus: Number(details.bonus ?? 0),
+        benefit: Number(details.benefit ?? 0),
+
+        grossSalary: computedGross,
+        netSalary: Number(details.netSalary ?? 0),
+        netPay: Number(details.netPay ?? 0),
+
+        bankStatus: details.bankStatus ?? null,
+
+        hrEvents,
+        exceptionsFlags: exFlags ?? [],
+        hasExceptions,
+
+      });
     }
 
-    // Update run totals
     payrollRun.exceptions = exceptionsCount;
     payrollRun.totalnetpay = Number(totalNet.toFixed(2));
-    payrollRun.status =
-      exceptionsCount > 0 ? PayRollStatus.UNDER_REVIEW : PayRollStatus.DRAFT;
+    payrollRun.status = PayRollStatus.DRAFT;
 
     await payrollRun.save();
 
     return {
       runId: payrollRun.runId,
       payrollRunId: payrollRun._id,
-      employees: selected.length,
+      payrollPeriod,
+      employeesCount: selected.length,
+      employees: employeesPayload,
       exceptions: exceptionsCount,
       totalNetPay: payrollRun.totalnetpay,
       status: payrollRun.status,
@@ -144,5 +177,11 @@ export class PayrollRunService {
 
   async getPayrollRunById(id: string) {
     return this.payrollRunModel.findById(id).lean().exec();
+  }
+
+  async getRunEmployees(runId: string, onlyExceptions?: boolean) {
+    const filter: any = { payrollRunId: runId };
+    if (onlyExceptions) filter.exceptions = { $ne: '' };
+    return this.employeePayrollDetailsModel.find(filter).lean().exec();
   }
 }

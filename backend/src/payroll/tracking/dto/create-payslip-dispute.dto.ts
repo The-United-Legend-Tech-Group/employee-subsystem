@@ -12,7 +12,8 @@ export class RequestedAdjustmentDto {
 
 export class CreatePayslipDisputeDto {
   @IsString()
-  dispute_id: string;
+  @IsOptional()
+  dispute_id?: string;
 
   @IsMongoId()
   payslip_id: string;

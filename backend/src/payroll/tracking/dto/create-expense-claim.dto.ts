@@ -1,4 +1,4 @@
-import { IsString, IsNumber, Min } from 'class-validator';
+import { IsString, IsNumber, Min, IsOptional } from 'class-validator';
 
 /**
  * DTO for creating expense reimbursement claims
@@ -11,7 +11,8 @@ import { IsString, IsNumber, Min } from 'class-validator';
  */
 export class CreateExpenseClaimDto {
   @IsString()
-  claim_id: string; // Unique claim identifier (e.g., CLAIM-0001)
+  @IsOptional()
+  claim_id?: string; // Unique claim identifier (e.g., CLAIM-0001) - auto-generated if not provided
 
   @IsString()
   description: string; // Description of the expense being claimed

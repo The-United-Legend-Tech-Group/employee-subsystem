@@ -190,7 +190,10 @@ export default function PayslipDetailPage() {
       );
     }, 0) || 0;
 
-  const totalPenalties = payslip.deductionsDetails.penalties?.amount || 0;
+  const totalPenalties =
+    (typeof payslip.deductionsDetails.penalties === 'number'
+      ? payslip.deductionsDetails.penalties
+      : (payslip.deductionsDetails.penalties as any)?.amount) || 0;
 
   return (
     <div>
@@ -562,8 +565,10 @@ export default function PayslipDetailPage() {
                 </div>
                 <div className="flex items-center justify-between py-1 pl-4">
                   <span className="text-sm">
-                    {payslip.deductionsDetails.penalties.reason ||
-                      'Employee Penalty'}
+                    {typeof payslip.deductionsDetails.penalties === 'number'
+                      ? 'Employee Penalty'
+                      : ((payslip.deductionsDetails.penalties as any)?.reason ||
+                          'Employee Penalty')}
                   </span>
                   <span className="text-sm font-semibold text-red-600">
                     -$

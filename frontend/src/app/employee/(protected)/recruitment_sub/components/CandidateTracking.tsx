@@ -181,10 +181,10 @@ export function CandidateTracking() {
         const next = new Map(prev);
         const existing = next.get(candidateKey) || [];
         // Prevent accidental duplicates by checking referring employee id or referral _id
-        const newRef = { ...newReferral.data, referringEmployeeId: employee };
+        const newRef = { ...(newReferral?.data ?? {}), referringEmployeeId: employee } as any;
         const already = existing.some((r: any) => {
           const a = r._id ? r._id.toString() : null;
-          const b = newRef._id ? newRef._id.toString() : null;
+          const b = (newRef as any)._id ? (newRef as any)._id.toString() : null;
           if (a && b) return a === b;
           const ra = r.referringEmployeeId?._id || r.referringEmployeeId;
           const rb = newRef.referringEmployeeId?._id || newRef.referringEmployeeId;

@@ -32,7 +32,13 @@ interface Contract {
     role?: string;
     salaryOffered?: number;
     bonus?: number;
-    candidateId?: string;
+    candidateId?: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      fullName?: string;
+      candidateNumber?: string;
+    };
   };
   grossSalary: number;
   signingBonus?: number;
@@ -195,6 +201,11 @@ export default function HRContracts() {
                       <Typography variant="h6" fontWeight={500}>
                         {contract.role}
                       </Typography>
+                      {contract.offerId?.candidateId && (
+                        <Typography variant="subtitle2" color="primary" sx={{ mb: 0.5 }}>
+                          Candidate: {contract.offerId.candidateId.fullName || `${contract.offerId.candidateId.firstName} ${contract.offerId.candidateId.lastName}`} ({contract.offerId.candidateId.candidateNumber})
+                        </Typography>
+                      )}
                       <Stack spacing={0.5}>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           <strong>Gross Salary:</strong> ${contract.grossSalary?.toLocaleString() || 'N/A'}
@@ -331,6 +342,17 @@ export default function HRContracts() {
                 <Typography variant="body2" color="text.secondary">
                   Review and sign the contract for <strong>{selectedContract.role}</strong>
                 </Typography>
+
+                {selectedContract.offerId?.candidateId && (
+                  <Box sx={{ bgcolor: 'secondary.50', p: 1.5, borderRadius: 1, border: 1, borderColor: 'secondary.100' }}>
+                    <Typography variant="body2">
+                      <strong>Candidate:</strong> {selectedContract.offerId.candidateId.fullName || `${selectedContract.offerId.candidateId.firstName} ${selectedContract.offerId.candidateId.lastName}`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Candidate Number: {selectedContract.offerId.candidateId.candidateNumber}
+                    </Typography>
+                  </Box>
+                )}
 
                 {/* Contract Summary */}
                 <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1, p: 2, color: 'text.primary' }}>

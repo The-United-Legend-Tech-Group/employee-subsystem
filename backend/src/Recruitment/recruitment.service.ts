@@ -36,10 +36,9 @@ import { JobRequisitionDocument } from './models/job-requisition.schema';
 import { ApplicationDocument } from './models/application.schema';
 
 import { InterviewDocument } from './models/interview.schema';
-//import { EmployeeProfileDocument } from '../employee-subsystem/employee/models/employee-profile.schema';
 import { ReferralDocument } from './models/referral.schema';
 import { OfferDocument } from './models/offer.schema';
-import { ContractDocument } from './models/contract.schema';
+//import { ContractDocument } from './models/contract.schema';
 
 import { NotificationService } from '../employee-subsystem/notification/notification.service';
 import { ApplicationStage } from './enums/application-stage.enum';
@@ -2726,12 +2725,42 @@ export class RecruitmentService {
   }
 
   // Get all contracts
-  async getAllContracts(): Promise<ContractDocument[]> {
-    return await this.contractRepository.findAllWithOffer();
+  async getAllContracts(): Promise<any[]> {
+    const contracts = await this.contractRepository.findAllWithOffer();
+
+    return await Promise.all(contracts.map(async (contract) => {
+      const contractObj = contract.toObject ? contract.toObject() : contract;
+
+      // If offerId is populated and has a candidateId, ensure candidate details are present
+      if (contractObj.offerId && (contractObj.offerId as any).candidateId) {
+        const candidateId = (contractObj.offerId as any).candidateId;
+
+        // If candidateId is just an ID (string/ObjectId), fetch the candidate details manually
+        if (typeof candidateId === 'string' || mongoose.Types.ObjectId.isValid(candidateId)) {
+          try {
+            const candidate = await this.candidateRepository.findById(candidateId.toString());
+            if (candidate) {
+              const candidateObj = candidate.toObject ? candidate.toObject() : candidate;
+              (contractObj.offerId as any).candidateId = {
+                _id: candidateObj._id,
+                firstName: candidateObj.firstName,
+                lastName: candidateObj.lastName,
+                fullName: candidateObj.fullName,
+                candidateNumber: candidateObj.candidateNumber
+              };
+            }
+          } catch (e) {
+            console.warn(`Failed to manually populate candidate ${candidateId} for contract ${contractObj._id}`, e);
+          }
+        }
+      }
+
+      return contractObj;
+    }));
   }
 
   // Get contracts by candidate ID
-  async getContractsByCandidateId(candidateId: string): Promise<ContractDocument[]> {
+  async getContractsByCandidateId(candidateId: string): Promise<any[]> {
     // First, find all offers for this candidate
     const offers = await this.offerRepository.find({ candidateId: new mongoose.Types.ObjectId(candidateId) });
 
@@ -2743,7 +2772,45 @@ export class RecruitmentService {
     const offerIds = offers.map(offer => offer._id);
 
     // Find all contracts that reference these offers
-    return await this.contractRepository.findByOfferIds(offerIds);
+    const contracts = await this.contractRepository.findByOfferIds(offerIds as any[]);
+
+    // Manually add candidate details to each contract's offer
+    return await Promise.all(contracts.map(async (contract) => {
+      const contractObj = contract.toObject ? contract.toObject() : contract;
+
+      // Populate offerId if it's just an ID
+      if (contractObj.offerId && (typeof contractObj.offerId === 'string' || mongoose.Types.ObjectId.isValid(contractObj.offerId as any))) {
+        try {
+          const offer = await this.offerRepository.findById(contractObj.offerId.toString());
+          if (offer) {
+            (contractObj as any).offerId = offer.toObject ? offer.toObject() : offer;
+          }
+        } catch (e) {
+          console.warn(`Failed to populate offer details for contract ${contractObj._id}`, e);
+        }
+      }
+
+      if (contractObj.offerId && (contractObj.offerId as any).candidateId) {
+        try {
+          // Since we know the candidateId (it's what we searched by), we can use it or fetch full details
+          const candidate = await this.candidateRepository.findById(candidateId);
+          if (candidate) {
+            const candidateObj = candidate.toObject ? candidate.toObject() : candidate;
+            (contractObj.offerId as any).candidateId = {
+              _id: candidateObj._id,
+              firstName: candidateObj.firstName,
+              lastName: candidateObj.lastName,
+              fullName: candidateObj.fullName,
+              candidateNumber: candidateObj.candidateNumber
+            };
+          }
+        } catch (e) {
+          console.warn(`Failed to populate candidate details for contract ${contractObj._id}`, e);
+        }
+      }
+
+      return contractObj;
+    }));
   }
 
   // Get offers where I am an approver

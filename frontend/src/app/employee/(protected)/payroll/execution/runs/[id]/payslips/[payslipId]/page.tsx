@@ -26,10 +26,11 @@ import {
   getErrorMessage
 } from '@/payroll/libs/api';
 import type { PaySlip, EmployeeInfo, PayrollRun } from '@/payroll/libs/types';
+import { getCookie } from '@/lib/auth-utils';
 
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || '';
-  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {

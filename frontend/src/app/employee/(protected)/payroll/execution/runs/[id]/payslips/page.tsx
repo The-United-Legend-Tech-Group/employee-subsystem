@@ -25,7 +25,6 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/payroll/hooks/use-toast';
-import { useUser } from '@/payroll/libs/user-context';
 import {
   getPayrollPreview,
   getAllPayslipsForRun,
@@ -33,12 +32,21 @@ import {
   getErrorMessage
 } from '@/payroll/libs/api';
 import type { PayrollRun, PaySlip, EmployeeInfo } from '@/payroll/libs/types';
+import { getCookie } from '@/lib/auth-utils';
+import { hasRole } from '@/lib/auth-utils';
+
+function getAccessToken(): string {
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
+}
 
 export default function PayrollPayslipsPage() {
   const params = useParams();
   const router = useRouter();
   const payrollId = params.id as string;
-  const { role } = useUser();
+
+  const isSpecialist = hasRole('Payroll Specialist');
+  const isManager = hasRole('Payroll Manager');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [payroll, setPayroll] = useState<PayrollRun | null>(null);
@@ -176,28 +184,27 @@ export default function PayrollPayslipsPage() {
       {/* Header with Action Button */}
       <div className="flex justify-between items-center mb-6">
         <div></div>
-        {(role === 'Payroll Specialist' || role === 'Payroll Manager') &&
-          payroll.status === 'approved' && (
-            <Button
-              onClick={handleGeneratePayslips}
-              disabled={generating}
-              size="lg"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {payslips.length === 0 ? 'Generating...' : 'Sending...'}
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  {payslips.length === 0
-                    ? 'Generate & Email All'
-                    : 'Send Emails'}
-                </>
-              )}
-            </Button>
-          )}
+        {(isSpecialist || isManager) && payroll.status === 'approved' && (
+          <Button
+            onClick={handleGeneratePayslips}
+            disabled={generating}
+            size="lg"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {payslips.length === 0 ? 'Generating...' : 'Sending...'}
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                {payslips.length === 0
+                  ? 'Generate & Email All'
+                  : 'Send Emails'}
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -334,4 +341,18 @@ export default function PayrollPayslipsPage() {
       )}
     </div>
   );
+}
+
+function getAuthConfig() {
+  const token = getAccessToken();
+
+  // Don't throw - cookies may still be valid via withCredentials
+  if (!token) {
+    console.log('[PayrollPayslipsPage] No token found - relying on httpOnly cookies');
+  }
+
+  return {
+    withCredentials: true, // Primary: send httpOnly cookies
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  } as const;
 }

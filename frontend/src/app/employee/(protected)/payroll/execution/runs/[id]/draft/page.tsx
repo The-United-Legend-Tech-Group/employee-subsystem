@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
+import { getCookie } from '@/lib/auth-utils';
 
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || '';
-  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {

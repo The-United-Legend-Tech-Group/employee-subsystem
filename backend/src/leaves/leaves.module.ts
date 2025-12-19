@@ -79,7 +79,7 @@ import { ExecutionModule } from '../payroll/execution/execution.module';
     NotificationModule,
     OrganizationStructureModule,
     // Import payroll execution to enable real-time penalty recording
-    ExecutionModule,
+    forwardRef(() => ExecutionModule),
   ],
   controllers: [
     LeavesPolicyController,

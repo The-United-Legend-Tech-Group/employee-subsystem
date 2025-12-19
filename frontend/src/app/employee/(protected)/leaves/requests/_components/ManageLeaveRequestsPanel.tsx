@@ -15,6 +15,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { apiService } from '../../../../../../common/services/api';
+import { getEmployeeIdFromCookie } from '@/lib/auth-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -83,15 +84,7 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
   };
 
   function getCurrentEmployeeId() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    if (!token) return null;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.sub || payload.employeeId || payload.userId || null;
-    } catch (err) {
-      console.error('Failed to decode token:', err);
-      return null;
-    }
+    return getEmployeeIdFromCookie();
   }
 
   async function handleModifySubmit(e: React.FormEvent) {
@@ -112,8 +105,6 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
 
     setModifyLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-
       const payload: any = {};
       if (modifyForm.fromDate && modifyForm.toDate) {
         payload.dates = {
@@ -130,7 +121,6 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -178,13 +168,9 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
 
     setCancelLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-
       const res = await fetch(`${API_BASE}/leaves/cancel/${cancelId}`, {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: undefined,
         credentials: 'include',
       });
 
@@ -234,8 +220,6 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
 
     setAttachmentLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-
       let documentUrl = null;
 
       if (attachmentFile) {
@@ -253,7 +237,6 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(uploadPayload),
@@ -283,7 +266,6 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: 'include',
           body: JSON.stringify(modifyPayload),
@@ -322,17 +304,12 @@ export default function ManageLeaveRequestsPanel({ onRequestModified }: ManageLe
     if (!API_BASE) return;
     setRequestsLoading(true);
     setRequestsError(null);
-    const token = localStorage.getItem('access_token');
     try {
-      const commonHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
-
       const [allRes, pendingRes] = await Promise.all([
         fetch(`${API_BASE}/leaves/my-requests`, {
-          headers: commonHeaders,
           credentials: 'include',
         }),
         fetch(`${API_BASE}/leaves/my-pending-requests`, {
-          headers: commonHeaders,
           credentials: 'include',
         }),
       ]);

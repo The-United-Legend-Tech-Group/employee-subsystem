@@ -37,6 +37,7 @@ import {
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { apiService } from '@/common/services/api';
+import { getEmployeeIdFromCookie } from '@/lib/auth-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -84,15 +85,7 @@ function getEmployeeProfile(employee: any): any | null {
 }
 
 function getCurrentUserId() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.employeeId || payload.userId || null;
-  } catch (err) {
-    console.error('Failed to decode token:', err);
-    return null;
-  }
+  return getEmployeeIdFromCookie();
 }
 
 function formatDate(value: any): string {
@@ -133,9 +126,7 @@ export default function HRLeaveRequestsManager() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/hr/all-requests`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 
@@ -186,7 +177,6 @@ export default function HRLeaveRequestsManager() {
     if (!finalizeDialog.requestId) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -194,7 +184,6 @@ export default function HRLeaveRequestsManager() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -224,7 +213,6 @@ export default function HRLeaveRequestsManager() {
     }
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -232,7 +220,6 @@ export default function HRLeaveRequestsManager() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -261,7 +248,6 @@ export default function HRLeaveRequestsManager() {
     if (!verifyDialog.requestId) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -269,7 +255,6 @@ export default function HRLeaveRequestsManager() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -297,7 +282,6 @@ export default function HRLeaveRequestsManager() {
   const handleHrApproveNormal = async (requestId: string) => {
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -305,7 +289,6 @@ export default function HRLeaveRequestsManager() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({ hrUserId }),
@@ -327,7 +310,6 @@ export default function HRLeaveRequestsManager() {
   const handleHrRejectNormal = async (requestId: string) => {
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -335,7 +317,6 @@ export default function HRLeaveRequestsManager() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({ hrUserId }),
@@ -358,11 +339,9 @@ export default function HRLeaveRequestsManager() {
     if (!API_BASE || !request.attachmentId) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(
         `${API_BASE}/leaves/attachments/${request.attachmentId}`,
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         },
       );
@@ -397,7 +376,6 @@ export default function HRLeaveRequestsManager() {
     }
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const hrUserId = getCurrentUserId();
       if (!hrUserId) throw new Error('Unable to identify HR user');
 
@@ -405,7 +383,6 @@ export default function HRLeaveRequestsManager() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -436,12 +413,9 @@ export default function HRLeaveRequestsManager() {
   const handleAutoUpdateBalances = async () => {
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/auto-update-balances`, {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: undefined,
         credentials: 'include',
       });
 

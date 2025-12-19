@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { isAuthenticated, getEmployeeIdFromCookie } from '@/lib/auth-utils';
 import {
   Box,
   Stack,
@@ -89,15 +90,8 @@ function getEmployeeProfile(employee: any): any | null {
 }
 
 function getCurrentUserId() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.employeeId || payload.userId || null;
-  } catch (err) {
-    console.error('Failed to decode token:', err);
-    return null;
-  }
+  // Use cookie-based auth utils; no direct token decoding from localStorage
+  return getEmployeeIdFromCookie();
 }
 
 function formatDate(value: any): string {
@@ -216,9 +210,7 @@ export default function ManagerLeaveRequestsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/my-team-requests`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 
@@ -255,14 +247,12 @@ export default function ManagerLeaveRequestsPanel() {
     setBalancesLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const managerId = getCurrentUserId();
       if (!managerId) throw new Error('Unable to identify manager');
 
       const res = await fetch(
         `${API_BASE}/leaves-report/manager/team-balances/${managerId}`,
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         },
       );
@@ -295,7 +285,6 @@ export default function ManagerLeaveRequestsPanel() {
     setTeamEmployeesLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const managerId = getCurrentUserId();
       if (!managerId) throw new Error('Unable to identify manager');
 
@@ -305,7 +294,6 @@ export default function ManagerLeaveRequestsPanel() {
       const res = await fetch(
         `${API_BASE}/employee/team/profiles?${params.toString()}`,
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: 'include',
         },
       );
@@ -352,10 +340,8 @@ export default function ManagerLeaveRequestsPanel() {
     if (!API_BASE) return;
     setLeaveTypesLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       // Use team union leave types for managers
       const res = await fetch(`${API_BASE}/leaves/leave-types/for-team`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed to load leave types (${res.status})`);
@@ -380,7 +366,6 @@ export default function ManagerLeaveRequestsPanel() {
     setReportLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const params = new URLSearchParams();
       if (reportFilters.leaveTypeId) params.append('leaveTypeId', reportFilters.leaveTypeId);
       if (reportFilters.status) params.append('status', reportFilters.status);
@@ -390,7 +375,6 @@ export default function ManagerLeaveRequestsPanel() {
       if (reportFilters.sortOrder) params.append('sortOrder', reportFilters.sortOrder);
 
       const res = await fetch(`${API_BASE}/leaves-report/manager/team-data?${params.toString()}` , {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -433,7 +417,6 @@ export default function ManagerLeaveRequestsPanel() {
     if (!approveDialog.requestId) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const managerId = getCurrentUserId();
       if (!managerId) throw new Error('Unable to identify manager');
 
@@ -441,7 +424,6 @@ export default function ManagerLeaveRequestsPanel() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -471,7 +453,6 @@ export default function ManagerLeaveRequestsPanel() {
     }
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const managerId = getCurrentUserId();
       if (!managerId) throw new Error('Unable to identify manager');
 
@@ -479,7 +460,6 @@ export default function ManagerLeaveRequestsPanel() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -518,7 +498,6 @@ export default function ManagerLeaveRequestsPanel() {
     if (!API_BASE) return;
     setProcessing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const nextFlag = !request.irregularPatternFlag;
       const res = await fetch(
         `${API_BASE}/leaves-report/flag-irregular/${request._id}`,
@@ -526,7 +505,6 @@ export default function ManagerLeaveRequestsPanel() {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: 'include',
           body: JSON.stringify({ flag: nextFlag }),

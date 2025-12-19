@@ -53,9 +53,7 @@ export default function LeaveBalancePanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves-report/my-balances`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 

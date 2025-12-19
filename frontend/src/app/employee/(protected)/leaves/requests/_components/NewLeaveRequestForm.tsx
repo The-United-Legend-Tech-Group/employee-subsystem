@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { getEmployeeIdFromCookie } from '@/lib/auth-utils';
 import {
   Box,
   Stack,
@@ -24,15 +25,7 @@ type LeaveTypeOption = {
 };
 
 function getCurrentEmployeeId() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.employeeId || payload.userId || null;
-  } catch (err) {
-    console.error('Failed to decode token:', err);
-    return null;
-  }
+  return getEmployeeIdFromCookie();
 }
 
 function getLeaveTypeLabel(lt: LeaveTypeOption) {
@@ -71,13 +64,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
       setLeaveTypesLoading(true);
       setLeaveTypesError(null);
       try {
-        const token = localStorage.getItem('access_token');
         const res = await fetch(`${API_BASE}/leaves/leave-types/for-me`, {
-          headers: token
-            ? {
-                Authorization: `Bearer ${token}`,
-              }
-            : undefined,
           credentials: 'include',
         });
         if (!res.ok) {
@@ -139,7 +126,7 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+  // Use cookie-auth; no token from localStorage
 
       let documentUrl = null;
 
@@ -170,7 +157,6 @@ export default function NewLeaveRequestForm({ onRequestCreated }: NewLeaveReques
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(payload),

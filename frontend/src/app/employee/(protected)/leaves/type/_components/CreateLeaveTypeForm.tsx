@@ -55,11 +55,8 @@ export default function CreateLeaveTypeForm({ onCreated }: Props) {
       setLoadingCategories(true);
       setCategoriesError(null);
       try {
-        const token = localStorage.getItem('access_token');
         const res = await fetch(`${API_BASE}/leaves/leave-categories`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include',
         });
         if (!res.ok) throw new Error(`Failed to load categories (${res.status})`);
         const data = await res.json();
@@ -98,13 +95,12 @@ export default function CreateLeaveTypeForm({ onCreated }: Props) {
         minTenureMonths: form.minTenureMonths ? Number(form.minTenureMonths) : undefined,
         maxDurationDays: form.maxDurationDays ? Number(form.maxDurationDays) : undefined,
       };
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);

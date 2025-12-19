@@ -80,11 +80,8 @@ export default function LeaveTypeList() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json();
@@ -138,13 +135,12 @@ export default function LeaveTypeList() {
       if (editForm.minTenureMonths !== '') payload.minTenureMonths = Number(editForm.minTenureMonths);
       if (editForm.maxDurationDays !== '') payload.maxDurationDays = Number(editForm.maxDurationDays);
 
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/leave-types/${editItem._id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
@@ -164,12 +160,9 @@ export default function LeaveTypeList() {
   async function confirmDelete() {
     if (!itemToDelete) return;
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/leave-types/${itemToDelete}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       setDeleteDialogOpen(false);

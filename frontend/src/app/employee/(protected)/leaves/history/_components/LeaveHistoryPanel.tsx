@@ -99,9 +99,7 @@ export default function LeaveHistoryPanel() {
   const loadLeaveTypes = useCallback(async () => {
     if (!API_BASE) return;
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/leaves/leave-types`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
       if (res.ok) {
@@ -118,8 +116,6 @@ export default function LeaveHistoryPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('access_token');
-      
       // Build query params
       const params = new URLSearchParams();
       if (filters.leaveTypeId) params.append('leaveTypeId', filters.leaveTypeId);
@@ -128,7 +124,6 @@ export default function LeaveHistoryPanel() {
       if (filters.to) params.append('to', filters.to);
 
       const res = await fetch(`${API_BASE}/leaves-report/my-history?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       });
 

@@ -19,6 +19,8 @@ import FormHelperText from "@mui/material/FormHelperText";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 
+import { getAccessToken } from "@/lib/auth-utils";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 
 const PATTERN_TYPES = [
@@ -84,10 +86,7 @@ export default function CreateScheduleRuleModal({
         setSubmitting(true);
 
         try {
-            const token = window.localStorage.getItem("access_token");
-            if (!token) {
-                throw new Error("Not authenticated");
-            }
+            const token = getAccessToken();
 
             // Determine the pattern based on type
             let pattern = "";
@@ -109,8 +108,9 @@ export default function CreateScheduleRuleModal({
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
+                    ...(token ? { Authorization: `Bearer ${token}` } : {} as Record<string, string>),
                 },
+                credentials: "include",
                 body: JSON.stringify(payload),
             });
 

@@ -35,6 +35,7 @@ import TextField from "@mui/material/TextField";
 
 import SectionHeading from "./SectionHeading";
 import { CorrectionRequest, SectionDefinition } from "./types";
+import { getAccessToken, getEmployeeIdFromCookie } from "@/lib/auth-utils";
 
 const STATUS_COLORS: Record<
   string,
@@ -170,7 +171,8 @@ export default function AttendanceSection({
 
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
-      const employeeId = localStorage.getItem("employeeId");
+      const employeeId = getEmployeeIdFromCookie() || localStorage.getItem("employeeId");
+      const token = getAccessToken();
 
       await axios.patch(
         `${apiUrl}/time/corrections/${selectedRequest._id}/review`,
@@ -180,6 +182,10 @@ export default function AttendanceSection({
           approverRole: "HR_MANAGER",
           rejectionReason: decision === "REJECTED" ? rejectReason : undefined,
           applyToPayroll: true,
+        },
+        {
+          headers: (token ? { Authorization: `Bearer ${token}` } : {}) as Record<string, string>,
+          withCredentials: true,
         }
       );
 
@@ -632,9 +638,8 @@ function MetricCard({
           ),
           "& .MuiLinearProgress-bar": {
             borderRadius: 999,
-            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${
-              paletteColor.light || paletteColor.main
-            } 100%)`,
+            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${paletteColor.light || paletteColor.main
+              } 100%)`,
           },
         }}
       />

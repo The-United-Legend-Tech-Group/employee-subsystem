@@ -39,6 +39,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 
@@ -46,6 +47,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 
@@ -53,6 +55,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 
@@ -90,6 +93,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 
@@ -97,6 +101,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 
@@ -107,6 +112,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      path: '/',
       partitioned: true,
     });
 

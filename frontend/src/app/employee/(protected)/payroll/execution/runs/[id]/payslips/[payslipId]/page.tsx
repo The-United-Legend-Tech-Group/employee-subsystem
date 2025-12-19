@@ -190,10 +190,7 @@ export default function PayslipDetailPage() {
       );
     }, 0) || 0;
 
-  const totalPenalties =
-    (typeof payslip.deductionsDetails.penalties === 'number'
-      ? payslip.deductionsDetails.penalties
-      : (payslip.deductionsDetails.penalties as any)?.amount) || 0;
+  const totalPenalties = payslip.deductionsDetails.penalties?.penalties?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
   return (
     <div>
@@ -563,21 +560,20 @@ export default function PayslipDetailPage() {
                 <div className="font-medium mb-2 text-sm text-muted-foreground">
                   Penalties
                 </div>
-                <div className="flex items-center justify-between py-1 pl-4">
-                  <span className="text-sm">
-                    {typeof payslip.deductionsDetails.penalties === 'number'
-                      ? 'Employee Penalty'
-                      : ((payslip.deductionsDetails.penalties as any)?.reason ||
-                          'Employee Penalty')}
-                  </span>
-                  <span className="text-sm font-semibold text-red-600">
-                    -$
-                    {totalPenalties.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </span>
-                </div>
+                {payslip.deductionsDetails.penalties?.penalties?.map((penalty, index) => (
+                  <div key={index} className="flex items-center justify-between py-1 pl-4">
+                    <span className="text-sm">
+                      {penalty.reason || 'Employee Penalty'}
+                    </span>
+                    <span className="text-sm font-semibold text-red-600">
+                      -$
+                      {(penalty.amount || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
 

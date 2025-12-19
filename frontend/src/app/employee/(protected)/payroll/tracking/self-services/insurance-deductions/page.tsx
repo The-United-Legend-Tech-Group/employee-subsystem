@@ -25,9 +25,13 @@ import { isAuthenticated } from '@/lib/auth-utils';
 
 interface InsuranceDeduction {
   payslipId: string;
+  payslipPeriod?: string;
   insuranceName: string;
   employeeRate: number;
   employerRate: number;
+  employeeContribution?: number;
+  employerContribution?: number;
+  appliedTo?: number;
   minSalary?: number;
   maxSalary?: number;
   status: string;

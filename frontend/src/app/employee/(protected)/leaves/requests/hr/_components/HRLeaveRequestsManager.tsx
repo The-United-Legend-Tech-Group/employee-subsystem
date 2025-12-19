@@ -541,7 +541,7 @@ export default function HRLeaveRequestsManager() {
                     <TableCell>
                       <Stack direction="row" spacing={0.5}>
                         {(() => {
-                          const medicalVerified = request.approvalFlow?.some(flow => flow.role === 'HR Manager' && flow.status === 'approved');
+                          const medicalVerified = request.approvalFlow?.some(flow => flow.role === 'hr' && flow.status === 'approved');
                           const managerApproved = request.approvalFlow?.some(flow => flow.role === 'department head' && flow.status === 'approved');
                           const canFinalize = medicalVerified && managerApproved;
 

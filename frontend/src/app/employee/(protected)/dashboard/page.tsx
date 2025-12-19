@@ -124,6 +124,8 @@ export default async function EmployeeDashboard() {
                 Welcome back, {employee?.firstName}!
             </Typography>
 
+
+
             <Stack spacing={4}>
                 {/* Profile Section */}
                 <Card variant="outlined">

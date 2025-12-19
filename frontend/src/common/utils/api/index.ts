@@ -1,2 +1,2 @@
 // Export all API modules for easier imports
-export * from './client';
+export { apiClient, type ApiResponse } from './client';

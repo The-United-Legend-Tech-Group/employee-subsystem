@@ -2,4 +2,13 @@
 // This file must be named 'middleware.ts' and placed in the src/ directory
 // to be automatically recognized by Next.js
 
-export { proxy as middleware, config } from './proxy';
+import { proxy } from './proxy';
+
+export const middleware = proxy;
+
+// Config must be defined directly, not re-exported
+export const config = {
+    // Run on all paths that might need protection
+    // Excluding static files, api, etc. to avoid unnecessary processing
+    matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};

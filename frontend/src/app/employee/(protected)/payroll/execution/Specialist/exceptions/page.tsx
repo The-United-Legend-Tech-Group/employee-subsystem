@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getCookie } from '@/lib/auth-utils';
@@ -76,7 +76,16 @@ function getAuthConfig() {
   } as const;
 }
 
+// Main page wrapper with Suspense boundary for useSearchParams
 export default function ExceptionsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading exceptions…</div>}>
+      <ExceptionsPageContent />
+    </Suspense>
+  );
+}
+
+function ExceptionsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

@@ -1476,7 +1476,7 @@ export class RecruitmentService {
               type = 'Alert';
               message = `Escalation: Employee ${employeeName} has failed to complete onboarding task "${task.name}" within 7 days of the deadline. Recommended action: Initiate termination.`;
               recipientIds = []; // Broadcast to role
-              deliverToRole = SystemRole.HR_MANAGER;
+              deliverToRole = SystemRole.SYSTEM_ADMIN;
               deliveryType = 'BROADCAST';
             } catch (e) {
               console.error('Failed to fetch employee for escalation:', e);

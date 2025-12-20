@@ -63,7 +63,7 @@ export function proxy(request: NextRequest) {
         '/employee/performance/disputes': ['HR Employee', 'department employee'],
         '/employee/recruitment_sub/hr-employee': ['HR Employee', 'HR Manager'],
         '/employee/recruitment_sub/employee': ['department employee', 'HR Employee', 'HR Manager', 'System Admin'],
-        '/employee/recruitment_sub/hr-manager': ['HR Manager'],
+        '/employee/recruitment_sub/hr-manager': ['HR Manager','System Admin'],
         '/employee/recruitment_sub/system-admin': ['System Admin'],
 
 

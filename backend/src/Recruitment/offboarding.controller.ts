@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UsePipes, ValidationPipe, Get, Query, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UsePipes, ValidationPipe, Get, Query, Patch, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBadRequestResponse, ApiNotFoundResponse, ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import { OffboardingService } from './offboarding.service';
 import { AuthGuard } from '../common/guards/authentication.guard';
@@ -18,6 +18,7 @@ import { TerminationRequest } from './models/termination-request.schema';
 import { ClearanceChecklist } from './models/clearance-checklist.schema';
 import { RevokeSystemAccessDto } from './offboardingDtos/revoke-system-access.dto';
 import { EmployeeStatus } from '../employee-subsystem/employee/enums/employee-profile.enums';
+import { Types } from 'mongoose';
 //import { Notification } from '../employee-subsystem/notification/models/notification.schema';
 
 @ApiTags('Offboarding')
@@ -69,8 +70,24 @@ export class OffboardingController {
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
-  async submitResignation(@Body() dto: SubmitResignationDto): Promise<TerminationRequest> {
-    return this.offboardingService.submitResignation(dto);
+  async submitResignation(@Body() dto: SubmitResignationDto, @Request() req: any): Promise<TerminationRequest> {
+    // Extract employeeId from JWT token if not provided in DTO
+    const employeeId = dto.employeeId || req.user?.sub;
+    
+    console.log('Submit Resignation - Employee ID from DTO:', dto.employeeId);
+    console.log('Submit Resignation - Employee ID from JWT:', req.user?.sub);
+    console.log('Submit Resignation - Final Employee ID:', employeeId);
+    
+    if (!employeeId) {
+      throw new BadRequestException('Employee ID is required. Please authenticate or provide valid employee ID.');
+    }
+
+    // Validate that employeeId is a valid MongoDB ObjectId
+    if (!Types.ObjectId.isValid(employeeId)) {
+      throw new BadRequestException(`Invalid Employee ID format: ${employeeId}. Must be a valid MongoDB ObjectId (24 hex characters).`);
+    }
+    
+    return this.offboardingService.submitResignation({ ...dto, employeeId });
   }
 
 

@@ -262,8 +262,9 @@ export class OffboardingService {
       const terminationBenefitDto = {
         employeeId: employeeId,
         benefitName: benefitName,
+        terminationId: savedTerminationRequest._id.toString(),
       };
-
+      console.log(terminationBenefitDto);
       const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
       console.log(`✓ Employee termination benefits record created successfully for employee ${dto.employeeNumber}`);
       console.log(`Benefit details:`, terminationBenefit);
@@ -991,14 +992,20 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
   //OFF-018
   //As an Employee, I want to be able to request a Resignation request with reasoning
   async submitResignation(dto: SubmitResignationDto): Promise<TerminationRequest> {
-    console.log(`Employee ${dto.employeeId} submitting resignation request`);
-    const employeeObjectId = new Types.ObjectId(dto.employeeId);
+    // Validate that employeeId is present (should always be set by controller)
+    if (!dto.employeeId) {
+      throw new BadRequestException('Employee ID is required for resignation submission');
+    }
 
-    const employee = await this.employeeService.getProfile(dto.employeeId);
+    const employeeId = dto.employeeId; // Now TypeScript knows it's defined
+    console.log(`Employee ${employeeId} submitting resignation request`);
+    const employeeObjectId = new Types.ObjectId(employeeId);
+
+    const employee = await this.employeeService.getProfile(employeeId);
 
     if (!employee) {
-      console.error(`Employee with ID ${dto.employeeId} not found`);
-      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+      console.error(`Employee with ID ${employeeId} not found`);
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
     }
 
     console.log(`Employee ${employee.profile.employeeNumber} validated successfully`);
@@ -1045,7 +1052,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     // Check only the LATEST termination request (sorted by creation date)
     // Only block if the latest request has PENDING or APPROVED status
     // Allow new request if the latest request was REJECTED or no requests exist
-    const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(dto.employeeId);
+    const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(employeeId);
     if (existingTerminations && existingTerminations.length > 0) {
       // Sort by createdAt descending to get the most recent first
       const sortedTerminations = existingTerminations.sort((a, b) => {
@@ -1058,7 +1065,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
 
       // Check if the latest termination/resignation request is PENDING or APPROVED
       if (latestTermination.status === TerminationStatus.PENDING || latestTermination.status === TerminationStatus.APPROVED) {
-        console.warn(`Employee ${dto.employeeId} already has an active termination/resignation request (latest: ${latestTermination.status})`);
+        console.warn(`Employee ${employeeId} already has an active termination/resignation request (latest: ${latestTermination.status})`);
         throw new BadRequestException(
           `You cannot submit a resignation request because you already have an active termination/resignation request with status: ${latestTermination.status}. ` +
           `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`
@@ -1066,7 +1073,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       }
 
       // If we reach here, the latest request is REJECTED - allow new request
-      console.log(`Employee ${dto.employeeId} has rejected termination/resignation request (latest status: ${latestTermination.status}), allowing new resignation request`);
+      console.log(`Employee ${employeeId} has rejected termination/resignation request (latest status: ${latestTermination.status}), allowing new resignation request`);
     }
 
     // Validate proposed last working day is not in the past
@@ -1093,10 +1100,10 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     console.log(`Resignation submitted successfully with ID ${savedResignation._id}`);
 
     // Step 1: Automatically create employee termination/resignation benefits record
-    console.log(`Creating termination benefits record for employee ${dto.employeeId}...`);
+    console.log(`Creating termination benefits record for employee ${employeeId}...`);
     try {
       // Step 1.1: Get employee profile to extract employee number
-      const employeeProfile = await this.employeeService.getProfile(dto.employeeId);
+      const employeeProfile = await this.employeeService.getProfile(employeeId);
       if (!employeeProfile || !employeeProfile.profile) {
         throw new Error('Employee profile not found');
       }
@@ -1161,12 +1168,13 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       console.log(`Using benefit name: ${benefitName}`);
 
       const terminationBenefitDto = {
-        employeeId: dto.employeeId,
+        employeeId: employeeId,
         benefitName: benefitName,
+        terminationId: savedResignation._id.toString(),
       };
 
       const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
-      console.log(`✓ Employee termination benefits record created successfully for employee ${dto.employeeId}`);
+      console.log(`✓ Employee termination benefits record created successfully for employee ${employeeId}`);
       console.log(`Benefit details:`, terminationBenefit);
     } catch (error) {
       console.error(`✗ Failed to create termination benefits record: ${error.message}`);
@@ -1189,7 +1197,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     for (const department of departments) {
       try {
         await this.notificationService.create({
-          recipientId: [dto.employeeId],
+          recipientId: [employeeId],
           type: 'Alert',
           deliveryType: 'MULTICAST',
           title: `Resignation Notification - ${department} Department`,
@@ -2165,10 +2173,10 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
     };
   }
 
-  // Helper method to check if all clearance requirements are met and auto-approve termination
+  // Helper method to check if all clearance requirements are met and auto-approve/reject termination
   private async checkAndAutoApproveTermination(clearanceChecklistId: string): Promise<void> {
     try {
-      console.log(`Checking if termination can be auto-approved for checklist ${clearanceChecklistId}`);
+      console.log(`Checking if termination can be auto-approved/rejected for checklist ${clearanceChecklistId}`);
 
       const clearanceChecklist = await this.clearanceChecklistRepository.findById(clearanceChecklistId);
       if (!clearanceChecklist) {
@@ -2186,15 +2194,27 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
         return;
       }
 
-      // Skip if already approved
+      // Skip if already approved or rejected
       if (terminationRequest.status === TerminationStatus.APPROVED) {
         console.log(`Termination ${terminationRequest._id} is already approved`);
         return;
       }
+      if (terminationRequest.status === TerminationStatus.REJECTED) {
+        console.log(`Termination ${terminationRequest._id} is already rejected`);
+        return;
+      }
 
-      // Check all requirements
+      // Check department statuses
       const allDepartmentsApproved = clearanceChecklist.items.every(
         (item) => item.status === ApprovalStatus.APPROVED
+      );
+
+      const anyDepartmentRejected = clearanceChecklist.items.some(
+        (item) => item.status === ApprovalStatus.REJECTED
+      );
+
+      const anyDepartmentPending = clearanceChecklist.items.some(
+        (item) => item.status === ApprovalStatus.PENDING
       );
 
       const allEquipmentReturned = clearanceChecklist.equipmentList.every(
@@ -2203,12 +2223,73 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
 
       const cardReturned = clearanceChecklist.cardReturned === true;
 
-      console.log(`Auto-approval check for termination ${terminationRequest._id}:
+      console.log(`Auto-approval/rejection check for termination ${terminationRequest._id}:
         - All departments approved: ${allDepartmentsApproved}
+        - Any department rejected: ${anyDepartmentRejected}
+        - Any department pending: ${anyDepartmentPending}
         - All equipment returned: ${allEquipmentReturned}
         - Card returned: ${cardReturned}`);
 
-      // If all requirements are met, auto-approve the termination
+      // Priority 1: If any department rejected and no departments are pending, auto-reject the termination
+      if (anyDepartmentRejected && !anyDepartmentPending) {
+        console.log(`One or more departments rejected clearance. Auto-rejecting termination ${terminationRequest._id}`);
+
+        const rejectedDepartments = clearanceChecklist.items
+          .filter((item) => item.status === ApprovalStatus.REJECTED)
+          .map((item) => item.department)
+          .join(', ');
+
+        terminationRequest.status = TerminationStatus.REJECTED;
+        terminationRequest.hrComments = `Auto-rejected: Clearance rejected by department(s): ${rejectedDepartments}. Termination request cannot proceed without all department approvals.`;
+
+        await this.terminationRequestRepository.updateById(
+          terminationRequest._id.toString(),
+          terminationRequest
+        );
+
+        console.log(`✗ Termination ${terminationRequest._id} auto-rejected due to department rejection(s).`);
+
+        // Send notification to HR and employee about rejection
+        try {
+          const employeeProfile = await this.employeeService.getProfile(
+            terminationRequest.employeeId.toString()
+          );
+          const employeeName = employeeProfile?.profile
+            ? `${employeeProfile.profile.firstName} ${employeeProfile.profile.lastName}`
+            : 'Employee';
+
+          const autoRejectionNotification = {
+            recipientId: [terminationRequest.employeeId],
+            type: 'Alert',
+            deliveryType: 'MULTICAST',
+            title: `Termination Auto-Rejected: ${employeeName} - Clearance Issue`,
+            message: `The termination request for ${employeeName} has been automatically REJECTED due to department clearance rejection(s).
+
+Employee Details:
+- Name: ${employeeName}
+- Employee ID: ${terminationRequest.employeeId.toString().slice(-8)}
+- Termination Date: ${terminationRequest.terminationDate ? new Date(terminationRequest.terminationDate).toLocaleDateString() : 'TBD'}
+
+Rejection Reason:
+✗ Department(s) rejected clearance: ${rejectedDepartments}
+
+ACTION REQUIRED:
+Please review the clearance issues and resolve them before re-initiating the termination request. Contact the department(s) that rejected the clearance for more details.`,
+            relatedEntityId: terminationRequest._id.toString(),
+            relatedModule: 'Recruitment',
+            isRead: false,
+          };
+
+          await this.notificationService.create(autoRejectionNotification as any);
+          console.log(`Auto-rejection notification sent to HR and employee for ${employeeName}`);
+        } catch (error) {
+          console.warn(`Could not send auto-rejection notification: ${error.message}`);
+        }
+
+        return; // Exit after rejection
+      }
+
+      // Priority 2: If all requirements are met, auto-approve the termination
       if (allDepartmentsApproved && allEquipmentReturned && cardReturned) {
         console.log(`All clearance requirements met. Auto-approving termination ${terminationRequest._id}`);
 

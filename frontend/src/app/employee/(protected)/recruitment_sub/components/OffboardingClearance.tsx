@@ -10,15 +10,12 @@ import {
   CardContent,
   Typography,
   Button,
-  TextField,
   Chip,
   Paper,
   CircularProgress,
-  Grid,
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Checkbox,
   FormControlLabel,
   LinearProgress,
@@ -54,7 +51,15 @@ export function OffboardingClearance() {
     try {
       setLoading(true);
       const response = await offboardingApi.getAllOffboardingChecklists();
-      setOffboardingData(Array.isArray(response.data) ? response.data : []);
+      // Normalize payload: some API endpoints return { success, checklists }, others return the array directly
+      const payload = response?.data ?? response;
+      if (Array.isArray(payload)) {
+        setOffboardingData(payload);
+      } else if ((payload as any)?.checklists && Array.isArray((payload as any).checklists)) {
+        setOffboardingData((payload as any).checklists);
+      } else {
+        setOffboardingData([]);
+      }
     } catch (error: any) {
       console.error('Failed to fetch offboarding checklists:', error);
       toast.error(error.response?.data?.message || 'Failed to load offboarding checklists');
@@ -82,7 +87,7 @@ export function OffboardingClearance() {
 
       // Send the status as selected by the user. Do not introduce 'in_progress'.
       // When user selects 'under_review' it will be sent as 'under_review' (matches backend enum).
-
+      
       await offboardingApi.processDepartmentSignOff({
         clearanceChecklistId: checklistId,
         department: department,
@@ -92,9 +97,15 @@ export function OffboardingClearance() {
 
       toast.success(`${department} status updated to ${status}!`);
 
-      // Refresh checklists
+      // Refresh checklists (normalize response shape)
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = Array.isArray(response.data) ? response.data : [];
+      const payload = response?.data ?? response;
+      let newChecklists: any[] = [];
+      if (Array.isArray(payload)) {
+        newChecklists = payload;
+      } else if (payload && typeof payload === 'object' && Array.isArray((payload as any).checklists)) {
+        newChecklists = (payload as any).checklists;
+      }
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -152,9 +163,15 @@ export function OffboardingClearance() {
 
       toast.success(`Equipment "${equipmentName}" marked as ${returned ? 'returned' : 'pending'}!`);
 
-      // Refresh checklists
+      // Refresh checklists (normalize response shape)
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = Array.isArray(response.data) ? response.data : [];
+      const payload = response?.data ?? response;
+      let newChecklists: any[] = [];
+      if (Array.isArray(payload)) {
+        newChecklists = payload;
+      } else if (payload && typeof payload === 'object' && Array.isArray((payload as any).checklists)) {
+        newChecklists = (payload as any).checklists;
+      }
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -194,9 +211,15 @@ export function OffboardingClearance() {
 
       toast.success(`Access card marked as ${cardReturned ? 'returned' : 'pending'}!`);
 
-      // Refresh checklists
+      // Refresh checklists (normalize response shape)
       const response = await offboardingApi.getAllOffboardingChecklists();
-      const newChecklists = Array.isArray(response.data) ? response.data : [];
+      const payload = response?.data ?? response;
+      let newChecklists: any[] = [];
+      if (Array.isArray(payload)) {
+        newChecklists = payload;
+      } else if (payload && typeof payload === 'object' && Array.isArray((payload as any).checklists)) {
+        newChecklists = (payload as any).checklists;
+      }
       setOffboardingData(newChecklists);
 
       // Update selected checklist if modal is open
@@ -296,7 +319,7 @@ export function OffboardingClearance() {
             // Determine chip label and color based on overall status
             let statusLabel = 'In Progress';
             let statusColor: 'warning' | 'success' | 'error' = 'warning';
-
+            
             if (isFullyCleared) {
               statusLabel = 'Fully Cleared';
               statusColor = 'success';
@@ -347,6 +370,36 @@ export function OffboardingClearance() {
                           <Typography variant="caption" color="text.secondary">
                             This offboarding checklist is now locked. No further updates are allowed. The employee is ready for system access revocation.
                           </Typography>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  {/* Show alert if termination was auto-rejected due to department rejection */}
+                  {termination.status === 'rejected' && (
+                    <Paper
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: 'error.50',
+                        borderLeft: 4,
+                        borderColor: 'error.main'
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <AlertCircleIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium" color="error.main">
+                            Termination Request Auto-Rejected
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            This termination request was automatically rejected because one or more departments rejected the clearance. Please review the rejected departments below and resolve the issues before creating a new termination request.
+                          </Typography>
+                          {termination.hrComments && (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                              <strong>Reason:</strong> {termination.hrComments}
+                            </Typography>
+                          )}
                         </Box>
                       </Stack>
                     </Paper>
@@ -442,7 +495,7 @@ export function OffboardingClearance() {
                             <Paper
                               key={index}
                               variant="outlined"
-                              sx={{ p: 2, bgcolor: 'action.hoverZZz', color: 'text.primary' }}
+                              sx={{ p: 2, bgcolor: 'action.hover', color: 'text.primary' }}
                             >
                               <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Stack direction="row" spacing={1} alignItems="center">
@@ -593,7 +646,7 @@ export function OffboardingClearance() {
               {/* Department Clearances with Status Update */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" gutterBottom>Department Sign-offs</Typography>
-
+                
                 {/* Show warning if termination date has expired */}
                 {isTerminationDateExpired(selectedChecklist.termination?.terminationDate) && (
                   <Paper
@@ -618,7 +671,7 @@ export function OffboardingClearance() {
                     </Stack>
                   </Paper>
                 )}
-
+                
                 <Stack spacing={2}>
                   {(selectedChecklist.checklist.items || []).map((clearance: any, index: number) => {
                     const isApproved = clearance.status === 'approved';
@@ -684,26 +737,26 @@ export function OffboardingClearance() {
                             (() => {
                               const options: { value: string; label: string }[] = isUnderReview
                                 ? [
-                                  { value: 'under_review', label: 'Under Review' },
-                                  { value: 'approved', label: 'Approved' },
-                                  { value: 'rejected', label: 'Rejected' },
-                                ]
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ]
                                 : [
-                                  { value: 'pending', label: 'Pending' },
-                                  { value: 'under_review', label: 'Under Review' },
-                                  { value: 'approved', label: 'Approved' },
-                                  { value: 'rejected', label: 'Rejected' },
-                                ];
+                                    { value: 'pending', label: 'Pending' },
+                                    { value: 'under_review', label: 'Under Review' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                  ];
 
                               return (
                                 <FormControl size="small" sx={{ minWidth: 140 }}>
                                   <Select
                                     value={clearance.status || 'pending'}
-                                    onChange={(e) => {
+                                    onChange={(e: any) => {
                                       handleUpdateDepartmentStatus(
                                         selectedChecklist.checklist._id,
                                         deptLabel,
-                                        e.target.value
+                                        String(e.target.value)
                                       );
                                     }}
                                   >

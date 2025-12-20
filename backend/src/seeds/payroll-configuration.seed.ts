@@ -11,7 +11,7 @@ import { signingBonusSchema } from '../payroll-configuration/models/signingBonus
 import { taxRulesSchema } from '../payroll-configuration/models/taxRules.schema';
 import { terminationAndResignationBenefitsSchema } from '../payroll-configuration/models/terminationAndResignationBenefits';
 import { SchemaFactory } from '@nestjs/mongoose';
-import { PositionSchema } from '../employee-subsystem/organization-structure/models/position.schema';
+import { PositionSchema } from '../organization-structure/models/position.schema';
 import {
   ConfigStatus,
   PolicyType,

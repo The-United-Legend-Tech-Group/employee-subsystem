@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
-import { AppraisalCycleSchema } from '../employee-subsystem/performance/models/appraisal-cycle.schema';
-import { AppraisalTemplateSchema } from '../employee-subsystem/performance/models/appraisal-template.schema';
-import { AppraisalAssignmentSchema } from '../employee-subsystem/performance/models/appraisal-assignment.schema';
-import { AppraisalRecordSchema } from '../employee-subsystem/performance/models/appraisal-record.schema';
-import { AppraisalDisputeSchema } from '../employee-subsystem/performance/models/appraisal-dispute.schema';
-import { EmployeeProfileSchema } from '../employee-subsystem/employee/models/employee-profile.schema';
+import { AppraisalCycleSchema } from '../performance/models/appraisal-cycle.schema';
+import { AppraisalTemplateSchema } from '../performance/models/appraisal-template.schema';
+import { AppraisalAssignmentSchema } from '../performance/models/appraisal-assignment.schema';
+import { AppraisalRecordSchema } from '../performance/models/appraisal-record.schema';
+import { AppraisalDisputeSchema } from '../performance/models/appraisal-dispute.schema';
+import { EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
 import {
   AppraisalTemplateType,
   AppraisalRatingScaleType,
@@ -12,7 +12,7 @@ import {
   AppraisalAssignmentStatus,
   AppraisalRecordStatus,
   AppraisalDisputeStatus,
-} from '../employee-subsystem/performance/enums/performance.enums';
+} from '../performance/enums/performance.enums';
 
 type SeedRef = { _id: mongoose.Types.ObjectId };
 type SeedDepartments = {

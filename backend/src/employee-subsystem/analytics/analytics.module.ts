@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 import { TimeManagementModule } from '../../time-management/timemangment.module';
-import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
-import { EmployeeModule } from '../employee/employee.module';
+import { OrganizationStructureModule } from '../../organization-structure/organization-structure.module';
+import { EmployeeModule } from '../../employee-profile/employee-profile.module';
 
 @Module({
   imports: [
@@ -15,5 +15,4 @@ import { EmployeeModule } from '../employee/employee.module';
   providers: [AnalyticsService],
   exports: [AnalyticsService],
 })
-export class AnalyticsModule { }
-
+export class AnalyticsModule {}

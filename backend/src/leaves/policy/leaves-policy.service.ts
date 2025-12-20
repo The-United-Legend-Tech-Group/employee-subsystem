@@ -17,7 +17,7 @@ import {
   CalendarRepository,
   LeaveRequestRepository,
 } from '../repository';
-import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
 import { AttendanceService } from '../../time-management/services/attendance.service';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { ConfigureLeaveParametersDto } from '../dtos/configure-leave-parameters.dto';
@@ -68,7 +68,7 @@ export class LeavesPolicyService {
     private readonly attendanceService: AttendanceService,
     private readonly leaveCategoryRepository: LeaveCategoryRepository,
     private readonly leaveRequestRepository: LeaveRequestRepository,
-  ) { }
+  ) {}
   //private readonly approvalWorkflowService: ApprovalWorkflowService
 
   // REQ-001: Initiate a leave policy
@@ -607,38 +607,23 @@ export class LeavesPolicyService {
     );
 
     let amount = 0;
-<<<<<<< HEAD
-    if (
-      oldRemaining &&
-      updateFields.remaining &&
-      oldRemaining < updateFields.remaining
-    )
-      amount = updateFields.remaining - oldRemaining;
-    else
-      oldRemaining && updateFields.remaining
-        ? (amount = oldRemaining - updateFields.remaining)
-        : 0;
-=======
-    if (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining)
-      amount = updateFields.remaining - oldRemaining
-    else
-      (oldRemaining && updateFields.remaining) ? amount = oldRemaining - updateFields.remaining : 0
->>>>>>> 7de1403ce38fd6f33ce313fba55f0873e03e2adf
+    if (oldRemaining && updateFields.remaining) {
+      amount =
+        oldRemaining < updateFields.remaining
+          ? updateFields.remaining - oldRemaining
+          : oldRemaining - updateFields.remaining;
+    }
 
     // 3. Store adjustment audit log
     await this.leaveAdjustmentRepository.create({
       employeeId: new Types.ObjectId(employeeId),
       leaveTypeId: new Types.ObjectId(leaveTypeId),
-<<<<<<< HEAD
       adjustmentType:
         oldRemaining &&
         updateFields.remaining &&
         oldRemaining < updateFields.remaining
           ? AdjustmentType.ADD
-          : AdjustmentType.DEDUCT, // Default to ADD for assignment
-=======
-      adjustmentType: (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining) ? AdjustmentType.ADD : AdjustmentType.DEDUCT, // Default to ADD for assignment
->>>>>>> 7de1403ce38fd6f33ce313fba55f0873e03e2adf
+          : AdjustmentType.DEDUCT,
       amount,
       reason,
       hrUserId: new Types.ObjectId(hrUserId),

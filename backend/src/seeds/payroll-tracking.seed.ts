@@ -2,14 +2,14 @@
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import mongoose from 'mongoose';
-import { claimsSchema } from '../payroll/tracking/models/claims.schema';
-import { disputesSchema } from '../payroll/tracking/models/disputes.schema';
-import { refundsSchema } from '../payroll/tracking/models/refunds.schema';
+import { claimsSchema } from '../payroll-tracking/models/claims.schema';
+import { disputesSchema } from '../payroll-tracking/models/disputes.schema';
+import { refundsSchema } from '../payroll-tracking/models/refunds.schema';
 import {
   ClaimStatus,
   RefundStatus,
   DisputeStatus,
-} from '../payroll/tracking/enums/payroll-tracking-enum';
+} from '../payroll-tracking/enums/payroll-tracking-enum';
 
 type SeedRef = { _id: mongoose.Types.ObjectId };
 type SeedEmployees = { alice: SeedRef; bob: SeedRef };

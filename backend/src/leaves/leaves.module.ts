@@ -29,9 +29,9 @@ import { LeavesRequestController } from './request/leave-requests.controller';
 import { LeavesRequestService } from './request/leave-requests.service';
 import { LeavesReportController } from './reports/leave-reports.controller';
 import { LeavesReportService } from './reports/leave-reports.service';
-import { EmployeeModule } from '../employee-subsystem/employee/employee.module';
-import { NotificationModule } from '../employee-subsystem/notification/notification.module';
-import { OrganizationStructureModule } from '../employee-subsystem/organization-structure/organization-structure.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
+import { NotificationModule } from '../notification/notification.module';
+import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
 import { TimeManagementModule } from '../time-management/timemangment.module';
 import {
   LeavePolicyRepository,
@@ -49,7 +49,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   EmployeeSystemRole,
   EmployeeSystemRoleSchema,
-} from '../employee-subsystem/employee/models/employee-system-role.schema';
+} from '../employee-profile/models/employee-system-role.schema';
 import { LeaveCategoryRepository } from './repository/leave-category.repository';
 import { ExecutionModule } from '../payroll/execution/execution.module';
 

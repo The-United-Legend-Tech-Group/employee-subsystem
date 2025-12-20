@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { EmployeeProfileSchema } from '../employee-subsystem/employee/models/employee-profile.schema';
-import { EmployeeSystemRoleSchema } from '../employee-subsystem/employee/models/employee-system-role.schema';
-import { EmployeeProfileChangeRequestSchema } from '../employee-subsystem/employee/models/ep-change-request.schema';
-import { EmployeeQualificationSchema } from '../employee-subsystem/employee/models/qualification.schema';
+import { EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
+import { EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
+import { EmployeeProfileChangeRequestSchema } from '../employee-profile/models/ep-change-request.schema';
+import { EmployeeQualificationSchema } from '../employee-profile/models/qualification.schema';
 import {
   EmployeeStatus,
   ContractType,
@@ -15,7 +15,7 @@ import {
   SystemRole,
   GraduationType,
   ProfileChangeStatus,
-} from '../employee-subsystem/employee/enums/employee-profile.enums';
+} from '../employee-profile/enums/employee-profile.enums';
 
 type SeedRef = { _id: mongoose.Types.ObjectId };
 type SeedDepartments = {

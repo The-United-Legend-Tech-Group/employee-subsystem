@@ -19,13 +19,13 @@ import {
   AppraisalAssignmentSchema,
 } from './models/appraisal-assignment.schema';
 import {
+  EmployeeSystemRole,
+  EmployeeSystemRoleSchema,
+} from '../employee-profile/models/employee-system-role.schema';
+import {
   AppraisalDispute,
   AppraisalDisputeSchema,
 } from './models/appraisal-dispute.schema';
-import {
-  EmployeeSystemRole,
-  EmployeeSystemRoleSchema,
-} from '../employee/models/employee-system-role.schema';
 import { AppraisalCycleRepository } from './repository/appraisal-cycle.repository';
 import { AppraisalTemplateRepository } from './repository/appraisal-template.repository';
 import { AppraisalRecordRepository } from './repository/appraisal-record.repository';
@@ -55,20 +55,13 @@ import {
 // External Modules
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
 import { NotificationModule } from '../notification/notification.module';
-<<<<<<< HEAD:backend/src/employee-subsystem/performance/performance.module.ts
-import { EmployeeModule } from '../employee/employee.module';
-import { TimeManagementModule } from '../../time-management/timemangment.module';
-import { RecruitmentModule } from '../../Recruitment/recruitment.module';
-import { ContractRepository } from '../../Recruitment/repositories/implementations/contract.repository';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
+import { TimeManagementModule } from '../time-management/timemangment.module';
+import { RecruitmentModule } from '../Recruitment/recruitment.module';
 import {
   Contract,
   ContractSchema,
-} from '../../Recruitment/models/contract.schema';
-=======
-import { EmployeeModule } from '../employee-profile/employee-profile.module';
-import { TimeMangementModule } from '../time-mangement/timemangment.module';
-import { RecruitmentModule } from '../Recruitment/recruitment.module';
->>>>>>> 7de1403ce38fd6f33ce313fba55f0873e03e2adf:backend/src/performance/performance.module.ts
+} from '../Recruitment/models/contract.schema';
 
 @Module({
   imports: [

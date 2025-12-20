@@ -15,7 +15,7 @@ import {
   BenefitStatus,
 } from '../payroll/execution/enums/payroll-execution-enum';
 import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
-import { EmployeeProfileSchema } from '../employee-subsystem/employee/models/employee-profile.schema';
+import { EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
 import { TerminationRequestSchema } from '../Recruitment/models/termination-request.schema';
 import { TerminationInitiation } from '../Recruitment/enums/termination-initiation.enum';
 import { TerminationStatus } from '../Recruitment/enums/termination-status.enum';

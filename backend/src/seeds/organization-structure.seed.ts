@@ -1,16 +1,16 @@
 import mongoose from 'mongoose';
-import { DepartmentSchema } from '../employee-subsystem/organization-structure/models/department.schema';
-import { PositionSchema } from '../employee-subsystem/organization-structure/models/position.schema';
-import { PositionAssignmentSchema } from '../employee-subsystem/organization-structure/models/position-assignment.schema';
-import { StructureChangeRequestSchema } from '../employee-subsystem/organization-structure/models/structure-change-request.schema';
-import { StructureApprovalSchema } from '../employee-subsystem/organization-structure/models/structure-approval.schema';
-import { StructureChangeLogSchema } from '../employee-subsystem/organization-structure/models/structure-change-log.schema';
+import { DepartmentSchema } from '../organization-structure/models/department.schema';
+import { PositionSchema } from '../organization-structure/models/position.schema';
+import { PositionAssignmentSchema } from '../organization-structure/models/position-assignment.schema';
+import { StructureChangeRequestSchema } from '../organization-structure/models/structure-change-request.schema';
+import { StructureApprovalSchema } from '../organization-structure/models/structure-approval.schema';
+import { StructureChangeLogSchema } from '../organization-structure/models/structure-change-log.schema';
 import {
   StructureRequestType,
   StructureRequestStatus,
   ApprovalDecision,
   ChangeLogAction,
-} from '../employee-subsystem/organization-structure/enums/organization-structure.enums';
+} from '../organization-structure/enums/organization-structure.enums';
 
 export async function seedOrganizationStructure(
   connection: mongoose.Connection,

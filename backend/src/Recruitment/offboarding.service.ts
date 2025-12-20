@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import {
   TerminationRequestRepository,
   ClearanceChecklistRepository,
   // EmployeeTerminationResignationRepository,
-  ContractRepository
+  ContractRepository,
 } from './repositories';
 import { CandidateRepository } from '../employee-profile/repository/candidate.repository';
 import { OfferRepository } from './repositories/implementations/offer.repository';
@@ -23,10 +29,13 @@ import { TerminationInitiation } from './enums/termination-initiation.enum';
 import { ApprovalStatus } from './enums/approval-status.enum';
 import { TerminationRequest } from './models/termination-request.schema';
 import { ClearanceChecklist } from './models/clearance-checklist.schema';
-import { EmployeeStatus, SystemRole } from '../employee-profile/enums/employee-profile.enums';
+import {
+  EmployeeStatus,
+  SystemRole,
+} from '../employee-profile/enums/employee-profile.enums';
 import { EmployeeService } from '../employee-profile/employee-profile.service';
 import { NotificationService } from '../notification/notification.service';
-import { AppraisalRecordService } from '../performance/appraisal-record.service';
+import { AppraisalRecordService } from '../performance/performance.service';
 //import { LeavesRequestService } from 'src/leaves/request/leave-requests.service';
 import { UpdateEmployeeStatusDto } from 'src/employee-profile/dto/update-employee-status.dto';
 import { OrganizationStructureService } from 'src/organization-structure/organization-structure.service';
@@ -47,119 +56,176 @@ export class OffboardingService {
     private employeeTerminationService: EmployeeTerminationResignationService,
     private readonly candidateRepository: CandidateRepository,
     private readonly offerRepository: OfferRepository,
-  ) { }
+  ) {}
 
-
-  //OFF-001 
+  //OFF-001
   // (As an HR Manager, initiating termination reviews based on warnings and performance data / manager requests, so that exits are justified.)
 
-  async initiateTerminationReview(dto: InitiateTerminationReviewDto,
+  async initiateTerminationReview(
+    dto: InitiateTerminationReviewDto,
   ): Promise<TerminationRequest> {
-    console.log(`Initiating termination review for employee ${dto.employeeNumber} by ${dto.initiator}`
+    console.log(
+      `Initiating termination review for employee ${dto.employeeNumber} by ${dto.initiator}`,
     );
 
     // Step 1: Get employee by employee number
-    const employee = await this.employeeService.findByEmployeeNumber(dto.employeeNumber);
+    const employee = await this.employeeService.findByEmployeeNumber(
+      dto.employeeNumber,
+    );
 
     if (!employee) {
       console.error(`Employee with number ${dto.employeeNumber} not found`);
-      throw new NotFoundException(`Employee with number ${dto.employeeNumber} not found`);
+      throw new NotFoundException(
+        `Employee with number ${dto.employeeNumber} not found`,
+      );
     }
     // Type-safe runtime normalization (handles missing _id in the TS type)
     const rawId = (employee as any)?._id ?? (employee as any)?.id;
     if (!rawId) {
       console.error(`Employee record for ${dto.employeeNumber} has no id`);
-      throw new NotFoundException(`Employee record for ${dto.employeeNumber} missing id`);
+      throw new NotFoundException(
+        `Employee record for ${dto.employeeNumber} missing id`,
+      );
     }
-    const employeeObjectId = rawId instanceof Types.ObjectId ? rawId : new Types.ObjectId(String(rawId));
+    const employeeObjectId =
+      rawId instanceof Types.ObjectId
+        ? rawId
+        : new Types.ObjectId(String(rawId));
     const employeeId = employeeObjectId.toString();
 
     // Prevent duplicate termination requests for the same employee
     // Check only the LATEST termination request (sorted by creation date)
     // Only block if the latest request has PENDING or APPROVED status
     // Allow new request if the latest request was REJECTED or no requests exist
-    const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(employeeId);
+    const existingTerminations =
+      await this.terminationRequestRepository.findByEmployeeId(employeeId);
     if (existingTerminations && existingTerminations.length > 0) {
       // Sort by createdAt descending to get the most recent first
       const sortedTerminations = existingTerminations.sort((a, b) => {
-        const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
-        const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        const dateA = (a as any).createdAt
+          ? new Date((a as any).createdAt).getTime()
+          : 0;
+        const dateB = (b as any).createdAt
+          ? new Date((b as any).createdAt).getTime()
+          : 0;
         return dateB - dateA; // Descending order (newest first)
       });
 
       const latestTermination = sortedTerminations[0];
 
       // Check if the latest termination request is PENDING or APPROVED
-      if (latestTermination.status === TerminationStatus.PENDING || latestTermination.status === TerminationStatus.APPROVED) {
-        console.warn(`Employee ${dto.employeeNumber} already has an active termination request (latest: ${latestTermination.status})`);
+      if (
+        latestTermination.status === TerminationStatus.PENDING ||
+        latestTermination.status === TerminationStatus.APPROVED
+      ) {
+        console.warn(
+          `Employee ${dto.employeeNumber} already has an active termination request (latest: ${latestTermination.status})`,
+        );
         throw new BadRequestException(
           `Cannot initiate termination for employee ${dto.employeeNumber} - employee already has an active termination request with status: ${latestTermination.status}. ` +
-          `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`
+            `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`,
         );
       }
 
       // If we reach here, the latest request is REJECTED - allow new request
-      console.log(`Employee ${dto.employeeNumber} has rejected termination request (latest status: ${latestTermination.status}), allowing new request`);
+      console.log(
+        `Employee ${dto.employeeNumber} has rejected termination request (latest status: ${latestTermination.status}), allowing new request`,
+      );
     }
 
     // Check if employee is already terminated/revoked
     try {
       const employeeProfile = await this.employeeService.getProfile(employeeId);
-      if (employeeProfile && employeeProfile.profile && employeeProfile.profile.status === EmployeeStatus.TERMINATED) {
+      if (
+        employeeProfile &&
+        employeeProfile.profile &&
+        employeeProfile.profile.status === EmployeeStatus.TERMINATED
+      ) {
         console.warn(`Employee ${dto.employeeNumber} is already terminated`);
-        throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee is already terminated/revoked from the system`);
+        throw new BadRequestException(
+          `Cannot initiate termination for employee ${dto.employeeNumber} - employee is already terminated/revoked from the system`,
+        );
       }
     } catch (error) {
       // If we can't fetch the profile, the employee might be deleted or revoked
       if (error instanceof BadRequestException) {
         throw error; // Re-throw our own error
       }
-      console.error(`Failed to fetch employee profile for ${dto.employeeNumber}:`, error.message);
-      throw new BadRequestException(`Cannot initiate termination for employee ${dto.employeeNumber} - employee may be revoked from the system or profile not accessible`);
+      console.error(
+        `Failed to fetch employee profile for ${dto.employeeNumber}:`,
+        error.message,
+      );
+      throw new BadRequestException(
+        `Cannot initiate termination for employee ${dto.employeeNumber} - employee may be revoked from the system or profile not accessible`,
+      );
     }
 
     // Step 2: Convert employee number to candidate number (EMP -> CAN)
     if (!dto.employeeNumber.startsWith('EMP')) {
-      throw new BadRequestException(`Invalid employee number format: ${dto.employeeNumber}. Must start with EMP`);
+      throw new BadRequestException(
+        `Invalid employee number format: ${dto.employeeNumber}. Must start with EMP`,
+      );
     }
     const candidateNumber = 'CAN' + dto.employeeNumber.substring(3);
-    console.log(`Converted employee number ${dto.employeeNumber} to candidate number: ${candidateNumber}`);
+    console.log(
+      `Converted employee number ${dto.employeeNumber} to candidate number: ${candidateNumber}`,
+    );
 
     // Step 3: Find candidate by candidate number
-    const candidate = await this.candidateRepository.findByCandidateNumber(candidateNumber);
+    const candidate =
+      await this.candidateRepository.findByCandidateNumber(candidateNumber);
     if (!candidate) {
-      throw new NotFoundException(`Candidate with number ${candidateNumber} not found`);
+      throw new NotFoundException(
+        `Candidate with number ${candidateNumber} not found`,
+      );
     }
     console.log(`Found candidate with ID: ${candidate._id}`);
 
     // Step 4: Find contract where employeeSignatureUrl contains the candidate number
     const allContracts = await this.contractRepository.find({});
-    const contract = allContracts.find((c: any) =>
-      c.employeeSignatureUrl && c.employeeSignatureUrl.includes(candidateNumber)
+    const contract = allContracts.find(
+      (c: any) =>
+        c.employeeSignatureUrl &&
+        c.employeeSignatureUrl.includes(candidateNumber),
     );
 
     if (!contract) {
-      throw new NotFoundException(`No contract found with employeeSignatureUrl containing ${candidateNumber}`);
+      throw new NotFoundException(
+        `No contract found with employeeSignatureUrl containing ${candidateNumber}`,
+      );
     }
 
     const contractObjectId = new Types.ObjectId(contract._id);
-    console.log(`Found contract ${contract._id} with employeeSignatureUrl: ${contract.employeeSignatureUrl}`);
+    console.log(
+      `Found contract ${contract._id} with employeeSignatureUrl: ${contract.employeeSignatureUrl}`,
+    );
 
     // Try to get appraisal records for the employee (optional)
     let appraisalRecords: any[] = [];
     let latestAppraisal: any = null;
 
     try {
-      appraisalRecords = await this.appraisalrecordservice.getFinalizedRecordsForEmployee(employeeId);
-      latestAppraisal = appraisalRecords.length > 0 ? appraisalRecords[0] : null;
+      appraisalRecords =
+        await this.appraisalrecordservice.getFinalizedRecordsForEmployee(
+          employeeId,
+        );
+      latestAppraisal =
+        appraisalRecords.length > 0 ? appraisalRecords[0] : null;
 
       if (latestAppraisal) {
-        console.log(`Found performance data for employee ${dto.employeeNumber}: Score ${latestAppraisal.totalScore}`);
+        console.log(
+          `Found performance data for employee ${dto.employeeNumber}: Score ${latestAppraisal.totalScore}`,
+        );
       } else {
-        console.log(`No performance data found for employee ${dto.employeeNumber}`);
+        console.log(
+          `No performance data found for employee ${dto.employeeNumber}`,
+        );
       }
     } catch (error) {
-      console.log(`Could not fetch appraisal records for employee ${dto.employeeNumber}:`, error.message);
+      console.log(
+        `Could not fetch appraisal records for employee ${dto.employeeNumber}:`,
+        error.message,
+      );
       // Continue without appraisal data - it's optional
     }
 
@@ -170,8 +236,16 @@ export class OffboardingService {
     if (dto.terminationDate) {
       const selected = new Date(dto.terminationDate);
       const today = new Date();
-      const selDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selDay = new Date(
+        selected.getFullYear(),
+        selected.getMonth(),
+        selected.getDate(),
+      );
+      const todayDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
       if (selDay < todayDay) {
         throw new BadRequestException('Termination date cannot be in the past');
       }
@@ -186,13 +260,20 @@ export class OffboardingService {
       employeeComments: dto.employeeComments,
       hrComments: dto.hrComments,
       status: TerminationStatus.PENDING,
-      terminationDate: dto.terminationDate ? new Date(dto.terminationDate) : undefined,
+      terminationDate: dto.terminationDate
+        ? new Date(dto.terminationDate)
+        : undefined,
     };
-    const savedTerminationRequest = await this.terminationRequestRepository.create(terminationRequestData);
-    console.log(`Termination review initiated successfully for employee ${dto.employeeNumber} with ID ${savedTerminationRequest._id}`);
+    const savedTerminationRequest =
+      await this.terminationRequestRepository.create(terminationRequestData);
+    console.log(
+      `Termination review initiated successfully for employee ${dto.employeeNumber} with ID ${savedTerminationRequest._id}`,
+    );
 
     // Step 1: Automatically create employee termination/resignation benefits record
-    console.log(`Creating termination benefits record for employee ${dto.employeeNumber}...`);
+    console.log(
+      `Creating termination benefits record for employee ${dto.employeeNumber}...`,
+    );
     try {
       // Step 1.1: Get employee profile to extract employee number
       const employeeProfile = await this.employeeService.getProfile(employeeId);
@@ -211,30 +292,41 @@ export class OffboardingService {
       console.log(`Converted to candidate number: ${candidateNumber}`);
 
       // Step 1.3: Find candidate by candidate number
-      const candidate = await this.candidateRepository.findByCandidateNumber(candidateNumber);
+      const candidate =
+        await this.candidateRepository.findByCandidateNumber(candidateNumber);
       if (!candidate) {
         throw new Error(`Candidate with number ${candidateNumber} not found`);
       }
       console.log(`Found candidate with ID: ${candidate._id}`);
 
       // Step 1.4: Find offers for the candidate
-      const offers = await this.offerRepository.findByCandidateId(candidate._id.toString());
+      const offers = await this.offerRepository.findByCandidateId(
+        candidate._id.toString(),
+      );
       if (!offers || offers.length === 0) {
         throw new Error(`No offers found for candidate ${candidateNumber}`);
       }
       console.log(`Found ${offers.length} offer(s) for candidate`);
 
       // Step 1.5: Find the accepted offer
-      const acceptedOffer = offers.find(offer => offer.applicantResponse === OfferResponseStatus.ACCEPTED);
+      const acceptedOffer = offers.find(
+        (offer) => offer.applicantResponse === OfferResponseStatus.ACCEPTED,
+      );
       if (!acceptedOffer) {
-        throw new Error(`No accepted offer found for candidate ${candidateNumber}`);
+        throw new Error(
+          `No accepted offer found for candidate ${candidateNumber}`,
+        );
       }
       console.log(`Found accepted offer with ID: ${acceptedOffer._id}`);
 
       // Step 1.6: Find contract using the accepted offer ID
-      const contract = await this.contractRepository.findOne({ offerId: acceptedOffer._id });
+      const contract = await this.contractRepository.findOne({
+        offerId: acceptedOffer._id,
+      });
       if (!contract) {
-        throw new Error(`Contract not found for accepted offer ${acceptedOffer._id}`);
+        throw new Error(
+          `Contract not found for accepted offer ${acceptedOffer._id}`,
+        );
       }
       console.log(`Found contract with ID: ${contract._id}`);
       console.log(`Contract benefits:`, contract.benefits);
@@ -244,13 +336,21 @@ export class OffboardingService {
       let benefits = contract.benefits || [];
 
       // If contract has no benefits, try to get them from the offer
-      if (benefits.length === 0 && acceptedOffer.benefits && acceptedOffer.benefits.length > 0) {
-        console.log(`No benefits in contract, using benefits from offer instead`);
+      if (
+        benefits.length === 0 &&
+        acceptedOffer.benefits &&
+        acceptedOffer.benefits.length > 0
+      ) {
+        console.log(
+          `No benefits in contract, using benefits from offer instead`,
+        );
         benefits = acceptedOffer.benefits;
       }
 
       if (benefits.length === 0) {
-        throw new Error(`No benefits found in contract or offer for candidate ${candidateNumber}`);
+        throw new Error(
+          `No benefits found in contract or offer for candidate ${candidateNumber}`,
+        );
       }
       console.log(`Found ${benefits.length} benefits: ${benefits.join(', ')}`);
 
@@ -265,12 +365,21 @@ export class OffboardingService {
         terminationId: savedTerminationRequest._id.toString(),
       };
       console.log(terminationBenefitDto);
-      const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
-      console.log(`✓ Employee termination benefits record created successfully for employee ${dto.employeeNumber}`);
+      const terminationBenefit =
+        await this.employeeTerminationService.createEmployeeTermination(
+          terminationBenefitDto,
+        );
+      console.log(
+        `✓ Employee termination benefits record created successfully for employee ${dto.employeeNumber}`,
+      );
       console.log(`Benefit details:`, terminationBenefit);
     } catch (error) {
-      console.error(`✗ Failed to create termination benefits record: ${error.message}`);
-      console.error(`This may be due to missing benefit configuration in the database. The termination will proceed, but benefits calculation may need manual review.`);
+      console.error(
+        `✗ Failed to create termination benefits record: ${error.message}`,
+      );
+      console.error(
+        `This may be due to missing benefit configuration in the database. The termination will proceed, but benefits calculation may need manual review.`,
+      );
       // Continue with termination process even if benefit creation fails
       // HR can manually create the benefit record later if needed
     }
@@ -283,10 +392,12 @@ export class OffboardingService {
       'Post Grad Studies',
       'Finance',
       'IT Equipment',
-      'HR'
+      'HR',
     ];
 
-    console.log(`Sending termination notifications for employee ${dto.employeeNumber}...`);
+    console.log(
+      `Sending termination notifications for employee ${dto.employeeNumber}...`,
+    );
 
     for (const department of departments) {
       try {
@@ -297,7 +408,10 @@ export class OffboardingService {
           ? [departmentHeadId.toString()]
           : [employeeId]; // Fallback to general notification
 
-        console.log(`Sending notification to ${department} department. Recipients:`, recipients);
+        console.log(
+          `Sending notification to ${department} department. Recipients:`,
+          recipients,
+        );
 
         const notificationPayload = {
           recipientId: recipients,
@@ -321,14 +435,21 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
 
         await this.notificationService.create(notificationPayload);
 
-        console.log(`✓ Notification sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`);
+        console.log(
+          `✓ Notification sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`,
+        );
       } catch (error) {
-        console.error(`✗ Failed to send notification to ${department}:`, error.message);
+        console.error(
+          `✗ Failed to send notification to ${department}:`,
+          error.message,
+        );
         console.error(`Error details:`, error);
       }
     }
 
-    console.log(`Completed sending ${departments.length} department notifications`);
+    console.log(
+      `Completed sending ${departments.length} department notifications`,
+    );
 
     // Step 2: Automatically create offboarding checklist with predefined items
     try {
@@ -367,13 +488,15 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
         {
           department: 'IT Equipment',
           status: ApprovalStatus.PENDING,
-          comments: 'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
+          comments:
+            'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
           updatedAt: new Date(),
         },
         {
           department: 'HR',
           status: ApprovalStatus.PENDING,
-          comments: 'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
+          comments:
+            'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
           updatedAt: new Date(),
         },
       ];
@@ -382,7 +505,8 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
         {
           name: 'Door Keys',
           returned: false,
-          condition: 'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
+          condition:
+            'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
         },
         {
           name: 'Office equipment keys',
@@ -392,12 +516,14 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
         {
           name: 'Staff ID',
           returned: false,
-          condition: 'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
+          condition:
+            'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
         },
         {
           name: 'Medical insurance Card',
           returned: false,
-          condition: 'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
+          condition:
+            'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
         },
       ];
 
@@ -409,7 +535,9 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
       };
 
       await this.clearanceChecklistRepository.create(checklistData);
-      console.log(`Offboarding checklist automatically created with 11 predefined items (7 departments + 4 equipment) for termination ${savedTerminationRequest._id}`);
+      console.log(
+        `Offboarding checklist automatically created with 11 predefined items (7 departments + 4 equipment) for termination ${savedTerminationRequest._id}`,
+      );
     } catch (error) {
       console.error(`Failed to create offboarding checklist: ${error.message}`);
     }
@@ -417,35 +545,46 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
     return savedTerminationRequest;
   }
 
-
   //OFF-006
   // (As an HR Manager, I want an offboarding checklist (IT assets, ID cards, equipment), so no company property is lost.)
 
-  async initiateOffboardingChecklist(dto: InitiateOffboardingChecklistDto,
+  async initiateOffboardingChecklist(
+    dto: InitiateOffboardingChecklistDto,
   ): Promise<ClearanceChecklist> {
-    console.log(`Initiating offboarding checklist for termination request ${dto.terminationId}`);
-
+    console.log(
+      `Initiating offboarding checklist for termination request ${dto.terminationId}`,
+    );
 
     const terminationObjectId = new Types.ObjectId(dto.terminationId);
 
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(terminationObjectId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      terminationObjectId.toString(),
+    );
 
     if (!terminationRequest) {
-      console.error(`Termination request with ID ${dto.terminationId} not found`);
-      throw new NotFoundException(`Termination request with ID ${dto.terminationId} not found`);
+      console.error(
+        `Termination request with ID ${dto.terminationId} not found`,
+      );
+      throw new NotFoundException(
+        `Termination request with ID ${dto.terminationId} not found`,
+      );
     }
 
-    console.log(`Termination request ${dto.terminationId} validated successfully`);
+    console.log(
+      `Termination request ${dto.terminationId} validated successfully`,
+    );
 
-    const existingChecklist = await this.clearanceChecklistRepository
-      .findByTerminationId(terminationObjectId);
+    const existingChecklist =
+      await this.clearanceChecklistRepository.findByTerminationId(
+        terminationObjectId,
+      );
 
     if (existingChecklist) {
       console.warn(
         `Offboarding checklist already exists for termination request ${dto.terminationId}`,
       );
-      throw new BadRequestException(`Offboarding checklist already exists for this Employee`
+      throw new BadRequestException(
+        `Offboarding checklist already exists for this Employee`,
       );
     }
 
@@ -484,24 +623,29 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
       {
         department: 'IT Equipment',
         status: ApprovalStatus.PENDING,
-        comments: 'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
+        comments:
+          'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
         updatedAt: new Date(),
       },
       {
         department: 'HR',
         status: ApprovalStatus.PENDING,
-        comments: 'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
+        comments:
+          'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
         updatedAt: new Date(),
       },
     ];
 
-    console.log(`Processing ${departmentItems.length} department approval items with predefined locations and contacts`);
+    console.log(
+      `Processing ${departmentItems.length} department approval items with predefined locations and contacts`,
+    );
 
     const equipmentItems = [
       {
         name: 'Door Keys',
         returned: false,
-        condition: 'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
+        condition:
+          'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
       },
       {
         name: 'Office equipment keys',
@@ -511,16 +655,20 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
       {
         name: 'Staff ID',
         returned: false,
-        condition: 'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
+        condition:
+          'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
       },
       {
         name: 'Medical insurance Card',
         returned: false,
-        condition: 'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
+        condition:
+          'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
       },
     ];
 
-    console.log(`Processing ${equipmentItems.length} equipment items with locations and contacts`);
+    console.log(
+      `Processing ${equipmentItems.length} equipment items with locations and contacts`,
+    );
 
     const clearanceChecklistData = {
       terminationId: terminationObjectId,
@@ -529,13 +677,19 @@ Please navigate to the Offboarding Clearance section to sign off on your departm
       cardReturned: false,
     };
 
-    const savedChecklist = await this.clearanceChecklistRepository.create(clearanceChecklistData);
+    const savedChecklist = await this.clearanceChecklistRepository.create(
+      clearanceChecklistData,
+    );
 
-    console.log(`Offboarding checklist created successfully with ID ${savedChecklist._id}`);
+    console.log(
+      `Offboarding checklist created successfully with ID ${savedChecklist._id}`,
+    );
 
     // Send notifications to HR managers and system admins about checklist creation
     try {
-      const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+      const employee = await this.employeeService.getProfile(
+        terminationRequest.employeeId.toString(),
+      );
       const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
       const employeeName = employee?.profile
         ? `${employee.profile.firstName} ${employee.profile.lastName}`
@@ -558,10 +712,10 @@ Checklist Details:
 - Total Equipment Items: ${equipmentItems.length}
 
 Departments to be cleared:
-${departmentItems.map(item => `  • ${item.department} - ${item.status}`).join('\n')}
+${departmentItems.map((item) => `  • ${item.department} - ${item.status}`).join('\n')}
 
 Equipment to be returned:
-${equipmentItems.map(item => `  • ${item.name} - Not returned`).join('\n')}
+${equipmentItems.map((item) => `  • ${item.name} - Not returned`).join('\n')}
 
 Please monitor the clearance progress and ensure all items are completed.`,
         relatedEntityId: savedChecklist._id.toString(),
@@ -571,37 +725,46 @@ Please monitor the clearance progress and ensure all items are completed.`,
 
       console.log(`Checklist creation notification sent to HR managers`);
     } catch (error) {
-      console.error(`Failed to send checklist creation notification: ${error.message}`);
+      console.error(
+        `Failed to send checklist creation notification: ${error.message}`,
+      );
       // Continue execution even if notification fails
     }
 
     return savedChecklist;
   }
 
-
   //OFF-007
   //As a System Admin, I want to revoke system and account access upon termination, so security is maintained.
 
-  async revokeSystemAccess(dto: RevokeSystemAccessDto): Promise<
-    {
-      message: string,
-      employeeId: string,
-      newStatus: EmployeeStatus,
-      accessRevoked: boolean,
-    }> {
-    console.log(`System Admin initiating access revocation for termination request ${dto.terminationRequestId}`);
+  async revokeSystemAccess(dto: RevokeSystemAccessDto): Promise<{
+    message: string;
+    employeeId: string;
+    newStatus: EmployeeStatus;
+    accessRevoked: boolean;
+  }> {
+    console.log(
+      `System Admin initiating access revocation for termination request ${dto.terminationRequestId}`,
+    );
 
     const terminationObjectId = new Types.ObjectId(dto.terminationRequestId);
 
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(terminationObjectId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      terminationObjectId.toString(),
+    );
 
     if (!terminationRequest) {
-      console.error(`Termination request with ID ${dto.terminationRequestId} not found`);
-      throw new NotFoundException(`Termination request with ID ${dto.terminationRequestId} not found`);
+      console.error(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
+      throw new NotFoundException(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
     }
 
-    console.log(`Termination request ${dto.terminationRequestId} validated successfully`);
+    console.log(
+      `Termination request ${dto.terminationRequestId} validated successfully`,
+    );
 
     // Check if termination date has expired
     const terminationDate = terminationRequest.terminationDate
@@ -613,36 +776,58 @@ Please monitor the clearance progress and ensure all items are completed.`,
     // 1. Status is APPROVED (normal flow) OR
     // 2. Status is PENDING but termination date has expired (emergency flow)
     const isApproved = terminationRequest.status === TerminationStatus.APPROVED;
-    const isPendingExpired = terminationRequest.status === TerminationStatus.PENDING && isExpired;
+    const isPendingExpired =
+      terminationRequest.status === TerminationStatus.PENDING && isExpired;
 
     if (!isApproved && !isPendingExpired) {
-      console.warn(`Termination request ${dto.terminationRequestId} is not approved and not expired. Current status: ${terminationRequest.status}`);
-      throw new BadRequestException(`Cannot revoke access for termination request with status: ${terminationRequest.status}. Only APPROVED terminations or PENDING terminations with expired dates can have access revoked.`);
+      console.warn(
+        `Termination request ${dto.terminationRequestId} is not approved and not expired. Current status: ${terminationRequest.status}`,
+      );
+      throw new BadRequestException(
+        `Cannot revoke access for termination request with status: ${terminationRequest.status}. Only APPROVED terminations or PENDING terminations with expired dates can have access revoked.`,
+      );
     }
 
     if (isPendingExpired) {
-      console.log(`EMERGENCY REVOCATION: Termination date expired (${terminationDate.toLocaleDateString()}) but status is still PENDING. Proceeding with access revocation.`);
+      console.log(
+        `EMERGENCY REVOCATION: Termination date expired (${terminationDate.toLocaleDateString()}) but status is still PENDING. Proceeding with access revocation.`,
+      );
     }
 
     // Step 3: Validate that all checklist items are handled before allowing access revocation
-    const checklist = await this.clearanceChecklistRepository.findByTerminationId(terminationObjectId);
+    const checklist =
+      await this.clearanceChecklistRepository.findByTerminationId(
+        terminationObjectId,
+      );
 
     if (!checklist) {
-      console.error(`Clearance checklist not found for termination ${dto.terminationRequestId}`);
-      throw new BadRequestException(`Cannot revoke access: Offboarding checklist must be created first for termination request ${dto.terminationRequestId}`);
+      console.error(
+        `Clearance checklist not found for termination ${dto.terminationRequestId}`,
+      );
+      throw new BadRequestException(
+        `Cannot revoke access: Offboarding checklist must be created first for termination request ${dto.terminationRequestId}`,
+      );
     }
 
     // Check if all departments are approved
-    const allDepartmentsApproved = checklist.items.every(item => item.status === ApprovalStatus.APPROVED);
+    const allDepartmentsApproved = checklist.items.every(
+      (item) => item.status === ApprovalStatus.APPROVED,
+    );
 
     // Check if any department has rejected (cannot proceed if rejected)
-    const anyDepartmentRejected = checklist.items.some(item => item.status === ApprovalStatus.REJECTED);
+    const anyDepartmentRejected = checklist.items.some(
+      (item) => item.status === ApprovalStatus.REJECTED,
+    );
 
     // Check if any department is still pending
-    const anyDepartmentPending = checklist.items.some(item => item.status === ApprovalStatus.PENDING);
+    const anyDepartmentPending = checklist.items.some(
+      (item) => item.status === ApprovalStatus.PENDING,
+    );
 
     // Check if all equipment is returned
-    const allEquipmentReturned = checklist.equipmentList.every(eq => eq.returned === true);
+    const allEquipmentReturned = checklist.equipmentList.every(
+      (eq) => eq.returned === true,
+    );
 
     // Check if card is returned
     const cardReturned = checklist.cardReturned === true;
@@ -653,8 +838,11 @@ Please monitor the clearance progress and ensure all items are completed.`,
       // Strict validation for approved terminations
       if (anyDepartmentRejected) {
         const rejectedDepartments = checklist.items
-          .filter(item => item.status === ApprovalStatus.REJECTED)
-          .map(item => `${item.department} (Reason: ${item.comments || 'No reason provided'})`)
+          .filter((item) => item.status === ApprovalStatus.REJECTED)
+          .map(
+            (item) =>
+              `${item.department} (Reason: ${item.comments || 'No reason provided'})`,
+          )
           .join(', ');
 
         const errorMessage = `Cannot revoke system access. The following departments have REJECTED clearance: ${rejectedDepartments}. Please resolve rejected items before proceeding.`;
@@ -664,18 +852,20 @@ Please monitor the clearance progress and ensure all items are completed.`,
 
       if (!allDepartmentsApproved || !allEquipmentReturned || !cardReturned) {
         const pendingDepartments = checklist.items
-          .filter(item => item.status === ApprovalStatus.PENDING)
-          .map(item => item.department)
+          .filter((item) => item.status === ApprovalStatus.PENDING)
+          .map((item) => item.department)
           .join(', ');
 
         const unreturnedEquipment = checklist.equipmentList
-          .filter(eq => !eq.returned)
-          .map(eq => eq.name)
+          .filter((eq) => !eq.returned)
+          .map((eq) => eq.name)
           .join(', ');
 
         let errorMessage = 'Cannot revoke system access. Pending items: ';
-        if (pendingDepartments) errorMessage += `Departments: ${pendingDepartments}. `;
-        if (unreturnedEquipment) errorMessage += `Equipment: ${unreturnedEquipment}. `;
+        if (pendingDepartments)
+          errorMessage += `Departments: ${pendingDepartments}. `;
+        if (unreturnedEquipment)
+          errorMessage += `Equipment: ${unreturnedEquipment}. `;
         if (!cardReturned) errorMessage += `Access card not returned. `;
 
         console.error(errorMessage);
@@ -687,23 +877,29 @@ Please monitor the clearance progress and ensure all items are completed.`,
 
       if (anyDepartmentRejected) {
         const rejectedDepartments = checklist.items
-          .filter(item => item.status === ApprovalStatus.REJECTED)
-          .map(item => item.department);
-        incompleteItems.push(`Rejected departments: ${rejectedDepartments.join(', ')}`);
+          .filter((item) => item.status === ApprovalStatus.REJECTED)
+          .map((item) => item.department);
+        incompleteItems.push(
+          `Rejected departments: ${rejectedDepartments.join(', ')}`,
+        );
       }
 
       if (anyDepartmentPending) {
         const pendingDepartments = checklist.items
-          .filter(item => item.status === ApprovalStatus.PENDING)
-          .map(item => item.department);
-        incompleteItems.push(`Pending departments: ${pendingDepartments.join(', ')}`);
+          .filter((item) => item.status === ApprovalStatus.PENDING)
+          .map((item) => item.department);
+        incompleteItems.push(
+          `Pending departments: ${pendingDepartments.join(', ')}`,
+        );
       }
 
       if (!allEquipmentReturned) {
         const unreturnedEquipment = checklist.equipmentList
-          .filter(eq => !eq.returned)
-          .map(eq => eq.name);
-        incompleteItems.push(`Unreturned equipment: ${unreturnedEquipment.join(', ')}`);
+          .filter((eq) => !eq.returned)
+          .map((eq) => eq.name);
+        incompleteItems.push(
+          `Unreturned equipment: ${unreturnedEquipment.join(', ')}`,
+        );
       }
 
       if (!cardReturned) {
@@ -711,18 +907,22 @@ Please monitor the clearance progress and ensure all items are completed.`,
       }
 
       if (incompleteItems.length > 0) {
-        console.warn(`EMERGENCY REVOCATION: Proceeding despite incomplete items: ${incompleteItems.join(' | ')}`);
+        console.warn(
+          `EMERGENCY REVOCATION: Proceeding despite incomplete items: ${incompleteItems.join(' | ')}`,
+        );
       }
     }
 
-    console.log(`All checklist requirements validated for termination ${dto.terminationRequestId}. Proceeding with access revocation.`);
-    //Ahmed been here
-    let x = new UpdateEmployeeStatusDto
-    x.status = EmployeeStatus.TERMINATED
-    await this.employeeService.updateStatus(
-      terminationRequest.employeeId.toString(), x
+    console.log(
+      `All checklist requirements validated for termination ${dto.terminationRequestId}. Proceeding with access revocation.`,
     );
-
+    //Ahmed been here
+    let x = new UpdateEmployeeStatusDto();
+    x.status = EmployeeStatus.TERMINATED;
+    await this.employeeService.updateStatus(
+      terminationRequest.employeeId.toString(),
+      x,
+    );
 
     /*
     const employee = statusUpdateResult;
@@ -749,7 +949,9 @@ Please monitor the clearance progress and ensure all items are completed.`,
     }
 
 */
-    const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+    const employee = await this.employeeService.getProfile(
+      terminationRequest.employeeId.toString(),
+    );
     const securityNotificationPayload = {
       recipientId: [terminationRequest.employeeId], // TODO: Replace with actual System Admin / HR IDs
       type: 'Alert',
@@ -785,7 +987,9 @@ Security Status: All system and account access has been revoked. Employee can no
 
     await this.notificationService.create(securityNotificationPayload as any);
 
-    console.log(`Security notification sent for access revocation of employee ${terminationRequest.employeeId}`);
+    console.log(
+      `Security notification sent for access revocation of employee ${terminationRequest.employeeId}`,
+    );
 
     const employeeNotificationPayload = {
       recipientId: [terminationRequest.employeeId],
@@ -806,7 +1010,9 @@ Please contact HR if you have any questions regarding your final settlement or b
 
     await this.notificationService.create(employeeNotificationPayload as any);
 
-    console.log(`Informational notification sent to terminated employee ${terminationRequest.employeeId}`);
+    console.log(
+      `Informational notification sent to terminated employee ${terminationRequest.employeeId}`,
+    );
 
     // Send notification to HR Managers about employee revocation from system
     try {
@@ -838,13 +1044,19 @@ All system and account access has been permanently revoked. The employee can no 
         isRead: false,
       } as any);
 
-      console.log(`Employee revocation notification sent to HR managers for employee ${employee.profile.employeeNumber}`);
+      console.log(
+        `Employee revocation notification sent to HR managers for employee ${employee.profile.employeeNumber}`,
+      );
     } catch (error) {
-      console.error(`Failed to send employee revocation notification: ${error.message}`);
+      console.error(
+        `Failed to send employee revocation notification: ${error.message}`,
+      );
       // Continue execution even if notification fails
     }
 
-    console.log(`Access revocation completed successfully for employee ${terminationRequest.employeeId}`);
+    console.log(
+      `Access revocation completed successfully for employee ${terminationRequest.employeeId}`,
+    );
 
     return {
       message: `System and account access successfully revoked for employee ${terminationRequest.employeeId}`,
@@ -854,38 +1066,51 @@ All system and account access has been permanently revoked. The employee can no 
     };
   }
 
-
-
-
-
-
   //OFF-013
   //As HR Manager, I want to send offboarding notification to trigger benefits termination and final pay calc (unused leave, deductions), so settlements are accurate.
-  async sendOffboardingNotification(dto: { terminationRequestId: string; additionalMessage?: string },): Promise<any> {
-    console.log(`Sending offboarding notification for termination request ${dto.terminationRequestId}`);
+  async sendOffboardingNotification(dto: {
+    terminationRequestId: string;
+    additionalMessage?: string;
+  }): Promise<any> {
+    console.log(
+      `Sending offboarding notification for termination request ${dto.terminationRequestId}`,
+    );
 
     const terminationObjectId = new Types.ObjectId(dto.terminationRequestId);
 
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(terminationObjectId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      terminationObjectId.toString(),
+    );
 
     if (!terminationRequest) {
-      console.error(`Termination request with ID ${dto.terminationRequestId} not found`);
-      throw new NotFoundException(`Termination request with ID ${dto.terminationRequestId} not found`);
+      console.error(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
+      throw new NotFoundException(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
     }
 
-    console.log(`Termination request ${dto.terminationRequestId} validated successfully`);
+    console.log(
+      `Termination request ${dto.terminationRequestId} validated successfully`,
+    );
 
     const employee = await this.employeeService.getProfile(
-      terminationRequest.employeeId.toString()
+      terminationRequest.employeeId.toString(),
     );
 
     if (!employee) {
-      console.error(`Employee with ID ${terminationRequest.employeeId} not found`);
-      throw new NotFoundException(`Employee with ID ${terminationRequest.employeeId} not found`);
+      console.error(
+        `Employee with ID ${terminationRequest.employeeId} not found`,
+      );
+      throw new NotFoundException(
+        `Employee with ID ${terminationRequest.employeeId} not found`,
+      );
     }
 
-    console.log(`Employee ${employee.profile.employeeNumber} retrieved successfully`);
+    console.log(
+      `Employee ${employee.profile.employeeNumber} retrieved successfully`,
+    );
 
     // Load leave entitlements using the LeavesRequestService
     let leaveEntitlements: any[] = [];
@@ -908,22 +1133,40 @@ All system and account access has been permanently revoked. The employee can no 
         benefits = contract?.benefits || [];
       }
     } catch (err) {
-      console.warn('Failed to load contract or benefits array:', err?.message || err);
+      console.warn(
+        'Failed to load contract or benefits array:',
+        err?.message || err,
+      );
       benefits = [];
     }
 
     // Trigger benefit termination via a createEmployeeTermination service if available on this instance
     try {
-      if ((this as any).employeeTerminationService && typeof (this as any).employeeTerminationService.createEmployeeTermination === 'function') {
-        await (this as any).employeeTerminationService.createEmployeeTermination(terminationRequest.employeeId.toString(), benefits);
-        console.log('Triggered createEmployeeTermination for benefits termination');
+      if (
+        (this as any).employeeTerminationService &&
+        typeof (this as any).employeeTerminationService
+          .createEmployeeTermination === 'function'
+      ) {
+        await (
+          this as any
+        ).employeeTerminationService.createEmployeeTermination(
+          terminationRequest.employeeId.toString(),
+          benefits,
+        );
+        console.log(
+          'Triggered createEmployeeTermination for benefits termination',
+        );
       } else {
-        console.warn('createEmployeeTermination service not available on this instance; skipping benefit termination trigger');
+        console.warn(
+          'createEmployeeTermination service not available on this instance; skipping benefit termination trigger',
+        );
       }
     } catch (err) {
-      console.error('Error triggering benefit termination:', err?.message || err);
+      console.error(
+        'Error triggering benefit termination:',
+        err?.message || err,
+      );
     }
-
 
     // Build leave summary
     let totalUnusedAnnualLeave = 0;
@@ -931,20 +1174,34 @@ All system and account access has been permanently revoked. The employee can no 
     try {
       for (const entitlement of leaveEntitlements) {
         // entitlement may be either the raw entitlement (with leaveTypeId populated) or a mapped balance
-        const leaveType = entitlement.leaveTypeId || entitlement.leaveType || entitlement.leaveTypeId?.name || null;
+        const leaveType =
+          entitlement.leaveTypeId ||
+          entitlement.leaveType ||
+          entitlement.leaveTypeId?.name ||
+          null;
         const remaining = entitlement.remaining ?? entitlement.balance ?? 0;
         // If leaveType is an object, try to read paid/deductible flags
-        const paid = leaveType?.paid ?? (leaveType?.paid === undefined ? true : leaveType.paid);
+        const paid =
+          leaveType?.paid ??
+          (leaveType?.paid === undefined ? true : leaveType.paid);
         const deductible = leaveType?.deductible ?? true;
-        const name = (leaveType && (leaveType.name || leaveType.leaveTypeName)) || entitlement.leaveTypeId?.toString?.() || 'Leave';
+        const name =
+          (leaveType && (leaveType.name || leaveType.leaveTypeName)) ||
+          entitlement.leaveTypeId?.toString?.() ||
+          'Leave';
 
         if (remaining > 0 && paid !== false && deductible !== false) {
           totalUnusedAnnualLeave += remaining;
-          unusedLeaveDetails.push(`${name}: ${remaining} days (to be encashed)`);
+          unusedLeaveDetails.push(
+            `${name}: ${remaining} days (to be encashed)`,
+          );
         }
       }
     } catch (err) {
-      console.warn('Error processing leave entitlements for offboarding notification:', err?.message || err);
+      console.warn(
+        'Error processing leave entitlements for offboarding notification:',
+        err?.message || err,
+      );
     }
 
     // Build notification payload (multiline message)
@@ -982,19 +1239,26 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       isRead: false,
     };
 
-    const savedNotification = await this.notificationService.create(notificationPayload as any);
+    const savedNotification = await this.notificationService.create(
+      notificationPayload as any,
+    );
 
-    console.log(`Offboarding notification sent to ${recipients.length} recipient(s) including employee, HR, Payroll, and Finance`);
+    console.log(
+      `Offboarding notification sent to ${recipients.length} recipient(s) including employee, HR, Payroll, and Finance`,
+    );
     return savedNotification;
   }
 
-
   //OFF-018
   //As an Employee, I want to be able to request a Resignation request with reasoning
-  async submitResignation(dto: SubmitResignationDto): Promise<TerminationRequest> {
+  async submitResignation(
+    dto: SubmitResignationDto,
+  ): Promise<TerminationRequest> {
     // Validate that employeeId is present (should always be set by controller)
     if (!dto.employeeId) {
-      throw new BadRequestException('Employee ID is required for resignation submission');
+      throw new BadRequestException(
+        'Employee ID is required for resignation submission',
+      );
     }
 
     const employeeId = dto.employeeId; // Now TypeScript knows it's defined
@@ -1008,7 +1272,9 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       throw new NotFoundException(`Employee with ID ${employeeId} not found`);
     }
 
-    console.log(`Employee ${employee.profile.employeeNumber} validated successfully`);
+    console.log(
+      `Employee ${employee.profile.employeeNumber} validated successfully`,
+    );
 
     // Find the contract automatically using employee → candidate → offer → contract flow
     let contractId: Types.ObjectId;
@@ -1021,69 +1287,104 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       }
 
       const candidateNumber = 'CAN' + employeeNumber.substring(3);
-      const candidate = await this.candidateRepository.findByCandidateNumber(candidateNumber);
+      const candidate =
+        await this.candidateRepository.findByCandidateNumber(candidateNumber);
       if (!candidate) {
         throw new Error(`Candidate with number ${candidateNumber} not found`);
       }
 
-      const offers = await this.offerRepository.findByCandidateId(candidate._id.toString());
+      const offers = await this.offerRepository.findByCandidateId(
+        candidate._id.toString(),
+      );
       if (!offers || offers.length === 0) {
         throw new Error(`No offers found for candidate ${candidateNumber}`);
       }
 
-      const acceptedOffer = offers.find(offer => offer.applicantResponse === OfferResponseStatus.ACCEPTED);
+      const acceptedOffer = offers.find(
+        (offer) => offer.applicantResponse === OfferResponseStatus.ACCEPTED,
+      );
       if (!acceptedOffer) {
-        throw new Error(`No accepted offer found for candidate ${candidateNumber}`);
+        throw new Error(
+          `No accepted offer found for candidate ${candidateNumber}`,
+        );
       }
 
-      const contract = await this.contractRepository.findOne({ offerId: acceptedOffer._id });
+      const contract = await this.contractRepository.findOne({
+        offerId: acceptedOffer._id,
+      });
       if (!contract) {
-        throw new Error(`Contract not found for accepted offer ${acceptedOffer._id}`);
+        throw new Error(
+          `Contract not found for accepted offer ${acceptedOffer._id}`,
+        );
       }
 
       contractId = contract._id;
       console.log(`Contract ${contractId} found and validated successfully`);
     } catch (error) {
       console.error(`Failed to find contract: ${error.message}`);
-      throw new NotFoundException(`Unable to find contract for employee. ${error.message}`);
+      throw new NotFoundException(
+        `Unable to find contract for employee. ${error.message}`,
+      );
     }
 
     // Check if employee has existing PENDING or APPROVED termination/resignation request
     // Check only the LATEST termination request (sorted by creation date)
     // Only block if the latest request has PENDING or APPROVED status
     // Allow new request if the latest request was REJECTED or no requests exist
-    const existingTerminations = await this.terminationRequestRepository.findByEmployeeId(employeeId);
+    const existingTerminations =
+      await this.terminationRequestRepository.findByEmployeeId(employeeId);
     if (existingTerminations && existingTerminations.length > 0) {
       // Sort by createdAt descending to get the most recent first
       const sortedTerminations = existingTerminations.sort((a, b) => {
-        const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
-        const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        const dateA = (a as any).createdAt
+          ? new Date((a as any).createdAt).getTime()
+          : 0;
+        const dateB = (b as any).createdAt
+          ? new Date((b as any).createdAt).getTime()
+          : 0;
         return dateB - dateA; // Descending order (newest first)
       });
 
       const latestTermination = sortedTerminations[0];
 
       // Check if the latest termination/resignation request is PENDING or APPROVED
-      if (latestTermination.status === TerminationStatus.PENDING || latestTermination.status === TerminationStatus.APPROVED) {
-        console.warn(`Employee ${employeeId} already has an active termination/resignation request (latest: ${latestTermination.status})`);
+      if (
+        latestTermination.status === TerminationStatus.PENDING ||
+        latestTermination.status === TerminationStatus.APPROVED
+      ) {
+        console.warn(
+          `Employee ${employeeId} already has an active termination/resignation request (latest: ${latestTermination.status})`,
+        );
         throw new BadRequestException(
           `You cannot submit a resignation request because you already have an active termination/resignation request with status: ${latestTermination.status}. ` +
-          `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`
+            `Latest request created on: ${(latestTermination as any).createdAt ? new Date((latestTermination as any).createdAt).toLocaleDateString() : 'N/A'}`,
         );
       }
 
       // If we reach here, the latest request is REJECTED - allow new request
-      console.log(`Employee ${employeeId} has rejected termination/resignation request (latest status: ${latestTermination.status}), allowing new resignation request`);
+      console.log(
+        `Employee ${employeeId} has rejected termination/resignation request (latest status: ${latestTermination.status}), allowing new resignation request`,
+      );
     }
 
     // Validate proposed last working day is not in the past
     if (dto.proposedLastWorkingDay) {
       const selected = new Date(dto.proposedLastWorkingDay);
       const today = new Date();
-      const selDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selDay = new Date(
+        selected.getFullYear(),
+        selected.getMonth(),
+        selected.getDate(),
+      );
+      const todayDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
       if (selDay < todayDay) {
-        throw new BadRequestException('Proposed last working day cannot be in the past');
+        throw new BadRequestException(
+          'Proposed last working day cannot be in the past',
+        );
       }
     }
 
@@ -1097,10 +1398,14 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       terminationDate: dto.proposedLastWorkingDay,
     });
 
-    console.log(`Resignation submitted successfully with ID ${savedResignation._id}`);
+    console.log(
+      `Resignation submitted successfully with ID ${savedResignation._id}`,
+    );
 
     // Step 1: Automatically create employee termination/resignation benefits record
-    console.log(`Creating termination benefits record for employee ${employeeId}...`);
+    console.log(
+      `Creating termination benefits record for employee ${employeeId}...`,
+    );
     try {
       // Step 1.1: Get employee profile to extract employee number
       const employeeProfile = await this.employeeService.getProfile(employeeId);
@@ -1119,30 +1424,41 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       console.log(`Converted to candidate number: ${candidateNumber}`);
 
       // Step 1.3: Find candidate by candidate number
-      const candidate = await this.candidateRepository.findByCandidateNumber(candidateNumber);
+      const candidate =
+        await this.candidateRepository.findByCandidateNumber(candidateNumber);
       if (!candidate) {
         throw new Error(`Candidate with number ${candidateNumber} not found`);
       }
       console.log(`Found candidate with ID: ${candidate._id}`);
 
       // Step 1.4: Find offers for the candidate
-      const offers = await this.offerRepository.findByCandidateId(candidate._id.toString());
+      const offers = await this.offerRepository.findByCandidateId(
+        candidate._id.toString(),
+      );
       if (!offers || offers.length === 0) {
         throw new Error(`No offers found for candidate ${candidateNumber}`);
       }
       console.log(`Found ${offers.length} offer(s) for candidate`);
 
       // Step 1.5: Find the accepted offer
-      const acceptedOffer = offers.find(offer => offer.applicantResponse === OfferResponseStatus.ACCEPTED);
+      const acceptedOffer = offers.find(
+        (offer) => offer.applicantResponse === OfferResponseStatus.ACCEPTED,
+      );
       if (!acceptedOffer) {
-        throw new Error(`No accepted offer found for candidate ${candidateNumber}`);
+        throw new Error(
+          `No accepted offer found for candidate ${candidateNumber}`,
+        );
       }
       console.log(`Found accepted offer with ID: ${acceptedOffer._id}`);
 
       // Step 1.6: Find contract using the accepted offer ID
-      const resignationContract = await this.contractRepository.findOne({ offerId: acceptedOffer._id });
+      const resignationContract = await this.contractRepository.findOne({
+        offerId: acceptedOffer._id,
+      });
       if (!resignationContract) {
-        throw new Error(`Contract not found for accepted offer ${acceptedOffer._id}`);
+        throw new Error(
+          `Contract not found for accepted offer ${acceptedOffer._id}`,
+        );
       }
       console.log(`Found contract with ID: ${resignationContract._id}`);
       console.log(`Contract benefits:`, resignationContract.benefits);
@@ -1152,13 +1468,21 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       let benefits = resignationContract.benefits || [];
 
       // If contract has no benefits, try to get them from the offer
-      if (benefits.length === 0 && acceptedOffer.benefits && acceptedOffer.benefits.length > 0) {
-        console.log(`No benefits in contract, using benefits from offer instead`);
+      if (
+        benefits.length === 0 &&
+        acceptedOffer.benefits &&
+        acceptedOffer.benefits.length > 0
+      ) {
+        console.log(
+          `No benefits in contract, using benefits from offer instead`,
+        );
         benefits = acceptedOffer.benefits;
       }
 
       if (benefits.length === 0) {
-        throw new Error(`No benefits found in contract or offer for candidate ${candidateNumber}`);
+        throw new Error(
+          `No benefits found in contract or offer for candidate ${candidateNumber}`,
+        );
       }
       console.log(`Found ${benefits.length} benefits: ${benefits.join(', ')}`);
 
@@ -1173,12 +1497,21 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         terminationId: savedResignation._id.toString(),
       };
 
-      const terminationBenefit = await this.employeeTerminationService.createEmployeeTermination(terminationBenefitDto);
-      console.log(`✓ Employee termination benefits record created successfully for employee ${employeeId}`);
+      const terminationBenefit =
+        await this.employeeTerminationService.createEmployeeTermination(
+          terminationBenefitDto,
+        );
+      console.log(
+        `✓ Employee termination benefits record created successfully for employee ${employeeId}`,
+      );
       console.log(`Benefit details:`, terminationBenefit);
     } catch (error) {
-      console.error(`✗ Failed to create termination benefits record: ${error.message}`);
-      console.error(`This may be due to missing benefit configuration in the database. The resignation will proceed, but benefits calculation may need manual review.`);
+      console.error(
+        `✗ Failed to create termination benefits record: ${error.message}`,
+      );
+      console.error(
+        `This may be due to missing benefit configuration in the database. The resignation will proceed, but benefits calculation may need manual review.`,
+      );
       // Continue with resignation process even if benefit creation fails
       // HR can manually create the benefit record later if needed
     }
@@ -1191,7 +1524,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       'Post Grad Studies',
       'Finance',
       'IT Equipment',
-      'HR'
+      'HR',
     ];
 
     for (const department of departments) {
@@ -1206,7 +1539,9 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         });
         console.log(`Notification sent to ${department} department`);
       } catch (error) {
-        console.error(`Failed to send notification to ${department}: ${error.message}`);
+        console.error(
+          `Failed to send notification to ${department}: ${error.message}`,
+        );
       }
     }
 
@@ -1247,13 +1582,15 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         {
           department: 'IT Equipment',
           status: ApprovalStatus.PENDING,
-          comments: 'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
+          comments:
+            'Location: IT Department - S 301, Person in charge: Eng. Youssef Mahmoud',
           updatedAt: new Date(),
         },
         {
           department: 'HR',
           status: ApprovalStatus.PENDING,
-          comments: 'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
+          comments:
+            'Location: HR Office - S 205, Person in charge: Ms. Nada Kamal',
           updatedAt: new Date(),
         },
       ];
@@ -1262,7 +1599,8 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         {
           name: 'Door Keys',
           returned: false,
-          condition: 'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
+          condition:
+            'Location: Security Office - Ground Floor, Person in charge: Mr. Mohamed Ali',
         },
         {
           name: 'Office equipment keys',
@@ -1272,12 +1610,14 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         {
           name: 'Staff ID',
           returned: false,
-          condition: 'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
+          condition:
+            'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
         },
         {
           name: 'Medical insurance Card',
           returned: false,
-          condition: 'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
+          condition:
+            'Location: HR Office - S 205, Person in charge: Ms. Heba Fathy',
         },
       ];
 
@@ -1289,7 +1629,9 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       };
 
       await this.clearanceChecklistRepository.create(checklistData);
-      console.log(`Offboarding checklist automatically created with 11 predefined items (7 departments + 4 equipment) for resignation ${savedResignation._id}`);
+      console.log(
+        `Offboarding checklist automatically created with 11 predefined items (7 departments + 4 equipment) for resignation ${savedResignation._id}`,
+      );
     } catch (error) {
       console.error(`Failed to create offboarding checklist: ${error.message}`);
     }
@@ -1301,7 +1643,6 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     //let managerNotificationSent = false;
 
     if (employee.profile.supervisorPositionId) {
-
       //TODO: what if the supervisor is not found??
       //should i stop the whole workflow untill a supervisor is found?
 
@@ -1343,8 +1684,6 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
 
     //financial approval notification will be added
     //notification will be sent to the HR for processing/approval
-
-
 
     //TODO:
     //should the confirmation notification sent to the employee after the approval of all the entities the notification was sent to them in the workflow?
@@ -1389,11 +1728,12 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     return savedResignation;
   }
 
-
   //OFF-019
   //As an Employee, I want to be able to track my resignation request status.
 
-  async trackResignationStatus(dto: TrackResignationStatusDto): Promise<TerminationRequest[]> {
+  async trackResignationStatus(
+    dto: TrackResignationStatusDto,
+  ): Promise<TerminationRequest[]> {
     console.log(`Employee ${dto.employeeId} tracking resignation status`);
     const employeeObjectId = new Types.ObjectId(dto.employeeId);
 
@@ -1401,14 +1741,23 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
 
     if (!employee) {
       console.error(`Employee with ID ${dto.employeeId} not found`);
-      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+      throw new NotFoundException(
+        `Employee with ID ${dto.employeeId} not found`,
+      );
     }
-    console.log(`Employee ${employee.profile.employeeNumber} validated successfully`);
+    console.log(
+      `Employee ${employee.profile.employeeNumber} validated successfully`,
+    );
 
-    const resignationRequests = await this.terminationRequestRepository
-      .findByEmployeeAndInitiator(employeeObjectId, TerminationInitiation.EMPLOYEE);
+    const resignationRequests =
+      await this.terminationRequestRepository.findByEmployeeAndInitiator(
+        employeeObjectId,
+        TerminationInitiation.EMPLOYEE,
+      );
 
-    console.log(`Found ${resignationRequests.length} resignation request(s) for employee ${employee.profile.employeeNumber}`);
+    console.log(
+      `Found ${resignationRequests.length} resignation request(s) for employee ${employee.profile.employeeNumber}`,
+    );
 
     //TODO:
     //can the same employee have multiple resignation requests?
@@ -1425,10 +1774,6 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     // - Comments from employee and HR
     return resignationRequests;
   }
-
-
-
-
 
   //OFF-010
   //As HR Manager, I want multi-department exit clearance sign-offs (IT, Finance, Facilities, Line Manager), with statuses, so the employee is fully cleared.
@@ -1449,34 +1794,53 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       pending: number;
     };
   }> {
-
-    console.log(`Department ${dto.department} processing clearance sign-off for checklist ${dto.clearanceChecklistId}`);
+    console.log(
+      `Department ${dto.department} processing clearance sign-off for checklist ${dto.clearanceChecklistId}`,
+    );
 
     const checklistObjectId = new Types.ObjectId(dto.clearanceChecklistId);
-    const approverObjectId = dto.approverId ? new Types.ObjectId(dto.approverId) : null;
+    const approverObjectId = dto.approverId
+      ? new Types.ObjectId(dto.approverId)
+      : null;
 
-    const clearanceChecklist = await this.clearanceChecklistRepository
-      .findById(checklistObjectId.toString());
+    const clearanceChecklist = await this.clearanceChecklistRepository.findById(
+      checklistObjectId.toString(),
+    );
 
     if (!clearanceChecklist) {
-      console.error(`Clearance checklist with ID ${dto.clearanceChecklistId} not found`);
-      throw new NotFoundException(`Clearance checklist with ID ${dto.clearanceChecklistId} not found`);
+      console.error(
+        `Clearance checklist with ID ${dto.clearanceChecklistId} not found`,
+      );
+      throw new NotFoundException(
+        `Clearance checklist with ID ${dto.clearanceChecklistId} not found`,
+      );
     }
 
-    console.log(`Clearance checklist ${dto.clearanceChecklistId} validated successfully`);
+    console.log(
+      `Clearance checklist ${dto.clearanceChecklistId} validated successfully`,
+    );
 
     // Check if termination date has expired - prevent updates after expiration
-    const relatedTerminationRequest = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const relatedTerminationRequest =
+      await this.terminationRequestRepository.findById(
+        clearanceChecklist.terminationId.toString(),
+      );
 
-    if (relatedTerminationRequest && relatedTerminationRequest.terminationDate) {
-      const terminationDate = new Date(relatedTerminationRequest.terminationDate);
+    if (
+      relatedTerminationRequest &&
+      relatedTerminationRequest.terminationDate
+    ) {
+      const terminationDate = new Date(
+        relatedTerminationRequest.terminationDate,
+      );
       const now = new Date();
       if (terminationDate < now) {
-        console.warn(`Cannot update checklist - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        console.warn(
+          `Cannot update checklist - termination date ${terminationDate.toLocaleDateString()} has expired`,
+        );
         throw new BadRequestException(
           `Cannot update clearance checklist. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
-          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+            `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`,
         );
       }
     }
@@ -1486,14 +1850,17 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     );
 
     if (!departmentItem) {
-      console.error(`Department ${dto.department} not found in clearance checklist items`);
+      console.error(
+        `Department ${dto.department} not found in clearance checklist items`,
+      );
       throw new NotFoundException(
         `Department ${dto.department} not found in clearance checklist items. Available departments: ${clearanceChecklist.items.map((item) => item.department).join(', ')}`,
       );
     }
 
-
-    console.log(`Department item found for ${dto.department}. Current status: ${departmentItem.status}`);
+    console.log(
+      `Department item found for ${dto.department}. Current status: ${departmentItem.status}`,
+    );
 
     const previousStatus = departmentItem.status;
     const newStatus = dto.status;
@@ -1507,17 +1874,30 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
     if (previousStatus === 'approved' || previousStatus === 'rejected') {
       // Final states
       if (newStatus !== previousStatus) {
-        throw new BadRequestException(`Cannot change department status once it is '${previousStatus}'`);
+        throw new BadRequestException(
+          `Cannot change department status once it is '${previousStatus}'`,
+        );
       }
     }
 
     if (newStatus === 'pending' && previousStatus !== 'pending') {
       // Do not allow reverting back to pending
-      throw new BadRequestException('Cannot revert department status back to pending');
+      throw new BadRequestException(
+        'Cannot revert department status back to pending',
+      );
     }
 
-    if (previousStatus === 'under_review' && !(newStatus === 'under_review' || newStatus === 'approved' || newStatus === 'rejected')) {
-      throw new BadRequestException(`Invalid transition from 'under_review' to '${newStatus}'`);
+    if (
+      previousStatus === 'under_review' &&
+      !(
+        newStatus === 'under_review' ||
+        newStatus === 'approved' ||
+        newStatus === 'rejected'
+      )
+    ) {
+      throw new BadRequestException(
+        `Invalid transition from 'under_review' to '${newStatus}'`,
+      );
     }
 
     // If all checks pass, apply the new status
@@ -1531,9 +1911,14 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       departmentItem.comments = dto.comments;
     }
 
-    await this.clearanceChecklistRepository.updateById(checklistObjectId.toString(), clearanceChecklist);
+    await this.clearanceChecklistRepository.updateById(
+      checklistObjectId.toString(),
+      clearanceChecklist,
+    );
 
-    console.log(`Department ${dto.department} sign-off updated from ${previousStatus} to ${dto.status}`);
+    console.log(
+      `Department ${dto.department} sign-off updated from ${previousStatus} to ${dto.status}`,
+    );
 
     // Calculate overall clearance progress across all departments
     // Check if all departments have approved their clearance items
@@ -1563,25 +1948,31 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       (item) => item.status === ApprovalStatus.PENDING,
     ).length;
 
-    console.log(`Clearance progress: ${approvedCount}/${totalDepartments} approved, ${rejectedCount} rejected, ${pendingCount} pending`);
+    console.log(
+      `Clearance progress: ${approvedCount}/${totalDepartments} approved, ${rejectedCount} rejected, ${pendingCount} pending`,
+    );
 
     //Retrieve termination request to get employee information for notifications
     // Using TerminationRequest model from Recruitment models
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      clearanceChecklist.terminationId.toString(),
+    );
 
     if (!terminationRequest) {
-      console.warn(`Termination request ${clearanceChecklist.terminationId} not found. Skipping notifications.`);
+      console.warn(
+        `Termination request ${clearanceChecklist.terminationId} not found. Skipping notifications.`,
+      );
     } else {
       // Retrieve employee profile for name and department information
       let employeeName = 'Employee';
       let employeeDepartment = 'N/A';
       try {
         const employeeProfile = await this.employeeService.getProfile(
-          terminationRequest.employeeId.toString()
+          terminationRequest.employeeId.toString(),
         );
         if (employeeProfile?.profile) {
-          employeeName = `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
+          employeeName =
+            `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
           employeeDepartment = employeeProfile.profile.department || 'N/A';
         }
       } catch (error) {
@@ -1592,12 +1983,17 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       // Using Notification model from employee-subsystem/notification
 
       // Build small helper blocks to avoid literal "\\n" showing up
-      const commentsBlock = dto.comments ? `Comments from ${dto.department}: ${dto.comments}
+      const commentsBlock = dto.comments
+        ? `Comments from ${dto.department}: ${dto.comments}
 
-    ` : '';
-      const pendingBlock = pendingDepartments.length > 0 ? `Pending Departments: ${pendingDepartments.join(', ')}
+    `
+        : '';
+      const pendingBlock =
+        pendingDepartments.length > 0
+          ? `Pending Departments: ${pendingDepartments.join(', ')}
 
-    ` : '';
+    `
+          : '';
       const statusMessage = allDepartmentsApproved
         ? 'Congratulations! You have received clearance from all departments. Your offboarding process is complete.'
         : anyDepartmentRejected
@@ -1636,7 +2032,10 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
       console.log(`Department sign-off notification sent to employee`);
 
       // If department approved, send notification to HR/system admin about the approval
-      if (dto.status === ApprovalStatus.APPROVED && previousStatus !== ApprovalStatus.APPROVED) {
+      if (
+        dto.status === ApprovalStatus.APPROVED &&
+        previousStatus !== ApprovalStatus.APPROVED
+      ) {
         const departmentApprovalNotificationPayload = {
           // recipientId should be HR managers and system admins
           recipientId: [terminationRequest.employeeId], // TODO: Replace with actual HR/admin IDs
@@ -1670,9 +2069,13 @@ ${allDepartmentsApproved ? 'All departments have approved! Ready for system acce
           isRead: false,
         };
 
-        await this.notificationService.create(departmentApprovalNotificationPayload as any);
+        await this.notificationService.create(
+          departmentApprovalNotificationPayload as any,
+        );
 
-        console.log(`Department approval notification sent to HR/admins for ${dto.department}`);
+        console.log(
+          `Department approval notification sent to HR/admins for ${dto.department}`,
+        );
       }
 
       //If all departments approved, send final clearance completion notification to system admin
@@ -1713,9 +2116,13 @@ Next Steps:
           isRead: false,
         };
 
-        await this.notificationService.create(completionNotificationPayload as any);
+        await this.notificationService.create(
+          completionNotificationPayload as any,
+        );
 
-        console.log(`System admin notification sent - all departments approved for ${employeeName}`);
+        console.log(
+          `System admin notification sent - all departments approved for ${employeeName}`,
+        );
       }
 
       //If any department rejected, send alert to HR for intervention
@@ -1760,7 +2167,9 @@ Clearance Progress:
       }
       // Send notification to HR managers and system admins about department sign-off update
       try {
-        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employee = await this.employeeService.getProfile(
+          terminationRequest.employeeId.toString(),
+        );
         const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
         const employeeName = employee?.profile
           ? `${employee.profile.firstName} ${employee.profile.lastName}`
@@ -1796,14 +2205,20 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
 
         console.log(`Department sign-off notification sent to HR managers`);
       } catch (error) {
-        console.error(`Failed to send department sign-off notification: ${error.message}`);
+        console.error(
+          `Failed to send department sign-off notification: ${error.message}`,
+        );
         // Continue execution even if notification fails
       }
     }
-    console.log(`Department sign-off processing completed successfully for ${dto.department}`);
+    console.log(
+      `Department sign-off processing completed successfully for ${dto.department}`,
+    );
 
     // Check if all clearance requirements are met and auto-approve termination
-    await this.checkAndAutoApproveTermination(clearanceChecklist._id.toString());
+    await this.checkAndAutoApproveTermination(
+      clearanceChecklist._id.toString(),
+    );
 
     // Return comprehensive clearance status to the controller
     return {
@@ -1837,30 +2252,46 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
     returned: boolean;
     allEquipmentReturned: boolean;
   }> {
-    console.log(`Updating equipment "${equipmentName}" return status to ${returned} in checklist ${clearanceChecklistId}`);
+    console.log(
+      `Updating equipment "${equipmentName}" return status to ${returned} in checklist ${clearanceChecklistId}`,
+    );
 
     const checklistObjectId = new Types.ObjectId(clearanceChecklistId);
 
-    const clearanceChecklist = await this.clearanceChecklistRepository
-      .findById(checklistObjectId.toString());
+    const clearanceChecklist = await this.clearanceChecklistRepository.findById(
+      checklistObjectId.toString(),
+    );
 
     if (!clearanceChecklist) {
-      console.error(`Clearance checklist with ID ${clearanceChecklistId} not found`);
-      throw new NotFoundException(`Clearance checklist with ID ${clearanceChecklistId} not found`);
+      console.error(
+        `Clearance checklist with ID ${clearanceChecklistId} not found`,
+      );
+      throw new NotFoundException(
+        `Clearance checklist with ID ${clearanceChecklistId} not found`,
+      );
     }
 
     // Check if termination date has expired - prevent updates after expiration
-    const relatedTerminationForEquipment = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const relatedTerminationForEquipment =
+      await this.terminationRequestRepository.findById(
+        clearanceChecklist.terminationId.toString(),
+      );
 
-    if (relatedTerminationForEquipment && relatedTerminationForEquipment.terminationDate) {
-      const terminationDate = new Date(relatedTerminationForEquipment.terminationDate);
+    if (
+      relatedTerminationForEquipment &&
+      relatedTerminationForEquipment.terminationDate
+    ) {
+      const terminationDate = new Date(
+        relatedTerminationForEquipment.terminationDate,
+      );
       const now = new Date();
       if (terminationDate < now) {
-        console.warn(`Cannot update equipment - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        console.warn(
+          `Cannot update equipment - termination date ${terminationDate.toLocaleDateString()} has expired`,
+        );
         throw new BadRequestException(
           `Cannot update equipment return status. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
-          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+            `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`,
         );
       }
     }
@@ -1871,7 +2302,9 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
     );
 
     if (!equipmentItem) {
-      console.error(`Equipment "${equipmentName}" not found in clearance checklist`);
+      console.error(
+        `Equipment "${equipmentName}" not found in clearance checklist`,
+      );
       throw new NotFoundException(
         `Equipment "${equipmentName}" not found in clearance checklist. Available equipment: ${clearanceChecklist.equipmentList.map((item) => item.name).join(', ')}`,
       );
@@ -1880,9 +2313,14 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
     const previousStatus = equipmentItem.returned;
     equipmentItem.returned = returned;
 
-    await this.clearanceChecklistRepository.updateById(checklistObjectId.toString(), clearanceChecklist);
+    await this.clearanceChecklistRepository.updateById(
+      checklistObjectId.toString(),
+      clearanceChecklist,
+    );
 
-    console.log(`Equipment "${equipmentName}" return status updated from ${previousStatus} to ${returned}`);
+    console.log(
+      `Equipment "${equipmentName}" return status updated from ${previousStatus} to ${returned}`,
+    );
 
     // Check if all equipment has been returned
     const allEquipmentReturned = clearanceChecklist.equipmentList.every(
@@ -1890,21 +2328,24 @@ ${anyDepartmentRejected ? '⚠ Some departments have rejected clearance. Review 
     );
 
     // Get termination request for employee information and notifications
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      clearanceChecklist.terminationId.toString(),
+    );
 
     // Send notification to HR managers and system admins about equipment update
     if (terminationRequest) {
       try {
-        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employee = await this.employeeService.getProfile(
+          terminationRequest.employeeId.toString(),
+        );
         const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
         const employeeName = employee?.profile
           ? `${employee.profile.firstName} ${employee.profile.lastName}`
           : 'Employee';
 
         const unreturned = clearanceChecklist.equipmentList
-          .filter(item => !item.returned)
-          .map(item => item.name);
+          .filter((item) => !item.returned)
+          .map((item) => item.name);
 
         // Send to HR Managers using role-based delivery (same pattern as recruitment.service.ts)
         await this.notificationService.create({
@@ -1922,7 +2363,7 @@ Update Details:
 
 Equipment Status:
 - Total Items: ${clearanceChecklist.equipmentList.length}
-- Returned: ${clearanceChecklist.equipmentList.filter(item => item.returned).length}
+- Returned: ${clearanceChecklist.equipmentList.filter((item) => item.returned).length}
 - Pending: ${unreturned.length}
 
 ${allEquipmentReturned ? '✓ All equipment has been returned!' : unreturned.length > 0 ? `Unreturned items: ${unreturned.join(', ')}` : ''}`,
@@ -1933,7 +2374,9 @@ ${allEquipmentReturned ? '✓ All equipment has been returned!' : unreturned.len
 
         console.log(`Equipment update notification sent to HR managers`);
       } catch (error) {
-        console.error(`Failed to send equipment update notification: ${error.message}`);
+        console.error(
+          `Failed to send equipment update notification: ${error.message}`,
+        );
         // Continue execution even if notification fails
       }
 
@@ -1942,10 +2385,11 @@ ${allEquipmentReturned ? '✓ All equipment has been returned!' : unreturned.len
       let employeeDepartment = 'N/A';
       try {
         const employeeProfile = await this.employeeService.getProfile(
-          terminationRequest.employeeId.toString()
+          terminationRequest.employeeId.toString(),
         );
         if (employeeProfile?.profile) {
-          employeeName = `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
+          employeeName =
+            `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
           employeeDepartment = employeeProfile.profile.department || 'N/A';
         }
       } catch (error) {
@@ -1973,8 +2417,8 @@ ${equipmentItem.condition ? `- Condition: ${equipmentItem.condition}` : ''}
 
 Equipment Progress:
 - Total Items: ${clearanceChecklist.equipmentList.length}
-- Returned: ${clearanceChecklist.equipmentList.filter(item => item.returned).length}
-- Pending: ${clearanceChecklist.equipmentList.filter(item => !item.returned).length}
+- Returned: ${clearanceChecklist.equipmentList.filter((item) => item.returned).length}
+- Pending: ${clearanceChecklist.equipmentList.filter((item) => !item.returned).length}
 
 ${allEquipmentReturned ? '✓ All equipment has been returned!' : 'Still awaiting return of remaining equipment.'}`,
           relatedEntityId: clearanceChecklist._id.toString(),
@@ -1982,7 +2426,9 @@ ${allEquipmentReturned ? '✓ All equipment has been returned!' : 'Still awaitin
           isRead: false,
         };
 
-        await this.notificationService.create(equipmentReturnNotificationPayload as any);
+        await this.notificationService.create(
+          equipmentReturnNotificationPayload as any,
+        );
         console.log(`Equipment return notification sent for ${equipmentName}`);
       }
 
@@ -1996,8 +2442,8 @@ ${allEquipmentReturned ? '✓ All equipment has been returned!' : 'Still awaitin
 
 Equipment Progress:
 - Total Items: ${clearanceChecklist.equipmentList.length}
-- Returned: ${clearanceChecklist.equipmentList.filter(item => item.returned).length}
-- Pending: ${clearanceChecklist.equipmentList.filter(item => !item.returned).length}
+- Returned: ${clearanceChecklist.equipmentList.filter((item) => item.returned).length}
+- Pending: ${clearanceChecklist.equipmentList.filter((item) => !item.returned).length}
 
 ${allEquipmentReturned ? 'All equipment has been returned! Thank you.' : 'Please ensure all remaining equipment is returned before your last working day.'}`,
         relatedEntityId: clearanceChecklist._id.toString(),
@@ -2030,30 +2476,46 @@ ${allEquipmentReturned ? 'All equipment has been returned! Thank you.' : 'Please
     clearanceChecklistId: string;
     cardReturned: boolean;
   }> {
-    console.log(`Updating access card return status to ${cardReturned} in checklist ${clearanceChecklistId}`);
+    console.log(
+      `Updating access card return status to ${cardReturned} in checklist ${clearanceChecklistId}`,
+    );
 
     const checklistObjectId = new Types.ObjectId(clearanceChecklistId);
 
-    const clearanceChecklist = await this.clearanceChecklistRepository
-      .findById(checklistObjectId.toString());
+    const clearanceChecklist = await this.clearanceChecklistRepository.findById(
+      checklistObjectId.toString(),
+    );
 
     if (!clearanceChecklist) {
-      console.error(`Clearance checklist with ID ${clearanceChecklistId} not found`);
-      throw new NotFoundException(`Clearance checklist with ID ${clearanceChecklistId} not found`);
+      console.error(
+        `Clearance checklist with ID ${clearanceChecklistId} not found`,
+      );
+      throw new NotFoundException(
+        `Clearance checklist with ID ${clearanceChecklistId} not found`,
+      );
     }
 
     // Check if termination date has expired - prevent updates after expiration
-    const relatedTerminationForCard = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const relatedTerminationForCard =
+      await this.terminationRequestRepository.findById(
+        clearanceChecklist.terminationId.toString(),
+      );
 
-    if (relatedTerminationForCard && relatedTerminationForCard.terminationDate) {
-      const terminationDate = new Date(relatedTerminationForCard.terminationDate);
+    if (
+      relatedTerminationForCard &&
+      relatedTerminationForCard.terminationDate
+    ) {
+      const terminationDate = new Date(
+        relatedTerminationForCard.terminationDate,
+      );
       const now = new Date();
       if (terminationDate < now) {
-        console.warn(`Cannot update access card - termination date ${terminationDate.toLocaleDateString()} has expired`);
+        console.warn(
+          `Cannot update access card - termination date ${terminationDate.toLocaleDateString()} has expired`,
+        );
         throw new BadRequestException(
           `Cannot update access card return status. The termination date (${terminationDate.toLocaleDateString()}) has expired. ` +
-          `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`
+            `This offboarding checklist is now locked. The termination request has been automatically approved and the employee is ready for system access revocation.`,
         );
       }
     }
@@ -2061,18 +2523,26 @@ ${allEquipmentReturned ? 'All equipment has been returned! Thank you.' : 'Please
     const previousStatus = clearanceChecklist.cardReturned;
     clearanceChecklist.cardReturned = cardReturned;
 
-    await this.clearanceChecklistRepository.updateById(checklistObjectId.toString(), clearanceChecklist);
+    await this.clearanceChecklistRepository.updateById(
+      checklistObjectId.toString(),
+      clearanceChecklist,
+    );
 
-    console.log(`Access card return status updated from ${previousStatus} to ${cardReturned}`);
+    console.log(
+      `Access card return status updated from ${previousStatus} to ${cardReturned}`,
+    );
 
     // Get termination request for employee information and notifications
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(clearanceChecklist.terminationId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      clearanceChecklist.terminationId.toString(),
+    );
 
     // Send notification to HR managers and system admins about card return update
     if (terminationRequest) {
       try {
-        const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+        const employee = await this.employeeService.getProfile(
+          terminationRequest.employeeId.toString(),
+        );
         const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
         const employeeName = employee?.profile
           ? `${employee.profile.firstName} ${employee.profile.lastName}`
@@ -2100,7 +2570,9 @@ ${cardReturned ? '✓ Access card has been returned.' : '⚠ Access card still p
 
         console.log(`Access card update notification sent to HR managers`);
       } catch (error) {
-        console.error(`Failed to send access card update notification: ${error.message}`);
+        console.error(
+          `Failed to send access card update notification: ${error.message}`,
+        );
         // Continue execution even if notification fails
       }
     }
@@ -2111,10 +2583,11 @@ ${cardReturned ? '✓ Access card has been returned.' : '⚠ Access card still p
       let employeeDepartment = 'N/A';
       try {
         const employeeProfile = await this.employeeService.getProfile(
-          terminationRequest.employeeId.toString()
+          terminationRequest.employeeId.toString(),
         );
         if (employeeProfile?.profile) {
-          employeeName = `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
+          employeeName =
+            `${employeeProfile.profile.firstName || ''} ${employeeProfile.profile.lastName || ''}`.trim();
           employeeDepartment = employeeProfile.profile.department || 'N/A';
         }
       } catch (error) {
@@ -2141,7 +2614,9 @@ Access card has been successfully collected and can be deactivated.`,
           isRead: false,
         };
 
-        await this.notificationService.create(cardReturnNotificationPayload as any);
+        await this.notificationService.create(
+          cardReturnNotificationPayload as any,
+        );
         console.log(`Access card return notification sent`);
       }
 
@@ -2174,51 +2649,63 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
   }
 
   // Helper method to check if all clearance requirements are met and auto-approve/reject termination
-  private async checkAndAutoApproveTermination(clearanceChecklistId: string): Promise<void> {
+  private async checkAndAutoApproveTermination(
+    clearanceChecklistId: string,
+  ): Promise<void> {
     try {
-      console.log(`Checking if termination can be auto-approved/rejected for checklist ${clearanceChecklistId}`);
+      console.log(
+        `Checking if termination can be auto-approved/rejected for checklist ${clearanceChecklistId}`,
+      );
 
-      const clearanceChecklist = await this.clearanceChecklistRepository.findById(clearanceChecklistId);
+      const clearanceChecklist =
+        await this.clearanceChecklistRepository.findById(clearanceChecklistId);
       if (!clearanceChecklist) {
         console.log(`Clearance checklist ${clearanceChecklistId} not found`);
         return;
       }
 
       // Get the termination request
-      const terminationRequest = await this.terminationRequestRepository.findById(
-        clearanceChecklist.terminationId.toString()
-      );
+      const terminationRequest =
+        await this.terminationRequestRepository.findById(
+          clearanceChecklist.terminationId.toString(),
+        );
 
       if (!terminationRequest) {
-        console.log(`Termination request not found for checklist ${clearanceChecklistId}`);
+        console.log(
+          `Termination request not found for checklist ${clearanceChecklistId}`,
+        );
         return;
       }
 
       // Skip if already approved or rejected
       if (terminationRequest.status === TerminationStatus.APPROVED) {
-        console.log(`Termination ${terminationRequest._id} is already approved`);
+        console.log(
+          `Termination ${terminationRequest._id} is already approved`,
+        );
         return;
       }
       if (terminationRequest.status === TerminationStatus.REJECTED) {
-        console.log(`Termination ${terminationRequest._id} is already rejected`);
+        console.log(
+          `Termination ${terminationRequest._id} is already rejected`,
+        );
         return;
       }
 
       // Check department statuses
       const allDepartmentsApproved = clearanceChecklist.items.every(
-        (item) => item.status === ApprovalStatus.APPROVED
+        (item) => item.status === ApprovalStatus.APPROVED,
       );
 
       const anyDepartmentRejected = clearanceChecklist.items.some(
-        (item) => item.status === ApprovalStatus.REJECTED
+        (item) => item.status === ApprovalStatus.REJECTED,
       );
 
       const anyDepartmentPending = clearanceChecklist.items.some(
-        (item) => item.status === ApprovalStatus.PENDING
+        (item) => item.status === ApprovalStatus.PENDING,
       );
 
       const allEquipmentReturned = clearanceChecklist.equipmentList.every(
-        (equipment) => equipment.returned === true
+        (equipment) => equipment.returned === true,
       );
 
       const cardReturned = clearanceChecklist.cardReturned === true;
@@ -2232,7 +2719,9 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
 
       // Priority 1: If any department rejected and no departments are pending, auto-reject the termination
       if (anyDepartmentRejected && !anyDepartmentPending) {
-        console.log(`One or more departments rejected clearance. Auto-rejecting termination ${terminationRequest._id}`);
+        console.log(
+          `One or more departments rejected clearance. Auto-rejecting termination ${terminationRequest._id}`,
+        );
 
         const rejectedDepartments = clearanceChecklist.items
           .filter((item) => item.status === ApprovalStatus.REJECTED)
@@ -2244,15 +2733,17 @@ ${cardReturned ? 'Thank you for returning your access card.' : 'Please ensure yo
 
         await this.terminationRequestRepository.updateById(
           terminationRequest._id.toString(),
-          terminationRequest
+          terminationRequest,
         );
 
-        console.log(`✗ Termination ${terminationRequest._id} auto-rejected due to department rejection(s).`);
+        console.log(
+          `✗ Termination ${terminationRequest._id} auto-rejected due to department rejection(s).`,
+        );
 
         // Send notification to HR and employee about rejection
         try {
           const employeeProfile = await this.employeeService.getProfile(
-            terminationRequest.employeeId.toString()
+            terminationRequest.employeeId.toString(),
           );
           const employeeName = employeeProfile?.profile
             ? `${employeeProfile.profile.firstName} ${employeeProfile.profile.lastName}`
@@ -2280,10 +2771,16 @@ Please review the clearance issues and resolve them before re-initiating the ter
             isRead: false,
           };
 
-          await this.notificationService.create(autoRejectionNotification as any);
-          console.log(`Auto-rejection notification sent to HR and employee for ${employeeName}`);
+          await this.notificationService.create(
+            autoRejectionNotification as any,
+          );
+          console.log(
+            `Auto-rejection notification sent to HR and employee for ${employeeName}`,
+          );
         } catch (error) {
-          console.warn(`Could not send auto-rejection notification: ${error.message}`);
+          console.warn(
+            `Could not send auto-rejection notification: ${error.message}`,
+          );
         }
 
         return; // Exit after rejection
@@ -2291,22 +2788,27 @@ Please review the clearance issues and resolve them before re-initiating the ter
 
       // Priority 2: If all requirements are met, auto-approve the termination
       if (allDepartmentsApproved && allEquipmentReturned && cardReturned) {
-        console.log(`All clearance requirements met. Auto-approving termination ${terminationRequest._id}`);
+        console.log(
+          `All clearance requirements met. Auto-approving termination ${terminationRequest._id}`,
+        );
 
         terminationRequest.status = TerminationStatus.APPROVED;
-        terminationRequest.hrComments = 'Auto-approved: All clearance requirements completed (departments approved, equipment returned, access card returned)';
+        terminationRequest.hrComments =
+          'Auto-approved: All clearance requirements completed (departments approved, equipment returned, access card returned)';
 
         await this.terminationRequestRepository.updateById(
           terminationRequest._id.toString(),
-          terminationRequest
+          terminationRequest,
         );
 
-        console.log(`✓ Termination ${terminationRequest._id} auto-approved successfully. Employee is now ready for system access revocation.`);
+        console.log(
+          `✓ Termination ${terminationRequest._id} auto-approved successfully. Employee is now ready for system access revocation.`,
+        );
 
         // Send notification to system admin
         try {
           const employeeProfile = await this.employeeService.getProfile(
-            terminationRequest.employeeId.toString()
+            terminationRequest.employeeId.toString(),
           );
           const employeeName = employeeProfile?.profile
             ? `${employeeProfile.profile.firstName} ${employeeProfile.profile.lastName}`
@@ -2336,60 +2838,87 @@ The employee is now ready for system access revocation. Please navigate to Syste
             isRead: false,
           };
 
-          await this.notificationService.create(autoApprovalNotification as any);
-          console.log(`Auto-approval notification sent to system admin for ${employeeName}`);
+          await this.notificationService.create(
+            autoApprovalNotification as any,
+          );
+          console.log(
+            `Auto-approval notification sent to system admin for ${employeeName}`,
+          );
         } catch (error) {
-          console.warn(`Could not send auto-approval notification: ${error.message}`);
+          console.warn(
+            `Could not send auto-approval notification: ${error.message}`,
+          );
         }
       } else {
-        console.log(`Not all requirements met yet. Termination ${terminationRequest._id} remains in ${terminationRequest.status} status.`);
+        console.log(
+          `Not all requirements met yet. Termination ${terminationRequest._id} remains in ${terminationRequest.status} status.`,
+        );
       }
     } catch (error) {
-      console.error(`Error in checkAndAutoApproveTermination: ${error.message}`);
+      console.error(
+        `Error in checkAndAutoApproveTermination: ${error.message}`,
+      );
       // Don't throw - this is a background check that shouldn't fail the main operation
     }
   }
 
   //OFF-020
   //Approve or reject termination request
-  async approveTermination(dto: ApproveTerminationDto): Promise<TerminationRequest> {
-    console.log(`Updating termination request ${dto.terminationRequestId} to status ${dto.status}`);
+  async approveTermination(
+    dto: ApproveTerminationDto,
+  ): Promise<TerminationRequest> {
+    console.log(
+      `Updating termination request ${dto.terminationRequestId} to status ${dto.status}`,
+    );
 
     const terminationObjectId = new Types.ObjectId(dto.terminationRequestId);
 
-    const terminationRequest = await this.terminationRequestRepository
-      .findById(terminationObjectId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      terminationObjectId.toString(),
+    );
 
     if (!terminationRequest) {
-      console.error(`Termination request with ID ${dto.terminationRequestId} not found`);
-      throw new NotFoundException(`Termination request with ID ${dto.terminationRequestId} not found`);
+      console.error(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
+      throw new NotFoundException(
+        `Termination request with ID ${dto.terminationRequestId} not found`,
+      );
     }
 
     // If approving termination, validate clearance checklist requirements
     if (dto.status === TerminationStatus.APPROVED) {
-      console.log(`Validating clearance checklist for termination approval ${dto.terminationRequestId}`);
+      console.log(
+        `Validating clearance checklist for termination approval ${dto.terminationRequestId}`,
+      );
 
-      const clearanceChecklist = await this.clearanceChecklistRepository
-        .findByTerminationId(terminationObjectId);
+      const clearanceChecklist =
+        await this.clearanceChecklistRepository.findByTerminationId(
+          terminationObjectId,
+        );
 
       if (!clearanceChecklist) {
-        console.error(`Clearance checklist not found for termination ${dto.terminationRequestId}`);
+        console.error(
+          `Clearance checklist not found for termination ${dto.terminationRequestId}`,
+        );
         throw new BadRequestException(
-          `Cannot approve termination: Clearance checklist must be created first for termination request ${dto.terminationRequestId}`
+          `Cannot approve termination: Clearance checklist must be created first for termination request ${dto.terminationRequestId}`,
         );
       }
 
       // Check if access card has been returned
       if (!clearanceChecklist.cardReturned) {
-        console.error(`Access card not returned for termination ${dto.terminationRequestId}`);
+        console.error(
+          `Access card not returned for termination ${dto.terminationRequestId}`,
+        );
         throw new BadRequestException(
-          `Cannot approve termination: Employee access card has not been returned. Please ensure cardReturned is marked as true.`
+          `Cannot approve termination: Employee access card has not been returned. Please ensure cardReturned is marked as true.`,
         );
       }
 
       // Check all departments have approved
       const allDepartmentsApproved = clearanceChecklist.items.every(
-        (item) => item.status === ApprovalStatus.APPROVED
+        (item) => item.status === ApprovalStatus.APPROVED,
       );
 
       if (!allDepartmentsApproved) {
@@ -2398,15 +2927,17 @@ The employee is now ready for system access revocation. Please navigate to Syste
           .map((item) => `${item.department} (${item.status})`)
           .join(', ');
 
-        console.error(`Not all departments approved for termination ${dto.terminationRequestId}: ${pendingDepartments}`);
+        console.error(
+          `Not all departments approved for termination ${dto.terminationRequestId}: ${pendingDepartments}`,
+        );
         throw new BadRequestException(
-          `Cannot approve termination: The following departments have not approved clearance: ${pendingDepartments}. All departments must approve before termination can be finalized.`
+          `Cannot approve termination: The following departments have not approved clearance: ${pendingDepartments}. All departments must approve before termination can be finalized.`,
         );
       }
 
       // Check all equipment has been returned
       const allEquipmentReturned = clearanceChecklist.equipmentList.every(
-        (equipment) => equipment.returned === true
+        (equipment) => equipment.returned === true,
       );
 
       if (!allEquipmentReturned) {
@@ -2415,13 +2946,17 @@ The employee is now ready for system access revocation. Please navigate to Syste
           .map((equipment) => equipment.name)
           .join(', ');
 
-        console.error(`Equipment not returned for termination ${dto.terminationRequestId}: ${unreturned}`);
+        console.error(
+          `Equipment not returned for termination ${dto.terminationRequestId}: ${unreturned}`,
+        );
         throw new BadRequestException(
-          `Cannot approve termination: The following equipment has not been returned: ${unreturned}. All company property must be returned before approval.`
+          `Cannot approve termination: The following equipment has not been returned: ${unreturned}. All company property must be returned before approval.`,
         );
       }
 
-      console.log(`All clearance requirements met for termination ${dto.terminationRequestId}`);
+      console.log(
+        `All clearance requirements met for termination ${dto.terminationRequestId}`,
+      );
     }
 
     const previousStatus = terminationRequest.status;
@@ -2432,13 +2967,20 @@ The employee is now ready for system access revocation. Please navigate to Syste
       terminationRequest.hrComments = dto.hrComments;
     }
 
-    await this.terminationRequestRepository.updateById(terminationObjectId.toString(), terminationRequest);
+    await this.terminationRequestRepository.updateById(
+      terminationObjectId.toString(),
+      terminationRequest,
+    );
 
-    console.log(`Termination request ${dto.terminationRequestId} status updated from ${previousStatus} to ${dto.status}`);
+    console.log(
+      `Termination request ${dto.terminationRequestId} status updated from ${previousStatus} to ${dto.status}`,
+    );
 
     // Send notifications to employee, HR manager, and system admin about the status update
     try {
-      const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+      const employee = await this.employeeService.getProfile(
+        terminationRequest.employeeId.toString(),
+      );
       const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
       const employeeName = employee?.profile
         ? `${employee.profile.firstName} ${employee.profile.lastName}`
@@ -2493,26 +3035,35 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
 
       console.log(`Notification sent to HR managers`);
     } catch (error) {
-      console.error(`Failed to send termination approval notifications: ${error.message}`);
+      console.error(
+        `Failed to send termination approval notifications: ${error.message}`,
+      );
       // Continue execution even if notifications fail
     }
 
     return terminationRequest;
   }
 
-
-  async getDepartmentHeadId(department: string): Promise<Types.ObjectId | null> {
+  async getDepartmentHeadId(
+    department: string,
+  ): Promise<Types.ObjectId | null> {
     try {
-      const departmentHead = await this.organizationStructureService.findDepartmentHead(department);
+      const departmentHead =
+        await this.organizationStructureService.findDepartmentHead(department);
 
       if (departmentHead && departmentHead.id) {
-        console.log(`Found department head for ${department}: ${departmentHead.employeeNumber}`);
+        console.log(
+          `Found department head for ${department}: ${departmentHead.employeeNumber}`,
+        );
         return new Types.ObjectId(departmentHead.id);
       }
 
       return null;
     } catch (error) {
-      console.error(`Error finding department head for ${department}:`, error.message);
+      console.error(
+        `Error finding department head for ${department}:`,
+        error.message,
+      );
       return null;
     }
   }
@@ -2537,8 +3088,11 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
 - Employee handbook returned`,
     };
 
-    return checklistMap[department] || `- Standard clearance items
-- All department obligations cleared`;
+    return (
+      checklistMap[department] ||
+      `- Standard clearance items
+- All department obligations cleared`
+    );
   }
 
   async getAllOffboardingChecklists() {
@@ -2548,14 +3102,14 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
       const enrichedChecklists = await Promise.all(
         checklists.map(async (checklist) => {
           const termination = await this.terminationRequestRepository.findById(
-            checklist.terminationId.toString()
+            checklist.terminationId.toString(),
           );
 
           let employeeData: any = null;
           if (termination && termination.employeeId) {
             try {
               const empProfile = await this.employeeService.getProfile(
-                termination.employeeId.toString()
+                termination.employeeId.toString(),
               );
               employeeData = empProfile?.profile || null;
             } catch (error) {
@@ -2564,23 +3118,27 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
           }
 
           const totalClearances = checklist.items?.length || 0;
-          const clearedCount = checklist.items?.filter(
-            (item: any) => item.status === 'approved'
-          ).length || 0;
-          const progressPercent = totalClearances > 0 ? Math.round((clearedCount / totalClearances) * 100) : 0;
+          const clearedCount =
+            checklist.items?.filter((item: any) => item.status === 'approved')
+              .length || 0;
+          const progressPercent =
+            totalClearances > 0
+              ? Math.round((clearedCount / totalClearances) * 100)
+              : 0;
 
           // Calculate overall status dynamically
-          const anyDepartmentRejected = checklist.items?.some(
-            (item: any) => item.status === 'rejected'
-          ) || false;
+          const anyDepartmentRejected =
+            checklist.items?.some((item: any) => item.status === 'rejected') ||
+            false;
 
-          const allDepartmentsApproved = checklist.items?.every(
-            (item: any) => item.status === 'approved'
-          ) || false;
+          const allDepartmentsApproved =
+            checklist.items?.every((item: any) => item.status === 'approved') ||
+            false;
 
-          const allEquipmentReturned = checklist.equipmentList?.every(
-            (equipment: any) => equipment.returned === true
-          ) || false;
+          const allEquipmentReturned =
+            checklist.equipmentList?.every(
+              (equipment: any) => equipment.returned === true,
+            ) || false;
 
           const cardReturned = checklist.cardReturned === true;
 
@@ -2588,12 +3146,18 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
           let overallStatus = 'in_progress';
           if (anyDepartmentRejected) {
             overallStatus = 'clearance_issues'; // One or more departments rejected
-          } else if (allDepartmentsApproved && allEquipmentReturned && cardReturned) {
+          } else if (
+            allDepartmentsApproved &&
+            allEquipmentReturned &&
+            cardReturned
+          ) {
             overallStatus = 'fully_cleared'; // Everything completed and approved
           }
 
           // Convert checklist to plain object to preserve all properties
-          const checklistObj = checklist.toObject ? checklist.toObject() : checklist;
+          const checklistObj = checklist.toObject
+            ? checklist.toObject()
+            : checklist;
 
           return {
             checklist: {
@@ -2606,11 +3170,12 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
               totalClearances,
               clearedCount,
               progress: progressPercent,
-              allCleared: clearedCount === totalClearances && totalClearances > 0,
+              allCleared:
+                clearedCount === totalClearances && totalClearances > 0,
               overallStatus, // Also include in progress object for easy access
             },
           };
-        })
+        }),
       );
 
       return {
@@ -2627,7 +3192,9 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
   async getAllTerminationRequests(): Promise<TerminationRequest[]> {
     try {
       console.log('Fetching all termination requests');
-      const terminationRequests = await this.terminationRequestRepository.find({});
+      const terminationRequests = await this.terminationRequestRepository.find(
+        {},
+      );
       console.log(`Found ${terminationRequests.length} termination request(s)`);
       return terminationRequests;
     } catch (error) {
@@ -2650,23 +3217,36 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
     pendingDepartments: string[];
     unreturnedItems: string[];
   }> {
-    console.log(`Sending offboarding reminder for termination request ${terminationRequestId}`);
+    console.log(
+      `Sending offboarding reminder for termination request ${terminationRequestId}`,
+    );
 
     const terminationObjectId = new Types.ObjectId(terminationRequestId);
-    const terminationRequest = await this.terminationRequestRepository.findById(terminationObjectId.toString());
+    const terminationRequest = await this.terminationRequestRepository.findById(
+      terminationObjectId.toString(),
+    );
 
     if (!terminationRequest) {
-      throw new NotFoundException(`Termination request with ID ${terminationRequestId} not found`);
+      throw new NotFoundException(
+        `Termination request with ID ${terminationRequestId} not found`,
+      );
     }
 
     // Get clearance checklist
-    const checklist = await this.clearanceChecklistRepository.findByTerminationId(terminationObjectId);
+    const checklist =
+      await this.clearanceChecklistRepository.findByTerminationId(
+        terminationObjectId,
+      );
     if (!checklist) {
-      throw new BadRequestException(`No offboarding checklist found for termination ${terminationRequestId}`);
+      throw new BadRequestException(
+        `No offboarding checklist found for termination ${terminationRequestId}`,
+      );
     }
 
     // Get employee details
-    const employee = await this.employeeService.getProfile(terminationRequest.employeeId.toString());
+    const employee = await this.employeeService.getProfile(
+      terminationRequest.employeeId.toString(),
+    );
     const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
     const employeeName = employee?.profile
       ? `${employee.profile.firstName} ${employee.profile.lastName}`
@@ -2674,17 +3254,21 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
 
     // Identify pending departments
     const pendingDepartments = checklist.items
-      .filter(item => item.status !== ApprovalStatus.APPROVED)
-      .map(item => item.department);
+      .filter((item) => item.status !== ApprovalStatus.APPROVED)
+      .map((item) => item.department);
 
     // Identify unreturned equipment
     const unreturnedEquipment = checklist.equipmentList
-      .filter(eq => !eq.returned)
-      .map(eq => eq.name);
+      .filter((eq) => !eq.returned)
+      .map((eq) => eq.name);
 
     const cardNotReturned = !checklist.cardReturned;
 
-    if (pendingDepartments.length === 0 && unreturnedEquipment.length === 0 && !cardNotReturned) {
+    if (
+      pendingDepartments.length === 0 &&
+      unreturnedEquipment.length === 0 &&
+      !cardNotReturned
+    ) {
       return {
         message: 'All clearances completed. No reminders needed.',
         remindersSent: 0,
@@ -2696,7 +3280,9 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
     let remindersSent = 0;
 
     // Send reminders to pending departments only
-    console.log(`Sending reminders to ${pendingDepartments.length} pending department(s)...`);
+    console.log(
+      `Sending reminders to ${pendingDepartments.length} pending department(s)...`,
+    );
 
     for (const department of pendingDepartments) {
       try {
@@ -2705,7 +3291,10 @@ ${dto.status === TerminationStatus.APPROVED ? 'The termination has been approved
           ? [departmentHeadId.toString()]
           : [terminationRequest.employeeId.toString()];
 
-        console.log(`Sending reminder to ${department}. Recipients:`, recipients);
+        console.log(
+          `Sending reminder to ${department}. Recipients:`,
+          recipients,
+        );
 
         const notificationPayload = {
           recipientId: recipients,
@@ -2731,9 +3320,14 @@ Please complete the clearance process as soon as possible.`,
         await this.notificationService.create(notificationPayload);
 
         remindersSent++;
-        console.log(`✓ Reminder sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`);
+        console.log(
+          `✓ Reminder sent successfully to ${department} department${departmentHeadId ? ' head' : ' (general)'}`,
+        );
       } catch (error) {
-        console.error(`✗ Failed to send reminder to ${department}:`, error.message);
+        console.error(
+          `✗ Failed to send reminder to ${department}:`,
+          error.message,
+        );
         console.error('Error details:', error);
       }
     }
@@ -2744,7 +3338,10 @@ Please complete the clearance process as soon as possible.`,
       message: `Reminders sent successfully to ${remindersSent} department(s)`,
       remindersSent,
       pendingDepartments,
-      unreturnedItems: [...unreturnedEquipment, ...(cardNotReturned ? ['Access Card'] : [])],
+      unreturnedItems: [
+        ...unreturnedEquipment,
+        ...(cardNotReturned ? ['Access Card'] : []),
+      ],
     };
   }
 
@@ -2780,15 +3377,20 @@ Please complete the clearance process as soon as possible.`,
 
       // Check if all clearances are complete
       const allDepartmentsApproved = checklist.items.every(
-        (item) => item.status === ApprovalStatus.APPROVED
+        (item) => item.status === ApprovalStatus.APPROVED,
       );
-      const allEquipmentReturned = checklist.equipmentList.every((eq) => eq.returned);
+      const allEquipmentReturned = checklist.equipmentList.every(
+        (eq) => eq.returned,
+      );
       const cardReturned = checklist.cardReturned;
 
-      const allComplete = allDepartmentsApproved && allEquipmentReturned && cardReturned;
+      const allComplete =
+        allDepartmentsApproved && allEquipmentReturned && cardReturned;
 
       // Get employee details
-      const employee = await this.employeeService.getProfile(termination.employeeId.toString());
+      const employee = await this.employeeService.getProfile(
+        termination.employeeId.toString(),
+      );
       const employeeNumber = employee?.profile?.employeeNumber || 'N/A';
 
       // Case 1: Termination date expired
@@ -2798,9 +3400,11 @@ Please complete the clearance process as soon as possible.`,
           termination.status = TerminationStatus.APPROVED;
           await this.terminationRequestRepository.updateById(
             termination._id.toString(),
-            termination
+            termination,
           );
-          console.log(`AUTO-APPROVED: Termination request ${termination._id} status changed from PENDING to APPROVED due to expired termination date`);
+          console.log(
+            `AUTO-APPROVED: Termination request ${termination._id} status changed from PENDING to APPROVED due to expired termination date`,
+          );
         }
 
         const pendingDepartments = checklist.items
@@ -2818,7 +3422,7 @@ Please complete the clearance process as soon as possible.`,
           'Post Grad Studies',
           'Finance',
           'IT Equipment',
-          'HR'
+          'HR',
         ];
 
         for (const dept of allDepartments) {
@@ -2828,7 +3432,8 @@ Please complete the clearance process as soon as possible.`,
               ? [departmentHeadId.toString()]
               : [termination.employeeId.toString()];
 
-            const wasAutoApproved = termination.status === TerminationStatus.APPROVED;
+            const wasAutoApproved =
+              termination.status === TerminationStatus.APPROVED;
             const statusWarning = wasAutoApproved
               ? 'The termination request has been automatically APPROVED due to expired termination date.'
               : '';
@@ -2864,12 +3469,19 @@ Please complete your clearance items immediately, or contact System Administrato
 
             expiryWarnings++;
           } catch (error) {
-            console.error(`Failed to send expiry warning to ${dept}:`, error.message);
+            console.error(
+              `Failed to send expiry warning to ${dept}:`,
+              error.message,
+            );
           }
         }
       }
       // Case 2: Termination date in 2 days
-      else if (terminationDate <= twoDaysFromNow && terminationDate > now && !allComplete) {
+      else if (
+        terminationDate <= twoDaysFromNow &&
+        terminationDate > now &&
+        !allComplete
+      ) {
         const pendingDepartments = checklist.items
           .filter((item) => item.status !== ApprovalStatus.APPROVED)
           .map((item) => item.department);
@@ -2910,13 +3522,18 @@ Please complete your clearance items before the termination date to avoid delays
 
             preExpiryWarnings++;
           } catch (error) {
-            console.error(`Failed to send pre-expiry warning to ${dept}:`, error.message);
+            console.error(
+              `Failed to send pre-expiry warning to ${dept}:`,
+              error.message,
+            );
           }
         }
       }
     }
 
-    console.log(`Expiry warnings sent: ${preExpiryWarnings} pre-expiry, ${expiryWarnings} expiry`);
+    console.log(
+      `Expiry warnings sent: ${preExpiryWarnings} pre-expiry, ${expiryWarnings} expiry`,
+    );
     return { preExpiryWarnings, expiryWarnings };
   }
 
@@ -2928,10 +3545,14 @@ Please complete your clearance items before the termination date to avoid delays
       // Note: Expired pending requests are automatically approved by checkAndSendExpiryWarnings
       const now = new Date();
       const terminationRequests = await this.terminationRequestRepository.find({
-        status: { $in: [TerminationStatus.APPROVED, TerminationStatus.PENDING] },
+        status: {
+          $in: [TerminationStatus.APPROVED, TerminationStatus.PENDING],
+        },
       });
 
-      console.log(`Found ${terminationRequests.length} approved termination request(s)`);
+      console.log(
+        `Found ${terminationRequests.length} approved termination request(s)`,
+      );
 
       const readyForRevocation: any[] = [];
 
@@ -2940,26 +3561,37 @@ Please complete your clearance items before the termination date to avoid delays
         let employee;
         try {
           employee = await this.employeeService.getProfile(
-            terminationRequest.employeeId.toString()
+            terminationRequest.employeeId.toString(),
           );
         } catch (error) {
-          console.log(`Employee ${terminationRequest.employeeId} not found - skipping`);
+          console.log(
+            `Employee ${terminationRequest.employeeId} not found - skipping`,
+          );
           continue;
         }
 
         // Skip if employee is already terminated
-        if (!employee || !employee.profile || employee.profile.status === EmployeeStatus.TERMINATED) {
-          console.log(`Skipping employee ${terminationRequest.employeeId} - already terminated or not found`);
+        if (
+          !employee ||
+          !employee.profile ||
+          employee.profile.status === EmployeeStatus.TERMINATED
+        ) {
+          console.log(
+            `Skipping employee ${terminationRequest.employeeId} - already terminated or not found`,
+          );
           continue;
         }
 
         // Find the clearance checklist for this termination
-        const clearanceChecklist = await this.clearanceChecklistRepository.findOne({
-          terminationId: terminationRequest._id,
-        });
+        const clearanceChecklist =
+          await this.clearanceChecklistRepository.findOne({
+            terminationId: terminationRequest._id,
+          });
 
         if (!clearanceChecklist) {
-          console.log(`No clearance checklist found for termination ${terminationRequest._id}`);
+          console.log(
+            `No clearance checklist found for termination ${terminationRequest._id}`,
+          );
           continue;
         }
 
@@ -2971,12 +3603,12 @@ Please complete your clearance items before the termination date to avoid delays
 
         // Check if all departments have approved
         const allDepartmentsApproved = clearanceChecklist.items.every(
-          (item) => item.status === ApprovalStatus.APPROVED
+          (item) => item.status === ApprovalStatus.APPROVED,
         );
 
         // Check if all equipment has been returned
         const allEquipmentReturned = clearanceChecklist.equipmentList.every(
-          (equipment) => equipment.returned === true
+          (equipment) => equipment.returned === true,
         );
 
         // Check if access card has been returned
@@ -2985,11 +3617,15 @@ Please complete your clearance items before the termination date to avoid delays
         // Include employee if:
         // 1. All clearances complete (original logic) OR
         // 2. Termination date expired and status is PENDING (new logic)
-        const allClearancesComplete = allDepartmentsApproved && allEquipmentReturned && cardReturned;
-        const isPendingExpired = terminationRequest.status === TerminationStatus.PENDING && isExpired;
+        const allClearancesComplete =
+          allDepartmentsApproved && allEquipmentReturned && cardReturned;
+        const isPendingExpired =
+          terminationRequest.status === TerminationStatus.PENDING && isExpired;
 
         if (!allClearancesComplete && !isPendingExpired) {
-          console.log(`Employee ${terminationRequest.employeeId} not ready - clearances incomplete and not expired`);
+          console.log(
+            `Employee ${terminationRequest.employeeId} not ready - clearances incomplete and not expired`,
+          );
           continue;
         }
 
@@ -2997,7 +3633,9 @@ Please complete your clearance items before the termination date to avoid delays
         const reason = allClearancesComplete
           ? 'All clearances completed'
           : 'Termination date expired (pending status)';
-        console.log(`Employee ${terminationRequest.employeeId} is ready for revocation - ${reason}`);
+        console.log(
+          `Employee ${terminationRequest.employeeId} is ready for revocation - ${reason}`,
+        );
 
         readyForRevocation.push({
           terminationRequest: terminationRequest,
@@ -3013,7 +3651,9 @@ Please complete your clearance items before the termination date to avoid delays
         });
       }
 
-      console.log(`${readyForRevocation.length} employee(s) ready for system access revocation`);
+      console.log(
+        `${readyForRevocation.length} employee(s) ready for system access revocation`,
+      );
       return readyForRevocation;
     } catch (error) {
       console.error('Error fetching employees ready for revocation:', error);

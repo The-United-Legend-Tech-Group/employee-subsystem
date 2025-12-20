@@ -48,41 +48,37 @@ export default async function EmployeeDashboard() {
     }
 
 
-    // Fetch Employee Profile
+    // Fetch all data in parallel for faster loading
     let employee: Employee | null = null;
     let userRoles: string[] = [];
+    let latestAppraisal: LatestAppraisal | null = null;
+    let performanceRecords: any[] = [];
+
     try {
-        const response = await fetchServer(`employee/${employeeId}`);
-        if (response.ok) {
-            const data = await response.json();
+        const [profileRes, appraisalRes, recordsRes] = await Promise.all([
+            fetchServer(`employee/${employeeId}`, { next: { revalidate: 60 } }),
+            fetchServer(`performance/records/employee/${employeeId}/latest-score`, { next: { revalidate: 60 } }),
+            fetchServer(`performance/records/employee/${employeeId}/final`, { next: { revalidate: 60 } })
+        ]);
+
+        // Process profile response
+        if (profileRes.ok) {
+            const data = await profileRes.json();
             employee = data.profile;
-            // Extract roles from API response
             userRoles = data.systemRole?.roles || [];
         } else {
-            console.error('Failed to fetch employee, status:', response.status);
-            if (response.status === 401) redirect('/employee/login');
+            console.error('Failed to fetch employee, status:', profileRes.status);
+            if (profileRes.status === 401) redirect('/employee/login');
         }
-    } catch (error) {
-        console.error('Failed to fetch employee', error);
-    }
 
-    // Fetch Latest Appraisal
-    let latestAppraisal: LatestAppraisal | null = null;
-    try {
-        const response = await fetchServer(`performance/records/employee/${employeeId}/latest-score`);
-        if (response.ok) {
-            latestAppraisal = await response.json();
+        // Process appraisal response
+        if (appraisalRes.ok) {
+            latestAppraisal = await appraisalRes.json();
         }
-    } catch (error) {
-        console.warn('Failed to fetch appraisal score', error);
-    }
 
-    // Fetch All Performance Records for Overview
-    let performanceRecords: any[] = [];
-    try {
-        const response = await fetchServer(`performance/records/employee/${employeeId}/final`);
-        if (response.ok) {
-            const data = await response.json();
+        // Process performance records response
+        if (recordsRes.ok) {
+            const data = await recordsRes.json();
             performanceRecords = data.sort((a: any, b: any) => {
                 const dateA = new Date(a.hrPublishedAt || a.updatedAt).getTime();
                 const dateB = new Date(b.hrPublishedAt || b.updatedAt).getTime();
@@ -90,7 +86,7 @@ export default async function EmployeeDashboard() {
             });
         }
     } catch (error) {
-        console.warn('Failed to fetch performance records', error);
+        console.error('Failed to fetch dashboard data', error);
     }
 
 

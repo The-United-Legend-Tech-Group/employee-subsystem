@@ -15,7 +15,7 @@ export default async function SettingsPage() {
 
     let profile = null;
     try {
-        const response = await fetchServer(`employee/${employeeId}`);
+        const response = await fetchServer(`employee/${employeeId}`, { next: { revalidate: 60 } });
         if (response.ok) {
             const data = await response.json();
             profile = data.profile || data;

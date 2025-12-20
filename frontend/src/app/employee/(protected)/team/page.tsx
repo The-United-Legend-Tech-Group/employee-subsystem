@@ -17,15 +17,17 @@ export default async function TeamPage() {
     let teamMembers: TeamMember[] = [];
 
     try {
-        // Fetch Manager (Current User) Profile
-        const profileRes = await fetchServer(`employee/${employeeId}`);
+        // Fetch both in parallel for faster loading
+        const [profileRes, teamRes] = await Promise.all([
+            fetchServer(`employee/${employeeId}`, { next: { revalidate: 60 } }),
+            fetchServer(`employee/team/profiles?managerId=${employeeId}`, { next: { revalidate: 60 } })
+        ]);
+
         if (profileRes.ok) {
             const profileData = await profileRes.json();
             manager = profileData.profile || profileData;
         }
 
-        // Fetch Team Profiles
-        const teamRes = await fetchServer(`employee/team/profiles?managerId=${employeeId}`);
         if (teamRes.ok) {
             const data = await teamRes.json();
             teamMembers = data.items || [];

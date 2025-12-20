@@ -18,16 +18,18 @@ export default async function TeamSummaryPage() {
     let performanceData: PerformanceSummary | null = null;
 
     try {
-        // Fetch Team Summary
-        const summaryRes = await fetchServer(`employee/team/summary?managerId=${employeeId}`);
+        // Fetch both in parallel for faster loading
+        const [summaryRes, perfRes] = await Promise.all([
+            fetchServer(`employee/team/summary?managerId=${employeeId}`, { next: { revalidate: 60 } }),
+            fetchServer(`performance/records/team/${employeeId}/summary`, { next: { revalidate: 60 } })
+        ]);
+
         if (summaryRes.ok) {
             const data = await summaryRes.json();
             summaryData = data.positionSummary || data.items || [];
             roleData = data.roleSummary || [];
         }
 
-        // Fetch Performance Summary
-        const perfRes = await fetchServer(`performance/records/team/${employeeId}/summary`);
         if (perfRes.ok) {
             performanceData = await perfRes.json();
         }

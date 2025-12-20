@@ -7,8 +7,8 @@ export default async function Page() {
 
     try {
         const [empRes, posRes] = await Promise.all([
-            fetchServer('/employee?limit=100'),
-            fetchServer('/organization-structure/positions')
+            fetchServer('/employee?limit=100', { next: { revalidate: 300 } }),
+            fetchServer('/organization-structure/positions', { next: { revalidate: 300 } })
         ]);
 
         if (empRes.ok) {

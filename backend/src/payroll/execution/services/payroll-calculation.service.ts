@@ -18,7 +18,7 @@ import {
 } from '../../../payroll-configuration/models/insuranceBrackets.schema';
 
 import { ConfigStatus } from '../../../payroll-configuration/enums/payroll-configuration-enums';
-import { refunds } from 'src/payroll/tracking/models/refunds.schema';
+import { refunds } from 'src/payroll-tracking/models/refunds.schema';
 import { EmployeeSystemRole } from 'src/employee-profile/models/employee-system-role.schema';
 import { EmployeeProfile } from 'src/employee-profile/models/employee-profile.schema';
 import { employeePenalties } from '../models/employeePenalties.schema';

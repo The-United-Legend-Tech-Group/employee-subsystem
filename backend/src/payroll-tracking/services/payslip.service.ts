@@ -2,11 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 const PDFDocument = require('pdfkit');
-import { PayslipDocument } from '../../execution/models/payslip.schema';
-import { SystemRole } from '../../../employee-profile/enums/employee-profile.enums';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../../employee-profile/models/employee-system-role.schema';
+import { PayslipDocument } from '../../payroll/execution/models/payslip.schema';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
 import { validateAndConvertObjectId } from './shared/validation.util';
-import { ExecutionService } from '../../execution/execution.service';
+import { ExecutionService } from '../../payroll/execution/execution.service';
 
 /**
  * PayslipService - Handles payslip retrieval, cleaning, and PDF generation

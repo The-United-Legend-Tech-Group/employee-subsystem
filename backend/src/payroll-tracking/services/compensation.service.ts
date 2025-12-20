@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import {
   EmployeeProfile,
   EmployeeProfileDocument,
-} from '../../../employee-profile/models/employee-profile.schema';
+} from '../../employee-profile/models/employee-profile.schema';
 import { PayslipService } from './payslip.service';
 
 @Injectable()

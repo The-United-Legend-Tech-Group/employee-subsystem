@@ -9,21 +9,21 @@ const PDFDocument = require('pdfkit');
 import {
   payrollRuns,
   payrollRunsDocument,
-} from '../../execution/models/payrollRuns.schema';
+} from '../../payroll/execution/models/payrollRuns.schema';
 
 import {
   EmployeeProfile,
   EmployeeProfileDocument,
-} from '../../../employee-profile/models/employee-profile.schema';
+} from '../../employee-profile/models/employee-profile.schema';
 import {
   Department,
   DepartmentDocument,
-} from '../../../organization-structure/models/department.schema';
-import { PayRollStatus } from '../../execution/enums/payroll-execution-enum';
+} from '../../organization-structure/models/department.schema';
+import { PayRollStatus } from '../../payroll/execution/enums/payroll-execution-enum';
 import { CreateTaxDocumentDto } from '../dto/create-tax-document.dto';
 import { CreatePayrollSummaryDto } from '../dto/create-payroll-summary.dto';
 import { validateAndConvertObjectId } from './shared/validation.util';
-import { ExecutionService } from '../../execution/execution.service';
+import { ExecutionService } from '../../payroll/execution/execution.service';
 
 @Injectable()
 export class ReportingService {

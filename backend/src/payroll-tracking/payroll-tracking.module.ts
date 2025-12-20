@@ -1,31 +1,31 @@
 import { forwardRef, Module } from '@nestjs/common';
-import { TrackingController } from './tracking.controller';
-import { TrackingService } from './tracking.service';
+import { TrackingController } from './payroll-tracking.controller';
+import { TrackingService } from './payroll-tracking.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { refunds, refundsSchema } from './models/refunds.schema';
 import { claims, claimsSchema } from './models/claims.schema';
 import { disputes, disputesSchema } from './models/disputes.schema';
-import { paySlip, paySlipSchema } from '../execution/models/payslip.schema';
-import { payrollRuns, payrollRunsSchema } from '../execution/models/payrollRuns.schema';
-import { employeePayrollDetails, employeePayrollDetailsSchema } from '../execution/models/employeePayrollDetails.schema';
-import { ConfigSetupModule } from '../../payroll-configuration/payroll-configuration.module';
-import { ExecutionModule } from '../execution/execution.module';
-import { NotificationModule } from '../../notification/notification.module';
+import { paySlip, paySlipSchema } from '../payroll/execution/models/payslip.schema';
+import { payrollRuns, payrollRunsSchema } from '../payroll/execution/models/payrollRuns.schema';
+import { employeePayrollDetails, employeePayrollDetailsSchema } from '../payroll/execution/models/employeePayrollDetails.schema';
+import { ConfigSetupModule } from '../payroll-configuration/payroll-configuration.module';
+import { ExecutionModule } from '../payroll/execution/execution.module';
+import { NotificationModule } from '../notification/notification.module';
 import {
   EmployeeSystemRole,
   EmployeeSystemRoleSchema,
-} from '../../employee-profile/models/employee-system-role.schema';
+} from '../employee-profile/models/employee-system-role.schema';
 import {
   EmployeeProfile,
   EmployeeProfileSchema,
-} from '../../employee-profile/models/employee-profile.schema';
+} from '../employee-profile/models/employee-profile.schema';
 import {
   Department,
   DepartmentSchema,
-} from '../../organization-structure/models/department.schema';
-import { AuthModule } from '../../employee-profile/auth.module';
-import { Notification } from '../../notification/models/notification.schema';
-import { NotificationSchema } from '../../notification/models/notification.schema';
+} from '../organization-structure/models/department.schema';
+import { AuthModule } from '../employee-profile/auth.module';
+import { Notification } from '../notification/models/notification.schema';
+import { NotificationSchema } from '../notification/models/notification.schema';
 // Service imports
 import { DisputeService } from './services/dispute.service';
 import { ClaimService } from './services/claim.service';

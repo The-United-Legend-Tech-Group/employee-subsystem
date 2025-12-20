@@ -19,6 +19,7 @@ import { ConfigSetupModule } from './payroll-configuration/payroll-configuration
 import { RecruitmentModule } from './Recruitment/recruitment.module';
 import { TimeManagementModule } from './time-management/timemangment.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TrackingModule } from './payroll-tracking/payroll-tracking.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     // Feature modules (alphabetically organized)
     EmployeeSubsystemModule,
     LeavesModule,
+    TrackingModule,
     ConfigSetupModule,
     RecruitmentModule,
     TimeManagementModule,

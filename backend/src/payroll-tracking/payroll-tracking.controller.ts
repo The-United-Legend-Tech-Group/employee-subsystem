@@ -14,7 +14,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { TrackingService } from './tracking.service';
+import { TrackingService } from './payroll-tracking.service';
 import { PayslipService } from './services/payslip.service';
 import { ApproveRejectDisputeDto } from './dto/approve-reject-dispute.dto';
 import { ConfirmApprovalDto } from './dto/confirm-approval.dto';
@@ -24,10 +24,10 @@ import { CreateExpenseClaimDto } from './dto/create-expense-claim.dto';
 import { ApproveRejectClaimDto } from './dto/approve-reject-claim.dto';
 import { CreatePayrollSummaryDto } from './dto/create-payroll-summary.dto';
 import { CreateTaxDocumentDto } from './dto/create-tax-document.dto';
-import { AuthGuard } from '../../common/guards/authentication.guard';
-import { authorizationGuard } from '../../common/guards/authorization.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
+import { AuthGuard } from '../common/guards/authentication.guard';
+import { authorizationGuard } from '../common/guards/authorization.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
 
 // All employee roles (excluding JOB_CANDIDATE as they are not employees yet)
 const ALL_EMPLOYEE_ROLES = [

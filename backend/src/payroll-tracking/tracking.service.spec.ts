@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { TrackingService } from './tracking.service';
+import { TrackingService } from './payroll-tracking.service';
 import { disputes, disputesDocument } from './models/disputes.schema';
 import { refunds, refundsDocument } from './models/refunds.schema';
-import { paySlip, PayslipDocument } from '../execution/models/payslip.schema';
-import { Notification } from '../../notification/models/notification.schema';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
+import { paySlip, PayslipDocument } from '../payroll/execution/models/payslip.schema';
+import { Notification } from '../notification/models/notification.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../employee-profile/models/employee-system-role.schema';
 import { DisputeStatus, RefundStatus } from './enums/payroll-tracking-enum';
 import { Types } from 'mongoose';
 

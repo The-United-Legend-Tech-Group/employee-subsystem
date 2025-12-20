@@ -8,9 +8,9 @@ import { CreateExpenseClaimDto } from '../dto/create-expense-claim.dto';
 import { ApproveRejectClaimDto } from '../dto/approve-reject-claim.dto';
 import { ConfirmApprovalDto } from '../dto/confirm-approval.dto';
 import { GenerateRefundDto } from '../dto/generate-refund.dto';
-import { SystemRole } from '../../../employee-profile/enums/employee-profile.enums';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../../employee-profile/models/employee-system-role.schema';
-import { Notification } from '../../../notification/models/notification.schema';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
+import { Notification } from '../../notification/models/notification.schema';
 import { generateEntityId } from './shared/id-generator.util';
 import { NotificationUtil } from './shared/notification.util';
 

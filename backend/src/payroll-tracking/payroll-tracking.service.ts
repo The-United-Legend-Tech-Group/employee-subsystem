@@ -10,7 +10,7 @@ import { CreateTaxDocumentDto } from './dto/create-tax-document.dto';
 import { disputesDocument } from './models/disputes.schema';
 import { refundsDocument } from './models/refunds.schema';
 import { claimsDocument } from './models/claims.schema';
-import { Notification } from '../../notification/models/notification.schema';
+import { Notification } from '../notification/models/notification.schema';
 import { DisputeService } from './services/dispute.service';
 import { ClaimService } from './services/claim.service';
 import { RefundService } from './services/refund.service';

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationService } from '../../../../notification/notification.service';
-import { CreateNotificationDto } from '../../../../notification/dto/create-notification.dto';
-import { SystemRole } from '../../../../employee-profile/enums/employee-profile.enums';
+import { NotificationService } from '../../../notification/notification.service';
+import { CreateNotificationDto } from '../../../notification/dto/create-notification.dto';
+import { SystemRole } from '../../../employee-profile/enums/employee-profile.enums';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { EmployeeSystemRoleDocument } from '../../../../employee-profile/models/employee-system-role.schema';
-import { EmployeeSystemRole } from '../../../../employee-profile/models/employee-system-role.schema';
+import { EmployeeSystemRoleDocument } from '../../../employee-profile/models/employee-system-role.schema';
+import { EmployeeSystemRole } from '../../../employee-profile/models/employee-system-role.schema';
 
 @Injectable()
 export class NotificationUtil {

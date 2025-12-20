@@ -31,7 +31,7 @@ import { insuranceBrackets } from '../../payroll-configuration/models/insuranceB
 import { employeeSigningBonus } from './models/EmployeeSigningBonus.schema';
 import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
 import { employeePenalties } from './models/employeePenalties.schema';
-import { refunds } from '../tracking/models/refunds.schema';
+import { refunds } from '../../payroll-tracking/models/refunds.schema';
 
 @Injectable()
 export class ExecutionService {

@@ -28,7 +28,7 @@ import { EmployeeProfile as Employee } from '../../../employee-profile/models/em
 import {
   refundDetails,
   refundDetailsSchema,
-} from '../../tracking/models/refunds.schema';
+} from '../../../payroll-tracking/models/refunds.schema';
 import { payrollRuns } from './payrollRuns.schema';
 import { PaySlipPaymentStatus } from '../enums/payroll-execution-enum';
 

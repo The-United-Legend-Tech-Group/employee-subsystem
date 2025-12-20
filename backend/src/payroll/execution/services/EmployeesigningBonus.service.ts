@@ -7,7 +7,7 @@ import { ApproveSigningBonusDto } from '../dto/approve-signing-bonus.dto';
 import { RejectSigningBonusDto } from '../dto/reject-signing-bonus.dto';
 import { EditEmployeeSigningBonusDto } from '../dto/edit-employee-signing-bonus.dto';
 import { CreateEmployeeSigningBonusDto } from '../dto/create-employee-signing-bonus.dto';
-import { signingBonus } from '../../config_setup/models/signingBonus.schema';
+import { signingBonus } from '../../../payroll-configuration/models/signingBonus.schema';
 
 @Injectable()
 export class EmployeeSigningBonusService {
@@ -16,13 +16,13 @@ export class EmployeeSigningBonusService {
         private employeeSigningBonusModel: Model<employeeSigningBonusDocument>,
         @InjectModel(signingBonus.name)
         private signingBonusConfigModel: Model<signingBonus>,
-    ) {}
+    ) { }
 
     /** Approve a signing bonus record. Sets status to `approved` and optionally sets payment date. */
     async approveEmployeeSigningBonus(dto: ApproveSigningBonusDto): Promise<employeeSigningBonus> {
-  
+
         const updated = await this.employeeSigningBonusModel
-            .findByIdAndUpdate(dto.signingBonusId, {status: BonusStatus.APPROVED}, { new: true })
+            .findByIdAndUpdate(dto.signingBonusId, { status: BonusStatus.APPROVED }, { new: true })
             .exec();
 
         if (!updated) {

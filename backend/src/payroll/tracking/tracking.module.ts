@@ -8,7 +8,7 @@ import { disputes, disputesSchema } from './models/disputes.schema';
 import { paySlip, paySlipSchema } from '../execution/models/payslip.schema';
 import { payrollRuns, payrollRunsSchema } from '../execution/models/payrollRuns.schema';
 import { employeePayrollDetails, employeePayrollDetailsSchema } from '../execution/models/employeePayrollDetails.schema';
-import { ConfigSetupModule } from '../config_setup/config_setup.module';
+import { ConfigSetupModule } from '../../payroll-configuration/payroll-configuration.module';
 import { ExecutionModule } from '../execution/execution.module';
 import { NotificationModule } from '../../employee-subsystem/notification/notification.module';
 import {
@@ -71,4 +71,4 @@ import { NotificationUtil } from './services/shared/notification.util';
   ],
   exports: [TrackingService],
 })
-export class TrackingModule {}
+export class TrackingModule { }

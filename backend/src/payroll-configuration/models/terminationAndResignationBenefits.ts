@@ -1,19 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { EmployeeProfile as Employee } from '../../../employee-subsystem/employee/models/employee-profile.schema';
+import { EmployeeProfile as Employee } from '../../employee-subsystem/employee/models/employee-profile.schema';
 import { ConfigStatus } from '../enums/payroll-configuration-enums';
 
-export type taxRulesDocument = HydratedDocument<taxRules>;
+export type terminationAndResignationBenefitsDocument =
+  HydratedDocument<terminationAndResignationBenefits>;
 
 @Schema({ timestamps: true })
-export class taxRules {
+export class terminationAndResignationBenefits {
   @Prop({ required: true, }) // unique removed for execution module
-  name: string;
-  @Prop()
-  description?: string;
+  name: string; // termination/resignation name like:  End of Service Gratuity.
   @Prop({ required: true, min: 0 })
-  rate: number; // tax rate in percentage
-
+  amount: number;
+  @Prop()
+  terms?: string;
   @Prop({
     required: true,
     type: String,
@@ -30,4 +30,5 @@ export class taxRules {
   approvedAt?: Date;
 }
 
-export const taxRulesSchema = SchemaFactory.createForClass(taxRules);
+export const terminationAndResignationBenefitsSchema =
+  SchemaFactory.createForClass(terminationAndResignationBenefits);

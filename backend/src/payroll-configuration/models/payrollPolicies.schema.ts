@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { EmployeeProfile as Employee } from '../../../employee-subsystem/employee/models/employee-profile.schema';
+import { EmployeeProfile as Employee } from '../../employee-subsystem/employee/models/employee-profile.schema';
 import {
   Applicability,
   ConfigStatus,

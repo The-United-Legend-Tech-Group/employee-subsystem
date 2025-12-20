@@ -10,7 +10,7 @@ import { ApproveTerminationDto } from '../dto/approve-termination.dto';
 import { RejectTerminationDto } from '../dto/reject-termination.dto';
 import { EditEmployeeTerminationDto } from '../dto/edit-termination-amount.dto';
 import { CreateEmployeeTerminationDto } from '../dto/create-employee-termination.dto';
-import { terminationAndResignationBenefits } from '../../config_setup/models/terminationAndResignationBenefits';
+import { terminationAndResignationBenefits } from '../../../payroll-configuration/models/terminationAndResignationBenefits';
 
 @Injectable()
 export class EmployeeTerminationResignationService {
@@ -19,7 +19,7 @@ export class EmployeeTerminationResignationService {
     private terminationModel: Model<EmployeeTerminationResignationDocument>,
     @InjectModel(terminationAndResignationBenefits.name)
     private benefitsConfigModel: Model<terminationAndResignationBenefits>,
-  ) {}
+  ) { }
 
   /** Approve a termination/resignation benefit record */
   async approveTermination(
@@ -114,15 +114,15 @@ export class EmployeeTerminationResignationService {
     }
   }
 
-async getAllEmployeeTerminationBenefits(): Promise<EmployeeTerminationResignation[]> {
-        return this.terminationModel
-            .find()
-            .populate({
-                path: 'employeeId',
-                model: 'EmployeeProfile'
-            })
-            .populate('benefitId')
-            .populate('terminationId')
-            .exec();
-    }
+  async getAllEmployeeTerminationBenefits(): Promise<EmployeeTerminationResignation[]> {
+    return this.terminationModel
+      .find()
+      .populate({
+        path: 'employeeId',
+        model: 'EmployeeProfile'
+      })
+      .populate('benefitId')
+      .populate('terminationId')
+      .exec();
+  }
 }

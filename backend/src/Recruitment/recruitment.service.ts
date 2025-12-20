@@ -23,7 +23,7 @@ import { ApproveOfferDto } from './DTO/approve-offer.dto';
 import { SendOfferDto } from './DTO/send-offer.dto';
 import { CandidateRespondOfferDto } from './DTO/candidate-respond-offer.dto';
 import { EmployeeService } from '../employee-subsystem/employee/employee.service';
-import { ConfigSetupService } from '../payroll/config_setup/config_setup.service';
+import { ConfigSetupService } from '../payroll-configuration/payroll-configuration.service';
 import { EmployeeSigningBonusService } from '../payroll/execution/services/EmployeesigningBonus.service';
 
 import { OfferResponseStatus } from './enums/offer-response-status.enum';

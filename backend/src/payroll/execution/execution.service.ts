@@ -25,9 +25,9 @@ import {
   PaySlipPaymentStatus,
 } from './enums/payroll-execution-enum';
 import { EmailService } from './email.service';
-import { allowance } from '../config_setup/models/allowance.schema';
-import { taxRules } from '../config_setup/models/taxRules.schema';
-import { insuranceBrackets } from '../config_setup/models/insuranceBrackets.schema';
+import { allowance } from '../../payroll-configuration/models/allowance.schema';
+import { taxRules } from '../../payroll-configuration/models/taxRules.schema';
+import { insuranceBrackets } from '../../payroll-configuration/models/insuranceBrackets.schema';
 import { employeeSigningBonus } from './models/EmployeeSigningBonus.schema';
 import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
 import { employeePenalties } from './models/employeePenalties.schema';
@@ -59,7 +59,7 @@ export class ExecutionService {
     @InjectModel(refunds.name)
     private readonly refundsModel: Model<refunds>,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   // Placeholder methods - to be implemented for other phases
   create() {
@@ -514,7 +514,7 @@ export class ExecutionService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const employeeName = employee.firstName
         ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          `${String(employee.firstName)} ${String(employee.lastName)}`
+        `${String(employee.firstName)} ${String(employee.lastName)}`
         : 'Employee';
       const employeeEmail =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

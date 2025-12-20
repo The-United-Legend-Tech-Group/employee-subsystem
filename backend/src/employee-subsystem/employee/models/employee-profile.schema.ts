@@ -6,7 +6,7 @@ import {
   WorkType,
 } from '../enums/employee-profile.enums';
 import { AppraisalRatingScaleType } from '../../performance/enums/performance.enums';
-import { payGrade } from '../../../payroll/config_setup/models/payGrades.schema';
+import { payGrade } from '../../../payroll-configuration/models/payGrades.schema';
 import { UserProfileBase } from './user-schema';
 
 export type EmployeeProfileDocument = HydratedDocument<EmployeeProfile>;
@@ -32,7 +32,7 @@ export class EmployeeProfile extends UserProfileBase {
   @Prop({ type: Date })
   contractEndDate?: Date;
 
-    // Banking details
+  // Banking details
   @Prop({ type: String })
   bankName?: string;
 

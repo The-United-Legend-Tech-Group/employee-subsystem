@@ -7,14 +7,14 @@ import {
   employeePayrollDetailsDocument,
 } from '../models/employeePayrollDetails.schema';
 
-import { taxRules, taxRulesDocument } from '../../config_setup/models/taxRules.schema';
+import { taxRules, taxRulesDocument } from '../../../payroll-configuration/models/taxRules.schema';
 
 import {
   insuranceBrackets,
   insuranceBracketsDocument,
-} from '../../config_setup/models/insuranceBrackets.schema';
+} from '../../../payroll-configuration/models/insuranceBrackets.schema';
 
-import { ConfigStatus } from '../../config_setup/enums/payroll-configuration-enums';
+import { ConfigStatus } from '../../../payroll-configuration/enums/payroll-configuration-enums';
 import { refunds } from 'src/payroll/tracking/models/refunds.schema';
 import { EmployeeSystemRole } from 'src/employee-subsystem/employee/models/employee-system-role.schema';
 import { EmployeeProfile } from 'src/employee-subsystem/employee/models/employee-profile.schema';
@@ -27,7 +27,7 @@ import { BenefitStatus } from '../enums/payroll-execution-enum';
 
 import { BonusStatus, BankStatus } from '../enums/payroll-execution-enum';
 import { EmployeePenaltyService } from './EmployeePenalty.service';
-import { ConfigSetupService } from '../../config_setup/config_setup.service';
+import { ConfigSetupService } from '../../../payroll-configuration/payroll-configuration.service';
 import { AttendanceService } from '../../../time-mangement/services/attendance.service';
 import {
   EmployeeTerminationResignation,

@@ -37,8 +37,8 @@ import { LeaveType, LeaveTypeSchema } from '../leaves/models/leave-type.schema';
 
 // Payroll schemas
 import { EmployeeTerminationResignation, EmployeeTerminationResignationSchema } from '../payroll/execution/models/EmployeeTerminationResignation.schema';
-import { signingBonus, signingBonusSchema } from '../payroll/config_setup/models/signingBonus.schema';
-import { payGrade, payGradeSchema } from '../payroll/config_setup/models/payGrades.schema';
+import { signingBonus, signingBonusSchema } from '../payroll-configuration/models/signingBonus.schema';
+import { payGrade, payGradeSchema } from '../payroll-configuration/models/payGrades.schema';
 
 // Repository implementations
 import {

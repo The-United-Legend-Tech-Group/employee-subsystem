@@ -15,7 +15,7 @@ import { AppService } from './app.service';
 // Feature modules (alphabetically organized)
 import { EmployeeSubsystemModule } from './employee-subsystem/employee-subsystem.module';
 import { LeavesModule } from './leaves/leaves.module';
-import { PayrollModule } from './payroll/payroll.module';
+import { ConfigSetupModule } from './payroll-configuration/payroll-configuration.module';
 import { RecruitmentModule } from './Recruitment/recruitment.module';
 import { TimeMangementModule } from './time-mangement/timemangment.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -40,7 +40,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     // Feature modules (alphabetically organized)
     EmployeeSubsystemModule,
     LeavesModule,
-    PayrollModule,
+    ConfigSetupModule,
     RecruitmentModule,
     TimeMangementModule,
   ],

@@ -198,9 +198,9 @@ export const recruitmentSubItems: MenuItem[] = [
 
 
 export const candidateRecruitmentSubItems: MenuItem[] = [
-  { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/candidate/recruitment_sub' }
-
+  { text: 'Overview', icon: <AssignmentRoundedIcon />, path: '/candidate/recruitment_sub' },
 ];
+
 export const leavesSubItems: MenuItem[] = [
   {
     text: "Requests Dashboard",
@@ -216,13 +216,13 @@ export const leavesSubItems: MenuItem[] = [
   },
   {
     text: "Automation",
-    icon: <AutoAwesomeRoundedIcon   />,
+    icon: <AutoAwesomeRoundedIcon />,
     path: "/employee/leaves/automation",
     roles: ["HR Manager"],
   },
-    {
+  {
     text: "Leave Categories",
-    icon: <CategoryRounded/>,
+    icon: <CategoryRounded />,
     path: "/employee/leaves/category",
     roles: ["HR Admin"],
   },
@@ -379,10 +379,10 @@ export default function MenuContent() {
     if (text === 'Entitlements' && pathname === '/employee/leaves/entitlement') return true;
     if (text === 'Leave Types' && (pathname === '/employee/leaves/type' || pathname === '/employee/leaves/type/special')) return true;
     if (text === 'Calendar' && pathname === '/employee/leaves/calendar') return true;
-    if (text === 'Requests Dashboard' && pathname === '/employee/leaves/requests/hr' ) return true;
+    if (text === 'Requests Dashboard' && pathname === '/employee/leaves/requests/hr') return true;
     if (text === 'Requests Dashboard' && pathname === '/employee/leaves/requests/manager') return true;
     if (text === 'Approval Flow' && pathname === '/employee/leaves/requests/admin') return true;
-    if (text === 'Balance' && pathname === '/employee/leaves/balance' ) return true;
+    if (text === 'Balance' && pathname === '/employee/leaves/balance') return true;
     if (text === 'History' && pathname === '/employee/leaves/history') return true;
     if (text === 'Automation' && pathname === '/employee/leaves/automation') return true;
     if (text === 'Leave Categories' && pathname === '/employee/leaves/category') return true;

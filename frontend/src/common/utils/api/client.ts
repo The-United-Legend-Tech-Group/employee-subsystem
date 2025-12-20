@@ -137,6 +137,60 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 
+  /**
+   * Dedicated method for fetching binary data (blobs)
+   */
+  async getBlob(endpoint: string, options?: { params?: Record<string, any>; headers?: Record<string, string> }): Promise<ApiResponse<Blob>> {
+    let url = `${this.baseURL}${endpoint}`;
+
+    // Append query parameters
+    if (options?.params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += (url.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    const fallbackToken = this.getAuthTokenFallback();
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+
+    if (fallbackToken) {
+      headers['Authorization'] = `Bearer ${fallbackToken}`;
+    }
+
+    const config: RequestInit = {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    };
+
+    try {
+      const response = await fetch(url, config);
+
+      if (response.status === 401) {
+        return { error: 'Unauthorized' };
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { error: errorData.message || `HTTP error! status: ${response.status}` };
+      }
+
+      const data = await response.blob();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Network error occurred' };
+    }
+  }
+
   async postFormData<T>(endpoint: string, formData: FormData, options?: { params?: Record<string, any>; headers?: Record<string, string> }): Promise<ApiResponse<T>> {
     const { headers: customHeaders, ...rest } = options || {};
 

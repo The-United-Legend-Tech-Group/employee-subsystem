@@ -33,6 +33,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { recruitmentApi, employeeApi, organizationApi, OpenDepartment } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
+import { isAuthenticated } from '@/lib/auth-utils';
 
 interface InterviewFormData {
   applicationId: string;
@@ -186,8 +187,7 @@ export function InterviewScheduling() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated()) {
       toast.error('You must be logged in');
       return;
     }
@@ -226,7 +226,9 @@ export function InterviewScheduling() {
       handleClose();
       await fetchAllInterviews();
     } catch (error: any) {
-      toast.error('Failed to schedule interview');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to schedule interview';
+      toast.error(errorMessage);
+      console.error('Interview scheduling error:', error);
     } finally {
       setSubmitting(false);
     }
@@ -234,6 +236,28 @@ export function InterviewScheduling() {
 
   const handleUpdateInterviewStatus = async (interviewId: string, newStatus: string) => {
     try {
+      const interview = interviews.find((i: any) => i._id === interviewId);
+      if (!interview) {
+        toast.error('Interview not found');
+        return;
+      }
+
+      // When marking completed, require assessment to be accepted or rejected
+      if ((newStatus || '').toString().toLowerCase() === 'completed') {
+        const assessmentStatus = (
+          interview.assessment?.status ||
+          interview.assessmentStatus ||
+          interview.applicationId?.assessment?.status ||
+          interview.applicationId?.assessmentStatus ||
+          null
+        );
+        const s = assessmentStatus ? String(assessmentStatus).toLowerCase() : null;
+        if (s !== 'accepted' && s !== 'accepted' && s !== 'rejected' && s !== 'reject') {
+          toast.error('Cannot mark interview completed until assessment is accepted or rejected');
+          return;
+        }
+      }
+
       await recruitmentApi.updateInterview(interviewId, { status: newStatus });
       toast.success(`Interview marked as ${newStatus}`);
       await fetchAllInterviews();

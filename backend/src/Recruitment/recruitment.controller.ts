@@ -2,7 +2,6 @@ import { Controller, Post, Get, Patch, Body, UseInterceptors, UploadedFiles, Upl
 import type { Response } from 'express';
 import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { RecruitmentService } from './recruitment.service';
-import { Public } from '../common/decorators/public.decorator';
 import { AuthGuard } from '../common/guards/authentication.guard';
 import { authorizationGuard } from '../common/guards/authorization.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -89,7 +88,7 @@ export class RecruitmentController {
   }
 
   @Post('offer/add-approver')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async addOfferApprover(@Body() dto: AddOfferApproverDto) {
     return this.recruitmentService.addOfferApprover(dto);
   }
@@ -138,7 +137,7 @@ export class RecruitmentController {
   }
 
   @Post('contract/sign')
-  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @UseInterceptors(FilesInterceptor('files'))
   async signContract(
     @Body() dto: UploadSignedContractDto,
@@ -169,7 +168,7 @@ export class RecruitmentController {
   async getMyComplianceDocuments(@Req() req: any, @Query('employeeId') employeeId?: string) {
     return this.recruitmentService.getEmployeeDocuments(employeeId || req.user.sub);
   }
-
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   @Get('documents/:documentId/view')
   async viewDocument(@Param('documentId') documentId: string, @Res({ passthrough: true }) res: Response, @Req() req: any): Promise<StreamableFile> {
     const { file, filename, mimeType } = await this.recruitmentService.getDocumentFile(documentId, req.user);
@@ -181,19 +180,19 @@ export class RecruitmentController {
   }
 
   @Post('onboarding/checklist')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async createOnboardingChecklist(@Body() dto: CreateOnboardingChecklistDto) {
     return this.recruitmentService.createOnboardingChecklist(dto);
   }
 
   @Post('onboarding/checklist/defaults')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async createOnboardingWithDefaults(@Body() dto: CreateOnboardingWithDefaultsDto) {
     return this.recruitmentService.createOnboardingWithDefaults(dto);
   }
 
   @Get('onboarding/checklists/all')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getAllOnboardingChecklists() {
     return this.recruitmentService.getAllOnboardingChecklists();
   }
@@ -236,7 +235,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 400, description: 'Invalid input data - validation failed' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Post('createTemplate')
-  @Public()
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async createJobTemplate(@Body() CreateJobTemplateDto: CreateJobTemplateDto): Promise<JobTemplateDocument> {
     return await this.recruitmentService.createjob_template(CreateJobTemplateDto)
@@ -246,7 +244,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of job templates retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('templates')
-  @Public()
   async getAllJobTemplates(): Promise<JobTemplateDocument[]> {
     return await this.recruitmentService.getAllJobTemplates();
   }
@@ -272,7 +269,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Job requisition with specified ID not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Patch('Rrequisition/:requisitionid')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_EMPLOYEE)
   async updateJobRequision(@Param('requisitionid') id: string, @Body() UpdateJobRequisitionDto: UpdateJobRequisitionDto): Promise<JobRequisitionDocument> {
     return await this.recruitmentService.updatejob_requisition(id, UpdateJobRequisitionDto)
   }
@@ -281,7 +278,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of published job requisitions retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('Requisition/published')
-  @Public()
   async getAllPublishedRequistions(): Promise<JobRequisitionDocument[]> {
     return await this.recruitmentService.getAllpublishedJobRequisition();
   }
@@ -290,7 +286,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of all job requisitions retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('Requisitions/all')
-  @Public()
   async getAllRequisitions(): Promise<JobRequisitionDocument[]> {
     return await this.recruitmentService.getAllJobRequisitions();
   }
@@ -302,7 +297,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 400, description: 'Invalid document data - validation failed or unsupported file type' })
   @ApiResponse({ status: 500, description: 'Internal server error or file storage failed' })
   @Post('CVdocument')
-  @Public()
   @UseInterceptors(FileInterceptor('file'))
   async uploadDocument(@Body() documentDto: CreateCVDocumentDto, @UploadedFile() file: any): Promise<DocumentDocument> {
     if (!file && !documentDto.filePath) {
@@ -319,6 +313,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Referenced job requisition or candidate not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Post('Application')
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   @UseGuards(AuthGuard)
   async createApplication(@Body() createApplicationDto: CreateApplicationDto, @Req() req: any): Promise<ApplicationDocument> {
     // If user is authenticated, use their ID as candidateId if available
@@ -345,7 +340,6 @@ export class RecruitmentController {
   @ApiOperation({ summary: 'Get all applications across all requisitions' })
   @ApiResponse({ status: 200, description: 'List of all applications with candidate data', type: [Object] })
   @Get('Applications/all')
-  @Public()
   async getAllApplications(): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getAllApplications();
   }
@@ -354,7 +348,6 @@ export class RecruitmentController {
   @ApiParam({ name: 'requisitionId', description: 'Job Requisition MongoDB ObjectId' })
   @ApiResponse({ status: 200, description: 'List of applications for the requisition', type: [Object] })
   @Get('Applications/requisition/:requisitionId')
-  @Public()
   async getApplicationsByRequisition(@Param('requisitionId') requisitionId: string): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getApplicationsByRequisition(requisitionId);
   }
@@ -432,7 +425,7 @@ export class RecruitmentController {
   @ApiResponse({ status: 404, description: 'Application not found or invalid stage' })
   @ApiResponse({ status: 400, description: 'Invalid interview data' })
   @Post('Interview')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_EMPLOYEE)
   async createInterview(@Body() createInterviewDto: CreateInterviewDto, @Req() req: any): Promise<InterviewDocument> {
     // If hrId not supplied, try to derive it from authenticated user
     if (!createInterviewDto.hrId) {
@@ -520,6 +513,7 @@ export class RecruitmentController {
     description: 'Get all assessments assigned to the authenticated user (interviewer)'
   })
   @ApiResponse({ status: 200, description: 'List of assessments for the interviewer' })
+  @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Get('Assessment/MyAssessments')
   async getMyAssessments(@Req() req: any): Promise<AssessmentResultDocument[]> {
     // AuthGuard populates req.user from the Authorization header JWT (payload.sub)
@@ -533,7 +527,7 @@ export class RecruitmentController {
   })
   @ApiResponse({ status: 200, description: 'List of all assessments' })
   @Get('Assessment/All')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
+  @Roles(SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async getAllAssessments(): Promise<AssessmentResultDocument[]> {
     return this.recruitmentService.getAllAssessments();
   }
@@ -593,6 +587,7 @@ export class RecruitmentController {
     }
   })
   @ApiResponse({ status: 404, description: 'Assessment not found' })
+  @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.HR_EMPLOYEE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Patch('Assessment/:assessmentId')
   async submitAssessment(
     @Param('assessmentId') assessmentId: string,

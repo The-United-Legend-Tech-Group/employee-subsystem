@@ -209,6 +209,29 @@ export function CandidateTracking() {
 
   const handleMoveStage = async (applicationId: string, newStage: string) => {
     try {
+      // Ensure the application exists in local state
+      const app = candidates.find((c: any) => c._id === applicationId);
+      if (!app) {
+        toast.error('Application not found');
+        return;
+      }
+
+      // If candidate is currently in an interview stage, only allow moving out
+      // when approvals array is empty or all approvals are approved
+      const interviewStages = ['hr_interview', 'department_interview'];
+      const currentStage = app.currentStage;
+      if (interviewStages.includes(currentStage) && newStage !== currentStage) {
+        const approvals = Array.isArray(app.approvals) ? app.approvals : (app.approvalRequests || []);
+        const allApproved = approvals.length === 0 || approvals.every((a: any) => {
+          const s = (a?.status || a?.state || '').toString().toLowerCase();
+          return s === 'approved' || s === 'accept' || s === 'accepted';
+        });
+        if (!allApproved) {
+          toast.error('Cannot move candidate out of interview: approvals are still pending');
+          return;
+        }
+      }
+
       setIsSubmitting(true);
       await recruitmentApi.updateApplicationStatus(applicationId, { currentStage: newStage });
       toast.success('Application stage updated');

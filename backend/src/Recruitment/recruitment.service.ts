@@ -779,7 +779,7 @@ export class RecruitmentService {
       await this.notificationService.create({
         recipientId: [],
         type: 'Info',
-        deliveryType: 'BROADCAST',
+        deliveryType: 'MULTICAST',
         deliverToRole: SystemRole.HR_MANAGER,
         title: 'Signing Bonus Record Created',
         message: `Signing bonus record has been automatically created for employee ${employeeNumber || employeeId} for position ${positionName}. Status: Pending approval.`,
@@ -792,7 +792,7 @@ export class RecruitmentService {
       await this.notificationService.create({
         recipientId: [],
         type: 'Alert',
-        deliveryType: 'BROADCAST',
+        deliveryType: 'MULTICAST',
         deliverToRole: SystemRole.HR_MANAGER,
         title: 'Signing Bonus Processing Failed',
         message: `Failed to create signing bonus record for employee ${employeeNumber || employeeId}. Position: ${positionName}. Please create manually. Error: ${error.message || 'Unknown error'}`,
@@ -1070,7 +1070,7 @@ export class RecruitmentService {
           await this.notificationService.create({
             recipientId: [],
             type: 'Info',
-            deliveryType: 'BROADCAST',
+            deliveryType: 'MULTICAST',
             deliverToRole: department as SystemRole,
             title: 'New Onboarding Tasks Assigned',
             message: `New onboarding tasks assigned for employee ${employeeDisplayNumber}. Tasks: ${taskNames}. Deadline: ${deadlineStr}.${notesSection}`,
@@ -1161,7 +1161,7 @@ export class RecruitmentService {
         await this.notificationService.create({
           recipientId: [],
           type: 'Info',
-          deliveryType: 'BROADCAST',
+          deliveryType: 'MULTICAST',
           deliverToRole: department as SystemRole,
           title: 'New Onboarding Tasks Assigned',
           message: `New onboarding tasks assigned for employee ${employeeDisplayNumber}. Tasks: ${taskNames}. Deadline: ${deadlineStr}.${notesSection}`,
@@ -1310,7 +1310,7 @@ export class RecruitmentService {
       await this.notificationService.create({
         recipientId: [],
         type: 'Info',
-        deliveryType: 'BROADCAST',
+        deliveryType: 'MULTICAST',
         deliverToRole: SystemRole.SYSTEM_ADMIN,
         title: 'New Employee Onboarding Tasks Assigned',
         message: `New onboarding tasks have been created for employee ${employeeNumber || employeeId}. Tasks: ${itAdminTasksList.join(', ')}. Deadline: ${deadline.toDateString()}. Total tasks: ${itAdminTaskCount}.`,
@@ -1327,7 +1327,7 @@ export class RecruitmentService {
       await this.notificationService.create({
         recipientId: [],
         type: 'Info',
-        deliveryType: 'BROADCAST',
+        deliveryType: 'MULTICAST',
         deliverToRole: SystemRole.PAYROLL_SPECIALIST,
         title: 'New Payroll & Benefits Onboarding Tasks',
         message: `New payroll and benefits tasks created for employee ${employeeNumber || employeeId}. Tasks: ${hrTasksList.join(', ')}. Deadline: ${deadline.toDateString()}. Total tasks: ${hrTaskCount}.`,
@@ -1477,7 +1477,7 @@ export class RecruitmentService {
               message = `Escalation: Employee ${employeeName} has failed to complete onboarding task "${task.name}" within 7 days of the deadline. Recommended action: Initiate termination.`;
               recipientIds = []; // Broadcast to role
               deliverToRole = SystemRole.SYSTEM_ADMIN;
-              deliveryType = 'BROADCAST';
+              deliveryType = 'MULTICAST';
             } catch (e) {
               console.error('Failed to fetch employee for escalation:', e);
               continue;
@@ -1596,7 +1596,7 @@ export class RecruitmentService {
         await this.notificationService.create({
           recipientId: [], // Broadcast to role
           type: 'Info',
-          deliveryType: 'BROADCAST',
+          deliveryType: 'MULTICAST',
           deliverToRole: SystemRole.SYSTEM_ADMIN,
           title: 'Onboarding Checklist Completed',
           message: `Employee ${employeeName} has completed all onboarding tasks. Tasks: Convert from probation. Deadline: ASAP.`,
@@ -1819,7 +1819,7 @@ export class RecruitmentService {
 
   // Get all job requisitions (for HR Manager)
   async getAllJobRequisitions(): Promise<JobRequisitionDocument[]> {
-    return this.jobRequisitionRepository.find();
+    return this.jobRequisitionRepository.findAllWithTemplate();
   }
   // REC-007: Create CV Document
   //REC-007: Create CV Document
@@ -2190,7 +2190,7 @@ export class RecruitmentService {
       throw new NotFoundException(`Application with id ${createInterviewDto.applicationId} not found`);
     }
     if (application.status === ApplicationStatus.REJECTED || application.status === ApplicationStatus.HIRED) {
-      throw new NotFoundException(`Cannot schedule interview for application with status ${application.status}`);
+      throw new BadRequestException(`Cannot schedule interview for application with status ${application.status}`);
     }
 
     // Check if interview already exists for this application
@@ -2199,7 +2199,7 @@ export class RecruitmentService {
       interview => interview.status === InterviewStatus.SCHEDULED
     );
     if (hasScheduledInterview) {
-      throw new NotFoundException(`An interview is already scheduled for this application. Please cancel or complete the existing interview before scheduling a new one.`);
+      throw new BadRequestException(`An interview is already scheduled for this application. Please cancel or complete the existing interview before scheduling a new one.`);
     }
 
     // Use userId as hrId if provided
@@ -2210,30 +2210,30 @@ export class RecruitmentService {
       throw new NotFoundException(`HR with id ${hrId} not found or does not have the required role`);
     }*/
     if (!createInterviewDto.panel || createInterviewDto.panel.length === 0) {
-      throw new NotFoundException('At least one interviewer/panel member is required to schedule an interview');
+      throw new BadRequestException('At least one interviewer/panel member is required to schedule an interview');
     }
     // Normalize scheduledDate to a Date object (DTO now accepts ISO string)
 
     if (createInterviewDto.scheduledDate <= new Date()) {
-      throw new NotFoundException('Scheduled date and time for the interview must be in the future');
+      throw new BadRequestException('Scheduled date and time for the interview must be in the future');
     }
     if (createInterviewDto.method === InterviewMethod.VIDEO && !createInterviewDto.videoLink) {
-      throw new NotFoundException('Video link is required for video interviews');
+      throw new BadRequestException('Video link is required for video interviews');
     }
     if (createInterviewDto.method !== InterviewMethod.VIDEO && createInterviewDto.videoLink) {
-      throw new NotFoundException('Video link should not be provided for non-video interviews');
+      throw new BadRequestException('Video link should not be provided for non-video interviews');
     }
     if (new Set(createInterviewDto.panel).size !== createInterviewDto.panel.length) {
-      throw new NotFoundException('Duplicate panel member IDs are not allowed');
+      throw new BadRequestException('Duplicate panel member IDs are not allowed');
     }
     // Validate stage is interview-related
     if (createInterviewDto.stage !== ApplicationStage.HR_INTERVIEW &&
       createInterviewDto.stage !== ApplicationStage.DEPARTMENT_INTERVIEW) {
-      throw new NotFoundException('Interview can only be created for HR or Department interview stages');
+      throw new BadRequestException('Interview can only be created for HR or Department interview stages');
     }
     if (application.currentStage !== ApplicationStage.HR_INTERVIEW &&
       application.currentStage !== ApplicationStage.DEPARTMENT_INTERVIEW) {
-      throw new NotFoundException('Interview can only be created for HR or Department interview stages');
+      throw new BadRequestException('Interview can only be created for HR or Department interview stages');
     }
     const interviewData = {
       applicationId: new Types.ObjectId(createInterviewDto.applicationId),
@@ -3071,7 +3071,7 @@ export class RecruitmentService {
       await this.notificationService.create({
         recipientId: [],
         type: 'Info',
-        deliveryType: 'BROADCAST',
+        deliveryType: 'MULTICAST',
         deliverToRole: SystemRole.HR_MANAGER,
         title: 'Assessment Submitted',
         message: `Assessment has been submitted for interview. Score: ${score}/10`,

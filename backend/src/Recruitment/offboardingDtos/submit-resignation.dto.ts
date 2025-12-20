@@ -1,4 +1,3 @@
-
 import {
   IsDate,
   IsMongoId,
@@ -6,15 +5,22 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 
 export class SubmitResignationDto {
+  @ApiProperty({ 
+    required: false, 
+    description: 'Employee ID (automatically extracted from JWT token if not provided)',
+    example: '507f1f77bcf86cd799439011'
+  })
+  @ValidateIf(o => o.employeeId !== undefined && o.employeeId !== null && o.employeeId !== '')
   @IsMongoId({ message: 'Employee ID must be a valid MongoDB ObjectId' })
-  @IsNotEmpty({ message: 'Employee ID is required' })
-  employeeId: string;
+  employeeId?: string;
 
   @IsOptional()
   @IsMongoId({ message: 'Contract ID must be a valid MongoDB ObjectId' })

@@ -9,4 +9,5 @@ export interface IJobRequisitionRepository extends IRepository<JobRequisitionDoc
   findByRequisitionId(requisitionId: string): Promise<JobRequisitionDocument | null>;
   findPublished(): Promise<JobRequisitionDocument[]>;
   findPublishedWithTemplate(): Promise<JobRequisitionDocument[]>;
+  findAllWithTemplate(): Promise<JobRequisitionDocument[]>;
 }

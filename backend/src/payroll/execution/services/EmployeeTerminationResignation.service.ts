@@ -105,6 +105,7 @@ export class EmployeeTerminationResignationService {
         benefitId: benefitConfig._id,
         givenAmount: benefitConfig.amount,
         status: BenefitStatus.PENDING,
+        terminationId: dto.terminationId,
       });
 
       return await newRecord.save();

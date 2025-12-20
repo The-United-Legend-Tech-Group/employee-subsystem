@@ -81,7 +81,7 @@ export function MyApprovals() {
     const handleViewCV = async (documentId: string, fileName: string) => {
         try {
             const response = await recruitmentApi.viewDocument(documentId);
-            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const blob = response.data;
             const url = window.URL.createObjectURL(blob);
             window.open(url, '_blank');
             // Clean up the URL after opening

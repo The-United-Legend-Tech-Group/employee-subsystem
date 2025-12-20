@@ -1,4 +1,4 @@
-import { IsMongoId, IsString } from 'class-validator';
+import { IsMongoId, IsString, IsOptional } from 'class-validator';
 
 export class CreateEmployeeTerminationDto {
   @IsMongoId()
@@ -6,4 +6,8 @@ export class CreateEmployeeTerminationDto {
 
   @IsString()
   benefitName: string;
+
+  @IsOptional()
+  @IsMongoId()
+  terminationId?: string;
 }

@@ -7,18 +7,29 @@ import { Types } from 'mongoose';
 export type NotificationDocument = Notification & Document;
 
 import { EmployeeProfileRepository } from '../employee/repository/employee-profile.repository';
+import { EmployeeSystemRoleRepository } from '../employee/repository/employee-system-role.repository';
 
 @Injectable()
 export class NotificationService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
     private readonly employeeProfileRepository: EmployeeProfileRepository,
+    private readonly employeeSystemRoleRepository: EmployeeSystemRoleRepository,
   ) { }
 
   async create(
     createNotificationDto: CreateNotificationDto,
   ): Promise<Notification> {
     const recipientIds = new Set(createNotificationDto.recipientId || []);
+
+    // Expand deliverToRole into concrete employee recipient IDs
+    if (createNotificationDto.deliverToRole) {
+      const role = createNotificationDto.deliverToRole as any;
+      const roleEntries = await this.employeeSystemRoleRepository.find({ roles: role, isActive: true });
+      roleEntries.forEach((r) => {
+        if (r.employeeProfileId) recipientIds.add(r.employeeProfileId.toString());
+      });
+    }
 
     if (createNotificationDto.positionIds && createNotificationDto.positionIds.length > 0) {
       const employees = await this.employeeProfileRepository.find({

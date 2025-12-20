@@ -60,7 +60,7 @@ import {
 import { CandidateRepository } from '../employee-profile/repository/candidate.repository';
 
 // Module imports
-import { EmployeeModule } from '../employee-profile/employee.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
 import { NotificationModule } from '../notification/notification.module';
 import { LeavesModule } from '../leaves/leaves.module';
 import { PerformanceModule } from '../performance/performance.module';

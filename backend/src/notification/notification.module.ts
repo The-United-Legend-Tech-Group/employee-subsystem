@@ -6,7 +6,7 @@ import { NotificationController } from './notification.controller';
 import { NotificationRepository } from './repository/notification.repository';
 
 import { AuthModule } from '../employee-profile/auth.module';
-import { EmployeeModule } from '../employee-profile/employee.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
 import * as dotenv from 'dotenv';
 dotenv.config();
 

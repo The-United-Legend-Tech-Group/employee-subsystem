@@ -22,7 +22,7 @@ import { AddOfferApproverDto } from './DTO/add-offer-approver.dto';
 import { ApproveOfferDto } from './DTO/approve-offer.dto';
 import { SendOfferDto } from './DTO/send-offer.dto';
 import { CandidateRespondOfferDto } from './DTO/candidate-respond-offer.dto';
-import { EmployeeService } from '../employee-profile/employee.service';
+import { EmployeeService } from '../employee-profile/employee-profile.service';
 import { ConfigSetupService } from '../payroll-configuration/payroll-configuration.service';
 import { EmployeeSigningBonusService } from '../payroll/execution/services/EmployeesigningBonus.service';
 

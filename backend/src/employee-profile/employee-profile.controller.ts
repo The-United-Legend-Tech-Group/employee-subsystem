@@ -9,7 +9,7 @@ import { AdminUpdateEmployeeProfileDto } from './dto/admin-update-employee-profi
 import { AssignRolesDto } from './dto/assign-roles.dto';
 import { UpdateEmployeeDepartmentDto } from './dto/update-employee-department.dto';
 import { UpdateEmployeePositionDto } from './dto/update-employee-position.dto';
-import { EmployeeService } from './employee.service';
+import { EmployeeService } from './employee-profile.service';
 import { ProfileChangeStatus, SystemRole } from './enums/employee-profile.enums';
 import { AuthGuard } from '../common/guards/authentication.guard';
 import { authorizationGuard } from '../common/guards/authorization.guard';

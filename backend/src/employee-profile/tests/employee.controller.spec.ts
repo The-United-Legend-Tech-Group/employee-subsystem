@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EmployeeController } from '../employee.controller';
-import { EmployeeService } from '../employee.service';
+import { EmployeeController } from '../employee-profile.controller';
+import { EmployeeService } from '../employee-profile.service';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { UpdateContactInfoDto } from '../dto/update-contact-info.dto';
 import { UpdateEmployeeProfileDto } from '../dto/update-employee-profile.dto';

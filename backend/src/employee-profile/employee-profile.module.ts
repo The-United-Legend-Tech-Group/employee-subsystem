@@ -14,8 +14,8 @@ import {
   EmployeeProfileChangeRequest,
   EmployeeProfileChangeRequestSchema,
 } from './models/ep-change-request.schema';
-import { EmployeeController } from './employee.controller';
-import { EmployeeService } from './employee.service';
+import { EmployeeController } from './employee-profile.controller';
+import { EmployeeService } from './employee-profile.service';
 import { EmployeeProfileRepository } from './repository/employee-profile.repository';
 import { EmployeeProfileChangeRequestRepository } from './repository/ep-change-request.repository';
 import {

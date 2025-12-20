@@ -29,7 +29,7 @@ import { LeavesRequestController } from './request/leave-requests.controller';
 import { LeavesRequestService } from './request/leave-requests.service';
 import { LeavesReportController } from './reports/leave-reports.controller';
 import { LeavesReportService } from './reports/leave-reports.service';
-import { EmployeeModule } from '../employee-profile/employee.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
 import { NotificationModule } from '../notification/notification.module';
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
 import { TimeMangementModule } from '../time-mangement/timemangment.module';

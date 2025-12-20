@@ -13,7 +13,7 @@ import { SubmitPostLeaveDto } from '../dtos/submit-post-leave.dto';
 // import { AccrualMethod } from '../enums/accrual-method.enum';
 // import { RoundingRule } from '../enums/rounding-rule.enum';
 import { LeaveStatus } from '../enums/leave-status.enum';
-import { EmployeeService } from '../../employee-profile/employee.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
 import {
   LeaveEntitlementRepository,
   LeaveRequestRepository,

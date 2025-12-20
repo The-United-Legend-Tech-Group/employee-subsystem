@@ -11,7 +11,7 @@ import { UploadAttachmentDto } from '../dtos/upload-attachment.dto';
 import { UpdateLeaveRequestDto } from '../dtos/update-leave-request.dto';
 import { ManagerApprovalDto } from '../dtos/manager-approve.dto';
 import { NotificationService } from '../../notification/notification.service';
-import { EmployeeService } from '../../employee-profile/employee.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { FilterLeaveRequestsByTypeDto } from '../dtos/filter-leave-requests-by-type.dto';
 import { SetApprovalFlowDto } from '../dtos/set-approval-flow.dto';

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EmployeeService } from '../employee.service';
+import { EmployeeService } from '../employee-profile.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { EmployeeProfile } from '../models/employee-profile.schema';
 import { AppraisalRecord } from '../../performance/models/appraisal-record.schema';

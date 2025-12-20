@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { EmployeeModule } from './employee.module';
+import { EmployeeModule } from './employee-profile.module';
 import * as dotenv from 'dotenv';
 dotenv.config();
 

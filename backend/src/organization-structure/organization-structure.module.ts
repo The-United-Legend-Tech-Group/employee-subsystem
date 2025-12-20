@@ -22,7 +22,7 @@ import { StructureApprovalRepository } from './repository/structure-approval.rep
 import { StructureChangeLogRepository } from './repository/structure-change-log.repository';
 
 import { forwardRef } from '@nestjs/common';
-import { EmployeeModule } from '../employee-profile/employee.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
 
 @Module({
   imports: [

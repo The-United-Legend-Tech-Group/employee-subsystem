@@ -3,7 +3,7 @@ import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 import { TimeMangementModule } from '../../time-mangement/timemangment.module';
 import { OrganizationStructureModule } from '../../organization-structure/organization-structure.module';
-import { EmployeeModule } from '../../employee-profile/employee.module';
+import { EmployeeModule } from '../../employee-profile/employee-profile.module';
 
 @Module({
   imports: [

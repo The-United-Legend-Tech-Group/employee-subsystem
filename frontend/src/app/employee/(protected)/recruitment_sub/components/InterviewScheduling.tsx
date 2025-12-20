@@ -33,6 +33,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { recruitmentApi, employeeApi, organizationApi, OpenDepartment } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
+import { isAuthenticated } from '@/lib/auth-utils';
 
 interface InterviewFormData {
   applicationId: string;
@@ -186,8 +187,7 @@ export function InterviewScheduling() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated()) {
       toast.error('You must be logged in');
       return;
     }

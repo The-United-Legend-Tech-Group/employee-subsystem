@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { recruitmentApi, offboardingApi } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
+import { isAuthenticated, getEmployeeIdFromCookie, getAccessToken } from '@/lib/auth-utils';
 import { MyApprovals } from './MyApprovals';
 import {
   Box,
@@ -72,16 +73,13 @@ export function EmployeeDashboard() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const encryptedId = localStorage.getItem('employeeId');
-
-        if (token && encryptedId) {
-          const decryptedId = await decryptData(encryptedId, token);
-          if (decryptedId) {
-            setEmployeeId(decryptedId);
-            fetchOnboardingChecklist(decryptedId);
-            fetchResignationStatus(decryptedId);
-            fetchComplianceDocuments(decryptedId);
+        if (isAuthenticated()) {
+          const idFromCookie = getEmployeeIdFromCookie();
+          if (idFromCookie) {
+            setEmployeeId(idFromCookie);
+            fetchOnboardingChecklist(idFromCookie);
+            fetchResignationStatus(idFromCookie);
+            fetchComplianceDocuments(idFromCookie);
           }
         }
       } catch (error) {
@@ -260,29 +258,12 @@ export function EmployeeDashboard() {
 
   const handleViewDocument = async (documentId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      // Use env var or default to localhost:3000
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/recruitment/documents/${documentId}/view`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to fetch document';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          errorMessage = response.statusText;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await response.blob();
+      const response = await recruitmentApi.viewDocument(documentId);
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
+      // Clean up the URL after opening
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (error: any) {
       console.error('Failed to view document:', error);
       toast.error(error.message || 'Failed to view document');

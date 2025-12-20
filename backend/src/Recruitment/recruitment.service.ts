@@ -1819,7 +1819,7 @@ export class RecruitmentService {
 
   // Get all job requisitions (for HR Manager)
   async getAllJobRequisitions(): Promise<JobRequisitionDocument[]> {
-    return this.jobRequisitionRepository.find();
+    return this.jobRequisitionRepository.findAllWithTemplate();
   }
   // REC-007: Create CV Document
   //REC-007: Create CV Document

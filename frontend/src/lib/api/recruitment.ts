@@ -367,11 +367,7 @@ export const recruitmentApi = {
   // =================== DOCUMENT ENDPOINTS ===================
 
   viewDocument: (documentId: string) => {
-    // Note: apiClient.get returns JSON by default. For blobs, we might need a custom approach or handle it in handleResponse.
-    // However, fetch with responseType: 'blob' is not standard fetch.
-    // I'll use a direct fetch approach for this one if needed, or assume apiClient handles it (it doesn't yet).
-    // Let's keep it consistent for now.
-    return handleResponse(apiClient.get<Blob>(`/recruitment/documents/${documentId}/view`));
+    return handleResponse(apiClient.getBlob(`/recruitment/documents/${documentId}/view`));
   },
 
   uploadCVDocument: (data: CreateCVDocumentDto, file: File) => {

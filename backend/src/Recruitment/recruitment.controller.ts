@@ -2,7 +2,6 @@ import { Controller, Post, Get, Patch, Body, UseInterceptors, UploadedFiles, Upl
 import type { Response } from 'express';
 import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { RecruitmentService } from './recruitment.service';
-import { Public } from '../common/decorators/public.decorator';
 import { AuthGuard } from '../common/guards/authentication.guard';
 import { authorizationGuard } from '../common/guards/authorization.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -236,7 +235,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 400, description: 'Invalid input data - validation failed' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Post('createTemplate')
-  @Public()
   @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.RECRUITER, SystemRole.SYSTEM_ADMIN)
   async createJobTemplate(@Body() CreateJobTemplateDto: CreateJobTemplateDto): Promise<JobTemplateDocument> {
     return await this.recruitmentService.createjob_template(CreateJobTemplateDto)
@@ -246,7 +244,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of job templates retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('templates')
-  @Public()
   async getAllJobTemplates(): Promise<JobTemplateDocument[]> {
     return await this.recruitmentService.getAllJobTemplates();
   }
@@ -281,7 +278,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of published job requisitions retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('Requisition/published')
-  @Public()
   async getAllPublishedRequistions(): Promise<JobRequisitionDocument[]> {
     return await this.recruitmentService.getAllpublishedJobRequisition();
   }
@@ -290,7 +286,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 200, description: 'List of all job requisitions retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get('Requisitions/all')
-  @Public()
   async getAllRequisitions(): Promise<JobRequisitionDocument[]> {
     return await this.recruitmentService.getAllJobRequisitions();
   }
@@ -302,7 +297,6 @@ export class RecruitmentController {
   @ApiResponse({ status: 400, description: 'Invalid document data - validation failed or unsupported file type' })
   @ApiResponse({ status: 500, description: 'Internal server error or file storage failed' })
   @Post('CVdocument')
-  @Public()
   @UseInterceptors(FileInterceptor('file'))
   async uploadDocument(@Body() documentDto: CreateCVDocumentDto, @UploadedFile() file: any): Promise<DocumentDocument> {
     if (!file && !documentDto.filePath) {
@@ -345,7 +339,6 @@ export class RecruitmentController {
   @ApiOperation({ summary: 'Get all applications across all requisitions' })
   @ApiResponse({ status: 200, description: 'List of all applications with candidate data', type: [Object] })
   @Get('Applications/all')
-  @Public()
   async getAllApplications(): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getAllApplications();
   }
@@ -354,7 +347,6 @@ export class RecruitmentController {
   @ApiParam({ name: 'requisitionId', description: 'Job Requisition MongoDB ObjectId' })
   @ApiResponse({ status: 200, description: 'List of applications for the requisition', type: [Object] })
   @Get('Applications/requisition/:requisitionId')
-  @Public()
   async getApplicationsByRequisition(@Param('requisitionId') requisitionId: string): Promise<ApplicationDocument[]> {
     return this.recruitmentService.getApplicationsByRequisition(requisitionId);
   }

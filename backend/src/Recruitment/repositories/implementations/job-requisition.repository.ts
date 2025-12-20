@@ -40,4 +40,8 @@ export class JobRequisitionRepository extends BaseRepository<JobRequisitionDocum
   async findPublishedWithTemplate(): Promise<JobRequisitionDocument[]> {
     return this.jobRequisitionModel.find({ publishStatus: 'published' }).populate('templateId').exec();
   }
+
+  async findAllWithTemplate(): Promise<JobRequisitionDocument[]> {
+    return this.jobRequisitionModel.find().populate('templateId').exec();
+  }
 }

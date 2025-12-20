@@ -607,38 +607,16 @@ export class LeavesPolicyService {
     );
 
     let amount = 0;
-<<<<<<< HEAD
-    if (
-      oldRemaining &&
-      updateFields.remaining &&
-      oldRemaining < updateFields.remaining
-    )
-      amount = updateFields.remaining - oldRemaining;
-    else
-      oldRemaining && updateFields.remaining
-        ? (amount = oldRemaining - updateFields.remaining)
-        : 0;
-=======
     if (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining)
       amount = updateFields.remaining - oldRemaining
     else
       (oldRemaining && updateFields.remaining) ? amount = oldRemaining - updateFields.remaining : 0
->>>>>>> 7de1403ce38fd6f33ce313fba55f0873e03e2adf
 
     // 3. Store adjustment audit log
     await this.leaveAdjustmentRepository.create({
       employeeId: new Types.ObjectId(employeeId),
       leaveTypeId: new Types.ObjectId(leaveTypeId),
-<<<<<<< HEAD
-      adjustmentType:
-        oldRemaining &&
-          updateFields.remaining &&
-          oldRemaining < updateFields.remaining
-          ? AdjustmentType.ADD
-          : AdjustmentType.DEDUCT, // Default to ADD for assignment
-=======
       adjustmentType: (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining) ? AdjustmentType.ADD : AdjustmentType.DEDUCT, // Default to ADD for assignment
->>>>>>> 7de1403ce38fd6f33ce313fba55f0873e03e2adf
       amount,
       reason,
       hrUserId: new Types.ObjectId(hrUserId),

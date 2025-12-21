@@ -28,11 +28,7 @@ import { EmployeeProfile as Employee } from '../../employee-profile/models/emplo
 import {
   refundDetails,
   refundDetailsSchema,
-<<<<<<< Updated upstream:backend/src/payroll/execution/models/payslip.schema.ts
-} from '../../../payroll-tracking/models/refunds.schema';
-=======
 } from '../../payroll-tracking/models/refunds.schema';
->>>>>>> Stashed changes:backend/src/payroll-execution/models/payslip.schema.ts
 import { payrollRuns } from './payrollRuns.schema';
 import { PaySlipPaymentStatus } from '../enums/payroll-execution-enum';
 

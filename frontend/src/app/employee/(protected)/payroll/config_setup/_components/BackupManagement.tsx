@@ -75,8 +75,21 @@ export default function BackupManagement() {
         }
     };
 
-    const handleDownload = (backupName: string) => {
-        backupApi.downloadBackup(backupName);
+    const handleDownload = async (backupName: string) => {
+        console.log('[BackupManagement] handleDownload called with:', backupName);
+        try {
+            setActionLoading(true);
+            setError(null);
+            console.log('[BackupManagement] Calling backupApi.downloadBackup...');
+            await backupApi.downloadBackup(backupName);
+            console.log('[BackupManagement] Download completed successfully');
+            setSuccess(`Downloading backup: ${backupName}`);
+        } catch (err) {
+            console.error('[BackupManagement] Download error:', err);
+            setError(err instanceof Error ? err.message : 'Failed to download backup');
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     const openRestoreDialog = (backupName: string) => {

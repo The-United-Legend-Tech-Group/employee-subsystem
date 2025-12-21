@@ -468,17 +468,38 @@ export const backupApi = {
   restoreBackup: (backupName: string): Promise<ApiResponse<{ message: string; timestamp: string }>> => {
     return apiClient.post<{ message: string; timestamp: string }>(`/config-setup/backup/restore/${backupName}`, {});
   },
-  downloadBackup: (backupName: string): void => {
-    // Direct browser download
-    // Using a simpler approach to get base URL if not defined
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/config-setup/backup/download/${backupName}`;
+  downloadBackup: async (backupName: string): Promise<void> => {
+    // Use apiClient.getBlob to properly handle authentication
+    // window.open doesn't send Authorization headers or cookies correctly in all cases
+    const endpoint = `/config-setup/backup/download/${backupName}`;
+    console.log('[Backup Download] Attempting to download:', {
+      endpoint,
+      backupName,
+    });
 
-    // Check if we have an authenticated session to pass the token?
-    // Browser navigation handles cookies automatically. 
-    // If using Bearer token, we might need to fetch blob with axios/fetch and create object URL.
-    // However, since we set up cookie-based auth fallback in the guard, browser nav should work!
-    window.open(url, '_blank');
+    const response = await apiClient.getBlob(endpoint);
+    console.log('[Backup Download] Response:', {
+      hasError: !!response.error,
+      error: response.error,
+      hasData: !!response.data,
+    });
+
+    if (response.error) {
+      console.error('Failed to download backup:', response.error);
+      throw new Error(response.error);
+    }
+
+    if (response.data) {
+      // Create a temporary blob URL and trigger download
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${backupName}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }
   },
 };
 

@@ -13,7 +13,7 @@ import { seedLeaves } from './leaves.seed';
 import { seedRecruitment } from './recruitment.seed';
 
 async function seed() {
-  const mongoUri = 'mongodb+srv://Arcana:anacra@hr-core.2vpml9g.mongodb.net/hr-system';
+  const mongoUri = 'mongodb://localhost:27017/hr-management';
 
   console.log(`Connecting to MongoDB at ${mongoUri}...`);
   await mongoose.connect(mongoUri);

@@ -426,14 +426,8 @@ export async function seedPayrollConfiguration(
           grossSalary: template.grossSalary,
           status: template.status,
           createdBy: template.createdBy || employees.alice?._id,
-          approvedBy:
-            template.status === ConfigStatus.APPROVED
-              ? template.approvedBy
-              : undefined,
-          approvedAt:
-            template.status === ConfigStatus.APPROVED
-              ? template.approvedAt || new Date()
-              : undefined,
+          approvedBy: template.status === ConfigStatus.APPROVED ? template.approvedBy : undefined,
+          approvedAt: template.status === ConfigStatus.APPROVED ? template.approvedAt || new Date() : undefined,
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },

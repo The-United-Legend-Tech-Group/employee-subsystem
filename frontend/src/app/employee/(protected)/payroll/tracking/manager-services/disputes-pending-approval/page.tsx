@@ -48,6 +48,7 @@ interface Dispute {
   status: string;
   createdAt: string;
   approvedRefundAmount?: number;
+  resolutionComment?: string;
   employeeId?: string | { _id: string; firstName?: string; lastName?: string; employeeNumber?: string };
 }
 
@@ -523,7 +524,6 @@ export default function DisputesPendingApprovalPage() {
                 <TableCell>Employee</TableCell>
                 <TableCell>Payroll Period</TableCell>
                 <TableCell>Description</TableCell>
-                <TableCell>Refund Amount</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
                 <TableCell align="center">Actions</TableCell>
@@ -532,7 +532,7 @@ export default function DisputesPendingApprovalPage() {
             <TableBody>
               {filteredDisputes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
                       No disputes match your search criteria.
                     </Typography>
@@ -604,13 +604,6 @@ export default function DisputesPendingApprovalPage() {
                         }}
                       >
                         {dispute.description}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>
-                        {dispute.approvedRefundAmount
-                          ? formatCurrency(dispute.approvedRefundAmount)
-                          : 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -767,6 +760,26 @@ export default function DisputesPendingApprovalPage() {
                   </Box>
                 </CardContent>
               </Card>
+
+              {selectedDispute.resolutionComment && (
+                <Card
+                  sx={{
+                    mb: 3,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)} 0%, ${alpha(theme.palette.warning.main, 0.02)} 100%)`,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <CardContent sx={{ py: 2.5, '&:last-child': { pb: 2.5 } }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'text.secondary' }}>
+                      Specialist Resolution Comment
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                      {selectedDispute.resolutionComment}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )}
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 <Box>

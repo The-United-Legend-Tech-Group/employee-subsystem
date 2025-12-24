@@ -720,6 +720,26 @@ export default function SpecialistDisputesPage() {
             </Card>
           )}
 
+          {selectedDispute?.resolutionComment && (
+            <Card
+              sx={{
+                mb: 3,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)} 0%, ${alpha(theme.palette.info.main, 0.02)} 100%)`,
+                border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`,
+                borderRadius: 2,
+              }}
+            >
+              <CardContent sx={{ py: 2.5, '&:last-child': { pb: 2.5 } }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'text.secondary' }}>
+                  Previous Resolution Comment
+                </Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                  {selectedDispute.resolutionComment}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {actionType === 'approve' ? (
               <>

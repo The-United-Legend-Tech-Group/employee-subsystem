@@ -34,7 +34,6 @@ interface Dispute {
   status: string;
   rejectionReason?: string;
   resolutionComment?: string;
-  approvedRefundAmount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,7 +82,6 @@ export default function DisputesPage() {
         status: dispute.status || 'Unknown',
         rejectionReason: dispute.rejectionReason || null,
         resolutionComment: dispute.resolutionComment || null,
-        approvedRefundAmount: dispute.approvedRefundAmount || null,
         createdAt: dispute.createdAt || dispute.created_at || '',
         updatedAt: dispute.updatedAt || dispute.updated_at || '',
       })) : [];

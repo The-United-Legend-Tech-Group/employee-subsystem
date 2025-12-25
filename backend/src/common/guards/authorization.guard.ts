@@ -8,10 +8,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { EmployeeSystemRole } from '../../employee-subsystem/employee/models/employee-system-role.schema';
+import { EmployeeSystemRole } from '../../employee-profile/models/employee-system-role.schema';
 
 @Injectable()
 export class authorizationGuard implements CanActivate {
@@ -21,7 +21,7 @@ export class authorizationGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectModel(EmployeeSystemRole.name)
     private employeeSystemRoleModel: Model<EmployeeSystemRole>,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(

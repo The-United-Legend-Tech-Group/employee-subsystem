@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Types } from 'mongoose';
 import { LeavePolicy } from '../models/leave-policy.schema';
@@ -13,8 +17,8 @@ import {
   CalendarRepository,
   LeaveRequestRepository,
 } from '../repository';
-import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
-import { AttendanceService } from '../../time-mangement/services/attendance.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
+import { AttendanceService } from '../../time-management/services/attendance.service';
 import { InitiatePolicyDto } from '../dtos/initiate-policy.dto';
 import { ConfigureLeaveParametersDto } from '../dtos/configure-leave-parameters.dto';
 import { CreateLeaveTypeDto } from '../dtos/create-leave-type.dto';
@@ -31,7 +35,7 @@ import { RoundingRule } from '../enums/rounding-rule.enum';
 import { AnnualResetDto } from '../dtos/annual-reset.dto';
 import { LeaveCategoryRepository } from '../repository/leave-category.repository';
 import { LeaveCategory } from '../models/leave-category.schema';
-import { SystemRole } from '../../employee-subsystem/employee/enums/employee-profile.enums';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 import { LeaveStatus } from '../enums/leave-status.enum';
 
 @Injectable()
@@ -71,7 +75,14 @@ export class LeavesPolicyService {
   async initiatePolicy(dto: InitiatePolicyDto): Promise<LeavePolicy> {
     const leaveType = await this.leaveTypeRepository.findById(dto.leaveTypeId);
     if (!leaveType) throw new NotFoundException('Leave type not found');
-    if (await this.leavePolicyRepository.findByLeaveTypeId(leaveType._id.toString())) throw new BadRequestException('Policy already exists for this leave type');
+    if (
+      await this.leavePolicyRepository.findByLeaveTypeId(
+        leaveType._id.toString(),
+      )
+    )
+      throw new BadRequestException(
+        'Policy already exists for this leave type',
+      );
     const policy = await this.leavePolicyRepository.create({
       ...dto,
       leaveTypeId: leaveType._id,
@@ -79,7 +90,7 @@ export class LeavesPolicyService {
     return policy;
   }
 
- // REQ-001: Manage All Policies
+  // REQ-001: Manage All Policies
   async managePolicy(): Promise<LeavePolicy[]> {
     // return plain objects and enrich with leave type code-derived name: "<code> Policy"
     const docs = await this.leavePolicyRepository.find();
@@ -120,11 +131,10 @@ export class LeavesPolicyService {
       return {
         ...p,
         leaveTypeCode: code,
-        name: code ? `${code} Policy` : p.name ?? 'Policy',
+        name: code ? `${code} Policy` : (p.name ?? 'Policy'),
       };
     });
   }
-
 
   // REQ-003: Configure Leave Settings
   async configureLeaveSettings(
@@ -135,7 +145,8 @@ export class LeavesPolicyService {
   }
   // REQ-003: Get Leave Settings
   async getLeaveSettings(leaveTypeId: string): Promise<LeavePolicy> {
-    const policy = await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
+    const policy =
+      await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
     if (!policy) throw new NotFoundException('Leave settings not found');
     return policy;
   }
@@ -249,12 +260,14 @@ export class LeavesPolicyService {
     if (!employeeProfile)
       throw new NotFoundException('Employee profile not found');
 
-    let entitlement = await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
-      employeeId,
-      leaveTypeId,
-    );
+    let entitlement =
+      await this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+        employeeId,
+        leaveTypeId,
+      );
 
-    const policy = await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
+    const policy =
+      await this.leavePolicyRepository.findByLeaveTypeId(leaveTypeId);
     if (!policy) throw new NotFoundException('Leave policy not found');
 
     // If entitlement missing, create initial one adhering to policy
@@ -287,8 +300,8 @@ export class LeavesPolicyService {
       policy.roundingRule,
     );
 
-  entitlement.accruedActual = accrualActual;
-  entitlement.accruedRounded = accrualRounded;
+    entitlement.accruedActual = accrualActual;
+    entitlement.accruedRounded = accrualRounded;
 
     /** ---------------------
      * 3. HANDLE CARRY FORWARD
@@ -325,7 +338,10 @@ export class LeavesPolicyService {
       leaveTypeId: new Types.ObjectId(leaveTypeId),
       status: LeaveStatus.APPROVED,
     } as any);
-    const approvedTakenDays = (approvedRequests || []).reduce((sum: number, r: any) => sum + (Number(r.durationDays) || 0), 0);
+    const approvedTakenDays = (approvedRequests || []).reduce(
+      (sum: number, r: any) => sum + (Number(r.durationDays) || 0),
+      0,
+    );
     entitlement.taken = approvedTakenDays;
     entitlement.remaining = this.computeRemaining(entitlement);
 
@@ -356,13 +372,16 @@ export class LeavesPolicyService {
    *
    * Uses EmployeeService (org/role source of truth) and Leaves repositories for policies/types.
    */
-  async getLeaveTypesForEmployeeRole(employeeId: string, roles: string[]): Promise<LeaveType[]> {
+  async getLeaveTypesForEmployeeRole(
+    employeeId: string,
+    roles: string[],
+  ): Promise<LeaveType[]> {
     const employee = await this.employeeService.getProfile(employeeId);
     const isHrOrAdmin = roles.some((r) =>
       [
         SystemRole.HR_ADMIN,
         SystemRole.HR_MANAGER,
-        SystemRole.SYSTEM_ADMIN
+        SystemRole.SYSTEM_ADMIN,
       ].includes(r as SystemRole),
     );
 
@@ -406,11 +425,16 @@ export class LeavesPolicyService {
       // If no policy/eligibility configured, allow by default (keeps system usable).
       if (!eligibility) return true;
 
-
       // 1) minTenureMonths
       const minTenureMonths =
-        eligibility.minTenureMonths != null ? Number(eligibility.minTenureMonths) : null;
-      if (minTenureMonths != null && tenureMonths != null && tenureMonths < minTenureMonths) {
+        eligibility.minTenureMonths != null
+          ? Number(eligibility.minTenureMonths)
+          : null;
+      if (
+        minTenureMonths != null &&
+        tenureMonths != null &&
+        tenureMonths < minTenureMonths
+      ) {
         return false;
       }
       if (minTenureMonths != null && tenureMonths == null) {
@@ -423,10 +447,12 @@ export class LeavesPolicyService {
       // (e.g. DEPARTMENT_EMPLOYEE, DEPARTMENT_HEAD, HR_ADMIN, ...) not org-position IDs.
       // Only show leave types where the employee's role matches at least one role in positionsAllowed.
       // If positionsAllowed is empty or not defined, don't show the leave type.
-      const positionsAllowed: string[] = Array.isArray(eligibility.positionsAllowed)
+      const positionsAllowed: string[] = Array.isArray(
+        eligibility.positionsAllowed,
+      )
         ? eligibility.positionsAllowed.map(String)
         : [];
-      
+
       // If positionsAllowed is empty or not defined, don't show this leave type
       if (positionsAllowed.length === 0) {
         return false;
@@ -435,15 +461,18 @@ export class LeavesPolicyService {
       // Check if employee has at least one role that matches positionsAllowed
       const userRoles = roles.map(String);
       console.log('userRoles', userRoles);
-      const hasAllowedRole = userRoles.some((r) => positionsAllowed.includes(r));
-
+      const hasAllowedRole = userRoles.some((r) =>
+        positionsAllowed.includes(r),
+      );
 
       if (!hasAllowedRole) {
         return false;
       }
 
       // 3) contractTypesAllowed (if set, must match employee contractType)
-      const contractTypesAllowed: string[] = Array.isArray(eligibility.contractTypesAllowed)
+      const contractTypesAllowed: string[] = Array.isArray(
+        eligibility.contractTypesAllowed,
+      )
         ? eligibility.contractTypesAllowed.map(String)
         : [];
 
@@ -463,7 +492,9 @@ export class LeavesPolicyService {
   async getLeaveTypesForTeam(managerId: string): Promise<LeaveType[]> {
     // Load team members for this manager
     const team = await this.employeeService.getTeamProfiles(managerId);
-    const items: any[] = Array.isArray((team as any)?.items) ? (team as any).items : [];
+    const items: any[] = Array.isArray((team as any)?.items)
+      ? (team as any).items
+      : [];
     if (items.length === 0) return [];
 
     // For each team member, fetch their roles and compute allowed leave types
@@ -474,10 +505,15 @@ export class LeavesPolicyService {
         const memberId = member?._id?.toString?.() || String(member?._id || '');
         if (!memberId) continue;
         const profile = await this.employeeService.getProfile(memberId);
-        const roles: string[] = Array.isArray((profile as any)?.systemRole?.roles)
+        const roles: string[] = Array.isArray(
+          (profile as any)?.systemRole?.roles,
+        )
           ? (profile as any).systemRole.roles
           : [];
-        const allowed = await this.getLeaveTypesForEmployeeRole(memberId, roles);
+        const allowed = await this.getLeaveTypesForEmployeeRole(
+          memberId,
+          roles,
+        );
         for (const lt of allowed) {
           const obj = (lt as any).toObject ? (lt as any).toObject() : lt;
           const key = String(obj._id);
@@ -520,16 +556,13 @@ export class LeavesPolicyService {
   // REQ-007: Set Eligibility Rules
 
   async setEligibilityRules(dto: SetEligibilityRulesDto) {
-    await this.leavePolicyRepository.updateByLeaveTypeId(
-      dto.leaveTypeId,
-      {
-        eligibility: {
-          minTenureMonths: dto.minTenureMonths ?? null,
-          positionsAllowed: dto.positionsAllowed ?? [],
-          contractTypesAllowed: dto.contractTypesAllowed ?? [],
-        }
-      }
-    );
+    await this.leavePolicyRepository.updateByLeaveTypeId(dto.leaveTypeId, {
+      eligibility: {
+        minTenureMonths: dto.minTenureMonths ?? null,
+        positionsAllowed: dto.positionsAllowed ?? [],
+        contractTypesAllowed: dto.contractTypesAllowed ?? [],
+      },
+    });
   }
 
   // REQ-008 — Assign Personalized Entitlements
@@ -560,10 +593,9 @@ export class LeavesPolicyService {
       });
     }
 
-
     // 2. Update entitlement attributes
     const updateData: any = {};
-    Object.keys(updateFields).forEach(key => {
+    Object.keys(updateFields).forEach((key) => {
       if (updateFields[key] !== undefined) {
         updateData[key] = updateFields[key];
       }
@@ -574,17 +606,24 @@ export class LeavesPolicyService {
       updateData,
     );
 
-    let amount=0;
-    if (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining)
-      amount = updateFields.remaining - oldRemaining
-    else
-      (oldRemaining && updateFields.remaining)? amount = oldRemaining - updateFields.remaining : 0
-    
+    let amount = 0;
+    if (oldRemaining && updateFields.remaining) {
+      amount =
+        oldRemaining < updateFields.remaining
+          ? updateFields.remaining - oldRemaining
+          : oldRemaining - updateFields.remaining;
+    }
+
     // 3. Store adjustment audit log
     await this.leaveAdjustmentRepository.create({
       employeeId: new Types.ObjectId(employeeId),
       leaveTypeId: new Types.ObjectId(leaveTypeId),
-      adjustmentType: (oldRemaining && updateFields.remaining && oldRemaining < updateFields.remaining)? AdjustmentType.ADD : AdjustmentType.DEDUCT, // Default to ADD for assignment
+      adjustmentType:
+        oldRemaining &&
+        updateFields.remaining &&
+        oldRemaining < updateFields.remaining
+          ? AdjustmentType.ADD
+          : AdjustmentType.DEDUCT,
       amount,
       reason,
       hrUserId: new Types.ObjectId(hrUserId),
@@ -611,10 +650,14 @@ export class LeavesPolicyService {
     if (!leavePolicy) throw new NotFoundException('Leave policy not found');
 
     if (dto.maxDurationDays) {
-      await this.leaveTypeRepository.updateById(leaveTypeId, { maxDurationDays: dto.maxDurationDays });
+      await this.leaveTypeRepository.updateById(leaveTypeId, {
+        maxDurationDays: dto.maxDurationDays,
+      });
     }
     if (dto.minNoticeDays) {
-      await this.leavePolicyRepository.updateByLeaveTypeId(leaveTypeId, { minNoticeDays: dto.minNoticeDays });
+      await this.leavePolicyRepository.updateByLeaveTypeId(leaveTypeId, {
+        minNoticeDays: dto.minNoticeDays,
+      });
     }
     const approvalWorkflow = dto.approvalFlowRoles;
 
@@ -659,7 +702,8 @@ export class LeavesPolicyService {
    * This is read-only and does not modify any data.
    */
   async getBlockedPeriodsForYear(year: number) {
-    const calendars = await this.calendarRepository.findBlockedPeriodsByYear(year);
+    const calendars =
+      await this.calendarRepository.findBlockedPeriodsByYear(year);
     if (!calendars || calendars.length === 0) {
       return [];
     }
@@ -883,8 +927,14 @@ async executeAnnualReset(): Promise<void> {
     const { employeeIds, leaveTypeIds } = dto || {};
 
     const filter: any = {};
-    if (employeeIds?.length) filter.employeeId = { $in: employeeIds.map((id) => new Types.ObjectId(id)) };
-    if (leaveTypeIds?.length) filter.leaveTypeId = { $in: leaveTypeIds.map((id) => new Types.ObjectId(id)) };
+    if (employeeIds?.length)
+      filter.employeeId = {
+        $in: employeeIds.map((id) => new Types.ObjectId(id)),
+      };
+    if (leaveTypeIds?.length)
+      filter.leaveTypeId = {
+        $in: leaveTypeIds.map((id) => new Types.ObjectId(id)),
+      };
 
     const entitlements = await this.leaveEntitlementRepository.find(filter);
 
@@ -895,21 +945,26 @@ async executeAnnualReset(): Promise<void> {
       if (ent.nextResetDate && new Date(ent.nextResetDate) > now) continue;
       if (!ent.nextResetDate && !isYearStart) continue;
 
-      const policy = await this.leavePolicyRepository.findOne({ leaveTypeId: ent.leaveTypeId });
+      const policy = await this.leavePolicyRepository.findOne({
+        leaveTypeId: ent.leaveTypeId,
+      });
       if (!policy) continue;
 
       const carryForward = policy.carryForwardAllowed
         ? Math.min(ent.remaining ?? 0, policy.maxCarryForward ?? 0)
         : 0;
 
-      const yearlyEntitlement = policy.yearlyRate ?? (ent.yearlyEntitlement || 0);
+      const yearlyEntitlement =
+        policy.yearlyRate ?? (ent.yearlyEntitlement || 0);
       const newRemaining = yearlyEntitlement + carryForward;
 
       // Advance next reset: prefer expiryAfterMonths, else next Jan 1
       let nextReset = null as Date | null;
       if (policy.expiryAfterMonths && Number(policy.expiryAfterMonths) > 0) {
         nextReset = new Date(now);
-        nextReset.setMonth(nextReset.getMonth() + Number(policy.expiryAfterMonths));
+        nextReset.setMonth(
+          nextReset.getMonth() + Number(policy.expiryAfterMonths),
+        );
       } else {
         nextReset = new Date(now.getFullYear() + 1, 0, 1);
       }
@@ -943,7 +998,10 @@ async executeAnnualReset(): Promise<void> {
    * - Reduce proportionally by unpaid leave days in the current month
    * - Optionally suspend entirely for very long unpaid leaves (>= 14 days within the month)
    */
-  async processMonthlyAccrual(filters?: { employeeIds?: string[]; leaveTypeIds?: string[] }) {
+  async processMonthlyAccrual(filters?: {
+    employeeIds?: string[];
+    leaveTypeIds?: string[];
+  }) {
     const today = new Date();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -954,19 +1012,28 @@ async executeAnnualReset(): Promise<void> {
 
     // Filter entitlements by optional filters
     const entFilter: any = {};
-    if (filters?.employeeIds?.length) entFilter.employeeId = { $in: filters.employeeIds.map((id) => new Types.ObjectId(id)) };
-    if (filters?.leaveTypeIds?.length) entFilter.leaveTypeId = { $in: filters.leaveTypeIds.map((id) => new Types.ObjectId(id)) };
+    if (filters?.employeeIds?.length)
+      entFilter.employeeId = {
+        $in: filters.employeeIds.map((id) => new Types.ObjectId(id)),
+      };
+    if (filters?.leaveTypeIds?.length)
+      entFilter.leaveTypeId = {
+        $in: filters.leaveTypeIds.map((id) => new Types.ObjectId(id)),
+      };
     const entitlements = await this.leaveEntitlementRepository.find(entFilter);
 
     for (const entitlement of entitlements) {
-      const policy = policies.find((p) => p.leaveTypeId.toString() === entitlement.leaveTypeId.toString());
+      const policy = policies.find(
+        (p) => p.leaveTypeId.toString() === entitlement.leaveTypeId.toString(),
+      );
       if (!policy) continue;
 
       // Skip if already processed this month for MONTHLY or YEARLY methods
       if (entitlement.lastAccrualDate) {
         const lastAccrual = new Date(entitlement.lastAccrualDate);
         if (
-          (policy.accrualMethod === AccrualMethod.MONTHLY || policy.accrualMethod === AccrualMethod.YEARLY) &&
+          (policy.accrualMethod === AccrualMethod.MONTHLY ||
+            policy.accrualMethod === AccrualMethod.YEARLY) &&
           lastAccrual.getFullYear() === today.getFullYear() &&
           lastAccrual.getMonth() === today.getMonth()
         ) {
@@ -985,9 +1052,12 @@ async executeAnnualReset(): Promise<void> {
           break;
         case AccrualMethod.PER_TERM: {
           // Only accrue every 6 months
-          const last = entitlement.lastAccrualDate ? new Date(entitlement.lastAccrualDate) : null;
+          const last = entitlement.lastAccrualDate
+            ? new Date(entitlement.lastAccrualDate)
+            : null;
           const monthsSinceLast = last
-            ? (today.getFullYear() - last.getFullYear()) * 12 + (today.getMonth() - last.getMonth())
+            ? (today.getFullYear() - last.getFullYear()) * 12 +
+            (today.getMonth() - last.getMonth())
             : Infinity;
           if (monthsSinceLast < 6) continue;
           accrual = (policy.monthlyRate ?? 0) * 6;
@@ -1000,28 +1070,33 @@ async executeAnnualReset(): Promise<void> {
       if (accrual <= 0) continue;
 
       // Find approved unpaid leave requests overlapping this month
-      const unpaidLeaveRequests = await this.leaveRequestRepository.findWithFiltersAndPopulate(
-        {
-          employeeId: entitlement.employeeId,
-          status: 'APPROVED',
-          'dates.from': { $lte: monthEnd },
-          'dates.to': { $gte: monthStart },
-        },
-        ['leaveTypeId']
-      );
+      const unpaidLeaveRequests =
+        await this.leaveRequestRepository.findWithFiltersAndPopulate(
+          {
+            employeeId: entitlement.employeeId,
+            status: 'APPROVED',
+            'dates.from': { $lte: monthEnd },
+            'dates.to': { $gte: monthStart },
+          },
+          ['leaveTypeId'],
+        );
 
       let unpaidDays = 0;
       let hasLongUnpaidAbsence = false;
       for (const req of unpaidLeaveRequests) {
         const lt: any = req.leaveTypeId;
-        const isUnpaid = lt && typeof lt === 'object' ? lt.paid === false : false;
+        const isUnpaid =
+          lt && typeof lt === 'object' ? lt.paid === false : false;
         if (!isUnpaid) continue;
 
         const from = new Date(req.dates.from);
         const to = new Date(req.dates.to);
         const start = from < monthStart ? monthStart : from;
         const end = to > monthEnd ? monthEnd : to;
-        const diffDays = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1);
+        const diffDays = Math.max(
+          0,
+          Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1,
+        );
         unpaidDays += diffDays;
         if (diffDays >= 14) hasLongUnpaidAbsence = true;
       }
@@ -1036,8 +1111,12 @@ async executeAnnualReset(): Promise<void> {
       }
 
       // Update entitlement accruals
-      entitlement.accruedActual = (entitlement.accruedActual || 0) + adjustedAccrual;
-      entitlement.accruedRounded = this.applyRoundingRule(entitlement.accruedActual, policy.roundingRule);
+      entitlement.accruedActual =
+        (entitlement.accruedActual || 0) + adjustedAccrual;
+      entitlement.accruedRounded = this.applyRoundingRule(
+        entitlement.accruedActual,
+        policy.roundingRule,
+      );
 
       // Recompute remaining
       entitlement.remaining = this.computeRemaining(entitlement);
@@ -1129,7 +1208,9 @@ async executeAnnualReset(): Promise<void> {
   }
 
   async getAdjustmentHistory(employeeId: string): Promise<LeaveAdjustment[]> {
-    return this.leaveAdjustmentRepository.findByEmployeeId(new Types.ObjectId(employeeId));
+    return this.leaveAdjustmentRepository.findByEmployeeId(
+      new Types.ObjectId(employeeId),
+    );
   }
 
   //Ahmed Hebesha
@@ -1143,7 +1224,10 @@ async executeAnnualReset(): Promise<void> {
     employeeId: string,
     leaveTypeId: string,
   ): Promise<LeaveEntitlement | null> {
-    return this.leaveEntitlementRepository.findByEmployeeAndLeaveType(employeeId, leaveTypeId);
+    return this.leaveEntitlementRepository.findByEmployeeAndLeaveType(
+      employeeId,
+      leaveTypeId,
+    );
   }
 
   async getLeaveCategories(): Promise<LeaveCategory[]> {
@@ -1151,11 +1235,20 @@ async executeAnnualReset(): Promise<void> {
   }
 
   // ===== Leave Categories CRUD =====
-  async createLeaveCategory(dto: { name: string; description?: string }): Promise<LeaveCategory> {
+  async createLeaveCategory(dto: {
+    name: string;
+    description?: string;
+  }): Promise<LeaveCategory> {
     // Ensure unique name
-    const existing = await this.leaveCategoryRepository.findOne({ name: dto.name } as any);
-    if (existing) throw new BadRequestException('Leave category name already exists');
-    return this.leaveCategoryRepository.create({ name: dto.name, description: dto.description } as any);
+    const existing = await this.leaveCategoryRepository.findOne({
+      name: dto.name,
+    } as any);
+    if (existing)
+      throw new BadRequestException('Leave category name already exists');
+    return this.leaveCategoryRepository.create({
+      name: dto.name,
+      description: dto.description,
+    } as any);
   }
 
   async getLeaveCategoryById(id: string): Promise<LeaveCategory> {
@@ -1164,15 +1257,23 @@ async executeAnnualReset(): Promise<void> {
     return cat;
   }
 
-  async updateLeaveCategory(id: string, dto: { name?: string; description?: string }): Promise<LeaveCategory> {
+  async updateLeaveCategory(
+    id: string,
+    dto: { name?: string; description?: string },
+  ): Promise<LeaveCategory> {
     if (dto?.name) {
       // If name is being changed, enforce uniqueness
-      const existing = await this.leaveCategoryRepository.findOne({ name: dto.name } as any);
+      const existing = await this.leaveCategoryRepository.findOne({
+        name: dto.name,
+      } as any);
       if (existing && (existing as any)._id.toString() !== id) {
         throw new BadRequestException('Leave category name already exists');
       }
     }
-    const updated = await this.leaveCategoryRepository.updateById(id, dto as any);
+    const updated = await this.leaveCategoryRepository.updateById(
+      id,
+      dto as any,
+    );
     if (!updated) throw new NotFoundException('Leave category not found');
     return updated;
   }

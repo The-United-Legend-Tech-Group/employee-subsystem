@@ -29,10 +29,10 @@ import { LeavesRequestController } from './request/leave-requests.controller';
 import { LeavesRequestService } from './request/leave-requests.service';
 import { LeavesReportController } from './reports/leave-reports.controller';
 import { LeavesReportService } from './reports/leave-reports.service';
-import { EmployeeModule } from '../employee-subsystem/employee/employee.module';
-import { NotificationModule } from '../employee-subsystem/notification/notification.module';
-import { OrganizationStructureModule } from '../employee-subsystem/organization-structure/organization-structure.module';
-import { TimeMangementModule } from '../time-mangement/timemangment.module';
+import { EmployeeModule } from '../employee-profile/employee-profile.module';
+import { NotificationModule } from '../notification/notification.module';
+import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
+import { TimeManagementModule } from '../time-management/time-management.module';
 import {
   LeavePolicyRepository,
   LeaveEntitlementRepository,
@@ -46,14 +46,18 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-subsystem/employee/models/employee-system-role.schema';
+import {
+  EmployeeSystemRole,
+  EmployeeSystemRoleSchema,
+} from '../employee-profile/models/employee-system-role.schema';
 import { LeaveCategoryRepository } from './repository/leave-category.repository';
-import { ExecutionModule } from '../payroll/execution/execution.module';
+import { ExecutionModule } from '../payroll-execution/payroll-execution.module';
 
 @Module({
   imports: [
     DatabaseModule,
-    forwardRef(() => TimeMangementModule), // Use forwardRef to resolve circular dependency
+    forwardRef(() => TimeManagementModule), // Use forwardRef to resolve circular dependency
+    forwardRef(() => TimeManagementModule), // Use forwardRef to resolve circular dependency
     // ScheduleModule.forRoot() moved to AppModule
     MongooseModule.forFeature([
       { name: Attachment.name, schema: AttachmentSchema },
@@ -99,6 +103,5 @@ import { ExecutionModule } from '../payroll/execution/execution.module';
     AttachmentRepository,
     CalendarRepository,
   ],
-  exports: [MongooseModule],
-})
+  exports: [ MongooseModule, LeavesPolicyService, LeavesRequestService, LeavesReportService],})
 export class LeavesModule { }

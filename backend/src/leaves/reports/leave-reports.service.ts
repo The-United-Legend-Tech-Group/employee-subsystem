@@ -13,7 +13,7 @@ import { SubmitPostLeaveDto } from '../dtos/submit-post-leave.dto';
 // import { AccrualMethod } from '../enums/accrual-method.enum';
 // import { RoundingRule } from '../enums/rounding-rule.enum';
 import { LeaveStatus } from '../enums/leave-status.enum';
-import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
 import {
   LeaveEntitlementRepository,
   LeaveRequestRepository,
@@ -23,8 +23,8 @@ import {
 } from '../repository';
 
 @Injectable()
-export class LeavesReportService implements OnModuleInit{
-    private readonly logger = new Logger(LeavesReportService.name);
+export class LeavesReportService implements OnModuleInit {
+  private readonly logger = new Logger(LeavesReportService.name);
   constructor(
     private readonly leaveEntitlementRepository: LeaveEntitlementRepository,
     private readonly leaveRequestRepository: LeaveRequestRepository,
@@ -32,9 +32,9 @@ export class LeavesReportService implements OnModuleInit{
     private readonly leavePolicyRepository: LeavePolicyRepository,
     private readonly leaveTypeRepository: LeaveTypeRepository,
     private readonly employeeService: EmployeeService
-  ) {}
+  ) { }
 
-    onModuleInit() {
+  onModuleInit() {
     this.logger.log('✅ [REQ-040] Automatic accrual cron job registered - runs on 1st of each month at midnight');
     this.logger.log('✅ [REQ-041] Automatic carry-forward cron job registered - runs on January 1st at midnight');
   }
@@ -431,9 +431,9 @@ export class LeavesReportService implements OnModuleInit{
   // =============================
   // REQ-034 —  Manager View Team Balances
   // =============================
-  async viewBalance(managerId: string){
+  async viewBalance(managerId: string) {
     const teams = await this.employeeService.getTeamProfiles(managerId);
-    if(!teams) throw new NotFoundException("No teams for Manager");
+    if (!teams) throw new NotFoundException("No teams for Manager");
     // For each team member, get their leave entitlements (balances)
     // and upcoming approved/pending leaves
     const result: Array<{
@@ -547,10 +547,10 @@ export class LeavesReportService implements OnModuleInit{
    * REQ-041: Automatic Carry-Forward
    * Processes carry-forward of unused leave days
    */
-/*@Cron('5 * * * *', {
-    name: 'automatic-carry-forward',
-    timeZone: 'Africa/Cairo',
-  })*/
+  /*@Cron('5 * * * *', {
+      name: 'automatic-carry-forward',
+      timeZone: 'Africa/Cairo',
+    })*/
   /*async carryForwardLeaves() {
     console.log('🔄 [REQ-041] Automatic carry-forward started at', new Date().toISOString());
     const policies = await this.leavePolicyRepository.find();

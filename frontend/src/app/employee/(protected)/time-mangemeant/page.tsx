@@ -14,6 +14,14 @@ const SECTIONS = [
     description:
       "High-level metrics summarising shifts, corrections, and payroll readiness.",
     icon: <DashboardRoundedIcon fontSize="small" />,
+    allowedRoles: [
+      "department employee",
+      "department head",
+      "HR Employee",
+      "HR Manager",
+      "Payroll Specialist",
+      "System Admin",
+    ],
   },
   {
     id: "attendance",
@@ -21,6 +29,12 @@ const SECTIONS = [
     description:
       "Monitor employee punches, corrections, and manager approvals in real time.",
     icon: <AssignmentTurnedInRoundedIcon fontSize="small" />,
+    allowedRoles: [
+      "department employee",
+      "department head",
+      "HR Employee",
+      "HR Admin",
+    ],
   },
   {
     id: "shifts",
@@ -28,6 +42,7 @@ const SECTIONS = [
     description:
       "View active shift templates and forthcoming employee coverage blocks.",
     icon: <WorkHistoryRoundedIcon fontSize="small" />,
+    allowedRoles: ["System Admin", "HR Employee", "HR Manager"],
   },
   {
     id: "policies",
@@ -35,12 +50,14 @@ const SECTIONS = [
     description:
       "Surface punch policies, overtime approvals, and scheduling patterns in one place.",
     icon: <RuleRoundedIcon fontSize="small" />,
+    allowedRoles: ["HR Manager", "HR Admin", "System Admin"],
   },
   {
     id: "exceptions",
     title: "Exceptions & holidays",
     description: "Track holidays, time exceptions",
     icon: <EventBusyRoundedIcon fontSize="small" />,
+    allowedRoles: ["department head", "HR Admin", "Payroll Specialist"],
   },
   {
     id: "attendance-records",
@@ -48,6 +65,13 @@ const SECTIONS = [
     description:
       "View and record employee clock in/out punches and daily attendance tracking.",
     icon: <PunchClockRoundedIcon fontSize="small" />,
+    allowedRoles: [
+      "department employee",
+      "department head",
+      "HR Employee",
+      "HR Manager",
+      "Payroll Specialist",
+    ],
   },
   {
     id: "time-exceptions",
@@ -55,6 +79,7 @@ const SECTIONS = [
     description:
       "Monitor and resolve attendance exceptions including missed punches, late arrivals, and overtime requests.",
     icon: <ReportProblemRoundedIcon fontSize="small" />,
+    allowedRoles: ["department employee", "department head", "HR Admin"],
   },
 ];
 

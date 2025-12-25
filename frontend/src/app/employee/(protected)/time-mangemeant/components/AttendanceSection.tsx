@@ -73,7 +73,16 @@ type AttendanceSectionProps = {
   managerQueueEnabled: boolean;
   lineManagerId?: string;
   onRefresh?: () => void;
+  userRoles?: string[];
 };
+
+function normalizeRole(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 export default function AttendanceSection({
   section,
@@ -83,7 +92,29 @@ export default function AttendanceSection({
   managerQueueEnabled,
   lineManagerId,
   onRefresh,
+  userRoles,
 }: AttendanceSectionProps) {
+  const normalizedRoles = React.useMemo(
+    () => (userRoles || []).map(normalizeRole).filter(Boolean),
+    [userRoles]
+  );
+
+  const canReviewCorrections = React.useMemo(
+    () =>
+      normalizedRoles.some((role) =>
+        [
+          "department head", // line manager equivalent
+          "hr admin",
+          "hr employee",
+          "hr manager",
+          "system admin",
+        ].includes(role)
+      ),
+    [normalizedRoles]
+  );
+
+  const showManagerQueue = managerQueueEnabled && canReviewCorrections;
+
   const recentHistory = React.useMemo(() => history.slice(0, 5), [history]);
 
   const pendingQueue = React.useMemo(() => pending.slice(0, 5), [pending]);
@@ -158,6 +189,10 @@ export default function AttendanceSection({
   const [decisionError, setDecisionError] = React.useState<string | null>(null);
 
   async function submitReviewDecision(decision: "APPROVED" | "REJECTED") {
+    if (!canReviewCorrections) {
+      setDecisionError("You are not authorized to review corrections.");
+      return;
+    }
     if (!selectedRequest) return;
 
     if (decision === "REJECTED" && !rejectReason.trim()) {
@@ -171,7 +206,8 @@ export default function AttendanceSection({
 
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
-      const employeeId = getEmployeeIdFromCookie() || localStorage.getItem("employeeId");
+      const employeeId =
+        getEmployeeIdFromCookie() || localStorage.getItem("employeeId");
       const token = getAccessToken();
 
       await axios.patch(
@@ -184,7 +220,9 @@ export default function AttendanceSection({
           applyToPayroll: true,
         },
         {
-          headers: (token ? { Authorization: `Bearer ${token}` } : {}) as Record<string, string>,
+          headers: (token
+            ? { Authorization: `Bearer ${token}` }
+            : {}) as Record<string, string>,
           withCredentials: true,
         }
       );
@@ -236,16 +274,18 @@ export default function AttendanceSection({
                 <Box
                   sx={{ mb: 1, display: "flex", justifyContent: "flex-end" }}
                 >
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => {
-                      setPage(0);
-                      setOpenAllDialog(true);
-                    }}
-                  >
-                    View all corrections
-                  </Button>
+                  {canReviewCorrections && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        setPage(0);
+                        setOpenAllDialog(true);
+                      }}
+                    >
+                      View all corrections
+                    </Button>
+                  )}
                   <Dialog
                     open={openAllDialog}
                     onClose={() => setOpenAllDialog(false)}
@@ -276,10 +316,16 @@ export default function AttendanceSection({
                                 key={row._id}
                                 hover
                                 onClick={() => {
+                                  if (!canReviewCorrections) return;
                                   setSelectedRequest(row);
                                   setRejectReason("");
                                   setDecisionError(null);
                                   setReviewOpen(true);
+                                }}
+                                sx={{
+                                  cursor: canReviewCorrections
+                                    ? "pointer"
+                                    : "default",
                                 }}
                               >
                                 <TableCell>
@@ -394,7 +440,7 @@ export default function AttendanceSection({
                 )}
               </Box>
 
-              {managerQueueEnabled && (
+              {showManagerQueue && (
                 <>
                   <Divider flexItem />
                   <Box>
@@ -638,8 +684,9 @@ function MetricCard({
           ),
           "& .MuiLinearProgress-bar": {
             borderRadius: 999,
-            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${paletteColor.light || paletteColor.main
-              } 100%)`,
+            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${
+              paletteColor.light || paletteColor.main
+            } 100%)`,
           },
         }}
       />

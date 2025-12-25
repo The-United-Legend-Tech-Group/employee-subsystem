@@ -55,7 +55,16 @@ type TimeExceptionsSectionProps = {
   onCreated?: () => void; // trigger parent refresh
   onApprove?: (id: string) => Promise<void>;
   onReject?: (id: string, reason?: string) => Promise<void>;
+  userRoles?: string[];
 };
+
+function normalizeRole(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 const EXCEPTION_TYPE_LABELS: Record<TimeExceptionType, string> = {
   [TimeExceptionType.MISSED_PUNCH]: "Missed Punch",
@@ -78,7 +87,6 @@ const EXCEPTION_STATUS_CONFIG: Record<
   [TimeExceptionStatus.RESOLVED]: { label: "Resolved", color: "success" },
 };
 
-
 export default function TimeExceptionsSection({
   section,
   exceptions,
@@ -88,8 +96,29 @@ export default function TimeExceptionsSection({
   onCreated,
   onApprove,
   onReject,
+  userRoles,
 }: TimeExceptionsSectionProps) {
   const theme = useTheme();
+
+  const normalizedRoles = React.useMemo(
+    () => (userRoles || []).map(normalizeRole).filter(Boolean),
+    [userRoles]
+  );
+
+  const canSubmit = React.useMemo(
+    () =>
+      normalizedRoles.some((role) =>
+        [
+          "department employee",
+          "department head",
+          "hr admin",
+          "hr employee",
+          "hr manager",
+          "system admin",
+        ].includes(role)
+      ),
+    [normalizedRoles]
+  );
 
   // Log props on mount and when they change
   React.useEffect(() => {
@@ -138,7 +167,9 @@ export default function TimeExceptionsSection({
       const res = await fetch(
         `${API_URL}/time/corrections/history/${employeeId}`,
         {
-          headers: (getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}) as Record<string, string>,
+          headers: (getAccessToken()
+            ? { Authorization: `Bearer ${getAccessToken()}` }
+            : {}) as Record<string, string>,
           credentials: "include",
         }
       );
@@ -153,7 +184,6 @@ export default function TimeExceptionsSection({
       setLoadingCorrections(false);
     }
   }, [employeeId]);
-
 
   // Validation
   const validateForm = React.useCallback(() => {
@@ -239,7 +269,9 @@ export default function TimeExceptionsSection({
           {
             headers: {
               "Content-Type": "application/json",
-              ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
+              ...(getAccessToken()
+                ? { Authorization: `Bearer ${getAccessToken()}` }
+                : ({} as Record<string, string>)),
             },
             credentials: "include",
           }
@@ -379,7 +411,9 @@ export default function TimeExceptionsSection({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {} as Record<string, string>),
+          ...(token
+            ? { Authorization: `Bearer ${token}` }
+            : ({} as Record<string, string>)),
         },
         credentials: "include",
         body: JSON.stringify(payload),
@@ -445,16 +479,25 @@ export default function TimeExceptionsSection({
     });
   }, [exceptions]);
 
-
   return (
     <Box>
       <SectionHeading {...section} />
 
       <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-        <Button variant="contained" onClick={() => setOpenDialog(true)}>
+        <Button
+          variant="contained"
+          onClick={() => canSubmit && setOpenDialog(true)}
+          disabled={!canSubmit}
+        >
           Request attendance correction
         </Button>
       </Box>
+
+      {!canSubmit && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          You need appropriate HR or manager access to submit corrections.
+        </Alert>
+      )}
 
       <Card variant="outlined">
         <CardContent>
@@ -538,104 +581,118 @@ export default function TimeExceptionsSection({
                           <TableCell align="right" sx={{ minWidth: 160 }}>
                             {(ex.status === TimeExceptionStatus.OPEN ||
                               ex.status === TimeExceptionStatus.PENDING) && (
-                                <Stack
-                                  direction="row"
-                                  spacing={0.5}
-                                  justifyContent="flex-end"
-                                >
-                                  <Tooltip title="Approve">
-                                    <span>
-                                      <IconButton
-                                        size="small"
-                                        color="success"
-                                        onClick={async () => {
-                                          try {
-                                            if (onApprove) {
-                                              await onApprove(ex._id);
-                                            } else {
-                                              const API_URL =
-                                                typeof window !== "undefined" &&
-                                                  process.env.NEXT_PUBLIC_API_URL
-                                                  ? process.env
+                              <Stack
+                                direction="row"
+                                spacing={0.5}
+                                justifyContent="flex-end"
+                              >
+                                <Tooltip title="Approve">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="success"
+                                      onClick={async () => {
+                                        try {
+                                          if (onApprove) {
+                                            await onApprove(ex._id);
+                                          } else {
+                                            const API_URL =
+                                              typeof window !== "undefined" &&
+                                              process.env.NEXT_PUBLIC_API_URL
+                                                ? process.env
                                                     .NEXT_PUBLIC_API_URL
-                                                  : "http://localhost:50000";
-                                              await fetch(
-                                                `${API_URL}/time/corrections/${ex._id}/approve`,
-                                                {
-                                                  method: "POST",
-                                                  headers: {
-                                                    "Content-Type":
-                                                      "application/json",
-                                                    ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
-                                                  },
-                                                  credentials: "include",
-                                                  body: JSON.stringify({
-                                                    lineManagerId,
-                                                  }),
-                                                }
-                                              );
-                                            }
-                                            onCreated?.();
-                                          } catch (e) {
-                                            console.error("Approve failed", e);
+                                                : "http://localhost:50000";
+                                            await fetch(
+                                              `${API_URL}/time/corrections/${ex._id}/approve`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                  ...(getAccessToken()
+                                                    ? {
+                                                        Authorization: `Bearer ${getAccessToken()}`,
+                                                      }
+                                                    : ({} as Record<
+                                                        string,
+                                                        string
+                                                      >)),
+                                                },
+                                                credentials: "include",
+                                                body: JSON.stringify({
+                                                  lineManagerId,
+                                                }),
+                                              }
+                                            );
                                           }
-                                        }}
-                                      >
-                                        <CheckCircleOutlineIcon fontSize="small" />
-                                      </IconButton>
-                                    </span>
-                                  </Tooltip>
-                                  <Tooltip title="Reject">
-                                    <span>
-                                      <IconButton
-                                        size="small"
-                                        color="error"
-                                        onClick={async () => {
-                                          const note = prompt(
-                                            "Optional rejection note:"
-                                          );
-                                          try {
-                                            if (onReject) {
-                                              await onReject(
-                                                ex._id,
-                                                note || undefined
-                                              );
-                                            } else {
-                                              const API_URL =
-                                                typeof window !== "undefined" &&
-                                                  process.env.NEXT_PUBLIC_API_URL
-                                                  ? process.env
+                                          onCreated?.();
+                                        } catch (e) {
+                                          console.error("Approve failed", e);
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircleOutlineIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title="Reject">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={async () => {
+                                        const note = prompt(
+                                          "Optional rejection note:"
+                                        );
+                                        try {
+                                          if (onReject) {
+                                            await onReject(
+                                              ex._id,
+                                              note || undefined
+                                            );
+                                          } else {
+                                            const API_URL =
+                                              typeof window !== "undefined" &&
+                                              process.env.NEXT_PUBLIC_API_URL
+                                                ? process.env
                                                     .NEXT_PUBLIC_API_URL
-                                                  : "http://localhost:50000";
-                                              await fetch(
-                                                `${API_URL}/time/corrections/${ex._id}/reject`,
-                                                {
-                                                  method: "POST",
-                                                  headers: {
-                                                    "Content-Type":
-                                                      "application/json",
-                                                    ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} as Record<string, string>),
-                                                  },
-                                                  credentials: "include",
-                                                  body: JSON.stringify({
-                                                    lineManagerId,
-                                                    reason: note || undefined,
-                                                  }),
-                                                }
-                                              );
-                                            }
-                                            onCreated?.();
-                                          } catch (e) {
-                                            console.error("Reject failed", e);
+                                                : "http://localhost:50000";
+                                            await fetch(
+                                              `${API_URL}/time/corrections/${ex._id}/reject`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                  ...(getAccessToken()
+                                                    ? {
+                                                        Authorization: `Bearer ${getAccessToken()}`,
+                                                      }
+                                                    : ({} as Record<
+                                                        string,
+                                                        string
+                                                      >)),
+                                                },
+                                                credentials: "include",
+                                                body: JSON.stringify({
+                                                  lineManagerId,
+                                                  reason: note || undefined,
+                                                }),
+                                              }
+                                            );
                                           }
-                                        }}
-                                      >
-                                        <CloseIcon fontSize="small" />
-                                      </IconButton>
-                                    </span>
-                                  </Tooltip>
-                                </Stack>
-                              )}
+                                          onCreated?.();
+                                        } catch (e) {
+                                          console.error("Reject failed", e);
+                                        }
+                                      }}
+                                    >
+                                      <CloseIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </Stack>
+                            )}
                           </TableCell>
                           <TableCell sx={{ maxWidth: 240 }}>
                             <Typography
@@ -695,8 +752,8 @@ export default function TimeExceptionsSection({
                           c.status === "APPROVED"
                             ? "success"
                             : c.status === "REJECTED"
-                              ? "error"
-                              : "info"
+                            ? "error"
+                            : "info"
                         }
                       />
                     </TableCell>
@@ -717,7 +774,6 @@ export default function TimeExceptionsSection({
           )}
         </CardContent>
       </Card>
-
 
       {/* ESS Correction Dialog */}
       <Dialog
@@ -763,8 +819,8 @@ export default function TimeExceptionsSection({
                 touched.duration && durationMinutes <= 0
                   ? "Duration must be greater than 0"
                   : touched.duration && durationMinutes > 480
-                    ? "Duration cannot exceed 480 minutes (8 hours)"
-                    : "Maximum 480 minutes (8 hours)"
+                  ? "Duration cannot exceed 480 minutes (8 hours)"
+                  : "Maximum 480 minutes (8 hours)"
               }
               inputProps={{ min: 1, max: 480, step: 15 }}
             />
@@ -794,9 +850,10 @@ export default function TimeExceptionsSection({
                 touched.reason && !reason
                   ? "Reason is required"
                   : touched.reason && reason.trim().length < 10
-                    ? `Reason must be at least 10 characters (${reason.trim().length
+                  ? `Reason must be at least 10 characters (${
+                      reason.trim().length
                     }/10)`
-                    : `${reason.trim().length} characters`
+                  : `${reason.trim().length} characters`
               }
             />
 

@@ -39,19 +39,36 @@ import {
   TimeException,
 } from "./types";
 import { decryptData } from "@/common/utils/encryption";
-import { getAccessToken, getEmployeeIdFromCookie } from "@/lib/auth-utils";
+import {
+  getAccessToken,
+  getEmployeeIdFromCookie,
+  getUserRolesFromCookie,
+} from "@/lib/auth-utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:50000";
 const LINE_MANAGER_KEYS = ["lineManagerId", "managerId", "supervisorId"];
 const HISTORY_LOOKBACK_MONTHS = 12;
 
 type TimeManagementClientProps = {
-  sections: SectionDefinition[];
+  sections: ExtendedSection[];
 };
 
 type FetchOptions = {
   token?: string | null;
 };
+
+type ExtendedSection = SectionDefinition & {
+  allowedRoles?: string[];
+  icon?: React.ReactNode;
+};
+
+function normalizeRole(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 function coerceArray<T>(payload: unknown): T[] {
   console.log("🔄 coerceArray input:", {
@@ -176,9 +193,13 @@ export default function TimeManagementClient({
   const [authToken, setAuthToken] = React.useState<string | null>(null);
   const [employeeId, setEmployeeId] = React.useState<string>("");
   const [lineManagerId, setLineManagerId] = React.useState<string>("");
+  const [userRoles, setUserRoles] = React.useState<string[]>([]);
 
   const sectionMap = React.useMemo(
-    () => new Map(sections.map((section) => [section.id, section])),
+    () =>
+      new Map(
+        sections.map((section) => [section.id, section as ExtendedSection])
+      ),
     [sections]
   );
 
@@ -259,15 +280,15 @@ export default function TimeManagementClient({
     );
   }, [sectionMap]);
 
-  const tabItems = React.useMemo(
+  const tabItems = React.useMemo<ExtendedSection[]>(
     () => [
-      overviewSection,
-      attendanceSection,
-      attendanceRecordsSection,
-      shiftsSection,
-      policiesSection,
-      exceptionsSection,
-      timeExceptionsSection,
+      overviewSection as ExtendedSection,
+      attendanceSection as ExtendedSection,
+      attendanceRecordsSection as ExtendedSection,
+      shiftsSection as ExtendedSection,
+      policiesSection as ExtendedSection,
+      exceptionsSection as ExtendedSection,
+      timeExceptionsSection as ExtendedSection,
     ],
     [
       overviewSection,
@@ -280,17 +301,39 @@ export default function TimeManagementClient({
     ]
   );
 
+  const visibleTabItems = React.useMemo(() => {
+    const hasRoles = Array.isArray(userRoles) && userRoles.length > 0;
+    return tabItems.filter((tab) => {
+      const allowed = tab.allowedRoles;
+      if (!allowed || allowed.length === 0) return true;
+      if (!hasRoles) return false;
+      const allowedNorm = allowed.map(normalizeRole).filter(Boolean);
+      return userRoles.some((r) => allowedNorm.includes(r));
+    });
+  }, [tabItems, userRoles]);
+
+  const hasAccess = React.useCallback(
+    (section: ExtendedSection) => {
+      const allowed = section.allowedRoles;
+      if (!allowed || allowed.length === 0) return true;
+      if (!userRoles || userRoles.length === 0) return false;
+      const allowedNorm = allowed.map(normalizeRole).filter(Boolean);
+      return userRoles.some((r) => allowedNorm.includes(r));
+    },
+    [userRoles]
+  );
+
   const [activeSection, setActiveSection] = React.useState<string>(
     tabItems[0]?.id ?? "overview"
   );
 
   React.useEffect(() => {
     setActiveSection((prev) =>
-      tabItems.some((tab) => tab.id === prev)
+      visibleTabItems.some((tab) => tab.id === prev)
         ? prev
-        : tabItems[0]?.id ?? "overview"
+        : visibleTabItems[0]?.id ?? tabItems[0]?.id ?? "overview"
     );
-  }, [tabItems]);
+  }, [visibleTabItems, tabItems]);
 
   const handleSectionChange = React.useCallback(
     (_event: React.SyntheticEvent, value: string) => {
@@ -365,7 +408,10 @@ export default function TimeManagementClient({
           ) {
             const decrypted = await decryptData(raw, token);
             if (decrypted && isHex24(decrypted)) {
-              console.log("✅ Got employeeId from decrypted localStorage:", decrypted);
+              console.log(
+                "✅ Got employeeId from decrypted localStorage:",
+                decrypted
+              );
               return decrypted;
             }
           }
@@ -383,15 +429,24 @@ export default function TimeManagementClient({
           const obj = JSON.parse(val);
           if (obj && typeof obj === "object") {
             if (typeof obj.employeeId === "string" && isHex24(obj.employeeId)) {
-              console.log(`✅ Got employeeId from localStorage.${key}.employeeId:`, obj.employeeId);
+              console.log(
+                `✅ Got employeeId from localStorage.${key}.employeeId:`,
+                obj.employeeId
+              );
               return obj.employeeId;
             }
             if (obj._id && typeof obj._id === "string" && isHex24(obj._id)) {
-              console.log(`✅ Got employeeId from localStorage.${key}._id:`, obj._id);
+              console.log(
+                `✅ Got employeeId from localStorage.${key}._id:`,
+                obj._id
+              );
               return obj._id;
             }
             if (obj.id && typeof obj.id === "string" && isHex24(obj.id)) {
-              console.log(`✅ Got employeeId from localStorage.${key}.id:`, obj.id);
+              console.log(
+                `✅ Got employeeId from localStorage.${key}.id:`,
+                obj.id
+              );
               return obj.id;
             }
           }
@@ -404,7 +459,10 @@ export default function TimeManagementClient({
       if (raw) {
         const stripped = raw.replace(/[^a-fA-F0-9]/g, "");
         if (isHex24(stripped)) {
-          console.log("✅ Got employeeId from stripped localStorage:", stripped);
+          console.log(
+            "✅ Got employeeId from stripped localStorage:",
+            stripped
+          );
           return stripped;
         }
       }
@@ -433,6 +491,55 @@ export default function TimeManagementClient({
         setAuthToken(token || null);
         setEmployeeId(employeeId);
 
+        // Resolve roles from cookie (preferred) and token (fallback) for client-side gating
+        let resolvedRoles: string[] = [];
+        try {
+          const cookieRoles = getUserRolesFromCookie()
+            .map(normalizeRole)
+            .filter(Boolean);
+
+          let tokenRoles: string[] = [];
+          if (token) {
+            const parts = token.split(".");
+            if (parts.length === 3) {
+              const payload = parts[1];
+              const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+              const json = atob(base64);
+              const parsed = JSON.parse(json);
+              const rawRoles: unknown =
+                parsed?.roles ||
+                parsed?.role ||
+                parsed?.realm_access?.roles ||
+                parsed?.user?.roles ||
+                parsed?.authorities;
+
+              if (Array.isArray(rawRoles)) {
+                tokenRoles = rawRoles.map(normalizeRole).filter(Boolean);
+              } else if (typeof rawRoles === "string") {
+                tokenRoles = rawRoles
+                  .split(",")
+                  .map(normalizeRole)
+                  .filter(Boolean);
+              }
+            }
+          }
+
+          const mergedRoles = Array.from(
+            new Set([...cookieRoles, ...tokenRoles])
+          );
+          resolvedRoles = mergedRoles;
+          setUserRoles(mergedRoles);
+          console.debug("🔐 TimeManagementClient - Roles", {
+            cookieRoles,
+            tokenRoles,
+            mergedRoles,
+          });
+        } catch (roleError) {
+          console.warn("⚠️ Failed to resolve roles", roleError);
+          resolvedRoles = [];
+          setUserRoles([]);
+        }
+
         const managerId = LINE_MANAGER_KEYS.map((key) =>
           window.localStorage.getItem(key)
         ).find(Boolean);
@@ -451,6 +558,7 @@ export default function TimeManagementClient({
             managerId: window.localStorage.getItem("managerId"),
             supervisorId: window.localStorage.getItem("supervisorId"),
           },
+          roles: resolvedRoles,
         });
 
         setLoading(true);
@@ -518,7 +626,9 @@ export default function TimeManagementClient({
           fetch(
             `${API_BASE}/time/attendance/records/${employeeId}?${attendanceParams}`,
             {
-              headers: (token ? { Authorization: `Bearer ${token}` } : {}) as Record<string, string>,
+              headers: (token
+                ? { Authorization: `Bearer ${token}` }
+                : {}) as Record<string, string>,
               credentials: "include",
             }
           ).then(async (res) => {
@@ -546,10 +656,10 @@ export default function TimeManagementClient({
           // ),
           managerId
             ? secureFetch<CorrectionRequest[]>(
-              `/time/corrections/pending/${managerId}`,
-              [],
-              fetchOptions
-            )
+                `/time/corrections/pending/${managerId}`,
+                [],
+                fetchOptions
+              )
             : Promise.resolve([]),
           secureFetch<CorrectionRequest[]>(
             `/time/corrections/approved/payroll`,
@@ -616,7 +726,8 @@ export default function TimeManagementClient({
         });
         if (isMounted) {
           setError(
-            `Unable to load time management data: ${err instanceof Error ? err.message : String(err)
+            `Unable to load time management data: ${
+              err instanceof Error ? err.message : String(err)
             }`
           );
         }
@@ -773,7 +884,9 @@ export default function TimeManagementClient({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {} as Record<string, string>),
+          ...(authToken
+            ? { Authorization: `Bearer ${authToken}` }
+            : ({} as Record<string, string>)),
         },
         credentials: "include",
         body: JSON.stringify(requestBody),
@@ -851,7 +964,7 @@ export default function TimeManagementClient({
           aria-label="Time management sections"
           sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}
         >
-          {tabItems.map((tab) => (
+          {visibleTabItems.map((tab) => (
             <Tab
               key={tab.id}
               value={tab.id}
@@ -866,80 +979,128 @@ export default function TimeManagementClient({
           ))}
         </Tabs>
 
+        {visibleTabItems.length === 0 && (
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            You are not authorized to view any sections in this workspace.
+          </Alert>
+        )}
+
         <Box sx={{ mt: 2 }}>
-          {activeSection === overviewSection.id && (
-            <Box>
-              <SectionHeading {...overviewSection} />
-              <OverviewMetrics metrics={overviewMetrics} loading={loading} />
-            </Box>
-          )}
+          {activeSection === overviewSection.id &&
+            (hasAccess(overviewSection as ExtendedSection) ? (
+              <Box>
+                <SectionHeading {...overviewSection} />
+                <OverviewMetrics
+                  metrics={overviewMetrics}
+                  loading={loading}
+                  userRoles={userRoles}
+                />
+              </Box>
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === attendanceSection.id && (
-            <AttendanceSection
-              section={attendanceSection}
-              history={correctionHistory}
-              pending={pendingCorrections}
-              loading={loading}
-              managerQueueEnabled={managerQueueEnabled}
-              lineManagerId={lineManagerId}
-              onRefresh={handleRefresh}
-            />
-          )}
+          {activeSection === attendanceSection.id &&
+            (hasAccess(attendanceSection as ExtendedSection) ? (
+              <AttendanceSection
+                section={attendanceSection}
+                history={correctionHistory}
+                pending={pendingCorrections}
+                loading={loading}
+                managerQueueEnabled={managerQueueEnabled}
+                lineManagerId={lineManagerId}
+                onRefresh={handleRefresh}
+                userRoles={userRoles}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === shiftsSection.id && (
-            <ShiftAssignmentsSection
-              section={shiftsSection}
-              assignments={shiftAssignments}
-              shifts={shiftDefinitions}
-              scheduleRules={scheduleRules}
-              loading={loading}
-              onRefresh={handleRefresh}
-            />
-          )}
+          {activeSection === shiftsSection.id &&
+            (hasAccess(shiftsSection as ExtendedSection) ? (
+              <ShiftAssignmentsSection
+                section={shiftsSection}
+                assignments={shiftAssignments}
+                shifts={shiftDefinitions}
+                scheduleRules={scheduleRules}
+                loading={loading}
+                onRefresh={handleRefresh}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === policiesSection.id && (
-            <PolicyRulesSection
-              section={policiesSection}
-              shifts={shiftDefinitions}
-              scheduleRules={scheduleRules}
-              loading={loading}
-              authToken={authToken}
-              onRefresh={handleRefresh}
-            />
-          )}
+          {activeSection === policiesSection.id &&
+            (hasAccess(policiesSection as ExtendedSection) ? (
+              <PolicyRulesSection
+                section={policiesSection}
+                shifts={shiftDefinitions}
+                scheduleRules={scheduleRules}
+                loading={loading}
+                authToken={authToken}
+                onRefresh={handleRefresh}
+                userRoles={userRoles}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === attendanceRecordsSection.id && (
-            <AttendanceRecordsSection
-              section={attendanceRecordsSection}
-              attendanceRecords={attendanceRecords}
-              loading={loading}
-              onPunchRecord={handlePunchRecord}
-              onRefresh={handleRefresh}
-              pagination={attendancePagination}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-              onFiltersChange={handleFiltersChange}
-            />
-          )}
+          {activeSection === attendanceRecordsSection.id &&
+            (hasAccess(attendanceRecordsSection as ExtendedSection) ? (
+              <AttendanceRecordsSection
+                section={attendanceRecordsSection}
+                attendanceRecords={attendanceRecords}
+                loading={loading}
+                onPunchRecord={handlePunchRecord}
+                onRefresh={handleRefresh}
+                pagination={attendancePagination}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                onFiltersChange={handleFiltersChange}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === exceptionsSection.id && (
-            <ExceptionsSection
-              section={exceptionsSection}
-              holidays={holidays}
-              loading={loading}
-            />
-          )}
+          {activeSection === exceptionsSection.id &&
+            (hasAccess(exceptionsSection as ExtendedSection) ? (
+              <ExceptionsSection
+                section={exceptionsSection}
+                holidays={holidays}
+                loading={loading}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === timeExceptionsSection.id && (
-            <TimeExceptionsSection
-              section={timeExceptionsSection}
-              exceptions={timeExceptions}
-              loading={loading}
-              employeeId={employeeId}
-              lineManagerId={lineManagerId}
-              onCreated={handleRefresh}
-            />
-          )}
+          {activeSection === timeExceptionsSection.id &&
+            (hasAccess(timeExceptionsSection as ExtendedSection) ? (
+              <TimeExceptionsSection
+                section={timeExceptionsSection}
+                exceptions={timeExceptions}
+                loading={loading}
+                employeeId={employeeId}
+                lineManagerId={lineManagerId}
+                onCreated={handleRefresh}
+                userRoles={userRoles}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
         </Box>
       </Stack>
     </Box>

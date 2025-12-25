@@ -20,6 +20,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import { useTheme, alpha } from '@mui/material/styles';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -60,6 +61,7 @@ export default function ApprovedDisputesPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [selectedDispute, setSelectedDispute] = React.useState<Dispute | null>(null);
   const [openDialog, setOpenDialog] = React.useState(false);
+  const [refundAmount, setRefundAmount] = React.useState<string>('');
   const [processing, setProcessing] = React.useState(false);
 
   // Table filters
@@ -114,10 +116,18 @@ export default function ApprovedDisputesPage() {
   const handleGenerateRefund = (dispute: Dispute) => {
     setSelectedDispute(dispute);
     setOpenDialog(true);
+    // Pre-fill refund amount if backend provides a suggested value; otherwise empty
+    setRefundAmount(dispute.approvedRefundAmount ? dispute.approvedRefundAmount.toString() : '');
   };
 
   const handleSubmitRefund = async () => {
     if (!selectedDispute) return;
+
+    const parsedAmount = parseFloat(refundAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Please enter a valid refund amount greater than 0.');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
@@ -138,7 +148,7 @@ export default function ApprovedDisputesPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            refundAmount: selectedDispute.approvedRefundAmount || 0,
+            refundAmount: parsedAmount,
             comment: `Refund processed for approved dispute ${selectedDispute.disputeId}`,
           }),
         }
@@ -147,6 +157,7 @@ export default function ApprovedDisputesPage() {
       if (response.ok) {
         setOpenDialog(false);
         setSelectedDispute(null);
+        setRefundAmount('');
         fetchApprovedDisputes();
       } else {
         const errorData = await response.json();
@@ -305,9 +316,7 @@ export default function ApprovedDisputesPage() {
                   <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                     <TableCell sx={{ fontWeight: 700 }}>Dispute ID</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Payslip Period</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Approved Amount</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Approved Date</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="center">Action</TableCell>
@@ -316,7 +325,7 @@ export default function ApprovedDisputesPage() {
                 <TableBody>
                   {filteredDisputes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                         <Typography variant="body2" color="text.secondary">
                           No disputes match your search criteria.
                         </Typography>
@@ -362,14 +371,6 @@ export default function ApprovedDisputesPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CalendarTodayIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2">
-                              {getPayslipPeriod(dispute.payslipId)}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
                           <Typography
                             variant="body2"
                             sx={{
@@ -380,19 +381,6 @@ export default function ApprovedDisputesPage() {
                             }}
                           >
                             {dispute.description}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 600,
-                              color: 'success.main',
-                            }}
-                          >
-                            {dispute.approvedRefundAmount
-                              ? formatCurrency(dispute.approvedRefundAmount)
-                              : 'N/A'}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -520,24 +508,42 @@ export default function ApprovedDisputesPage() {
                         {getEmployeeName(selectedDispute.employeeId)}
                       </Typography>
                     </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Approved Refund Amount
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                        {selectedDispute.approvedRefundAmount
-                          ? formatCurrency(selectedDispute.approvedRefundAmount)
-                          : 'N/A'}
-                      </Typography>
-                    </Box>
                   </Box>
-                  {selectedDispute.approvedRefundAmount && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-                      This amount will be included in the next payroll cycle
-                    </Typography>
-                  )}
                 </CardContent>
               </Card>
+
+              {selectedDispute.resolutionComment && (
+                <Card
+                  sx={{
+                    mb: 3,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)} 0%, ${alpha(theme.palette.warning.main, 0.02)} 100%)`,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <CardContent sx={{ py: 2.5, '&:last-child': { pb: 2.5 } }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'text.secondary' }}>
+                      Resolution Comment
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                      {selectedDispute.resolutionComment}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Box sx={{ mt: 1 }}>
+                <TextField
+                  label="Refund Amount"
+                  type="number"
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  fullWidth
+                  required
+                  inputProps={{ min: 0, step: 0.01 }}
+                  helperText="Enter the refund amount that should be paid to the employee"
+                />
+              </Box>
             </>
           )}
         </DialogContent>
@@ -558,7 +564,12 @@ export default function ApprovedDisputesPage() {
           <Button
             onClick={handleSubmitRefund}
             variant="contained"
-            disabled={processing || !selectedDispute?.approvedRefundAmount}
+            disabled={
+              processing ||
+              !refundAmount ||
+              isNaN(parseFloat(refundAmount)) ||
+              parseFloat(refundAmount) <= 0
+            }
             sx={{
               minWidth: 140,
               borderRadius: 2,

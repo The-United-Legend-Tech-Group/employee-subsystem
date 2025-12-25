@@ -43,13 +43,13 @@ import { UpdateLeaveCategoryDto } from '../dtos/update-leave-category.dto';
 import { AuthGuard } from '../../common/guards/authentication.guard';
 import { authorizationGuard } from '../../common/guards/authorization.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
-import { SystemRole } from 'src/employee-subsystem/employee/enums/employee-profile.enums';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 
 @ApiTags('Leaves Policy')
 @Controller('leaves')
 @UseGuards(AuthGuard, authorizationGuard)
 export class LeavesPolicyController {
-  constructor(private readonly leavesService: LeavesPolicyService) {}
+  constructor(private readonly leavesService: LeavesPolicyService) { }
 
   // ---------- REQ-001: Initiate a leave policy ---------- Tested
   @Post('initiate-policy')
@@ -175,7 +175,7 @@ export class LeavesPolicyController {
   }
 
   // List all leave types - Tested
-  @Get('leave-types') 
+  @Get('leave-types')
   @ApiOperation({ summary: 'Get all leave types' })
   @Roles(SystemRole.HR_ADMIN)
   @ApiResponse({ status: 200, description: 'List of all leave types' })
@@ -209,7 +209,7 @@ export class LeavesPolicyController {
     const managerId = user?.sub || user?.employeeId;
     return this.leavesService.getLeaveTypesForTeam(new Types.ObjectId(managerId).toString());
   }
-  
+
 
   // Get leave type by ID - Tested
   @Get('leave-types/:id')
@@ -269,7 +269,7 @@ export class LeavesPolicyController {
     summary: 'Assign personalized leave entitlements to employees',
   })
   @Roles(SystemRole.HR_ADMIN)
-      @ApiBody({ type: AssignPersonalizedEntitlementDto })
+  @ApiBody({ type: AssignPersonalizedEntitlementDto })
   @ApiResponse({
     status: 200,
     description: 'Personalized entitlement assigned successfully',
@@ -333,39 +333,39 @@ export class LeavesPolicyController {
     return this.leavesService.getBlockedPeriodsForYear(year);
   }
 
-   // Sync holidays from Time Management to Leaves Calendar
-   @Post('calendar/sync-holidays/:year')
-   @ApiOperation({
-     summary: 'Sync holidays from Time Management to Leaves Calendar',
-     description:
-       'Imports holiday data from the attendance/time-management system and updates the calendar for the specified year',
-   })
-   @Roles(SystemRole.HR_ADMIN)
-   @ApiParam({ name: 'year', description: 'Target year for holiday sync' })
-   @ApiResponse({ status: 200, description: 'Holidays synced successfully' })
-   @ApiResponse({
-     status: 404,
-     description: 'No holidays found in Time Management system',
-   })
-   async syncHolidaysToCalendar(@Param('year') year: number) {
-     return this.leavesService.syncHolidaysToCalendar(year);
-   }
- 
-   // Auto-sync holidays for current year
-   @Post('calendar/auto-sync-holidays')
-   @ApiOperation({
-     summary: 'Auto-sync holidays for current year',
-     description:
-       'Automatically imports holidays from Time Management for the current year',
-   })
-   @Roles(SystemRole.HR_ADMIN)
-   @ApiResponse({
-     status: 200,
-     description: 'Holidays synced successfully for current year',
-   })
-   async autoSyncHolidays() {
-     return this.leavesService.autoSyncHolidaysForCurrentYear();
-   }
+  // Sync holidays from Time Management to Leaves Calendar
+  @Post('calendar/sync-holidays/:year')
+  @ApiOperation({
+    summary: 'Sync holidays from Time Management to Leaves Calendar',
+    description:
+      'Imports holiday data from the attendance/time-management system and updates the calendar for the specified year',
+  })
+  @Roles(SystemRole.HR_ADMIN)
+  @ApiParam({ name: 'year', description: 'Target year for holiday sync' })
+  @ApiResponse({ status: 200, description: 'Holidays synced successfully' })
+  @ApiResponse({
+    status: 404,
+    description: 'No holidays found in Time Management system',
+  })
+  async syncHolidaysToCalendar(@Param('year') year: number) {
+    return this.leavesService.syncHolidaysToCalendar(year);
+  }
+
+  // Auto-sync holidays for current year
+  @Post('calendar/auto-sync-holidays')
+  @ApiOperation({
+    summary: 'Auto-sync holidays for current year',
+    description:
+      'Automatically imports holidays from Time Management for the current year',
+  })
+  @Roles(SystemRole.HR_ADMIN)
+  @ApiResponse({
+    status: 200,
+    description: 'Holidays synced successfully for current year',
+  })
+  async autoSyncHolidays() {
+    return this.leavesService.autoSyncHolidaysForCurrentYear();
+  }
 
   // ------------------------------
   // REQ-011: Configure Special Absence Types with Custom Rules - Tested
@@ -503,30 +503,30 @@ export class LeavesPolicyController {
   @Get('leave-entitlements/:employeeId')
   @ApiOperation({ summary: 'Get all leave entitlements for an employee' })
   @Roles(SystemRole.HR_ADMIN)
-    @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+  @ApiParam({ name: 'employeeId', description: 'Employee ID' })
   @ApiResponse({ status: 200, description: 'Employee leave entitlements retrieved successfully' })
   async getLeaveEntitlementByEmployeeId(@Param('employeeId') employeeId: string) {
     return this.leavesService.getLeaveEntitlementByEmployeeId(employeeId);
   }
 
-    // Get leave entitlement for a specific employee and leave type
-    @Get('leave-entitlements/:employeeId/:leaveTypeId')
-    @ApiOperation({ summary: 'Get leave entitlement for a specific employee and leave type' })
-    @Roles(SystemRole.HR_ADMIN)
-    @ApiParam({ name: 'employeeId', description: 'Employee ID' })
-    @ApiParam({ name: 'leaveTypeId', description: 'Leave Type ID' })
-    @ApiResponse({ status: 200, description: 'Leave entitlement retrieved successfully' })
-    @ApiResponse({ status: 404, description: 'Leave entitlement not found' })
-    async getLeaveEntitlementByEmployeeAndLeaveType(
-      @Param('employeeId') employeeId: string,
-      @Param('leaveTypeId') leaveTypeId: string,
-    ) {
-      const entitlement = await this.leavesService.getLeaveEntitlementByEmployeeAndLeaveType(employeeId, leaveTypeId);
-      if (!entitlement) {
-        throw new NotFoundException('Leave entitlement not found');
-      }
-      return entitlement;
+  // Get leave entitlement for a specific employee and leave type
+  @Get('leave-entitlements/:employeeId/:leaveTypeId')
+  @ApiOperation({ summary: 'Get leave entitlement for a specific employee and leave type' })
+  @Roles(SystemRole.HR_ADMIN)
+  @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+  @ApiParam({ name: 'leaveTypeId', description: 'Leave Type ID' })
+  @ApiResponse({ status: 200, description: 'Leave entitlement retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Leave entitlement not found' })
+  async getLeaveEntitlementByEmployeeAndLeaveType(
+    @Param('employeeId') employeeId: string,
+    @Param('leaveTypeId') leaveTypeId: string,
+  ) {
+    const entitlement = await this.leavesService.getLeaveEntitlementByEmployeeAndLeaveType(employeeId, leaveTypeId);
+    if (!entitlement) {
+      throw new NotFoundException('Leave entitlement not found');
     }
+    return entitlement;
+  }
 
   // Get all leave policies
   @Get('policies')
@@ -612,4 +612,4 @@ export class LeavesPolicyController {
   async deleteLeaveCategory(@Param('id') id: string): Promise<void> {
     return this.leavesService.deleteLeaveCategory(id);
   }
-  }
+}

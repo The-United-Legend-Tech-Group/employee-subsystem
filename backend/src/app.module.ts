@@ -15,10 +15,12 @@ import { AppService } from './app.service';
 // Feature modules (alphabetically organized)
 import { EmployeeSubsystemModule } from './employee-subsystem/employee-subsystem.module';
 import { LeavesModule } from './leaves/leaves.module';
-import { PayrollModule } from './payroll/payroll.module';
-import { RecruitmentModule } from './Recruitment/recruitment.module';
-import { TimeMangementModule } from './time-mangement/timemangment.module';
+import { ConfigSetupModule } from './payroll-configuration/payroll-configuration.module';
+import { ExecutionModule } from './payroll-execution/payroll-execution.module';
+import { RecruitmentModule } from './recruitment/recruitment.module';
+import { TimeManagementModule } from './time-management/time-management.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { TrackingModule } from './payroll-tracking/payroll-tracking.module';
 
 @Module({
   imports: [
@@ -40,9 +42,12 @@ import { ScheduleModule } from '@nestjs/schedule';
     // Feature modules (alphabetically organized)
     EmployeeSubsystemModule,
     LeavesModule,
-    PayrollModule,
+    ConfigSetupModule,
+    ExecutionModule,
+    TrackingModule,
     RecruitmentModule,
-    TimeMangementModule,
+    TimeManagementModule,
+    TimeManagementModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppConfigService],

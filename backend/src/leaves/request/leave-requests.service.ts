@@ -10,8 +10,8 @@ import { CreateLeaveRequestDto } from '../dtos/create-leave-request.dto';
 import { UploadAttachmentDto } from '../dtos/upload-attachment.dto';
 import { UpdateLeaveRequestDto } from '../dtos/update-leave-request.dto';
 import { ManagerApprovalDto } from '../dtos/manager-approve.dto';
-import { NotificationService } from '../../employee-subsystem/notification/notification.service';
-import { EmployeeService } from '../../employee-subsystem/employee/employee.service';
+import { NotificationService } from '../../notification/notification.service';
+import { EmployeeService } from '../../employee-profile/employee-profile.service';
 import { LeaveStatus } from '../enums/leave-status.enum';
 import { FilterLeaveRequestsByTypeDto } from '../dtos/filter-leave-requests-by-type.dto';
 import { SetApprovalFlowDto } from '../dtos/set-approval-flow.dto';
@@ -23,7 +23,7 @@ import {
   LeavePolicyRepository,
   CalendarRepository,
 } from '../repository';
-import { PayrollCalculationService } from '../../payroll/execution/services/payroll-calculation.service';
+import { PayrollCalculationService } from '../../payroll-execution/services/payroll-calculation.service';
 
 @Injectable()
 export class LeavesRequestService {
@@ -37,7 +37,7 @@ export class LeavesRequestService {
     private readonly notificationService: NotificationService,
     private readonly employeeService: EmployeeService,
     private readonly payrollCalculationService: PayrollCalculationService,
-  ) {}
+  ) { }
 
   // ---------- REQ-015: Submit Leave Request ----------
   async submitLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
@@ -156,13 +156,13 @@ export class LeavesRequestService {
     const tenureMonths =
       dateOfHire && !Number.isNaN(dateOfHire.getTime())
         ? (() => {
-            const now = new Date();
-            let months =
-              (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
-              (now.getMonth() - dateOfHire.getMonth());
-            if (now.getDate() < dateOfHire.getDate()) months -= 1;
-            return Math.max(0, months);
-          })()
+          const now = new Date();
+          let months =
+            (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
+            (now.getMonth() - dateOfHire.getMonth());
+          if (now.getDate() < dateOfHire.getDate()) months -= 1;
+          return Math.max(0, months);
+        })()
         : null;
 
     if (
@@ -446,7 +446,7 @@ export class LeavesRequestService {
     if (dto.approvalFlowStatus || dto.approvalFlowRole) {
       requests = requests.filter((req: any) => {
         const approvalFlow = req.approvalFlow || [];
-        
+
         // If both status and role are provided, find entries that match both
         if (dto.approvalFlowStatus && dto.approvalFlowRole) {
           return approvalFlow.some(
@@ -455,21 +455,21 @@ export class LeavesRequestService {
               flow.role === dto.approvalFlowRole,
           );
         }
-        
+
         // If only status is provided
         if (dto.approvalFlowStatus) {
           return approvalFlow.some(
             (flow: any) => flow.status === dto.approvalFlowStatus,
           );
         }
-        
+
         // If only role is provided
         if (dto.approvalFlowRole) {
           return approvalFlow.some(
             (flow: any) => flow.role === dto.approvalFlowRole,
           );
         }
-        
+
         return true;
       });
     }
@@ -587,13 +587,13 @@ export class LeavesRequestService {
     const tenureMonths =
       dateOfHire && !Number.isNaN(dateOfHire.getTime())
         ? (() => {
-            const now = new Date();
-            let months =
-              (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
-              (now.getMonth() - dateOfHire.getMonth());
-            if (now.getDate() < dateOfHire.getDate()) months -= 1;
-            return Math.max(0, months);
-          })()
+          const now = new Date();
+          let months =
+            (now.getFullYear() - dateOfHire.getFullYear()) * 12 +
+            (now.getMonth() - dateOfHire.getMonth());
+          if (now.getDate() < dateOfHire.getDate()) months -= 1;
+          return Math.max(0, months);
+        })()
         : null;
 
     if (
@@ -758,8 +758,8 @@ export class LeavesRequestService {
       );
       const employeeName = employee?.profile
         ? `${employee.profile.firstName || ''} ${employee.profile.lastName || ''}`.trim() ||
-          employee.profile.email ||
-          'An employee'
+        employee.profile.email ||
+        'An employee'
         : 'An employee';
 
       const fromDate = request.dates?.from
@@ -844,8 +844,8 @@ export class LeavesRequestService {
       );
       const employeeName = employee?.profile
         ? `${employee.profile.firstName || ''} ${employee.profile.lastName || ''}`.trim() ||
-          employee.profile.email ||
-          'An employee'
+        employee.profile.email ||
+        'An employee'
         : 'An employee';
 
       const fromDate = request.dates?.from
@@ -945,14 +945,14 @@ export class LeavesRequestService {
       }
 
       await this.notificationService.create({
-      recipientId: [request.employeeId?.toString?.() ?? String(request.employeeId)],
-      type,
-      deliveryType: 'UNICAST',
-      title,
-      message,
+        recipientId: [request.employeeId?.toString?.() ?? String(request.employeeId)],
+        type,
+        deliveryType: 'UNICAST',
+        title,
+        message,
         relatedEntityId: request._id.toString(),
-      relatedModule: 'Leaves',
-    });
+        relatedModule: 'Leaves',
+      });
     } catch (error) {
       // Log error but don't throw - notification failures shouldn't break the main flow
       console.error(
@@ -970,7 +970,7 @@ export class LeavesRequestService {
     const action =
       status === LeaveStatus.APPROVED
         ? 'approved'
-      : status === LeaveStatus.REJECTED
+        : status === LeaveStatus.REJECTED
           ? 'rejected'
           : 'modified';
     await this.sendLeaveRequestNotification(request, action as any);
@@ -980,18 +980,18 @@ export class LeavesRequestService {
   // REQ-020: Manager Review Request
   // =============================
   async getLeaveRequestsForManager(managerId: string): Promise<LeaveRequest[]> {
-    
+
     const team = await this.employeeService.getTeamProfiles(managerId);
-    if(!team) throw new NotFoundException("No teams for this Manager");
+    if (!team) throw new NotFoundException("No teams for this Manager");
 
     const employeeIds = team.items.map((member: any) => member._id?.toString?.() || member._id);
     const leaveRequests = await this.leaveRequestRepository.find({
       employeeId: { $in: employeeIds.map((id: string) => new Types.ObjectId(id)) },
     });
-    
+
     // Enrich with employee and leave type data (similar to HR requests)
     const enrichedRequests = await this.enrichLeaveRequests(leaveRequests);
-    
+
     // Sort by createdAt descending (most recent first)
     return enrichedRequests.sort((a: any, b: any) => {
       const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -1074,7 +1074,7 @@ export class LeavesRequestService {
   async approveRequest(leaveRequestId: string, dto: ManagerApprovalDto): Promise<LeaveRequest | null> {
     if (!dto.role) throw new BadRequestException('Missing approver role');
 
-    const updateFields:any = {
+    const updateFields: any = {
       status: LeaveStatus.APPROVED,
       decidedBy: new Types.ObjectId(dto.decidedBy),
       decidedAt: new Date(),
@@ -1096,7 +1096,7 @@ export class LeavesRequestService {
   // ---------- REQ-022: Manager Rejects a request ----------
   async rejectRequest(leaveRequestId: string, dto: ManagerApprovalDto): Promise<LeaveRequest | null> {
     if (!dto.role) throw new BadRequestException('Missing approver role');
-    const updateFields:any = {
+    const updateFields: any = {
       status: LeaveStatus.REJECTED,
       decidedBy: new Types.ObjectId(dto.decidedBy),
       decidedAt: new Date(),
@@ -1118,8 +1118,8 @@ export class LeavesRequestService {
 
   async notifyManager(status: LeaveStatus, r: string) {
     const request = await this.leaveRequestRepository.findById(r);
-    if(!request) throw new NotFoundException("No Request Found");
-    
+    if (!request) throw new NotFoundException("No Request Found");
+
     // status: 'approved' | 'rejected' | ...
     const type = status === LeaveStatus.APPROVED ? 'Success' : status === LeaveStatus.REJECTED ? 'Warning' : 'Info';
     const title = status === LeaveStatus.APPROVED ? 'Leave Request Approved' : status === LeaveStatus.REJECTED ? 'Leave Request Rejected' : 'Leave Request Update';
@@ -1143,7 +1143,7 @@ export class LeavesRequestService {
    */
   private async sendFinalizationNotifications(request: LeaveRequestDocument): Promise<void> {
     try {
-  const recipientIds: string[] = [];
+      const recipientIds: string[] = [];
 
       // 1. Add the employee
       recipientIds.push(request.employeeId.toString());
@@ -1566,8 +1566,8 @@ export class LeavesRequestService {
         );
         const requesterName = requestingEmployee?.profile
           ? `${requestingEmployee.profile.firstName || ''} ${requestingEmployee.profile.lastName || ''}`.trim() ||
-            requestingEmployee.profile.email ||
-            'An employee'
+          requestingEmployee.profile.email ||
+          'An employee'
           : 'An employee';
 
         const fromDate = request.dates?.from
@@ -1658,7 +1658,7 @@ export class LeavesRequestService {
       let employeeProfile: any = null;
       try {
         employeeProfile = await this.employeeService.getProfile(employeeId);
-      } catch {}
+      } catch { }
       // Normalizer that handles mongoose ObjectId or primitive
       const norm = (v: any): string | null => {
         if (!v) return null;

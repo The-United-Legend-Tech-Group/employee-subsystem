@@ -4,7 +4,7 @@ import request from 'supertest';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import configuration from '../src/config/configuration';
-import { ConfigSetupModule } from '../src/payroll/config_setup/config_setup.module';
+import { ConfigSetupModule } from '../src/payroll-configuration/payroll-configuration.module';
 import { AuthGuard } from '../src/employee-subsystem/guards/authentication.guard';
 import { authorizationGuard } from '../src/employee-subsystem/guards/authorization.guard';
 
@@ -173,15 +173,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/allowances')
         .send({ name: `Test Allowance ${Date.now()}`, amount: 1500 })
         .expect(201);
-      
+
       const testId = testAllowance.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/allowances/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/allowances/${testId}`)
@@ -220,15 +220,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/allowances')
         .send({ name: uniqueName, amount: 500 })
         .expect(201);
-      
+
       const newId = newAllowance.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/allowances/${newId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to change status again - should fail
       return request(app.getHttpServer())
         .patch(`/config-setup/allowances/${newId}/status`)
@@ -353,15 +353,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/pay-grades')
         .send({ grade: `Test Grade ${Date.now()}`, baseSalary: 75000, grossSalary: 95000 })
         .expect(201);
-      
+
       const testId = testPayGrade.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/pay-grades/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/pay-grades/${testId}`)
@@ -505,15 +505,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/insurance-brackets')
         .send({ name: `Test Bracket ${Date.now()}`, minSalary: 3000, maxSalary: 6000, employeeRate: 9, employerRate: 19 })
         .expect(201);
-      
+
       const testId = testBracket.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/insurance-brackets/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/insurance-brackets/${testId}`)
@@ -681,24 +681,24 @@ describe('Config Setup API (e2e)', () => {
       // Create a new payroll policy for this test
       const testPolicy = await request(app.getHttpServer())
         .post('/config-setup/payroll-policies')
-        .send({ 
-          policyName: `Test Policy ${Date.now()}`, 
-          policyType: 'Deduction', 
+        .send({
+          policyName: `Test Policy ${Date.now()}`,
+          policyType: 'Deduction',
           description: 'Test policy description',
           effectiveDate: '2025-01-01',
           ruleDefinition: { percentage: 8, fixedAmount: 0, thresholdAmount: 100 },
-          applicability: 'All Employees' 
+          applicability: 'All Employees'
         })
         .expect(201);
-      
+
       const testId = testPolicy.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/payroll-policies/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/payroll-policies/${testId}`)
@@ -890,15 +890,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/pay-types')
         .send({ type: `Test Type ${Date.now()}`, amount: 9000 })
         .expect(201);
-      
+
       const testId = testPayType.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/pay-types/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/pay-types/${testId}`)
@@ -1014,15 +1014,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/signing-bonuses')
         .send({ positionName: `Test Position ${Date.now()}`, amount: 13000 })
         .expect(201);
-      
+
       const testId = testBonus.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/signing-bonuses/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/signing-bonuses/${testId}`)
@@ -1154,15 +1154,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/tax-rules')
         .send({ name: `Test Tax ${Date.now()}`, rate: 22 })
         .expect(201);
-      
+
       const testId = testTaxRule.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/tax-rules/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/tax-rules/${testId}`)
@@ -1294,15 +1294,15 @@ describe('Config Setup API (e2e)', () => {
         .post('/config-setup/termination-benefits')
         .send({ name: `Test Benefit ${Date.now()}`, amount: 16000, terms: 'Test terms' })
         .expect(201);
-      
+
       const testId = testBenefit.body._id;
-      
+
       // Approve it
       await request(app.getHttpServer())
         .patch(`/config-setup/termination-benefits/${testId}/status`)
         .send({ status: 'approved' })
         .expect(200);
-      
+
       // Try to update - should fail
       await request(app.getHttpServer())
         .patch(`/config-setup/termination-benefits/${testId}`)

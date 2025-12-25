@@ -103,6 +103,5 @@ import { ExecutionModule } from '../payroll-execution/payroll-execution.module';
     AttachmentRepository,
     CalendarRepository,
   ],
-  exports: [MongooseModule],
-})
+  exports: [ MongooseModule, LeavesPolicyService, LeavesRequestService, LeavesReportService],})
 export class LeavesModule { }

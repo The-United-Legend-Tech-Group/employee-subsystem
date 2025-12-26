@@ -29,9 +29,7 @@ import { employeeSigningBonus } from './models/EmployeeSigningBonus.schema';
 import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
 import { employeePenalties } from './models/employeePenalties.schema';
 import { RefundService } from '../payroll-tracking/services/refund.service';
-import { AllowanceService } from '../payroll-configuration/services/allowance.service';
-import { TaxRuleService } from '../payroll-configuration/services/tax-rule.service';
-import { InsuranceBracketService } from '../payroll-configuration/services/insurance-bracket.service';
+import { ConfigSetupService } from '../payroll-configuration/payroll-configuration.service';
 
 @Injectable()
 export class ExecutionService {
@@ -52,10 +50,8 @@ export class ExecutionService {
     private readonly employeePenaltiesModel: Model<employeePenalties>,
     private readonly emailService: EmailService,
     private readonly refundService: RefundService,
-    private readonly allowanceService: AllowanceService,
-    private readonly taxRuleService: TaxRuleService,
-    private readonly insuranceBracketService: InsuranceBracketService,
-  ) {}
+    private readonly configSetupService: ConfigSetupService,
+  ) { }
 
   // Placeholder methods - to be implemented for other phases
   create() {
@@ -284,8 +280,8 @@ export class ExecutionService {
     // Generate payslips for each employee using already-calculated values
     // First, fetch common data (applied to all employees)
     const [taxes, allowances] = await Promise.all([
-      this.taxRuleService.getApprovedTaxRules(),
-      this.allowanceService.getApprovedAllowance(),
+      this.configSetupService.taxRule.findMany({ status: 'approved' }),
+      this.configSetupService.allowance.findMany({ status: 'approved' }),
     ]);
 
     // Prepare payslip data for all employees
@@ -326,9 +322,11 @@ export class ExecutionService {
               details.employeeId,
               new Types.ObjectId(payrollRunId),
             ),
-            this.insuranceBracketService.getApprovedInsuranceBracketForSalary(
-              totalGrossSalary,
-            ),
+            this.configSetupService.insuranceBracket.findMany({
+              status: 'approved',
+              minSalary: { $lte: totalGrossSalary },
+              maxSalary: { $gte: totalGrossSalary },
+            }),
             this.employeePenaltiesModel
               .findOne({ employeeId: details.employeeId })
               .exec(),
@@ -538,7 +536,7 @@ export class ExecutionService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const employeeName = employee.firstName
         ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          `${String(employee.firstName)} ${String(employee.lastName)}`
+        `${String(employee.firstName)} ${String(employee.lastName)}`
         : 'Employee';
       const employeeEmail =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

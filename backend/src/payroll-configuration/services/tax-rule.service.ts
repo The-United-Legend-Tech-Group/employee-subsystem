@@ -13,7 +13,7 @@ import { PaginationQueryDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class TaxRuleService {
-  constructor(private readonly repository: TaxRulesRepository) {}
+  constructor(private readonly repository: TaxRulesRepository) { }
 
   async create(dto: CreateTaxRuleDto): Promise<taxRulesDocument> {
     return this.repository.create(dto as any);
@@ -37,11 +37,11 @@ export class TaxRuleService {
   async findAll(query?: PaginationQueryDto): Promise<
     | taxRulesDocument[]
     | {
-        data: taxRulesDocument[];
-        total: number;
-        page: number;
-        lastPage: number;
-      }
+      data: taxRulesDocument[];
+      total: number;
+      page: number;
+      lastPage: number;
+    }
   > {
     if (!query || Object.keys(query).length === 0) {
       return this.repository.findAll();
@@ -67,8 +67,7 @@ export class TaxRuleService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.repository
-        .getModel()
+      this.repository.getModel()
         .find(filter)
         .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
         .skip(skip)
@@ -113,11 +112,9 @@ export class TaxRuleService {
   // }
 
   async countPending(): Promise<number> {
-    return this.repository
-      .getModel()
-      .countDocuments({ status: ConfigStatus.DRAFT })
-      .exec();
+    return this.repository.getModel().countDocuments({ status: ConfigStatus.DRAFT }).exec();
   }
+
 
   async updateWithoutStatus(
     id: string,
@@ -128,9 +125,7 @@ export class TaxRuleService {
       throw new NotFoundException(`object with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     const { status, approvedBy, approvedAt, ...updateData } = dto as any;
     const updated = await this.repository.updateById(id, updateData);
@@ -150,9 +145,7 @@ export class TaxRuleService {
       throw new NotFoundException(`Tax Rule with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     if (entity.createdBy?.toString() === approverId) {
       throw new ForbiddenException('Cannot approve your own configuration');
@@ -174,12 +167,5 @@ export class TaxRuleService {
     if (!deleted) {
       throw new NotFoundException(`Tax Rule with ID ${id} not found`);
     }
-  }
-
-  async getApprovedTaxRules() {
-    return this.repository
-      .getModel()
-      .find({ status: ConfigStatus.APPROVED })
-      .exec();
   }
 }

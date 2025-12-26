@@ -13,7 +13,7 @@ import { PaginationQueryDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class AllowanceService {
-  constructor(private readonly repository: AllowanceRepository) {}
+  constructor(private readonly repository: AllowanceRepository) { }
 
   async create(dto: CreateAllowanceDto): Promise<allowanceDocument> {
     return this.repository.create(dto as any);
@@ -37,11 +37,11 @@ export class AllowanceService {
   async findAll(query?: PaginationQueryDto): Promise<
     | allowanceDocument[]
     | {
-        data: allowanceDocument[];
-        total: number;
-        page: number;
-        lastPage: number;
-      }
+      data: allowanceDocument[];
+      total: number;
+      page: number;
+      lastPage: number;
+    }
   > {
     if (!query || Object.keys(query).length === 0) {
       return this.repository.findAll();
@@ -68,8 +68,7 @@ export class AllowanceService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.repository
-        .getModel()
+      this.repository.getModel()
         .find(filter)
         .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
         .skip(skip)
@@ -87,11 +86,9 @@ export class AllowanceService {
   }
 
   async countPending(): Promise<number> {
-    return this.repository
-      .getModel()
-      .countDocuments({ status: ConfigStatus.DRAFT })
-      .exec();
+    return this.repository.getModel().countDocuments({ status: ConfigStatus.DRAFT }).exec();
   }
+
 
   async findById(id: string): Promise<allowanceDocument> {
     return this.repository.findById(id);
@@ -105,18 +102,13 @@ export class AllowanceService {
     return this.repository.findMany(filter);
   }
 
-  async update(
-    id: string,
-    dto: UpdateAllowanceDto,
-  ): Promise<allowanceDocument> {
+  async update(id: string, dto: UpdateAllowanceDto): Promise<allowanceDocument> {
     const entity = await this.repository.findById(id);
     if (!entity) {
       throw new NotFoundException(`object with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     const updated = await this.repository.updateById(id, dto as any);
     if (!updated) {
@@ -134,9 +126,7 @@ export class AllowanceService {
       throw new NotFoundException(`object with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     const { status, approvedBy, approvedAt, ...updateData } = dto as any;
     const updated = await this.repository.updateById(id, updateData);
@@ -157,9 +147,7 @@ export class AllowanceService {
     }
 
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     if (entity.createdBy?.toString() === approverId) {
       throw new ForbiddenException('Cannot approve your own configuration');
@@ -183,12 +171,5 @@ export class AllowanceService {
     if (!deleted) {
       throw new NotFoundException(`Allowance with ID ${id} not found`);
     }
-  }
-
-  async getApprovedAllowance() {
-    return this.repository
-      .getModel()
-      .find({ status: ConfigStatus.APPROVED })
-      .exec();
   }
 }

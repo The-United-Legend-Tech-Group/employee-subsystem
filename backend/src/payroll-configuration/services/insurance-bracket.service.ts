@@ -13,7 +13,7 @@ import { InsuranceBracketPaginationDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class InsuranceBracketService {
-  constructor(private readonly repository: InsuranceBracketsRepository) {}
+  constructor(private readonly repository: InsuranceBracketsRepository) { }
 
   async create(
     dto: CreateInsuranceBracketsDto,
@@ -39,11 +39,11 @@ export class InsuranceBracketService {
   async findAll(query?: InsuranceBracketPaginationDto): Promise<
     | insuranceBracketsDocument[]
     | {
-        data: insuranceBracketsDocument[];
-        total: number;
-        page: number;
-        lastPage: number;
-      }
+      data: insuranceBracketsDocument[];
+      total: number;
+      page: number;
+      lastPage: number;
+    }
   > {
     if (!query || Object.keys(query).length === 0) {
       return this.repository.findAll();
@@ -78,8 +78,7 @@ export class InsuranceBracketService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.repository
-        .getModel()
+      this.repository.getModel()
         .find(filter)
         .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
         .skip(skip)
@@ -97,11 +96,9 @@ export class InsuranceBracketService {
   }
 
   async countPending(): Promise<number> {
-    return this.repository
-      .getModel()
-      .countDocuments({ status: ConfigStatus.DRAFT })
-      .exec();
+    return this.repository.getModel().countDocuments({ status: ConfigStatus.DRAFT }).exec();
   }
+
 
   async findById(id: string): Promise<insuranceBracketsDocument | null> {
     return this.repository.findById(id);
@@ -151,9 +148,7 @@ export class InsuranceBracketService {
       throw new NotFoundException(`object with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     const { status, approvedBy, approvedAt, ...updateData } = dto as any;
     const updated = await this.repository.updateById(id, updateData);
@@ -185,9 +180,7 @@ export class InsuranceBracketService {
       throw new NotFoundException(`Insurance Bracket with ID ${id} not found`);
     }
     if (entity.status !== ConfigStatus.DRAFT) {
-      throw new ForbiddenException(
-        'Editing is allowed when status is DRAFT only',
-      );
+      throw new ForbiddenException('Editing is allowed when status is DRAFT only');
     }
     const updateData: any = { status: updateStatusDto.status };
     if (updateStatusDto.status === ConfigStatus.APPROVED) {
@@ -207,16 +200,5 @@ export class InsuranceBracketService {
     if (!deleted) {
       throw new NotFoundException(`Insurance Bracket with ID ${id} not found`);
     }
-  }
-
-  async getApprovedInsuranceBracketForSalary(salary: number) {
-    return this.repository
-      .getModel()
-      .find({
-        status: ConfigStatus.APPROVED,
-        minSalary: { $lte: salary },
-        maxSalary: { $gte: salary },
-      })
-      .exec();
   }
 }

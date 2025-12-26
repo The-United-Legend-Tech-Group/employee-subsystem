@@ -166,7 +166,7 @@ export class OffboardingService {
         `Invalid employee number format: ${dto.employeeNumber}. Must start with EMP`,
       );
     }
-    const candidateNumber = 'CAN' + dto.employeeNumber.substring(3);
+    const candidateNumber = 'CAND' + dto.employeeNumber.substring(3);
     console.log(
       `Converted employee number ${dto.employeeNumber} to candidate number: ${candidateNumber}`,
     );
@@ -1286,7 +1286,7 @@ ${dto.additionalMessage ? `--- ADDITIONAL NOTES ---\n${dto.additionalMessage}\n\
         throw new Error(`Invalid employee number format: ${employeeNumber}`);
       }
 
-      const candidateNumber = 'CAN' + employeeNumber.substring(3);
+      const candidateNumber = 'CAND' + employeeNumber.substring(3);
       const candidate =
         await this.candidateRepository.findByCandidateNumber(candidateNumber);
       if (!candidate) {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { refunds, refundsDocument } from '../models/refunds.schema';
@@ -42,7 +46,9 @@ export class RefundService {
     }
 
     if (dispute.status !== DisputeStatus.APPROVED) {
-      throw new BadRequestException('Refund can only be generated for approved disputes');
+      throw new BadRequestException(
+        'Refund can only be generated for approved disputes',
+      );
     }
 
     const existingRefund = await this.refundsModel.findOne({
@@ -51,11 +57,18 @@ export class RefundService {
     });
 
     if (existingRefund) {
-      throw new BadRequestException('A pending refund already exists for this dispute. The finance staff ID can be found in the refund record.');
+      throw new BadRequestException(
+        'A pending refund already exists for this dispute. The finance staff ID can be found in the refund record.',
+      );
     }
 
-    if (generateRefundDto.refundAmount === undefined || generateRefundDto.refundAmount === null) {
-      throw new BadRequestException('Refund amount is required when generating a refund for a dispute');
+    if (
+      generateRefundDto.refundAmount === undefined ||
+      generateRefundDto.refundAmount === null
+    ) {
+      throw new BadRequestException(
+        'Refund amount is required when generating a refund for a dispute',
+      );
     }
 
     if (generateRefundDto.refundAmount <= 0) {
@@ -71,11 +84,37 @@ export class RefundService {
       employeeId: dispute.employeeId,
       financeStaffId: employeeId,
       refundDetails: {
-        description: generateRefundDto.description || `Refund for approved dispute ${dispute.disputeId}`,
+        description:
+          generateRefundDto.description ||
+          `Refund for approved dispute ${dispute.disputeId}`,
         amount: generateRefundDto.refundAmount,
       },
       status: RefundStatus.PENDING,
     });
   }
-}
 
+  // used by execution
+  async getApprovedRefundByEmployeeIdForPayslipGeneration(
+    employeeId: Types.ObjectId,
+    payrollId: Types.ObjectId,
+  ) {
+    const refunds = await this.refundsModel
+      .find({
+        employeeId,
+        $or: [
+          { paidInPayrollRunId: { $exists: false } },
+          { paidInPayrollRunId: null },
+        ],
+      })
+      .exec();
+
+    for (const refund of refunds) {
+      refund.paidInPayrollRunId = payrollId;
+      await refund.save();
+    }
+
+    const refundDetails = refunds.map((r) => r.refundDetails);
+
+    return refundDetails;
+  }
+}

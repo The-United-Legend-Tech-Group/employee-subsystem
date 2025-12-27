@@ -38,17 +38,18 @@ function getAuthConfig() {
 
   // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    console.log('[PayslipDetail] No localStorage token - relying on httpOnly cookies');
+    console.log(
+      '[PayslipDetail] No localStorage token - relying on httpOnly cookies'
+    );
   }
 
   return {
     withCredentials: true, // Primary: send httpOnly cookies
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   } as const;
 }
 
 export default function PayslipDetailPage() {
-  const router = useRouter();
   const params = useParams();
   const payrollId = params.id as string;
   const payslipId = params.payslipId as string;
@@ -63,6 +64,7 @@ export default function PayslipDetailPage() {
     fetchPayslipData();
   }, [payslipId, payrollId]);
 
+  console.log(payslip);
   const fetchPayslipData = async () => {
     try {
       setLoading(true);
@@ -119,7 +121,7 @@ export default function PayslipDetailPage() {
     if (!employee) return 'N/A';
     if (typeof employee === 'string') return employee;
     const emp = employee as any;
-    return emp.employeeNumber || employee._id;
+    return emp.employeeNumber || emp.employeeId || emp._id || 'N/A';
   };
 
   if (loading) {
@@ -149,214 +151,174 @@ export default function PayslipDetailPage() {
 
   // Calculate totals
   const totalEarnings =
-    payslip.earningsDetails.baseSalary +
-    (payslip.earningsDetails.allowances?.reduce(
+    (payslip.earningsDetails?.baseSalary || 0) +
+    (payslip.earningsDetails?.allowances?.reduce(
       (sum, a) => sum + (a.amount || 0),
       0
     ) || 0) +
-    (payslip.earningsDetails.bonuses?.reduce(
+    (payslip.earningsDetails?.bonuses?.reduce(
       (sum, b) => sum + (b.amount || 0),
       0
     ) || 0) +
-    (payslip.earningsDetails.benefits?.reduce(
+    (payslip.earningsDetails?.benefits?.reduce(
       (sum, b) => sum + (b.amount || 0),
       0
     ) || 0) +
-    (payslip.earningsDetails.refunds?.reduce(
+    (payslip.earningsDetails?.refunds?.reduce(
       (sum, r) => sum + (r.amount || 0),
       0
     ) || 0);
 
   // Tax calculation: rate% of baseSalary
   const totalTaxes =
-    payslip.deductionsDetails.taxes?.reduce((sum, t) => {
+    payslip.deductionsDetails?.taxes?.reduce((sum, t) => {
       const taxData = t as any;
       return (
-        sum + ((taxData.rate || 0) * payslip.earningsDetails.baseSalary) / 100
+        sum +
+        ((taxData.rate || 0) * (payslip.earningsDetails?.baseSalary || 0)) / 100
       );
     }, 0) || 0;
 
   // Insurance calculation: employeeRate% of baseSalary (not amount)
   // The 'amount' in insurance is the coverage amount, not the base for calculation
   const totalInsurance =
-    payslip.deductionsDetails.insurances?.reduce((sum, i) => {
+    payslip.deductionsDetails?.insurances?.reduce((sum, i) => {
       const insuranceData = i as any;
       // Employee pays employeeRate% of their base salary
       return (
         sum +
         ((insuranceData.employeeRate || 0) *
-          payslip.earningsDetails.baseSalary) /
-        100
+          (payslip.earningsDetails?.baseSalary || 0)) /
+          100
       );
     }, 0) || 0;
 
-  const totalPenalties = payslip.deductionsDetails.penalties?.penalties?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+  const totalPenalties =
+    payslip.deductionsDetails?.penalties?.penalties?.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    ) || 0;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Payslip - {employeeName}</h1>
-        <p className="text-muted-foreground mt-2">
-          Payroll Run: {payrollRun?.runId || 'N/A'} | Period:{' '}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{employeeName}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {payrollRun?.runId || 'N/A'} •{' '}
           {payrollRun?.payrollPeriod
             ? new Date(payrollRun.payrollPeriod).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })
+                month: 'long',
+                year: 'numeric'
+              })
             : 'N/A'}
         </p>
       </div>
 
       {/* Employee Information */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Employee Information</CardTitle>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Employee Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <User className="h-5 w-5 text-primary" />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">
+                Employee Number
               </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Name</div>
-                <div className="font-semibold">{employeeName}</div>
-              </div>
+              <div className="font-mono font-medium">{employeeNumber}</div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <Building className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Employee Number
-                </div>
-                <div className="font-mono font-semibold">{employeeNumber}</div>
-              </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Email</div>
+              <div className="font-medium">{employeeEmail}</div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <Mail className="h-5 w-5 text-primary" />
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">
+                Payment Status
               </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Email</div>
-                <div className="font-semibold text-sm">{employeeEmail}</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">
-                  Payment Status
-                </div>
-                <Badge
-                  variant={
-                    payslip.paymentStatus === 'paid' ? 'default' : 'secondary'
-                  }
-                >
-                  {payslip.paymentStatus}
-                </Badge>
-              </div>
+              <Badge
+                variant={
+                  payslip.paymentStatus === 'paid' ? 'default' : 'secondary'
+                }
+              >
+                {payslip.paymentStatus}
+              </Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Payment Summary */}
-      <div className="grid gap-6 md:grid-cols-3 mb-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-muted/50">
+          <CardContent className="pt-6">
+            <div className="text-xs text-muted-foreground mb-1">
               Gross Salary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
+            </div>
+            <div className="text-2xl font-bold">
               $
-              {payslip.totalGrossSalary.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+              {(payslip.totalGrossSalary || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2
               })}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Deductions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">
+        <Card className="bg-muted/50">
+          <CardContent className="pt-6">
+            <div className="text-xs text-muted-foreground mb-1">Deductions</div>
+            <div className="text-2xl font-bold text-red-600">
               -$
-              {payslip.totaDeductions.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+              {(payslip.totaDeductions || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2
               })}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-primary">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Net Pay
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">
+        <Card className="border-2 border-primary">
+          <CardContent className="pt-6">
+            <div className="text-xs text-muted-foreground mb-1">Net Pay</div>
+            <div className="text-2xl font-bold text-green-600">
               $
-              {payslip.netPay.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+              {(payslip.netPay || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2
               })}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Earnings Breakdown */}
         <Card>
-          <CardHeader>
-            <CardTitle>Earnings Breakdown</CardTitle>
-            <CardDescription>
-              Detailed breakdown of all earnings
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Earnings</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b">
-              <span className="font-medium">Base Salary</span>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-sm">Base Salary</span>
               <span className="font-semibold">
                 $
-                {payslip.earningsDetails.baseSalary.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}
+                {(payslip.earningsDetails?.baseSalary || 0).toLocaleString(
+                  'en-US',
+                  { minimumFractionDigits: 2 }
+                )}
               </span>
             </div>
 
-            {payslip.earningsDetails.allowances &&
+            {payslip.earningsDetails?.allowances &&
               payslip.earningsDetails.allowances.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Allowances
                   </div>
                   {payslip.earningsDetails.allowances.map((allowance, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-1 pl-4"
-                    >
+                    <div key={idx} className="flex justify-between py-1 pl-3">
                       <span className="text-sm">{allowance.name}</span>
-                      <span className="text-sm font-semibold text-green-600">
+                      <span className="text-sm text-green-600">
                         +$
                         {(allowance.amount || 0).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
+                          minimumFractionDigits: 2
                         })}
                       </span>
                     </div>
@@ -364,51 +326,46 @@ export default function PayslipDetailPage() {
                 </div>
               )}
 
-            {payslip.earningsDetails.bonuses &&
+            {payslip.earningsDetails?.bonuses &&
               payslip.earningsDetails.bonuses.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Bonuses
                   </div>
-                  {payslip.earningsDetails.bonuses.map((bonus, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-1 pl-4"
-                    >
-                      <span className="text-sm">
-                        {(bonus as any).name || 'Bonus'}
-                      </span>
-                      <span className="text-sm font-semibold text-green-600">
-                        +$
-                        {(bonus.amount || 0).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </span>
-                    </div>
-                  ))}
+                  {payslip.earningsDetails.bonuses.map((bonus, idx) => {
+                    const bonusData = bonus as any;
+                    return (
+                      <div key={idx} className="flex justify-between py-1 pl-3">
+                        <span className="text-sm">
+                          {bonusData.positionName || bonusData.name || 'Bonus'}
+                        </span>
+                        <span className="text-sm text-green-600">
+                          +$
+                          {(bonus.amount || 0).toLocaleString('en-US', {
+                            minimumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-            {payslip.earningsDetails.benefits &&
+            {payslip.earningsDetails?.benefits &&
               payslip.earningsDetails.benefits.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Benefits
                   </div>
                   {payslip.earningsDetails.benefits.map((benefit, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-1 pl-4"
-                    >
+                    <div key={idx} className="flex justify-between py-1 pl-3">
                       <span className="text-sm">
                         {(benefit as any).name || 'Benefit'}
                       </span>
-                      <span className="text-sm font-semibold text-green-600">
+                      <span className="text-sm text-green-600">
                         +$
                         {(benefit.amount || 0).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
+                          minimumFractionDigits: 2
                         })}
                       </span>
                     </div>
@@ -416,25 +373,21 @@ export default function PayslipDetailPage() {
                 </div>
               )}
 
-            {payslip.earningsDetails.refunds &&
+            {payslip.earningsDetails?.refunds &&
               payslip.earningsDetails.refunds.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Refunds
                   </div>
                   {payslip.earningsDetails.refunds.map((refund, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-1 pl-4"
-                    >
+                    <div key={idx} className="flex justify-between py-1 pl-3">
                       <span className="text-sm">
-                        {refund.reason || 'Refund'}
+                        {refund.description || 'Refund'}
                       </span>
-                      <span className="text-sm font-semibold text-green-600">
+                      <span className="text-sm text-green-600">
                         +$
                         {(refund.amount || 0).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
+                          minimumFractionDigits: 2
                         })}
                       </span>
                     </div>
@@ -442,13 +395,12 @@ export default function PayslipDetailPage() {
                 </div>
               )}
 
-            <div className="flex items-center justify-between py-3 border-t-2 border-primary">
-              <span className="font-bold">Total Earnings</span>
-              <span className="font-bold text-lg text-green-600">
+            <div className="flex justify-between pt-3 border-t-2">
+              <span className="font-bold text-sm">Total Earnings</span>
+              <span className="font-bold text-green-600">
                 $
                 {totalEarnings.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+                  minimumFractionDigits: 2
                 })}
               </span>
             </div>
@@ -457,133 +409,124 @@ export default function PayslipDetailPage() {
 
         {/* Deductions Breakdown */}
         <Card>
-          <CardHeader>
-            <CardTitle>Deductions Breakdown</CardTitle>
-            <CardDescription>
-              Detailed breakdown of all deductions
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Deductions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {payslip.deductionsDetails.taxes &&
+          <CardContent className="space-y-3">
+            {payslip.deductionsDetails?.taxes &&
               payslip.deductionsDetails.taxes.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Taxes
                   </div>
-                  {payslip.deductionsDetails.taxes.map((tax, idx) => {
+                  {payslip.deductionsDetails?.taxes?.map((tax, idx) => {
                     const taxData = tax as any;
-                    // rate% of baseSalary
                     const taxAmount =
                       ((taxData.rate || 0) *
-                        payslip.earningsDetails.baseSalary) /
+                        (payslip.earningsDetails?.baseSalary || 0)) /
                       100;
                     return (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between py-1 pl-4"
-                      >
+                      <div key={idx} className="flex justify-between py-1 pl-3">
                         <span className="text-sm">
-                          {taxData.name} ({taxData.rate}% of base salary)
+                          {taxData.name} ({taxData.rate}%)
                         </span>
-                        <span className="text-sm font-semibold text-red-600">
+                        <span className="text-sm text-red-600">
                           -$
                           {taxAmount.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
+                            minimumFractionDigits: 2
                           })}
                         </span>
                       </div>
                     );
                   })}
-                  <div className="flex items-center justify-between py-2 pl-4 border-t mt-2">
-                    <span className="font-medium text-sm">Total Taxes</span>
-                    <span className="font-semibold text-red-600">
+                  <div className="flex justify-between py-1 pl-3 border-t">
+                    <span className="text-xs font-medium">Subtotal</span>
+                    <span className="text-sm font-semibold text-red-600">
                       -$
                       {totalTaxes.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
+                        minimumFractionDigits: 2
                       })}
                     </span>
                   </div>
                 </div>
               )}
 
-            {payslip.deductionsDetails.insurances &&
+            {payslip.deductionsDetails?.insurances &&
               payslip.deductionsDetails.insurances.length > 0 && (
-                <div>
-                  <div className="font-medium mb-2 text-sm text-muted-foreground">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
                     Insurance
                   </div>
-                  {payslip.deductionsDetails.insurances.map(
+                  {payslip.deductionsDetails?.insurances?.map(
                     (insurance, idx) => {
                       const insuranceData = insurance as any;
-                      // Employee pays employeeRate% of their base salary
                       const insuranceAmount =
                         ((insuranceData.employeeRate || 0) *
-                          payslip.earningsDetails.baseSalary) /
+                          (payslip.earningsDetails?.baseSalary || 0)) /
                         100;
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between py-1 pl-4"
+                          className="flex justify-between py-1 pl-3"
                         >
                           <span className="text-sm">
-                            {insuranceData.name} ({insuranceData.employeeRate}%
-                            of base salary)
+                            {insuranceData.name} ({insuranceData.employeeRate}%)
                           </span>
-                          <span className="text-sm font-semibold text-red-600">
+                          <span className="text-sm text-red-600">
                             -$
                             {insuranceAmount.toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2
+                              minimumFractionDigits: 2
                             })}
                           </span>
                         </div>
                       );
                     }
                   )}
-                  <div className="flex items-center justify-between py-2 pl-4 border-t mt-2">
-                    <span className="font-medium text-sm">Total Insurance</span>
-                    <span className="font-semibold text-red-600">
+                  <div className="flex justify-between py-1 pl-3 border-t">
+                    <span className="text-xs font-medium">Subtotal</span>
+                    <span className="text-sm font-semibold text-red-600">
                       -$
                       {totalInsurance.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
+                        minimumFractionDigits: 2
                       })}
                     </span>
                   </div>
                 </div>
               )}
 
-            {payslip.deductionsDetails.penalties && (
-              <div>
-                <div className="font-medium mb-2 text-sm text-muted-foreground">
-                  Penalties
-                </div>
-                {payslip.deductionsDetails.penalties?.penalties?.map((penalty, index) => (
-                  <div key={index} className="flex items-center justify-between py-1 pl-4">
-                    <span className="text-sm">
-                      {penalty.reason || 'Employee Penalty'}
-                    </span>
-                    <span className="text-sm font-semibold text-red-600">
-                      -$
-                      {(penalty.amount || 0).toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
+            {payslip.deductionsDetails?.penalties?.penalties &&
+              payslip.deductionsDetails.penalties.penalties.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Penalties
                   </div>
-                ))}
-              </div>
-            )}
+                  {payslip.deductionsDetails.penalties?.penalties?.map(
+                    (penalty, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between py-1 pl-3"
+                      >
+                        <span className="text-sm">
+                          {penalty.reason || 'Penalty'}
+                        </span>
+                        <span className="text-sm text-red-600">
+                          -$
+                          {(penalty.amount || 0).toLocaleString('en-US', {
+                            minimumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
 
-            <div className="flex items-center justify-between py-3 border-t-2 border-primary">
-              <span className="font-bold">Total Deductions</span>
-              <span className="font-bold text-lg text-red-600">
+            <div className="flex justify-between pt-3 border-t-2">
+              <span className="font-bold text-sm">Total Deductions</span>
+              <span className="font-bold text-red-600">
                 -$
-                {payslip.totaDeductions.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
+                {(payslip.totaDeductions || 0).toLocaleString('en-US', {
+                  minimumFractionDigits: 2
                 })}
               </span>
             </div>

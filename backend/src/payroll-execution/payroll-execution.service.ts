@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, ClientSession } from 'mongoose';
+import { Model, Types, ClientSession, ObjectId } from 'mongoose';
 import { PublishPayrollDto } from './dto/publish-payroll.dto';
 import { ApprovePayrollManagerDto } from './dto/approve-payroll-manager.dto';
 import { RejectPayrollDto } from './dto/reject-payroll.dto';
@@ -25,13 +25,11 @@ import {
   PaySlipPaymentStatus,
 } from './enums/payroll-execution-enum';
 import { EmailService } from './email.service';
-import { allowance } from '../payroll-configuration/models/allowance.schema';
-import { taxRules } from '../payroll-configuration/models/taxRules.schema';
-import { insuranceBrackets } from '../payroll-configuration/models/insuranceBrackets.schema';
 import { employeeSigningBonus } from './models/EmployeeSigningBonus.schema';
 import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
 import { employeePenalties } from './models/employeePenalties.schema';
-import { refunds } from '../payroll-tracking/models/refunds.schema';
+import { RefundService } from '../payroll-tracking/services/refund.service';
+import { ConfigSetupService } from '../payroll-configuration/payroll-configuration.service';
 
 @Injectable()
 export class ExecutionService {
@@ -44,22 +42,16 @@ export class ExecutionService {
     private readonly paySlipModel: Model<paySlip>,
     @InjectModel(employeePayrollDetails.name)
     private readonly employeePayrollDetailsModel: Model<employeePayrollDetailsDocument>,
-    @InjectModel(allowance.name)
-    private readonly allowanceModel: Model<allowance>,
-    @InjectModel(taxRules.name)
-    private readonly taxRulesModel: Model<taxRules>,
-    @InjectModel(insuranceBrackets.name)
-    private readonly insuranceBracketsModel: Model<insuranceBrackets>,
     @InjectModel(employeeSigningBonus.name)
     private readonly employeeSigningBonusModel: Model<employeeSigningBonus>,
     @InjectModel(EmployeeTerminationResignation.name)
     private readonly employeeTerminationResignationModel: Model<EmployeeTerminationResignation>,
     @InjectModel(employeePenalties.name)
     private readonly employeePenaltiesModel: Model<employeePenalties>,
-    @InjectModel(refunds.name)
-    private readonly refundsModel: Model<refunds>,
     private readonly emailService: EmailService,
-  ) {}
+    private readonly refundService: RefundService,
+    private readonly configSetupService: ConfigSetupService,
+  ) { }
 
   // Placeholder methods - to be implemented for other phases
   create() {
@@ -286,15 +278,18 @@ export class ExecutionService {
     }
 
     // Generate payslips for each employee using already-calculated values
-    // First, fetch all common data OUTSIDE the loop to reduce queries
-    const [allowances, taxes] = await Promise.all([
-      this.allowanceModel.find({ status: 'approved' }).exec(),
-      this.taxRulesModel.find({ status: 'approved' }).exec(),
+    // First, fetch common data (applied to all employees)
+    const [taxes, allowances] = await Promise.all([
+      this.configSetupService.taxRule.findMany({ status: 'approved' }),
+      this.configSetupService.allowance.findMany({ status: 'approved' }),
     ]);
 
     // Prepare payslip data for all employees
     const payslipDataArray = await Promise.all(
       employeeDetails.map(async (details) => {
+        // Extract the actual ObjectId (handle both populated and non-populated cases)
+        const employeeObjectId = details.employeeId;
+
         // Use already-calculated gross salary from draft generation
         const totalGrossSalary =
           Number(details.baseSalary || 0) +
@@ -302,12 +297,16 @@ export class ExecutionService {
           Number(details.bonus || 0) +
           Number(details.benefit || 0);
 
+        if (!details.employeeId) {
+          console.log(details);
+          console.log('not efined');
+        }
         // Fetch employee-specific data in parallel
         const [bonuses, benefits, refundsList, insurances, penalties] =
           await Promise.all([
             this.employeeSigningBonusModel
               .find({
-                employeeId: details.employeeId,
+                employeeId: employeeObjectId,
                 status: 'approved',
               })
               .populate('signingBonusId')
@@ -319,19 +318,15 @@ export class ExecutionService {
               })
               .populate('benefitId')
               .exec(),
-            this.refundsModel
-              .find({
-                employeeId: details.employeeId,
-                status: 'approved',
-              })
-              .exec(),
-            this.insuranceBracketsModel
-              .find({
-                status: 'approved',
-                minSalary: { $lte: totalGrossSalary },
-                maxSalary: { $gte: totalGrossSalary },
-              })
-              .exec(),
+            this.refundService.getApprovedRefundByEmployeeIdForPayslipGeneration(
+              details.employeeId,
+              new Types.ObjectId(payrollRunId),
+            ),
+            this.configSetupService.insuranceBracket.findMany({
+              status: 'approved',
+              minSalary: { $lte: totalGrossSalary },
+              maxSalary: { $gte: totalGrossSalary },
+            }),
             this.employeePenaltiesModel
               .findOne({ employeeId: details.employeeId })
               .exec(),
@@ -344,8 +339,8 @@ export class ExecutionService {
           earningsDetails: {
             baseSalary: Number(details.baseSalary || 0),
             allowances: allowances || [],
-            bonuses: bonuses.map((b) => b.signingBonusId) || [],
-            benefits: benefits.map((b) => b.benefitId) || [],
+            bonuses: bonuses.map((b) => b.signingBonusId).filter(Boolean) || [],
+            benefits: benefits.map((b) => b.benefitId).filter(Boolean) || [],
             refunds: refundsList || [],
           },
           deductionsDetails: {
@@ -407,6 +402,14 @@ export class ExecutionService {
     session.startTransaction();
 
     try {
+      // If re-freezing (status was UNLOCKED), delete existing payslips first
+      if (payrollRun.status === PayRollStatus.UNLOCKED) {
+        this.logger.log(
+          `Deleting existing payslips for re-freeze of payroll ${payrollRunId}`,
+        );
+        await this.paySlipModel.deleteMany({ payrollRunId }, { session });
+      }
+
       payrollRun.status = PayRollStatus.LOCKED;
       await payrollRun.save({ session });
 
@@ -498,18 +501,34 @@ export class ExecutionService {
       );
     }
 
+    // Filter to only send emails to employees who haven't received them yet
+    const payslipsToEmail = payslips.filter(
+      (ps) => ps.paymentStatus == PaySlipPaymentStatus.PENDING,
+    );
+
+    if (payslipsToEmail.length === 0) {
+      return {
+        message: 'All payslip emails have already been sent',
+        payrollRunId,
+        totalPayslips: payslips.length,
+        alreadySent: payslips.length,
+      };
+    }
+
     // Update all payslips to PAID status since payment is approved
-    const updatePromises = payslips.map(async (payslip) => {
+    const updatePromises = payslipsToEmail.map(async (payslip) => {
       payslip.paymentStatus = PaySlipPaymentStatus.PAID;
       return payslip.save();
     });
 
     await Promise.all(updatePromises);
 
-    // Send payslip emails to all employees
-    this.logger.log(`Sending payslip emails for payroll run ${payrollRunId}`);
+    // Send payslip emails to employees who haven't received them
+    this.logger.log(
+      `Sending payslip emails for payroll run ${payrollRunId} (${payslipsToEmail.length} pending)`,
+    );
 
-    const emailDataList = payslips.map((ps) => {
+    const emailDataList = payslipsToEmail.map((ps) => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const employee = ps.employeeId as unknown as any;
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
@@ -517,7 +536,7 @@ export class ExecutionService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const employeeName = employee.firstName
         ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          `${String(employee.firstName)} ${String(employee.lastName)}`
+        `${String(employee.firstName)} ${String(employee.lastName)}`
         : 'Employee';
       const employeeEmail =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -535,25 +554,22 @@ export class ExecutionService {
     });
 
     // Send emails in batch
-    const emailResults =
-      await this.emailService.sendBatchPayslipEmails(emailDataList);
+    await this.emailService.sendBatchPayslipEmails(emailDataList);
 
     this.logger.log(
-      `Email distribution complete: ${emailResults.successful} successful, ${emailResults.failed} failed`,
+      `Email distribution complete (${payslipsToEmail.length} sent)`,
     );
 
     return {
       message: 'Payslips generated and distributed',
       payrollRunId,
       totalPayslips: payslips.length,
-      emailDistribution: {
-        successful: emailResults.successful,
-        failed: emailResults.failed,
-      },
-      payslips: payslips.map((ps) => ({
+      emailsSent: payslipsToEmail.length,
+      payslips: payslipsToEmail.map((ps) => ({
         employeeId: ps.employeeId,
         netPay: ps.netPay,
         paymentStatus: ps.paymentStatus,
+        emailSent: true,
       })),
     };
   }

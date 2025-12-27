@@ -31,7 +31,12 @@ import {
   generateAndDistributePayslips,
   getErrorMessage
 } from '@/payroll/libs/api';
-import type { PayrollRun, PaySlip, EmployeeInfo } from '@/payroll/libs/types';
+import {
+  type PayrollRun,
+  type PaySlip,
+  type EmployeeInfo,
+  PaySlipPaymentStatus
+} from '@/payroll/libs/types';
 import { getCookie } from '@/lib/auth-utils';
 import { hasRole } from '@/lib/auth-utils';
 
@@ -46,9 +51,7 @@ export default function PayrollPayslipsPage() {
   const payrollId = params.id as string;
 
   const isSpecialist = hasRole('Payroll Specialist');
-  const isManager = hasRole('Payroll Manager');
 
-  const [searchTerm, setSearchTerm] = useState('');
   const [payroll, setPayroll] = useState<PayrollRun | null>(null);
   const [payslips, setPayslips] = useState<PaySlip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,10 +93,11 @@ export default function PayrollPayslipsPage() {
   const handleGeneratePayslips = async () => {
     if (!payroll) return;
 
-    if (payroll.status !== 'approved') {
+    if (payroll.status !== 'locked') {
       toast({
-        title: 'Cannot Generate',
-        description: 'Payroll must be approved before generating payslips.',
+        title: 'Cannot Send Emails',
+        description:
+          'Payroll must be locked (frozen) before sending payslip emails.',
         variant: 'destructive'
       });
       return;
@@ -101,10 +105,10 @@ export default function PayrollPayslipsPage() {
 
     try {
       setGenerating(true);
-      await generateAndDistributePayslips(payrollId);
+      const res = await generateAndDistributePayslips(payrollId);
       toast({
         title: 'Success',
-        description: 'Payslips generated and emails sent successfully.'
+        description: res.message
       });
       await fetchPayrollData();
     } catch (err) {
@@ -132,21 +136,20 @@ export default function PayrollPayslipsPage() {
   ): string => {
     if (!employee) return 'N/A';
     if (typeof employee === 'string') return employee;
-    return employee.employeeId || 'N/A';
+    const emp = employee as any;
+    return emp.employeeNumber || emp.employeeId || emp._id || 'N/A';
   };
-
-  const filteredPayslips = payslips.filter((payslip) => {
-    const employeeName = getEmployeeName(payslip.employeeId).toLowerCase();
-    const employeeId = getEmployeeId(payslip.employeeId).toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return employeeName.includes(search) || employeeId.includes(search);
-  });
 
   const stats = {
     total: payslips.length,
     generated: payslips.filter((p) => p.paymentStatus === 'paid').length,
     pending: payslips.filter((p) => p.paymentStatus === 'pending').length
   };
+
+  // Check if there are any payslips that haven't been emailed yet
+  const hasUnemailedPayslips = payslips.some(
+    (p) => p.paymentStatus === PaySlipPaymentStatus.PENDING
+  );
 
   if (loading) {
     return (
@@ -179,32 +182,34 @@ export default function PayrollPayslipsPage() {
     );
   }
 
+  console.log(payslips);
   return (
     <div>
       {/* Header with Action Button */}
       <div className="flex justify-between items-center mb-6">
         <div></div>
-        {(isSpecialist || isManager) && payroll.status === 'approved' && (
-          <Button
-            onClick={handleGeneratePayslips}
-            disabled={generating}
-            size="lg"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {payslips.length === 0 ? 'Generating...' : 'Sending...'}
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                {payslips.length === 0
-                  ? 'Generate & Email All'
-                  : 'Send Emails'}
-              </>
-            )}
-          </Button>
-        )}
+        {isSpecialist &&
+          payroll.status === 'locked' &&
+          payslips.length > 0 &&
+          hasUnemailedPayslips && (
+            <Button
+              onClick={handleGeneratePayslips}
+              disabled={generating}
+              size="lg"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending Emails...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email All Payslips
+                </>
+              )}
+            </Button>
+          )}
       </div>
 
       {/* Stats Cards */}
@@ -260,7 +265,7 @@ export default function PayrollPayslipsPage() {
       </div>
 
       {/* Payslips List */}
-      {filteredPayslips.length === 0 ? (
+      {payslips.length === 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>No Payslips</CardTitle>
@@ -273,7 +278,7 @@ export default function PayrollPayslipsPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPayslips.map((payslip) => (
+          {payslips.map((payslip) => (
             <Card
               key={payslip._id}
               className="hover:shadow-md transition-shadow"
@@ -348,11 +353,13 @@ function getAuthConfig() {
 
   // Don't throw - cookies may still be valid via withCredentials
   if (!token) {
-    console.log('[PayrollPayslipsPage] No token found - relying on httpOnly cookies');
+    console.log(
+      '[PayrollPayslipsPage] No token found - relying on httpOnly cookies'
+    );
   }
 
   return {
     withCredentials: true, // Primary: send httpOnly cookies
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
   } as const;
 }

@@ -64,11 +64,11 @@ export enum BenefitStatus {
 export interface SigningBonus {
   _id: string;
   employeeId:
-  | {
-    _id: string;
-    [key: string]: any;
-  }
-  | string;
+    | {
+        _id: string;
+        [key: string]: any;
+      }
+    | string;
   signingBonusId: string;
   givenAmount: number;
   paymentDate?: Date;
@@ -79,7 +79,7 @@ export interface SigningBonus {
 
 export interface TerminationBenefit {
   _id: string;
-  employeeId: string | { _id: string;[key: string]: any };
+  employeeId: string | { _id: string; [key: string]: any };
   benefitId: string;
   terminationId: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -91,12 +91,12 @@ export interface PayrollPeriod {
   startDate: string;
   endDate: string;
   status:
-  | 'draft'
-  | 'processing'
-  | 'pending-approval'
-  | 'approved'
-  | 'finalized'
-  | 'locked';
+    | 'draft'
+    | 'processing'
+    | 'pending-approval'
+    | 'approved'
+    | 'finalized'
+    | 'locked';
   createdBy: string;
   createdAt: string;
 }
@@ -114,11 +114,11 @@ export interface ApprovalWorkflow {
   id: string;
   payrollPeriodId: string;
   status:
-  | 'pending-specialist'
-  | 'pending-manager'
-  | 'pending-finance'
-  | 'approved'
-  | 'rejected';
+    | 'pending-specialist'
+    | 'pending-manager'
+    | 'pending-finance'
+    | 'approved'
+    | 'rejected';
   specialistApproval?: {
     approved: boolean;
     date: string;
@@ -221,8 +221,7 @@ export interface TerminationBenefitDetail {
  */
 export interface RefundDetail {
   amount: number;
-  reason: string;
-  approvedDate?: Date;
+  description: string;
 }
 
 /**

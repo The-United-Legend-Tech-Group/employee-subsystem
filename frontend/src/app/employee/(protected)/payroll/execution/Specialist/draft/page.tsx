@@ -153,7 +153,7 @@ function dateToLocalMidnightISO(yyyyMMdd: string): string {
 }
 
 export default function PayrollDraftPage() {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [approvedDate, setApprovedDate] = useState<string>('');

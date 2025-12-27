@@ -211,7 +211,8 @@ export default function PayrollControlsPage() {
   };
 
   const isFrozen = payroll?.status === 'locked';
-  const canFreeze = payroll?.status === 'approved';
+  const canFreeze =
+    payroll?.status === 'approved' || payroll?.status === 'unlocked';
 
   const isManager = hasRole('Payroll Manager');
 

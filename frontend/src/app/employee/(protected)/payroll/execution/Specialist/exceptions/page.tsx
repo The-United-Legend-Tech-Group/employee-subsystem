@@ -118,7 +118,7 @@ function ExceptionsPageContent() {
         setError(null);
 
         const BACKEND_URL =
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:50000";
+          process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
         // If opened directly without payrollRunId, use latest existing run
         if (!payrollRunId) {

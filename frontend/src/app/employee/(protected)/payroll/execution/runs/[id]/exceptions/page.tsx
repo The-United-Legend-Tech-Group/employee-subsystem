@@ -100,7 +100,7 @@ export default function ExceptionsPage() {
         setError(null);
 
         const BACKEND_URL =
-          process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
+          process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
         // GET /payroll/exceptions?payrollRunId=...&employeeId=...
         const res = await axios.get(`${BACKEND_URL}/payroll/exceptions`, {
@@ -114,8 +114,8 @@ export default function ExceptionsPage() {
         const list: any[] = Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res?.data?.exceptions)
-          ? res.data.exceptions
-          : [];
+            ? res.data.exceptions
+            : [];
 
         const flat: Exception[] = list.map((x: any, idx: number) => {
           const description = String(
@@ -162,7 +162,7 @@ export default function ExceptionsPage() {
       if (!exception) return;
 
       const BACKEND_URL =
-        process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
+        process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
       // Call API to clear the exceptions field for this employee
       await axios.patch(

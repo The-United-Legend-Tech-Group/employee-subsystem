@@ -65,7 +65,7 @@ export default function PrePayrollReviewPage() {
   const { toast } = useToast();
 
   const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:50000";
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   const fetchBonuses = async () => {
     try {
@@ -435,8 +435,8 @@ export default function PrePayrollReviewPage() {
             : "Confirm Rejection"
         }
         description={`Are you sure you want to ${approvalAction?.action} this ${approvalAction?.type === "bonus"
-            ? "signing bonus"
-            : "termination benefit"
+          ? "signing bonus"
+          : "termination benefit"
           }?`}
         confirmText={approvalAction?.action === "approve" ? "Approve" : "Reject"}
         isRejection={approvalAction?.action === "reject"}

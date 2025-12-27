@@ -151,7 +151,7 @@ export class AuthService {
     const day = String(date.getDate()).padStart(2, '0');
 
     // Find the last candidate number for today
-    const prefix = `CAN-${year}${month}${day}`;
+    const prefix = `CAND-${year}${month}${day}`;
     const lastCandidate =
       await this.candidateRepository.findLastCandidateNumberForPrefix(prefix);
 

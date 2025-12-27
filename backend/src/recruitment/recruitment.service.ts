@@ -597,7 +597,7 @@ export class RecruitmentService {
           firstName: dto.customFirstName || candidate.firstName || 'New',
           lastName: dto.customLastName || candidate.lastName || 'Employee',
           nationalId: dto.customNationalId || candidate.nationalId,
-          employeeNumber: `EMP-${candidate.candidateNumber.slice(4)}`,
+          employeeNumber: `EMP-${candidate.candidateNumber.slice(5)}`,
           dateOfHire: new Date(),
           workEmail: dto.customWorkEmail || candidate.personalEmail,
           personalEmail: dto.customPersonalEmail || candidate.personalEmail || dto.customWorkEmail,
@@ -613,7 +613,7 @@ export class RecruitmentService {
           firstName: candidate.firstName || 'New',
           lastName: candidate.lastName || 'Employee',
           nationalId: candidate.nationalId,
-          employeeNumber: `EMP-${candidate.candidateNumber.slice(4)}`,
+          employeeNumber: `EMP-${candidate.candidateNumber.slice(5)}`,
           dateOfHire: new Date(),
           workEmail: candidate.personalEmail,
           personalEmail: candidate.personalEmail,
@@ -1113,7 +1113,7 @@ export class RecruitmentService {
 
         if (candidate && employee) {
           const employeeObj = (employee as any).profile || employee; // handle structure from getProfile
-          const candidateNumFromEmp = employeeObj.employeeNumber?.replace('EMP-', 'CAN-');
+          const candidateNumFromEmp = employeeObj.employeeNumber?.replace('EMP-', 'CAND-');
 
           // Check if employee number matches candidate number logic OR if personal emails match
           const isMatch = (candidate.candidateNumber === candidateNumFromEmp) ||

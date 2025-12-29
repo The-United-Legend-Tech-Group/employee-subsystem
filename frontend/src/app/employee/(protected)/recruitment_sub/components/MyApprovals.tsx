@@ -22,7 +22,10 @@ import {
     CheckCircle as CheckIcon,
     Cancel as CancelIcon,
     Assignment as AssignmentIcon,
-    CalendarToday as CalendarIcon
+    CalendarToday as CalendarIcon,
+    Description as DescriptionIcon,
+    AttachMoney as MoneyIcon,
+    CardGiftcard as BonusIcon
 } from '@mui/icons-material';
 
 interface Approver {
@@ -38,11 +41,20 @@ interface Offer {
     _id: string;
     role: string;
     finalStatus: string;
+    grossSalary?: number;
+    signingBonus?: number;
+    benifitsum?: number;
+    deadline?: string;
     candidateId: {
         firstName: string;
         lastName: string;
     };
     approvers: Approver[];
+    cvDocuments?: Array<{
+        _id: string;
+        fileName: string;
+        type: string;
+    }>;
 }
 
 export function MyApprovals() {
@@ -65,6 +77,20 @@ export function MyApprovals() {
     useEffect(() => {
         fetchApprovals();
     }, []);
+
+    const handleViewCV = async (documentId: string, fileName: string) => {
+        try {
+            const response = await recruitmentApi.viewDocument(documentId);
+            const blob = response.data;
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            // Clean up the URL after opening
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        } catch (error: any) {
+            toast.error(`Failed to open ${fileName}`);
+            console.error(error);
+        }
+    };
 
     const fetchApprovals = async () => {
         try {
@@ -187,7 +213,7 @@ export function MyApprovals() {
                                             </Stack>
                                         </Box>
 
-                                        <Stack direction="row" spacing={1}>
+                                        <Stack direction="row" spacing={1} alignItems="flex-start">
                                             <Button
                                                 variant="outlined"
                                                 color="error"
@@ -208,6 +234,76 @@ export function MyApprovals() {
                                             </Button>
                                         </Stack>
                                     </Stack>
+
+                                    {/* Offer Details Section */}
+                                    <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                                        <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 1.5 }}>
+                                            Offer Details:
+                                        </Typography>
+
+                                        <Stack spacing={1.5}>
+                                            {/* Salary Information */}
+                                            <Stack direction="row" spacing={2} flexWrap="wrap">
+                                                {offer.grossSalary && (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <MoneyIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                                        <Typography variant="caption" color="text.secondary">Gross Salary:</Typography>
+                                                        <Typography variant="body2" fontWeight="bold">${offer.grossSalary.toLocaleString()}</Typography>
+                                                    </Box>
+                                                )}
+
+                                                {offer.signingBonus && offer.signingBonus > 0 && (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <BonusIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                                                        <Typography variant="caption" color="text.secondary">Signing Bonus:</Typography>
+                                                        <Typography variant="body2" fontWeight="bold">${offer.signingBonus.toLocaleString()}</Typography>
+                                                    </Box>
+                                                )}
+
+                                                {offer.benifitsum && offer.benifitsum > 0 && (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <BonusIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                                        <Typography variant="caption" color="text.secondary">Benefits Value:</Typography>
+                                                        <Typography variant="body2" fontWeight="bold">${offer.benifitsum.toLocaleString()}</Typography>
+                                                    </Box>
+                                                )}
+                                            </Stack>
+
+                                            {/* CV Documents */}
+                                            {offer.cvDocuments && offer.cvDocuments.length > 0 && (
+                                                <Box>
+                                                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                                                        Candidate CV:
+                                                    </Typography>
+                                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                                        {offer.cvDocuments.map((doc) => (
+                                                            <Button
+                                                                key={doc._id}
+                                                                size="small"
+                                                                variant="outlined"
+                                                                startIcon={<DescriptionIcon />}
+                                                                onClick={() => handleViewCV(doc._id, doc.fileName)}
+                                                                sx={{ fontSize: '0.75rem' }}
+                                                            >
+                                                                View CV
+                                                            </Button>
+                                                        ))}
+                                                    </Stack>
+                                                </Box>
+                                            )}
+
+                                            {/* Deadline */}
+                                            {offer.deadline && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <CalendarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                                                    <Typography variant="caption" color="text.secondary">Response Deadline:</Typography>
+                                                    <Typography variant="body2" fontWeight="medium">
+                                                        {new Date(offer.deadline).toLocaleDateString()}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                        </Stack>
+                                    </Box>
 
                                     {/* Approvers List Summary */}
                                     <Box sx={{ mt: 2, bgcolor: 'action.hover', p: 1.5, borderRadius: 1 }}>

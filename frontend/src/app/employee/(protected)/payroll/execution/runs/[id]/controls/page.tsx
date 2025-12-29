@@ -17,6 +17,7 @@ import { FreezeModal } from '@/payroll/components/modals/freeze-modal';
 import type { PayrollRun, EmployeeInfo } from '@/payroll/libs/types';
 import { useToast } from '@/payroll/hooks/use-toast';
 import { useUser } from '@/payroll/libs/user-context';
+import { getCookie, hasRole } from '@/lib/auth-utils';
 
 import {
   Lock,
@@ -39,8 +40,8 @@ import {
 ========================= */
 
 function getAccessToken(): string {
-  const raw = localStorage.getItem('accessToken') || '';
-  return raw.replace(/^Bearer\s+/i, '').trim();
+  const token = getCookie('accessToken');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getManagerId(
@@ -66,7 +67,7 @@ export default function PayrollControlsPage() {
   const { role } = useUser();
 
   const [payroll, setPayroll] = useState<PayrollRun | null>(null);
-  const [freezeModal, setFreezeModal] = useState<'freeze' | 'unfreeze' | null>(null);
+  const [unfreezeModalOpen, setUnfreezeModalOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -167,10 +168,10 @@ export default function PayrollControlsPage() {
 
       toast({
         title: 'Payroll Frozen',
-        description: 'Payroll has been locked successfully.'
+        description:
+          'Payroll has been locked successfully and payslips have been generated.'
       });
 
-      setFreezeModal(null);
       fetchPayrollData();
     } catch (err) {
       toast({
@@ -196,7 +197,7 @@ export default function PayrollControlsPage() {
         description: 'Payroll has been unlocked.'
       });
 
-      setFreezeModal(null);
+      setUnfreezeModalOpen(false);
       fetchPayrollData();
     } catch (err) {
       toast({
@@ -210,9 +211,12 @@ export default function PayrollControlsPage() {
   };
 
   const isFrozen = payroll?.status === 'locked';
-  const canFreeze = payroll?.status === 'approved';
+  const canFreeze =
+    payroll?.status === 'approved' || payroll?.status === 'unlocked';
 
-  if (role !== 'Payroll Manager') {
+  const isManager = hasRole('Payroll Manager');
+
+  if (!isManager) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
@@ -235,9 +239,7 @@ export default function PayrollControlsPage() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          {error || 'Failed to load payroll'}
-        </AlertDescription>
+        <AlertDescription>{error || 'Failed to load payroll'}</AlertDescription>
       </Alert>
     );
   }
@@ -285,16 +287,27 @@ export default function PayrollControlsPage() {
             {!isFrozen && canFreeze ? (
               <Button
                 variant="destructive"
-                onClick={() => setFreezeModal('freeze')}
+                onClick={handleFreeze}
                 disabled={submitting}
+                type="button"
               >
-                <Lock className="mr-2 h-4 w-4" />
-                Freeze Payroll
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Freezing...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Freeze Payroll
+                  </>
+                )}
               </Button>
             ) : isFrozen ? (
               <Button
-                onClick={() => setFreezeModal('unfreeze')}
+                onClick={() => setUnfreezeModalOpen(true)}
                 disabled={submitting}
+                type="button"
               >
                 <Unlock className="mr-2 h-4 w-4" />
                 Unfreeze Payroll
@@ -310,7 +323,8 @@ export default function PayrollControlsPage() {
             <div className="flex gap-3 p-4 bg-destructive/10 border rounded">
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <p className="text-sm text-muted-foreground">
-                Payroll is locked and cannot be modified until unfrozen by a manager.
+                Payroll is locked and cannot be modified until unfrozen by a
+                manager.
               </p>
             </div>
           )}
@@ -318,10 +332,10 @@ export default function PayrollControlsPage() {
       </Card>
 
       <FreezeModal
-        open={!!freezeModal}
-        onClose={() => setFreezeModal(null)}
-        onConfirm={freezeModal === 'freeze' ? handleFreeze : handleUnfreeze}
-        action={freezeModal || 'freeze'}
+        open={unfreezeModalOpen}
+        onClose={() => setUnfreezeModalOpen(false)}
+        onConfirm={handleUnfreeze}
+        action="unfreeze"
       />
     </div>
   );

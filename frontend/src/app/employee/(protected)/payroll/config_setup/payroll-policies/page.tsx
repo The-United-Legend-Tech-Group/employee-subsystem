@@ -44,7 +44,175 @@ import {
   PolicyType,
   Applicability,
 } from '../_api/config-setup.api';
+import Collapse from '@mui/material/Collapse';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import Grid from '@mui/material/Grid';
+
 import { useConfigPermissions } from '../_utils/config-permissions';
+
+function PolicyRow(props: {
+  row: PayrollPolicyResponse;
+  permissions: any;
+  onEdit: (item: PayrollPolicyResponse) => void;
+  onDelete: (item: PayrollPolicyResponse) => void;
+  onStatusUpdate: (id: string, status: 'approved' | 'rejected') => void;
+  getPolicyTypeColor: (type: PolicyType) => string;
+  formatDate: (date: string) => string;
+}) {
+  const { row, permissions, onEdit, onDelete, onStatusUpdate, getPolicyTypeColor, formatDate } = props;
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <React.Fragment>
+      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+        <TableCell>
+          <IconButton
+            size="small"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell component="th" scope="row">
+          <Box>
+            <Typography fontWeight={500}>{row.policyName}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {row.description.substring(0, 50)}
+              {row.description.length > 50 ? '...' : ''}
+            </Typography>
+          </Box>
+        </TableCell>
+        <TableCell>
+          <Chip
+            label={row.policyType}
+            size="small"
+            sx={{
+              bgcolor: alpha(getPolicyTypeColor(row.policyType), 0.1),
+              color: getPolicyTypeColor(row.policyType),
+              fontWeight: 600,
+            }}
+          />
+        </TableCell>
+        <TableCell>
+          <Typography variant="body2">{row.applicability}</Typography>
+        </TableCell>
+        <TableCell>
+          <Typography variant="body2">{formatDate(row.effectiveDate)}</Typography>
+        </TableCell>
+        <TableCell>
+          <StatusChip status={row.status} />
+        </TableCell>
+        <TableCell align="right">
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+            {row.status === 'draft' && permissions.canApprove && (
+              <>
+                <Tooltip title="Approve">
+                  <IconButton
+                    size="small"
+                    color="success"
+                    onClick={() => onStatusUpdate(row._id, 'approved')}
+                  >
+                    <CheckCircleIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Reject">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => onStatusUpdate(row._id, 'rejected')}
+                  >
+                    <CancelIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+            {permissions.canEdit && (
+              <Tooltip title={row.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => onEdit(row)}
+                    disabled={row.status !== 'draft'}
+                    sx={{
+                      color: row.status !== 'draft' ? 'action.disabled' : 'action.active',
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {permissions.canDelete && (
+              <Tooltip title="Delete">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => onDelete(row)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 2, p: 2, bgcolor: 'background.default', borderRadius: 2, border: '1px dashed' + ' ' + alpha('#000', 0.1) }}>
+              <Typography variant="h6" gutterBottom component="div" sx={{ fontSize: '0.95rem', fontWeight: 600, color: 'primary.main', mb: 2 }}>
+                Rules & Definitions
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      Percentage
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {row.ruleDefinition?.percentage ?? 0}%
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      Fixed Amount
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.ruleDefinition?.fixedAmount ?? 0)}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                      Threshold Amount
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.ruleDefinition?.thresholdAmount ?? 0)}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+              {row.description && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                    Full Description
+                  </Typography>
+                  <Typography variant="body2" color="text.primary" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {row.description}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </React.Fragment>
+  );
+}
 
 export default function PayrollPoliciesPage() {
   const router = useRouter();
@@ -373,6 +541,7 @@ export default function PayrollPoliciesPage() {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell />
                       <TableCell sx={{ fontWeight: 600 }}>Policy Name</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Applicability</TableCell>
@@ -383,84 +552,19 @@ export default function PayrollPoliciesPage() {
                   </TableHead>
                   <TableBody>
                     {policies.map((policy) => (
-                      <TableRow key={policy._id} hover>
-                        <TableCell>
-                          <Box>
-                            <Typography fontWeight={500}>{policy.policyName}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {policy.description.substring(0, 50)}
-                              {policy.description.length > 50 ? '...' : ''}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={policy.policyType}
-                            size="small"
-                            sx={{
-                              bgcolor: alpha(getPolicyTypeColor(policy.policyType), 0.1),
-                              color: getPolicyTypeColor(policy.policyType),
-                              fontWeight: 600,
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{policy.applicability}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{formatDate(policy.effectiveDate)}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <StatusChip status={policy.status} />
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            {policy.status === 'draft' && permissions.canApprove && (
-                              <>
-                                <Tooltip title="Approve">
-                                  <IconButton
-                                    size="small"
-                                    color="success"
-                                    onClick={() => handleUpdateStatus(policy._id, 'approved')}
-                                  >
-                                    <CheckCircleIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleUpdateStatus(policy._id, 'rejected')}
-                                  >
-                                    <CancelIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            )}
-                            {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(policy)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {permissions.canDelete && (
-                              <Tooltip title="Delete">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => {
-                                    setDeletingItem(policy);
-                                    setDeleteDialogOpen(true);
-                                  }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
+                      <PolicyRow
+                        key={policy._id}
+                        row={policy}
+                        permissions={permissions}
+                        onEdit={handleOpenDialog}
+                        onDelete={(item) => {
+                          setDeletingItem(item);
+                          setDeleteDialogOpen(true);
+                        }}
+                        onStatusUpdate={handleUpdateStatus}
+                        getPolicyTypeColor={getPolicyTypeColor}
+                        formatDate={formatDate}
+                      />
                     ))}
                   </TableBody>
                 </Table>

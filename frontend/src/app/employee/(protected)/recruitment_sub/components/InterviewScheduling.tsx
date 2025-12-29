@@ -33,6 +33,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { recruitmentApi, employeeApi, organizationApi, OpenDepartment } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
+import { isAuthenticated } from '@/lib/auth-utils';
 
 interface InterviewFormData {
   applicationId: string;
@@ -53,10 +54,13 @@ export function InterviewScheduling() {
   const [loadingApps, setLoadingApps] = useState(false);
   const [openDepartments, setOpenDepartments] = useState<OpenDepartment[]>([]);
   const [showRecruiters, setShowRecruiters] = useState(false);
+  const [interviews, setInterviews] = useState<any[]>([]);
+  const [loadingInterviews, setLoadingInterviews] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPosition, setFilterPosition] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const [formData, setFormData] = useState<InterviewFormData>({
     applicationId: '',
@@ -80,8 +84,35 @@ export function InterviewScheduling() {
     }
   };
 
+  const fetchAllInterviews = async () => {
+    try {
+      setLoadingInterviews(true);
+      const allApps = await recruitmentApi.getAllApplications();
+      const interviewPromises = (allApps.data || []).map(async (app: any) => {
+        try {
+          const response = await recruitmentApi.getInterviewsByApplication(app._id);
+          return (response.data || []).map((interview: any) => ({
+            ...interview,
+            applicationId: app,
+          }));
+        } catch (error) {
+          return [];
+        }
+      });
+      const interviewArrays = await Promise.all(interviewPromises);
+      const allInterviews = interviewArrays.flat();
+      setInterviews(allInterviews);
+    } catch (error) {
+      console.error('Failed to fetch interviews:', error);
+      toast.error('Failed to load interviews');
+    } finally {
+      setLoadingInterviews(false);
+    }
+  };
+
   useEffect(() => {
     fetchApplications();
+    fetchAllInterviews();
   }, []);
 
   const handleOpen = async (appId: string = '', stage: any = 'hr_interview') => {
@@ -156,8 +187,7 @@ export function InterviewScheduling() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated()) {
       toast.error('You must be logged in');
       return;
     }
@@ -194,10 +224,58 @@ export function InterviewScheduling() {
       await recruitmentApi.createInterview(payload);
       toast.success('Interview scheduled successfully!');
       handleClose();
+      await fetchAllInterviews();
     } catch (error: any) {
-      toast.error('Failed to schedule interview');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to schedule interview';
+      toast.error(errorMessage);
+      console.error('Interview scheduling error:', error);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUpdateInterviewStatus = async (interviewId: string, newStatus: string) => {
+    try {
+      const interview = interviews.find((i: any) => i._id === interviewId);
+      if (!interview) {
+        toast.error('Interview not found');
+        return;
+      }
+
+      // When marking completed, require assessment to be accepted or rejected
+      if ((newStatus || '').toString().toLowerCase() === 'completed') {
+        const assessmentStatus = (
+          interview.assessment?.status ||
+          interview.assessmentStatus ||
+          interview.applicationId?.assessment?.status ||
+          interview.applicationId?.assessmentStatus ||
+          null
+        );
+        const s = assessmentStatus ? String(assessmentStatus).toLowerCase() : null;
+        if (s !== 'accepted' && s !== 'accepted' && s !== 'rejected' && s !== 'reject') {
+          toast.error('Cannot mark interview completed until assessment is accepted or rejected');
+          return;
+        }
+      }
+
+      await recruitmentApi.updateInterview(interviewId, { status: newStatus });
+      toast.success(`Interview marked as ${newStatus}`);
+      await fetchAllInterviews();
+    } catch (error: any) {
+      toast.error('Failed to update interview status');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return 'info';
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
@@ -337,14 +415,16 @@ export function InterviewScheduling() {
                         />
                       </TableCell>
                       <TableCell align="right">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<AddIcon />}
-                          onClick={() => handleOpen(app._id, app.currentStage)}
-                        >
-                          Schedule
-                        </Button>
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpen(app._id, app.currentStage)}
+                          >
+                            Schedule
+                          </Button>
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -359,6 +439,150 @@ export function InterviewScheduling() {
             </Box>
           )}
         </Card>
+
+        {/* Scheduled Interviews List */}
+        <Box sx={{ mt: 4 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6" fontWeight={600}>
+              Scheduled Interviews
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Status Filter</InputLabel>
+              <Select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                label="Status Filter"
+              >
+                <MenuItem value="all">All Statuses</MenuItem>
+                <MenuItem value="scheduled">Scheduled</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+
+          <Card variant="outlined">
+            {loadingInterviews ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 10 }}>
+                <CircularProgress size={32} />
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                  Loading interviews...
+                </Typography>
+              </Box>
+            ) : interviews.filter(int => filterStatus === 'all' || int.status === filterStatus).length > 0 ? (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Candidate</TableCell>
+                      <TableCell>Stage</TableCell>
+                      <TableCell>Method</TableCell>
+                      <TableCell>Scheduled Date</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {interviews
+                      .filter(int => filterStatus === 'all' || int.status === filterStatus)
+                      .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())
+                      .map((interview) => (
+                        <TableRow key={interview._id} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={500}>
+                              {interview.applicationId?.candidateId?.firstName} {interview.applicationId?.candidateId?.lastName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {interview.applicationId?.requisitionId?.title || 'Unknown Position'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={stageLabels[interview.stage] || interview.stage}
+                              size="small"
+                              color={interview.stage === 'hr_interview' ? 'warning' : 'secondary'}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" textTransform="capitalize">
+                              {interview.method}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(interview.scheduledDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(interview.scheduledDate).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={interview.status || 'scheduled'}
+                              size="small"
+                              color={getStatusColor(interview.status || 'scheduled') as any}
+                              sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              {interview.status === 'scheduled' && (
+                                <>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="success"
+                                    onClick={() => handleUpdateInterviewStatus(interview._id, 'completed')}
+                                  >
+                                    Complete
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => handleUpdateInterviewStatus(interview._id, 'cancelled')}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              )}
+                              {interview.status === 'cancelled' && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="info"
+                                  onClick={() => handleUpdateInterviewStatus(interview._id, 'scheduled')}
+                                >
+                                  Reschedule
+                                </Button>
+                              )}
+                              {interview.status === 'completed' && (
+                                <Chip label="Completed" size="small" color="success" variant="outlined" />
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 10 }}>
+                <Typography variant="body1" color="text.secondary">
+                  No interviews found
+                </Typography>
+              </Box>
+            )}
+          </Card>
+        </Box>
       </Stack>
 
       {/* Create Interview Dialog */}

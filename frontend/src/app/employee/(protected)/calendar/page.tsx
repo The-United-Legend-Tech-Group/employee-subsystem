@@ -7,7 +7,7 @@ export default async function CalendarPage() {
 
     try {
         const res = await fetchServer('/notification/my-notifications', {
-            cache: 'no-store'
+            next: { revalidate: 30 }
         });
         if (res.ok) {
             notifications = await res.json();

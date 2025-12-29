@@ -375,13 +375,19 @@ export default function AllowancesPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenDialog(allowance)}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={allowance.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(allowance)}
+                                    disabled={allowance.status !== 'draft'}
+                                    sx={{
+                                      color: allowance.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (

@@ -55,7 +55,7 @@ export default function PageHeader({
           >
             {React.cloneElement(icon as React.ReactElement, {
               sx: { fontSize: 32, color: 'primary.main' },
-            })}
+            } as any)}
           </Box>
           <Box>
             <Typography

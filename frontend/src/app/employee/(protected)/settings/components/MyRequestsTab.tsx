@@ -20,9 +20,8 @@ export default function MyRequestsTab({ employeeId }: MyRequestsTabProps) {
         if (!employeeId) return;
         setLoadingRequests(true);
         try {
-            const token = localStorage.getItem('access_token');
             const res = await fetch(`${apiUrl}/employee/${employeeId}/correction-requests`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (res.ok) {
                 const data = await res.json();

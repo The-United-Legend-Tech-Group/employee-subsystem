@@ -1,6 +1,14 @@
 import { cookies } from 'next/headers';
 
-export async function fetchServer(path: string, options: RequestInit = {}) {
+// Next.js extended fetch options
+type FetchServerOptions = RequestInit & {
+    next?: {
+        revalidate?: number | false;
+        tags?: string[];
+    };
+};
+
+export async function fetchServer(path: string, options: FetchServerOptions = {}) {
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
 

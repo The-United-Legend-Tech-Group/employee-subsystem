@@ -56,7 +56,8 @@ export default function PayrollRunLayout({
       href: `/employee/payroll/execution/runs/${payrollId}/payslips`,
       icon: Users,
       current:
-        pathname === `/employee/payroll/execution/runs/${payrollId}/payslips`
+        pathname === `/employee/payroll/execution/runs/${payrollId}/payslips`,
+      specialistOnly: false
     },
     {
       name: 'Controls',
@@ -70,12 +71,10 @@ export default function PayrollRunLayout({
 
   // Filter tabs based on role
   const tabs = allTabs.filter((tab) => {
-    if (tab.specialistOnly && role !== 'Payroll Specialist') return false;
     if (tab.managerOnly && role !== 'Payroll Manager') return false;
     return true;
   });
 
-  console.log(role);
   return (
     <div>
       {/* Navigation */}

@@ -58,6 +58,22 @@ function coerceArray<T>(payload: unknown): T[] {
   return [];
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(
+    new RegExp("(?:^|; )" + name + "=([^;]*)")
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function normalizeRole(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
 function buildSparkline(value: number): number[] {
   const base = Math.max(value, 1);
   return Array.from({ length: 7 }, (_, index) =>
@@ -112,6 +128,7 @@ export default function TimeManagementClient({
   );
   const [managerQueueEnabled, setManagerQueueEnabled] = React.useState(false);
   const [authToken, setAuthToken] = React.useState<string | null>(null);
+  const [userRoles, setUserRoles] = React.useState<string[]>([]);
 
   const sectionMap = React.useMemo(
     () => new Map(sections.map((section) => [section.id, section])),
@@ -216,17 +233,39 @@ export default function TimeManagementClient({
     ]
   );
 
+  const visibleTabItems = React.useMemo(() => {
+    // If roles are unknown/empty treat user as least-privileged: only show sections
+    // that have no `allowedRoles` (public) or explicitly include a null/empty list.
+    const hasRoles = Array.isArray(userRoles) && userRoles.length > 0;
+    return tabItems.filter((tab) => {
+      const allowed = (tab as any).allowedRoles as string[] | undefined;
+      if (!allowed || allowed.length === 0) return true; // public
+      if (!hasRoles) return false; // protected and user has no roles -> hide
+      // normalize allowed roles too
+      const allowedNorm = allowed.map(normalizeRole).filter(Boolean);
+      return userRoles.some((r) => allowedNorm.includes(r));
+    });
+  }, [tabItems, userRoles]);
+
+  function hasAccess(section: SectionDefinition) {
+    const allowed = (section as any).allowedRoles as string[] | undefined;
+    if (!allowed || allowed.length === 0) return true;
+    if (!userRoles || userRoles.length === 0) return false;
+    const allowedNorm = allowed.map(normalizeRole).filter(Boolean);
+    return userRoles.some((r) => allowedNorm.includes(r));
+  }
+
   const [activeSection, setActiveSection] = React.useState<string>(
     tabItems[0]?.id ?? "overview"
   );
 
   React.useEffect(() => {
     setActiveSection((prev) =>
-      tabItems.some((tab) => tab.id === prev)
+      visibleTabItems.some((tab) => tab.id === prev)
         ? prev
-        : tabItems[0]?.id ?? "overview"
+        : visibleTabItems[0]?.id ?? tabItems[0]?.id ?? "overview"
     );
-  }, [tabItems]);
+  }, [visibleTabItems, tabItems]);
 
   const handleSectionChange = React.useCallback(
     (_event: React.SyntheticEvent, value: string) => {
@@ -240,7 +279,9 @@ export default function TimeManagementClient({
 
     const load = async () => {
       try {
-        const token = window.localStorage.getItem("access_token");
+        const token =
+          window.localStorage.getItem("access_token") ||
+          getCookie("access_token");
         const employeeId = window.localStorage.getItem("employeeId");
 
         if (!token || !employeeId) {
@@ -249,6 +290,50 @@ export default function TimeManagementClient({
         }
 
         setAuthToken(token);
+
+        // Decode roles from token for client-side visibility filtering.
+        // If token is missing or decode fails, keep roles empty (least privilege).
+        try {
+          if (token) {
+            const parts = token.split(".");
+            if (parts.length === 3) {
+              const payload = parts[1];
+              const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+              // atob may throw if input length invalid
+              const json = atob(base64);
+              const parsed = JSON.parse(json);
+              // support multiple common shapes for roles
+              const rawRoles: unknown =
+                parsed?.roles ||
+                parsed?.role ||
+                parsed?.realm_access?.roles ||
+                parsed?.user?.roles ||
+                parsed?.authorities;
+
+              let rolesArr: string[] = [];
+              if (Array.isArray(rawRoles)) {
+                rolesArr = rawRoles.map((r) => String(r || ""));
+              } else if (typeof rawRoles === "string") {
+                rolesArr = rawRoles.split(",").map((s) => s.trim());
+              }
+
+              // normalize: trim + lowercase
+              const normalized = rolesArr.map(normalizeRole).filter(Boolean);
+
+              setUserRoles(normalized);
+              console.debug("TimeManagementClient: decoded roles", {
+                raw: rawRoles,
+                normalized,
+              });
+            }
+          } else {
+            setUserRoles([]);
+            console.debug("TimeManagementClient: no token found");
+          }
+        } catch (e) {
+          setUserRoles([]);
+          console.warn("TimeManagementClient: failed to decode token roles", e);
+        }
 
         const managerId = LINE_MANAGER_KEYS.map((key) =>
           window.localStorage.getItem(key)
@@ -617,79 +702,114 @@ export default function TimeManagementClient({
           aria-label="Time management sections"
           sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}
         >
-          {tabItems.map((tab) => (
+          {visibleTabItems.map((tab) => (
             <Tab key={tab.id} value={tab.id} label={tab.title} />
           ))}
         </Tabs>
 
         <Box sx={{ mt: 2 }}>
-          {activeSection === overviewSection.id && (
-            <Box>
-              <SectionHeading {...overviewSection} />
-              <OverviewMetrics metrics={overviewMetrics} loading={loading} />
-            </Box>
-          )}
+          {activeSection === overviewSection.id &&
+            (hasAccess(overviewSection) ? (
+              <Box>
+                <SectionHeading {...overviewSection} />
+                <OverviewMetrics metrics={overviewMetrics} loading={loading} />
+              </Box>
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === attendanceSection.id && (
-            <AttendanceSection
-              section={attendanceSection}
-              history={correctionHistory}
-              pending={pendingCorrections}
-              loading={loading}
-              managerQueueEnabled={managerQueueEnabled}
-            />
-          )}
+          {activeSection === attendanceSection.id &&
+            (hasAccess(attendanceSection) ? (
+              <AttendanceSection
+                section={attendanceSection}
+                history={correctionHistory}
+                pending={pendingCorrections}
+                loading={loading}
+                managerQueueEnabled={managerQueueEnabled}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === shiftsSection.id && (
-            <ShiftAssignmentsSection
-              section={shiftsSection}
-              assignments={shiftAssignments}
-              shifts={shiftDefinitions}
-              scheduleRules={scheduleRules}
-              loading={loading}
-            />
-          )}
+          {activeSection === shiftsSection.id &&
+            (hasAccess(shiftsSection) ? (
+              <ShiftAssignmentsSection
+                section={shiftsSection}
+                assignments={shiftAssignments}
+                shifts={shiftDefinitions}
+                scheduleRules={scheduleRules}
+                loading={loading}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === policiesSection.id && (
-            <PolicyRulesSection
-              section={policiesSection}
-              shifts={shiftDefinitions}
-              scheduleRules={scheduleRules}
-              loading={loading}
-              authToken={authToken}
-              onRefresh={handleRefresh}
-            />
-          )}
+          {activeSection === policiesSection.id &&
+            (hasAccess(policiesSection) ? (
+              <PolicyRulesSection
+                section={policiesSection}
+                shifts={shiftDefinitions}
+                scheduleRules={scheduleRules}
+                loading={loading}
+                authToken={authToken}
+                onRefresh={handleRefresh}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === attendanceRecordsSection.id && (
-            <AttendanceRecordsSection
-              section={attendanceRecordsSection}
-              attendanceRecords={attendanceRecords}
-              loading={loading}
-              onPunchRecord={handlePunchRecord}
-              pagination={attendancePagination}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-              onFiltersChange={handleFiltersChange}
-            />
-          )}
+          {activeSection === attendanceRecordsSection.id &&
+            (hasAccess(attendanceRecordsSection) ? (
+              <AttendanceRecordsSection
+                section={attendanceRecordsSection}
+                attendanceRecords={attendanceRecords}
+                loading={loading}
+                onPunchRecord={handlePunchRecord}
+                pagination={attendancePagination}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                onFiltersChange={handleFiltersChange}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === exceptionsSection.id && (
-            <ExceptionsSection
-              section={exceptionsSection}
-              holidays={holidays}
-              payrollQueue={payrollQueue}
-              loading={loading}
-            />
-          )}
+          {activeSection === exceptionsSection.id &&
+            (hasAccess(exceptionsSection) ? (
+              <ExceptionsSection
+                section={exceptionsSection}
+                holidays={holidays}
+                payrollQueue={payrollQueue}
+                loading={loading}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
 
-          {activeSection === timeExceptionsSection.id && (
-            <TimeExceptionsSection
-              section={timeExceptionsSection}
-              exceptions={timeExceptions}
-              loading={loading}
-            />
-          )}
+          {activeSection === timeExceptionsSection.id &&
+            (hasAccess(timeExceptionsSection) ? (
+              <TimeExceptionsSection
+                section={timeExceptionsSection}
+                exceptions={timeExceptions}
+                loading={loading}
+              />
+            ) : (
+              <Alert severity="warning">
+                You are not authorized to view this section.
+              </Alert>
+            ))}
         </Box>
       </Stack>
     </Box>

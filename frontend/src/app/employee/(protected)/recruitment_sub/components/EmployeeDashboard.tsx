@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { recruitmentApi, offboardingApi } from '@/lib/api';
 import { useToast } from '@/lib/hooks/useToast';
+import { isAuthenticated, getEmployeeIdFromCookie, getAccessToken } from '@/lib/auth-utils';
 import { MyApprovals } from './MyApprovals';
 import {
   Box,
@@ -44,6 +45,7 @@ export function EmployeeDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAssessmentForms, setShowAssessmentForms] = useState(false);
   const [showApprovals, setShowApprovals] = useState(false);
+  const [showOffboarding, setShowOffboarding] = useState(false);
   const [onboardingData, setOnboardingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [employeeId, setEmployeeId] = useState('');
@@ -71,26 +73,13 @@ export function EmployeeDashboard() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        const encryptedId = localStorage.getItem('employeeId');
-
-        if (token && encryptedId) {
-          const decryptedId = await decryptData(encryptedId, token);
-          if (decryptedId) {
-            setEmployeeId(decryptedId);
-            fetchOnboardingChecklist(decryptedId);
-            fetchResignationStatus(decryptedId);
-            fetchComplianceDocuments(decryptedId);
-
-            // Trigger onboarding reminders for tasks due in 3, 2, or 1 days
-            try {
-              await recruitmentApi.sendOnboardingReminders({
-                employeeId: decryptedId,
-                daysBeforeDeadline: 3
-              });
-            } catch (reminderError) {
-              console.warn('Failed to send onboarding reminders:', reminderError);
-            }
+        if (isAuthenticated()) {
+          const idFromCookie = getEmployeeIdFromCookie();
+          if (idFromCookie) {
+            setEmployeeId(idFromCookie);
+            fetchOnboardingChecklist(idFromCookie);
+            fetchResignationStatus(idFromCookie);
+            fetchComplianceDocuments(idFromCookie);
           }
         }
       } catch (error) {
@@ -269,29 +258,12 @@ export function EmployeeDashboard() {
 
   const handleViewDocument = async (documentId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      // Use env var or default to localhost:3000
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/recruitment/documents/${documentId}/view`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to fetch document';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          errorMessage = response.statusText;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await response.blob();
+      const response = await recruitmentApi.viewDocument(documentId);
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
+      // Clean up the URL after opening
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (error: any) {
       console.error('Failed to view document:', error);
       toast.error(error.message || 'Failed to view document');
@@ -317,11 +289,12 @@ export function EmployeeDashboard() {
       {/* Navigation Tabs */}
       <Paper variant="outlined" sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs
-          value={showOnboarding ? 0 : showAssessmentForms ? 1 : showApprovals ? 2 : 0}
+          value={showOnboarding ? 0 : showAssessmentForms ? 1 : showApprovals ? 2 : showOffboarding ? 3 : 0}
           onChange={(_, value) => {
             setShowOnboarding(value === 0);
             setShowAssessmentForms(value === 1);
             setShowApprovals(value === 2);
+            setShowOffboarding(value === 3);
           }}
           variant="scrollable"
           scrollButtons="auto"
@@ -329,6 +302,7 @@ export function EmployeeDashboard() {
           <Tab label="Onboarding" />
           <Tab label="Assessments" />
           <Tab label="Approvals" />
+          <Tab label="Offboarding" />
         </Tabs>
       </Paper>
 
@@ -675,8 +649,8 @@ export function EmployeeDashboard() {
         </Card>
       )}
 
-      {/* Resignation Request */}
-      {showOnboarding && (
+      {/* Resignation Request (moved to Offboarding tab) */}
+      {showOffboarding && (
         <Card variant="outlined">
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -774,7 +748,7 @@ export function EmployeeDashboard() {
       )}
 
       {/* Resignation Status */}
-      {showOnboarding && (
+      {showOffboarding && (
         <Card variant="outlined">
           <CardContent>
             <Typography variant="h6" gutterBottom>

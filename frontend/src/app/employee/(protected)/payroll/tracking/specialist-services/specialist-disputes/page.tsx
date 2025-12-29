@@ -81,7 +81,6 @@ export default function SpecialistDisputesPage() {
   const [processing, setProcessing] = React.useState(false);
 
   // Form state for approve/reject
-  const [approvedRefundAmount, setApprovedRefundAmount] = React.useState('');
   const [comment, setComment] = React.useState('');
 
   // Table filters
@@ -184,7 +183,6 @@ export default function SpecialistDisputesPage() {
     setActionType(action);
     setActionDialogOpen(true);
     // Reset form fields
-    setApprovedRefundAmount('');
     setComment('');
     setRejectionReason('');
   };
@@ -197,15 +195,6 @@ export default function SpecialistDisputesPage() {
     if (!selectedDispute || !actionType) return;
 
     // Validation
-    if (actionType === 'approve' && !approvedRefundAmount) {
-      setError('Please provide an approved refund amount when approving a dispute.');
-      return;
-    }
-    const approvedRefundAmountNum = parseFloat(approvedRefundAmount);
-    if (actionType === 'approve' && (isNaN(approvedRefundAmountNum) || approvedRefundAmountNum < 0)) {
-      setError('Please provide a valid approved refund amount (must be >= 0).');
-      return;
-    }
     if (actionType === 'reject' && !rejectionReason.trim()) {
       setError('Please provide a rejection reason when rejecting a dispute.');
       return;
@@ -233,7 +222,6 @@ export default function SpecialistDisputesPage() {
       };
 
       if (actionType === 'approve') {
-        requestBody.approvedRefundAmount = approvedRefundAmountNum;
         if (comment.trim()) {
           requestBody.comment = comment.trim();
         }
@@ -285,7 +273,6 @@ export default function SpecialistDisputesPage() {
       // Reset form
       setSelectedDispute(null);
       setActionType(null);
-      setApprovedRefundAmount('');
       setComment('');
       setRejectionReason('');
     } catch (err) {
@@ -733,28 +720,29 @@ export default function SpecialistDisputesPage() {
             </Card>
           )}
 
+          {selectedDispute?.resolutionComment && (
+            <Card
+              sx={{
+                mb: 3,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)} 0%, ${alpha(theme.palette.info.main, 0.02)} 100%)`,
+                border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`,
+                borderRadius: 2,
+              }}
+            >
+              <CardContent sx={{ py: 2.5, '&:last-child': { pb: 2.5 } }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'text.secondary' }}>
+                  Previous Resolution Comment
+                </Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                  {selectedDispute.resolutionComment}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             {actionType === 'approve' ? (
               <>
-                <TextField
-                  label="Approved Refund Amount"
-                  type="number"
-                  value={approvedRefundAmount}
-                  onChange={(e) => setApprovedRefundAmount(e.target.value)}
-                  required
-                  fullWidth
-                  inputProps={{ min: 0, step: 0.01 }}
-                  placeholder="0.00"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  helperText="Amount to be refunded to the employee"
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      fontSize: '0.95rem',
-                    },
-                  }}
-                />
                 <Box>
                   <TextField
                     label="Comment (Optional)"
@@ -911,7 +899,7 @@ export default function SpecialistDisputesPage() {
             onClick={handleSubmitAction}
             variant="contained"
             color={actionType === 'approve' ? 'success' : 'error'}
-            disabled={processing || (actionType === 'approve' && (!approvedRefundAmount || isNaN(parseFloat(approvedRefundAmount)) || parseFloat(approvedRefundAmount) < 0)) || (actionType === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 20))}
+            disabled={processing || (actionType === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 20))}
             sx={{
               minWidth: 120,
               borderRadius: 2,

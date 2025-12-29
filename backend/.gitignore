@@ -28,3 +28,4 @@ lerna-debug.log*
 backend/node_modules/
 
 uploads
+/backups

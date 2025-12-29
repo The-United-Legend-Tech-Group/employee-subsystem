@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useToast } from '@/lib/hooks/useToast';
-import { recruitmentApi } from '@/lib/api/recruitment';
+import { useToast } from '../../../../../lib/hooks/useToast';
+import { recruitmentApi } from '../../../../../lib/api/recruitment';
 import {
   Box,
   Stack,

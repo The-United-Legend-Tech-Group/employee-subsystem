@@ -25,13 +25,13 @@ import { isAuthenticated } from '@/lib/auth-utils';
 
 interface InsuranceDeduction {
   payslipId: string;
-  payslipPeriod: string;
+  payslipPeriod?: string | null;
   insuranceName: string;
   employeeRate: number;
   employerRate: number;
-  appliedTo: number;
-  employeeContribution: number;
-  employerContribution: number;
+  employeeContribution?: number;
+  employerContribution?: number;
+  appliedTo?: number;
   minSalary?: number;
   maxSalary?: number;
   status: string;
@@ -55,7 +55,7 @@ export default function InsuranceDeductionsPage() {
     clearFilters,
   } = useTableFilters<InsuranceDeduction>(
     insuranceDeductions,
-    ['insuranceName', 'payslipPeriod'],
+    ['insuranceName'],
     'createdAt',
     'month' // Use month/year filtering for payroll periods
   );

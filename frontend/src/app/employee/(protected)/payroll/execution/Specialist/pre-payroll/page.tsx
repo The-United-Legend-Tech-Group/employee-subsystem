@@ -24,6 +24,7 @@ import type { SigningBonus, TerminationBenefit } from "@/payroll/libs/types";
 import { useToast } from "@/payroll/hooks/use-toast";
 import axios from "axios";
 import { Box, CircularProgress } from "@mui/material";
+import { getCookie } from '@/lib/auth-utils';
 
 /**
  * ✅ Cookie-first auth pattern:
@@ -31,8 +32,8 @@ import { Box, CircularProgress } from "@mui/material";
  * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw = localStorage.getItem("access_token") || "";
-  return raw.replace(/^Bearer\s+/i, "").replace(/^"+|"+$/g, "").trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {
@@ -64,7 +65,7 @@ export default function PrePayrollReviewPage() {
   const { toast } = useToast();
 
   const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:50000";
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   const fetchBonuses = async () => {
     try {
@@ -434,8 +435,8 @@ export default function PrePayrollReviewPage() {
             : "Confirm Rejection"
         }
         description={`Are you sure you want to ${approvalAction?.action} this ${approvalAction?.type === "bonus"
-            ? "signing bonus"
-            : "termination benefit"
+          ? "signing bonus"
+          : "termination benefit"
           }?`}
         confirmText={approvalAction?.action === "approve" ? "Approve" : "Reject"}
         isRejection={approvalAction?.action === "reject"}

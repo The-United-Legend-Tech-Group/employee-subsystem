@@ -4,9 +4,9 @@ import { authorizationGuard } from '../authorization.guard';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { getModelToken } from '@nestjs/mongoose';
-import { EmployeeSystemRole } from '../../../employee-subsystem/employee/models/employee-system-role.schema';
+import { EmployeeSystemRole } from '../../employee-profile/models/employee-system-role.schema';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { SystemRole } from '../../../employee-subsystem/employee/enums/employee-profile.enums';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 
 describe('Guards', () => {
     let authGuard: AuthGuard;

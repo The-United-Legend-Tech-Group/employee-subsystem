@@ -1,230 +1,32 @@
-'use client';
-
 import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
-import Alert from '@mui/material/Alert';
-import CircularProgress from '@mui/material/CircularProgress';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import ProfileCard from './components/ProfileCard';
-import ContactCard from './components/ContactCard';
-import SubmitRequestTab from './components/SubmitRequestTab';
-import MyRequestsTab from './components/MyRequestsTab';
-import { decryptData } from '../../../../common/utils/encryption';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { fetchServer } from '../../../../lib/api-server';
+import SettingsClient from './components/SettingsClient';
 
-interface Address {
-    city?: string;
-    streetAddress?: string;
-    country?: string;
-}
+export default async function SettingsPage() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
+    const employeeId = cookieStore.get('employeeid')?.value;
 
-interface EmployeeProfile {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    personalEmail?: string;
-    workEmail?: string;
-    mobilePhone?: string;
-    homePhone?: string;
-    address?: Address;
-    biography?: string;
-    profilePictureUrl?: string;
-}
+    if (!token || !employeeId) {
+        redirect('/employee/login');
+    }
 
-export default function SettingsPage() {
-    const theme = useTheme();
-    const [loading, setLoading] = React.useState(true);
-    const [saving, setSaving] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
-    const [success, setSuccess] = React.useState<string | null>(null);
-    const [profile, setProfile] = React.useState<EmployeeProfile | null>(null);
-    const [employeeId, setEmployeeId] = React.useState<string | null>(null);
-    const [activeTab, setActiveTab] = React.useState(0);
-
-    // Form States
-    const [biography, setBiography] = React.useState('');
-    const [mobilePhone, setMobilePhone] = React.useState('');
-    const [homePhone, setHomePhone] = React.useState('');
-    const [city, setCity] = React.useState('');
-    const [streetAddress, setStreetAddress] = React.useState('');
-    const [country, setCountry] = React.useState('');
-    const [profilePictureUrl, setProfilePictureUrl] = React.useState('');
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:50000';
-
-    const sanitize = (val: any) => (typeof val === 'string' ? val : '');
-
-    React.useEffect(() => {
-        const fetchProfile = async () => {
-            const token = localStorage.getItem('access_token');
-            const encryptedEmployeeId = localStorage.getItem('employeeId');
-
-            if (!token || !encryptedEmployeeId) {
-                setError('Authentication details missing');
-                setLoading(false);
-                return;
-            }
-
-            try {
-                const id = await decryptData(encryptedEmployeeId, token);
-                if (!id) throw new Error('Decryption failed');
-                setEmployeeId(id);
-
-                const res = await fetch(`${apiUrl}/employee/${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    const p = data.profile || data;
-                    setProfile(p);
-
-                    // Initialize form using sanitize helper
-                    setBiography(sanitize(p.biography));
-                    setMobilePhone(sanitize(p.mobilePhone));
-                    setHomePhone(sanitize(p.homePhone));
-                    setCity(sanitize(p.address?.city));
-                    setStreetAddress(sanitize(p.address?.streetAddress));
-                    setCountry(sanitize(p.address?.country));
-                    setProfilePictureUrl(sanitize(p.profilePictureUrl));
-                } else {
-                    setError('Failed to load profile');
-                }
-            } catch (e) {
-                console.error(e);
-                setError('An error occurred while loading profile');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProfile();
-    }, [apiUrl]);
-
-    const handleSaveProfile = async () => {
-        setSaving(true);
-        setError(null);
-        setSuccess(null);
-        const token = localStorage.getItem('access_token');
-        const encryptedEmployeeId = localStorage.getItem('employeeId');
-
-        try {
-            if (!token || !encryptedEmployeeId) throw new Error('Auth missing');
-            const employeeId = await decryptData(encryptedEmployeeId, token);
-            if (!employeeId) throw new Error('Decryption failed');
-
-            // 1. Update Profile (Bio, Picture)
-            const profilePayload = { biography, profilePictureUrl };
-            const profileRes = await fetch(`${apiUrl}/employee/${employeeId}/profile`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(profilePayload)
-            });
-
-            if (!profileRes.ok) throw new Error('Failed to update profile details (biography/picture)');
-
-            // 2. Update Contact Info
-            const contactPayload = {
-                mobilePhone,
-                homePhone,
-                address: { city, streetAddress, country }
-            };
-            const contactRes = await fetch(`${apiUrl}/employee/${employeeId}/contact-info`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(contactPayload)
-            });
-
-            if (!contactRes.ok) throw new Error('Profile saved, but failed to update contact info');
-
-            setSuccess('Settings updated successfully');
-
-            // Refresh local profile state slightly to reflect changes if needed, 
-            // but we already have the form values.
-
-        } catch (e: any) {
-            console.error(e);
-            setError(e.message || 'An error occurred while saving');
-        } finally {
-            setSaving(false);
+    let profile = null;
+    try {
+        const response = await fetchServer(`employee/${employeeId}`, { next: { revalidate: 60 } });
+        if (response.ok) {
+            const data = await response.json();
+            profile = data.profile || data;
+        } else if (response.status === 401) {
+            redirect('/employee/login');
         }
-    };
-
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+    } catch (error) {
+        console.error('Failed to fetch profile', error);
     }
 
     return (
-        <Box sx={{ width: '100%', maxWidth: { sm: '100%', md: '1700px' } }}>
-            <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-                Settings
-            </Typography>
-
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
-
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
-                    <Tab label="Profile Settings" />
-                    <Tab label="New Request" />
-                    <Tab label="My Requests" />
-                </Tabs>
-            </Box>
-
-            {activeTab === 0 && (
-                <Grid container spacing={2} columns={12}>
-                    {/* Profile Picture & Bio */}
-                    <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-                        <ProfileCard
-                            profile={profile}
-                            profilePictureUrl={profilePictureUrl}
-                            setProfilePictureUrl={setProfilePictureUrl}
-                            biography={biography}
-                            setBiography={setBiography}
-                            setError={setError}
-                        />
-                    </Grid>
-
-                    {/* Contact Information */}
-                    <Grid size={{ xs: 12, md: 8, lg: 9 }}>
-                        <ContactCard
-                            saving={saving}
-                            handleSaveProfile={handleSaveProfile}
-                            mobilePhone={mobilePhone}
-                            setMobilePhone={setMobilePhone}
-                            homePhone={homePhone}
-                            setHomePhone={setHomePhone}
-                            streetAddress={streetAddress}
-                            setStreetAddress={setStreetAddress}
-                            city={city}
-                            setCity={setCity}
-                            country={country}
-                            setCountry={setCountry}
-                        />
-                    </Grid>
-                </Grid>
-            )}
-
-            {activeTab === 1 && (
-                <SubmitRequestTab employeeId={employeeId} />
-            )}
-
-            {activeTab === 2 && (
-                <MyRequestsTab employeeId={employeeId} />
-            )}
-        </Box>
+        <SettingsClient initialProfile={profile} employeeId={employeeId} />
     );
 }

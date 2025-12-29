@@ -4,9 +4,9 @@ import { isAuthenticated } from '../../../../../../lib/auth-utils';
 
 // API Configuration
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:50000';
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  '';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

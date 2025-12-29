@@ -74,9 +74,7 @@ class ApiClient {
     };
 
     try {
-      console.log('API Request:', { method: options.method || 'GET', url, hasToken: !!fallbackToken });
       const response = await fetch(url, config);
-      console.log('API Response:', { status: response.status, statusText: response.statusText, url });
 
       // Handle 401 Unauthorized (keep token so user isn't silently logged out)
       if (response.status === 401) {
@@ -137,6 +135,140 @@ class ApiClient {
 
   async delete<T>(endpoint: string, options?: { params?: Record<string, any> }): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+  }
+
+  /**
+   * Dedicated method for fetching binary data (blobs)
+   */
+  async getBlob(endpoint: string, options?: { params?: Record<string, any>; headers?: Record<string, string> }): Promise<ApiResponse<Blob>> {
+    let url = `${this.baseURL}${endpoint}`;
+
+    // Append query parameters
+    if (options?.params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += (url.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    const fallbackToken = this.getAuthTokenFallback();
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+
+    if (fallbackToken) {
+      headers['Authorization'] = `Bearer ${fallbackToken}`;
+    }
+
+    const config: RequestInit = {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    };
+
+    try {
+      const response = await fetch(url, config);
+
+      if (response.status === 401) {
+        return { error: 'Unauthorized' };
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { error: errorData.message || `HTTP error! status: ${response.status}` };
+      }
+
+      const data = await response.blob();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Network error occurred' };
+    }
+  }
+
+  async postFormData<T>(endpoint: string, formData: FormData, options?: { params?: Record<string, any>; headers?: Record<string, string> }): Promise<ApiResponse<T>> {
+    const { headers: customHeaders, ...rest } = options || {};
+
+    let url = `${this.baseURL}${endpoint}`;
+
+    // Append query parameters
+    if (rest.params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(rest.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += (url.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    // Fallback token from localStorage (will be removed after full migration)
+    const fallbackToken = this.getAuthTokenFallback();
+
+    // For FormData, DO NOT set Content-Type - let browser set it with boundary
+    const headers: Record<string, string> = {
+      ...customHeaders,
+    };
+
+    // Only add Authorization header if fallback token exists
+    if (fallbackToken) {
+      headers['Authorization'] = `Bearer ${fallbackToken}`;
+    }
+
+    const config: RequestInit = {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include', // Sends httpOnly cookies automatically
+    };
+
+    try {
+      const response = await fetch(url, config);
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        console.warn('401 Unauthorized - Authentication required');
+        return {
+          data: undefined,
+          error: 'Unauthorized',
+        };
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+        console.error(`API Error [${response.status}]:`, {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        return {
+          error: errorMessage,
+        };
+      }
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return { data: undefined as T };
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      console.error('FormData upload error:', error);
+      return {
+        error: error instanceof Error ? error.message : 'Network error occurred',
+      };
+    }
   }
 }
 

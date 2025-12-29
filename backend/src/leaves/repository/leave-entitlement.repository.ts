@@ -16,12 +16,15 @@ export class LeaveEntitlementRepository extends BaseRepository<LeaveEntitlementD
   }
 
   async findByEmployeeId(employeeId: string): Promise<LeaveEntitlementDocument[]> {
-    return this.model.find({ employeeId }).exec();
+    const objectId = new Types.ObjectId(employeeId);
+    return this.model.find({ employeeId: objectId }).exec();
   }
 
-  async findByEmployeeAndLeaveType(employeeId: string, leaveTypeId: string): Promise<LeaveEntitlementDocument | null> {
-    return this.model.findOne({ employeeId, leaveTypeId }).exec();
-  }
+ async findByEmployeeAndLeaveType(employeeId: string,leaveTypeId: string,): Promise<LeaveEntitlementDocument | null> {return this.model.findOne({
+    employeeId: new Types.ObjectId(employeeId),
+    leaveTypeId: new Types.ObjectId(leaveTypeId),
+  }).exec();
+}
 
   async findWithRemainingDays(employeeId: string): Promise<LeaveEntitlementDocument[]> {
     return this.model.find({ employeeId, remaining: { $gt: 0 } }).exec();

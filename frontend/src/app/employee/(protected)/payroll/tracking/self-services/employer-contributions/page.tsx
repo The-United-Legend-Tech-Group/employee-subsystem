@@ -14,7 +14,6 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -27,7 +26,6 @@ import { isAuthenticated } from '@/lib/auth-utils';
 interface EmployerContribution {
   payslipId: string;
   payslipPeriod: string;
-  type: 'Insurance' | 'Allowance' | 'Benefit';
   name: string;
   employerContribution: number;
   employeeContribution?: number;
@@ -55,7 +53,7 @@ export default function EmployerContributionsPage() {
     clearFilters,
   } = useTableFilters<EmployerContribution>(
     contributions,
-    ['type', 'name', 'payslipPeriod'],
+    ['name', 'payslipPeriod'],
     'createdAt',
     'month' // Use month/year filtering for payroll periods
   );
@@ -99,34 +97,7 @@ export default function EmployerContributionsPage() {
     fetchContributions();
   }, [router]);
 
-  const getTypeColor = (type: string | undefined | null) => {
-    if (!type) {
-      return 'default';
-    }
-    switch (type.toLowerCase()) {
-      case 'insurance':
-        return 'primary';
-      case 'allowance':
-        return 'success';
-      case 'benefit':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
   const totalAmount = contributions.reduce((sum, contribution) => sum + (contribution.employerContribution || 0), 0);
-
-  // Group by type for summary
-  const summaryByType = contributions.reduce((acc, contribution) => {
-    const type = contribution.type || 'Unknown';
-    if (!acc[type]) {
-      acc[type] = { count: 0, total: 0 };
-    }
-    acc[type].count += 1;
-    acc[type].total += contribution.employerContribution || 0;
-    return acc;
-  }, {} as Record<string, { count: number; total: number }>);
 
   if (loading) {
     return (
@@ -226,7 +197,7 @@ export default function EmployerContributionsPage() {
           onStartDateChange={updateStartDate}
           endDate={filters.endDate}
           onEndDateChange={updateEndDate}
-          searchPlaceholder="Search by type, name, or period..."
+          searchPlaceholder="Search by name or period..."
           dateFilterType="month"
           onClear={clearFilters}
         />
@@ -256,29 +227,16 @@ export default function EmployerContributionsPage() {
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
                   Total Employer Contributions: {formatCurrency(totalAmount)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
+                <Typography variant="body2" color="text.secondary">
                   {filteredContributions.length} contribution{filteredContributions.length !== 1 ? 's' : ''} found
                   {filteredContributions.length !== contributions.length && ` (filtered from ${contributions.length})`}
                 </Typography>
-                <Box display="flex" gap={2} mt={2} flexWrap="wrap">
-                  {Object.entries(summaryByType).map(([type, data]) => (
-                    <Chip
-                      key={type}
-                      label={`${type}: ${formatCurrency(data.total)} (${data.count})`}
-                      color={getTypeColor(type) as any}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontWeight: 600 }}
-                    />
-                  ))}
-                </Box>
               </Box>
               <TableContainer component={Paper} elevation={0} sx={{ boxShadow: 'none' }}>
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                       <TableCell sx={{ fontWeight: 'bold' }}>Payroll Period</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>Employer Contribution</TableCell>
                       {contributions.some(c => c.employeeContribution !== undefined && c.employeeContribution > 0) && (
@@ -292,7 +250,7 @@ export default function EmployerContributionsPage() {
                   <TableBody>
                     {filteredContributions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                           <Typography variant="body2" color="text.secondary">
                             No employer contributions match your search criteria.
                           </Typography>
@@ -316,17 +274,6 @@ export default function EmployerContributionsPage() {
                           <Typography variant="body2" fontWeight="medium">
                             {contribution.payslipPeriod || 'Unknown Period'}
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={contribution.type || 'Unknown'}
-                            color={getTypeColor(contribution.type) as any}
-                            size="small"
-                            variant="filled"
-                            sx={{
-                              fontWeight: 'bold',
-                            }}
-                          />
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
@@ -355,51 +302,13 @@ export default function EmployerContributionsPage() {
                             </Typography>
                           </TableCell>
                         )}
-                        <TableCell>
-                            <Chip
-                              label={contribution.type}
-                              color={getTypeColor(contribution.type) as any}
-                              size="small"
-                              variant="filled"
-                              sx={{
-                                fontWeight: 'bold',
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {contribution.name}
-                            </Typography>
-                          </TableCell>
+                        {contributions.some(c => c.employerRate !== undefined) && (
                           <TableCell align="right">
-                            <Typography
-                              variant="body2"
-                              fontWeight={700}
-                              sx={{
-                                color: 'success.main',
-                                background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-                                backgroundClip: 'text',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                              }}
-                            >
-                              {formatCurrency(contribution.employerContribution || 0)}
+                            <Typography variant="body2" color="text.secondary">
+                              {contribution.employerRate !== undefined ? `${contribution.employerRate}%` : '-'}
                             </Typography>
                           </TableCell>
-                          {contributions.some(c => c.employeeContribution !== undefined && c.employeeContribution > 0) && (
-                            <TableCell align="right">
-                              <Typography variant="body2" color="text.secondary">
-                                {contribution.employeeContribution ? formatCurrency(contribution.employeeContribution) : '-'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          {contributions.some(c => c.employerRate !== undefined) && (
-                            <TableCell align="right">
-                              <Typography variant="body2" color="text.secondary">
-                                {contribution.employerRate !== undefined ? `${contribution.employerRate}%` : '-'}
-                              </Typography>
-                            </TableCell>
-                          )}
+                        )}
                         </TableRow>
                       ))
                     )}

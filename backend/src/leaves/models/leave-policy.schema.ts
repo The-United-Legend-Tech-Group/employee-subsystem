@@ -10,7 +10,7 @@ export class LeavePolicy {
   @Prop({ type: Types.ObjectId, ref: 'LeaveType', required: true })
   leaveTypeId: Types.ObjectId;
 
-  @Prop({ type: String, enum: AccrualMethod, default: AccrualMethod.MONTHLY })
+  @Prop({ enum: AccrualMethod, default: AccrualMethod.MONTHLY })
   accrualMethod: AccrualMethod;
 
   @Prop({ default: 0 })
@@ -28,11 +28,11 @@ export class LeavePolicy {
   @Prop()
   expiryAfterMonths?: number;
 
-  @Prop({ type: String, enum: RoundingRule, default: RoundingRule.NONE })
+  @Prop({ enum: RoundingRule, default: RoundingRule.NONE })
   roundingRule: RoundingRule;
 
   @Prop({ default: 0 })
-  minNoticeDays: number; //this on REQ-009
+  minNoticeDays: number;
 
   @Prop()
   maxConsecutiveDays?: number;

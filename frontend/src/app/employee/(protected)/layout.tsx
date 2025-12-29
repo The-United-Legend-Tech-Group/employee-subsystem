@@ -111,6 +111,8 @@ export default function EmployeeLayout({ children }: LayoutProps) {
         fetchEmployee();
     }, [router]);
 
+
+
     return (
         <AuthProvider initialRoles={userRoles} initialLoading={rolesLoading}>
             <ToastProvider>

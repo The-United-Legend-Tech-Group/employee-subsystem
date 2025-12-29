@@ -382,10 +382,19 @@ export default function TerminationBenefitsPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(benefit)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={benefit.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(benefit)}
+                                    disabled={benefit.status !== 'draft'}
+                                    sx={{
+                                      color: benefit.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (

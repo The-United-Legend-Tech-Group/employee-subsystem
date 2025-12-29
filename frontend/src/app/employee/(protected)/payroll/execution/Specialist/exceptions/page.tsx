@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getCookie } from '@/lib/auth-utils';
 
 import { PageHeader } from "@/payroll/components/layout/page-header";
 import {
@@ -57,8 +58,8 @@ const computePriority = (msg: string): Priority => {
  * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || "";
-  return raw.replace(/^Bearer\s+/i, "").replace(/^"+|"+$/g, "").trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {
@@ -75,7 +76,16 @@ function getAuthConfig() {
   } as const;
 }
 
+// Main page wrapper with Suspense boundary for useSearchParams
 export default function ExceptionsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading exceptions…</div>}>
+      <ExceptionsPageContent />
+    </Suspense>
+  );
+}
+
+function ExceptionsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -108,7 +118,7 @@ export default function ExceptionsPage() {
         setError(null);
 
         const BACKEND_URL =
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:50000";
+          process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
         // If opened directly without payrollRunId, use latest existing run
         if (!payrollRunId) {

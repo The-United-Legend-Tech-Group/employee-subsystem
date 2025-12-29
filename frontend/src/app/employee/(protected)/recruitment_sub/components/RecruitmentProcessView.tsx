@@ -39,6 +39,7 @@ interface Application {
   status: string;
   createdAt: string;
   updatedAt: string;
+  timeToHire?: number | null; // Days from application to hire
 }
 
 interface JobRequisition {
@@ -109,9 +110,35 @@ export function RecruitmentProcessView() {
         jobsData.map(async (job: JobRequisition) => {
           try {
             const appsResponse = await recruitmentApi.getApplicationsByRequisition(job._id);
+            const applications = appsResponse.data || [];
+
+            // Fetch time-to-hire for applications in offer or hired status
+            const applicationsWithTimeToHire = await Promise.all(
+              applications.map(async (app: Application) => {
+                if (app.status === 'hired' || app.status === 'offer') {
+                  try {
+                    const historyResponse = await recruitmentApi.getApplicationHistory(app._id);
+                    // Handle both array and object response formats
+                    const historyData = historyResponse.data;
+                    const timeToHire = Array.isArray(historyData)
+                      ? undefined
+                      : (historyData as any)?.timeToHire;
+                    return {
+                      ...app,
+                      timeToHire
+                    };
+                  } catch (error) {
+                    console.error(`Failed to fetch history for application ${app._id}:`, error);
+                    return app;
+                  }
+                }
+                return app;
+              })
+            );
+
             return {
               ...job,
-              applications: appsResponse.data || []
+              applications: applicationsWithTimeToHire
             };
           } catch (error) {
             console.error(`Failed to fetch applications for job ${job._id}:`, error);
@@ -163,12 +190,16 @@ export function RecruitmentProcessView() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; label: string }> = {
-      submitted: { color: 'default', label: 'Submitted' },
+      submitted: { color: 'info', label: 'Submitted' },
+      in_process: { color: 'primary', label: 'In Process' },
+      offer: { color: 'warning', label: 'Offer Stage' },
+      hired: { color: 'success', label: 'Hired' },
+      rejected: { color: 'error', label: 'Rejected' },
+      // Legacy statuses for backward compatibility
       under_review: { color: 'primary', label: 'Under Review' },
       interview_scheduled: { color: 'secondary', label: 'Interview Scheduled' },
-      offer_made: { color: 'success', label: 'Offer Made' },
+      offer_made: { color: 'warning', label: 'Offer Made' },
       accepted: { color: 'success', label: 'Accepted' },
-      rejected: { color: 'error', label: 'Rejected' },
       withdrawn: { color: 'default', label: 'Withdrawn' }
     };
 
@@ -582,6 +613,19 @@ export function RecruitmentProcessView() {
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>Status</Typography>
                 <Box>{getStatusBadge(selectedApplication.status)}</Box>
               </Box>
+              {selectedApplication.timeToHire !== undefined && selectedApplication.timeToHire !== null && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>⏱️ Time to Hire</Typography>
+                  <Chip
+                    label={`${selectedApplication.timeToHire} days`}
+                    color={selectedApplication.timeToHire < 14 ? 'success' : selectedApplication.timeToHire < 30 ? 'warning' : 'default'}
+                    size="small"
+                  />
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    From application submission to {selectedApplication.status === 'hired' ? 'hired' : 'offer'}
+                  </Typography>
+                </Box>
+              )}
               <Box>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>Application Date</Typography>
                 <Typography variant="body1">{new Date(selectedApplication.createdAt).toLocaleString()}</Typography>

@@ -60,6 +60,7 @@ export default function ClaimsPendingApprovalPage() {
   const [openRejectDialog, setOpenRejectDialog] = React.useState(false);
   const [comment, setComment] = React.useState('');
   const [rejectionReason, setRejectionReason] = React.useState('');
+  const [approvedRefundAmount, setApprovedRefundAmount] = React.useState<string>('');
   const [processing, setProcessing] = React.useState(false);
 
   // Table filters
@@ -151,6 +152,8 @@ export default function ClaimsPendingApprovalPage() {
     setSelectedClaim(claim);
     setOpenDialog(true);
     setComment('');
+    // Initialize with Payroll Specialist's approved amount, manager can override
+    setApprovedRefundAmount(claim.approvedAmount ? claim.approvedAmount.toString() : '');
   };
 
   const handleRejectClaim = (claim: Claim) => {
@@ -196,6 +199,7 @@ export default function ClaimsPendingApprovalPage() {
           body: JSON.stringify({
             action: 'confirm',
             comment: comment || undefined,
+            approvedRefundAmount: approvedRefundAmount ? parseFloat(approvedRefundAmount) : undefined,
           }),
         }
       );
@@ -207,6 +211,7 @@ export default function ClaimsPendingApprovalPage() {
         setOpenDialog(false);
         setSelectedClaim(null);
         setComment('');
+        setApprovedRefundAmount('');
         // Refresh the claims list
         await fetchClaims();
         // Clear success message after 5 seconds
@@ -818,6 +823,29 @@ export default function ClaimsPendingApprovalPage() {
               </Card>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {/* Approved Amount Override Field */}
+                <TextField
+                  label="Approved Refund Amount"
+                  type="number"
+                  value={approvedRefundAmount}
+                  onChange={(e) => setApprovedRefundAmount(e.target.value)}
+                  fullWidth
+                  inputProps={{ min: 0, step: 0.01 }}
+                  placeholder="0.00"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  helperText={
+                    selectedClaim?.approvedAmount
+                      ? `Current approved amount: ${formatCurrency(selectedClaim.approvedAmount)}. You can override this amount if needed.`
+                      : "Set the approved refund amount for this claim."
+                  }
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      fontSize: '0.95rem',
+                    },
+                  }}
+                />
                 <Box>
                   <TextField
                     label="Confirmation Comment (Optional)"

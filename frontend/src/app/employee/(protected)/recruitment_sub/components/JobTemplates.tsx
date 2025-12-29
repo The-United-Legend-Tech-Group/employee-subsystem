@@ -284,12 +284,6 @@ export function JobTemplates() {
                         <Typography variant="body2" color="text.secondary">{template.department}</Typography>
                       </Box>
                       <Stack direction="row" spacing={0.5}>
-                        <IconButton size="small" color="primary">
-                          <ContentCopyIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="success">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
                         <IconButton size="small" color="error">
                           <DeleteIcon fontSize="small" />
                         </IconButton>

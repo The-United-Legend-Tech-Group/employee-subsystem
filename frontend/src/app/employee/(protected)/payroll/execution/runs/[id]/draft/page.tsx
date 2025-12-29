@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
+import { getCookie } from '@/lib/auth-utils';
 
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || '';
-  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {
@@ -138,7 +139,7 @@ export default function PayrollDraftPage() {
   const [error, setError] = useState<string | null>(null);
 
   const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   useEffect(() => {
     const fetchRunDetails = async () => {

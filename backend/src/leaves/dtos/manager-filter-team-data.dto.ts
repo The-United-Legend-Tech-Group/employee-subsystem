@@ -12,6 +12,11 @@ export class ManagerFilterTeamDataDto {
   @IsMongoId()
   leaveTypeId?: string;
 
+  // Optional department filter (post-fetch via employee profile), no schema changes
+  @IsOptional()
+  @IsMongoId()
+  departmentId?: string;
+
   @IsOptional()
   @IsEnum(LeaveStatus)
   status?: LeaveStatus;
@@ -30,7 +35,7 @@ export class ManagerFilterTeamDataDto {
 
   @IsOptional()
   @IsString()
-  sortBy?: string; // e.g. "createdAt", "dates.from"
+  sortBy?: string; // e.g. "startDate", "endDate", "status", "employee", "leaveType"
 
   @IsOptional()
   @IsString()

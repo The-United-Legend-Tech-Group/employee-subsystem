@@ -1,4 +1,4 @@
-import api from '@/lib/axios';
+import { apiClient, ApiResponse } from '../../common/utils/api/client';
 
 // Employee interfaces
 export interface Employee {
@@ -47,16 +47,18 @@ export interface Candidate {
 export const employeeApi = {
     // Get single employee by ID
     async getEmployeebyId(id: string): Promise<Employee> {
-        const response = await api.get(`/employee/${id}`);
-        return response.data;
+        const response = await apiClient.get<Employee>(`/employee/${id}`);
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
     // Get employee by employee number
     async getEmployeeByEmployeeNumber(employeeNumber: string): Promise<Employee> {
-        const response = await api.get('/employee', {
+        const response = await apiClient.get<any>('/employee', {
             params: { search: employeeNumber, limit: 10 }
         });
 
-        const items = response.data.items || [];
+        if (response.error) throw new Error(response.error);
+        const items = response.data?.items || [];
 
         const match = items.find((item: any) =>
             item.employeeNumber?.toLowerCase() === employeeNumber.toLowerCase() ||
@@ -71,8 +73,9 @@ export const employeeApi = {
     },
     // Get all employees (unpaginated)
     async getAllEmployees(): Promise<Employee[]> {
-        const response = await api.get('/employee/s');
-        return response.data;
+        const response = await apiClient.get<Employee[]>('/employee/s');
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
 };
 export const candidateApi = {
@@ -80,15 +83,17 @@ export const candidateApi = {
     async getCandidateById(candidateId: string): Promise<Candidate> {
         // This endpoint needs to be added to the backend
         // Possible endpoint: GET /employee/candidate/id/:candidateId
-        const response = await api.get(`/employee/candidate/id/${candidateId}`);
-        return response.data;
+        const response = await apiClient.get<Candidate>(`/employee/candidate/id/${candidateId}`);
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
     // Get all candidates
     async getAllCandidates(): Promise<Candidate[]> {
         // This endpoint needs to be added to the backend
         // Possible endpoint: GET /employee/candidates
-        const response = await api.get('/employee/candidates');
-        return response.data;
+        const response = await apiClient.get<Candidate[]>('/employee/candidates');
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
 };
 
@@ -119,8 +124,9 @@ export interface OpenDepartment {
 export const organizationApi = {
     // Get departments with open positions and recruiters
     async getOpenDepartments(): Promise<OpenDepartment[]> {
-        const response = await api.get('/organization-structure/departments/open');
-        return response.data;
+        const response = await apiClient.get<OpenDepartment[]>('/organization-structure/departments/open');
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
 };
 
@@ -128,19 +134,22 @@ export const organizationApi = {
 export const notificationApi = {
     // Get notifications for authenticated user
     async getMyNotifications(): Promise<Notification[]> {
-        const response = await api.get('/notification/my-notifications');
-        return response.data;
+        const response = await apiClient.get<Notification[]>('/notification/my-notifications');
+        if (response.error) throw new Error(response.error);
+        return response.data!;
     },
 
     // Mark a notification as read
     async markAsRead(notificationId: string): Promise<any> {
-        const response = await api.patch(`/notification/${notificationId}/read`);
+        const response = await apiClient.patch<any>(`/notification/${notificationId}/read`);
+        if (response.error) throw new Error(response.error);
         return response.data;
     },
 
     // Mark all notifications as read
     async markAllAsRead(): Promise<any> {
-        const response = await api.patch('/notification/read-all');
+        const response = await apiClient.patch<any>('/notification/read-all');
+        if (response.error) throw new Error(response.error);
         return response.data;
     },
 };

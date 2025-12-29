@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/payroll/libs/utils';
-import { useUser } from '@/payroll/libs/user-context';
+import { hasRole } from '@/lib/auth-utils';
 import {
   LayoutDashboard,
   FileCheck,
@@ -15,13 +15,17 @@ import {
 } from 'lucide-react';
 import ArcanaLogo from '@/common/material-ui/shared-theme/ArcanaLogo';
 import Box from '@mui/material/Box';
-import {Role} from "../../_libs/user-context";
+import { useUser } from '@/payroll/libs/user-context';
+
+const isPayrollManager = hasRole('Payroll Manager');
+const isPayrollSpecialist = hasRole('Payroll Specialist');
+const isFinanceStaff = hasRole('Finance Staff');
 
 type NavItem = {
   label: string;
   href: string;
   icon: any;
-  roles: Role[];
+  roles: string[];
 };
 
 const navItems: NavItem[] = [
@@ -77,11 +81,13 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { role, setRole, userName } = useUser();
+  const { role } = useUser();
 
   // Filter navigation items based on current role
-  const visibleNavItems = navItems.filter((item) => item.roles.includes(role));
-
+const visibleNavItems = role
+    ? navItems.filter((item) => item.roles.includes(role))
+    : [];
+    
   return (
     <aside className="fixed left-0 top-0 z-[40] h-screen w-64 border-r border-sidebar-border bg-sidebar transition-all">
       <div className="flex h-full flex-col mt-7">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -222,6 +222,14 @@ export function JobRequisitions() {
                       }
                       size="small"
                     />
+                    {req.expiryDate && new Date(req.expiryDate) < new Date() && (
+                      <Chip
+                        label="Expired"
+                        color="error"
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
                     <IconButton
                       onClick={() => handleEdit(req)}
                       size="small"
@@ -257,8 +265,12 @@ export function JobRequisitions() {
                 </Box>
 
                 {req.expiryDate && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                    Expires: {new Date(req.expiryDate).toLocaleDateString()}
+                  <Typography
+                    variant="body2"
+                    color={new Date(req.expiryDate) < new Date() ? 'error.main' : 'text.secondary'}
+                    sx={{ mt: 1.5, fontWeight: new Date(req.expiryDate) < new Date() ? 600 : 400 }}
+                  >
+                    {new Date(req.expiryDate) < new Date() ? '⚠️ Expired:' : 'Expires:'} {new Date(req.expiryDate).toLocaleDateString()}
                   </Typography>
                 )}
               </Box>

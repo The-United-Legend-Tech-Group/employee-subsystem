@@ -594,7 +594,7 @@ export default function SpecialistReportsPage() {
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
                     {startDate && endDate
-                      ? `${formatDate(report.startDate)} - ${formatDate(report.endDate)}`
+                      ? `${formatDate(report.startDate?.toISOString())} - ${formatDate(report.endDate?.toISOString())}`
                       : 'All Time'}
                   </Typography>
                 </Box>

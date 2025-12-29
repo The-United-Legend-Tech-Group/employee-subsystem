@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   Table,
@@ -6,42 +6,49 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/payroll/components/ui/table";
-import { Badge } from "@/payroll/components/ui/badge";
-import { Button } from "@/payroll/components/ui/button";
-import type { Exception } from "@/payroll/libs/types";
-import { CheckCircle } from "lucide-react";
+  TableRow
+} from '@/payroll/components/ui/table';
+import { Badge } from '@/payroll/components/ui/badge';
+import { Button } from '@/payroll/components/ui/button';
+import type { Exception } from '@/payroll/libs/types';
+import { CheckCircle } from 'lucide-react';
+import { useUser } from '@/payroll/libs/user-context';
 
 interface ExceptionsTableProps {
   exceptions: Exception[];
   onResolve: (id: string) => void;
 }
 
-export function ExceptionsTable({ exceptions, onResolve }: ExceptionsTableProps) {
+export function ExceptionsTable({
+  exceptions,
+  onResolve
+}: ExceptionsTableProps) {
+  const { role } = useUser();
+  const canResolve = role === 'Payroll Manager';
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case "high":
-        return "destructive";
-      case "medium":
-        return "default";
-      case "low":
-        return "secondary";
+      case 'high':
+        return 'destructive';
+      case 'medium':
+        return 'default';
+      case 'low':
+        return 'secondary';
       default:
-        return "secondary";
+        return 'secondary';
     }
   };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case "salary-spike":
-        return "Salary Spike";
-      case "missing-bank":
-        return "Missing Bank Account";
-      case "negative-pay":
-        return "Negative Pay";
-      case "calculation-error":
-        return "Calculation Error";
+      case 'salary-spike':
+        return 'Salary Spike';
+      case 'missing-bank':
+        return 'Missing Bank Account';
+      case 'negative-pay':
+        return 'Negative Pay';
+      case 'calculation-error':
+        return 'Calculation Error';
       default:
         return type;
     }
@@ -84,7 +91,7 @@ export function ExceptionsTable({ exceptions, onResolve }: ExceptionsTableProps)
               <TableCell>
                 <Badge
                   variant={
-                    exception.status === "resolved" ? "default" : "secondary"
+                    exception.status === 'resolved' ? 'default' : 'secondary'
                   }
                 >
                   {exception.status}
@@ -92,7 +99,7 @@ export function ExceptionsTable({ exceptions, onResolve }: ExceptionsTableProps)
               </TableCell>
 
               <TableCell className="text-right">
-                {exception.status === "pending" && (
+                {exception.status === 'pending' && canResolve && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -101,6 +108,11 @@ export function ExceptionsTable({ exceptions, onResolve }: ExceptionsTableProps)
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Resolve
                   </Button>
+                )}
+                {exception.status === 'pending' && !canResolve && (
+                  <span className="text-xs text-muted-foreground">
+                    Manager only
+                  </span>
                 )}
               </TableCell>
             </TableRow>

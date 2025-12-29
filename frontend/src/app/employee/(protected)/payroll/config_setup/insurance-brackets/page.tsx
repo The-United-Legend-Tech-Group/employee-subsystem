@@ -175,6 +175,13 @@ export default function InsuranceBracketsPage() {
       setSaving(true);
       setError(null);
 
+      // Validate that minSalary is not greater than maxSalary
+      if (formData.maxSalary && formData.minSalary > formData.maxSalary) {
+        setError('Minimum salary cannot be greater than maximum salary');
+        setSaving(false);
+        return;
+      }
+
       if (editingItem) {
         const updateDto: UpdateInsuranceBracketDto = {
           name: formData.name,
@@ -435,10 +442,19 @@ export default function InsuranceBracketsPage() {
                               </>
                             )}
                             {permissions.canEdit && (
-                              <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => handleOpenDialog(bracket)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={bracket.status !== 'draft' ? 'Only draft items can be edited' : 'Edit'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(bracket)}
+                                    disabled={bracket.status !== 'draft'}
+                                    sx={{
+                                      color: bracket.status !== 'draft' ? 'action.disabled' : 'action.active',
+                                    }}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
                               </Tooltip>
                             )}
                             {permissions.canDelete && (
@@ -528,6 +544,12 @@ export default function InsuranceBracketsPage() {
               fullWidth
               value={formData.minSalary}
               onChange={(e) => setFormData({ ...formData, minSalary: Math.max(0, Number(e.target.value)) })}
+              error={formData.maxSalary ? formData.minSalary > formData.maxSalary : false}
+              helperText={
+                formData.maxSalary && formData.minSalary > formData.maxSalary
+                  ? 'Min cannot be greater than max'
+                  : ''
+              }
               InputProps={{
                 startAdornment: <Typography color="text.secondary" sx={{ mr: 1 }}>$</Typography>,
               }}
@@ -540,6 +562,12 @@ export default function InsuranceBracketsPage() {
               fullWidth
               value={formData.maxSalary || ''}
               onChange={(e) => setFormData({ ...formData, maxSalary: e.target.value ? Math.max(0, Number(e.target.value)) : undefined })}
+              error={formData.maxSalary ? formData.minSalary > formData.maxSalary : false}
+              helperText={
+                formData.maxSalary && formData.minSalary > formData.maxSalary
+                  ? 'Max must be greater than min'
+                  : 'Leave empty for no upper limit'
+              }
               InputProps={{
                 startAdornment: <Typography color="text.secondary" sx={{ mr: 1 }}>$</Typography>,
               }}

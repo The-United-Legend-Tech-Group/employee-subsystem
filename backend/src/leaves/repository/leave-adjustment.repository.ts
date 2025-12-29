@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from '../../common/repository/base.repository';
 import {
   LeaveAdjustment,
   LeaveAdjustmentDocument,
 } from '../models/leave-adjustment.schema';
+import { AdjustmentType } from '../enums/adjustment-type.enum';
 
 @Injectable()
 export class LeaveAdjustmentRepository extends BaseRepository<LeaveAdjustmentDocument> {
@@ -15,16 +16,20 @@ export class LeaveAdjustmentRepository extends BaseRepository<LeaveAdjustmentDoc
     super(model);
   }
 
-  async findByEmployeeId(employeeId: string): Promise<LeaveAdjustmentDocument[]> {
+  async findByEmployeeId(employeeId: Types.ObjectId): Promise<LeaveAdjustmentDocument[]> {
     return this.model.find({ employeeId }).exec();
   }
 
-  async findByLeaveTypeId(leaveTypeId: string): Promise<LeaveAdjustmentDocument[]> {
+  async findByLeaveTypeId(leaveTypeId: Types.ObjectId): Promise<LeaveAdjustmentDocument[]> {
     return this.model.find({ leaveTypeId }).exec();
   }
 
-  async findByAdjustmentType(adjustmentType: string): Promise<LeaveAdjustmentDocument[]> {
+  async findByAdjustmentType(adjustmentType: AdjustmentType): Promise<LeaveAdjustmentDocument[]> {
     return this.model.find({ adjustmentType }).exec();
+  }
+
+  async findWithFilters(query: any): Promise<LeaveAdjustmentDocument[]> {
+    return this.model.find(query).exec();
   }
 
   async findWithFiltersAndPopulate(query: any, populateFields: string[]): Promise<any[]> {

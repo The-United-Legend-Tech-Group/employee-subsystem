@@ -14,7 +14,6 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -26,9 +25,8 @@ import { isAuthenticated } from '@/lib/auth-utils';
 
 interface Compensation {
   payslipId: string;
-  payslipPeriod: string;
-  type: string;
-  description: string;
+  name: string;
+  terms?: string;
   amount: number;
   createdAt: string | null;
 }
@@ -50,7 +48,7 @@ export default function CompensationsPage() {
     clearFilters,
   } = useTableFilters<Compensation>(
     compensations,
-    ['type', 'description', 'payslipPeriod'],
+    ['name', 'terms'],
     'createdAt',
     'month' // Use month/year filtering for payroll periods
   );
@@ -93,19 +91,6 @@ export default function CompensationsPage() {
 
     fetchCompensations();
   }, [router]);
-
-  const getTypeColor = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'encashed leave days':
-        return 'info';
-      case 'transportation':
-        return 'success';
-      case 'refund':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
 
   const totalAmount = compensations.reduce((sum, comp) => sum + (comp.amount || 0), 0);
 
@@ -207,7 +192,7 @@ export default function CompensationsPage() {
           onStartDateChange={updateStartDate}
           endDate={filters.endDate}
           onEndDateChange={updateEndDate}
-          searchPlaceholder="Search by type, description, or period..."
+          searchPlaceholder="Search by name or terms..."
           dateFilterType="month"
           onClear={clearFilters}
         />
@@ -246,9 +231,8 @@ export default function CompensationsPage() {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Payroll Period</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Terms</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>Date</TableCell>
                     </TableRow>
@@ -256,7 +240,7 @@ export default function CompensationsPage() {
                   <TableBody>
                     {filteredCompensations.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                           <Typography variant="body2" color="text.secondary">
                             No compensations match your search criteria.
                           </Typography>
@@ -278,23 +262,12 @@ export default function CompensationsPage() {
                         >
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
-                              {compensation.payslipPeriod || 'Unknown Period'}
+                              {compensation.name || 'N/A'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Chip
-                              label={compensation.type}
-                              color={getTypeColor(compensation.type) as any}
-                              size="small"
-                              variant="filled"
-                              sx={{
-                                fontWeight: 'bold',
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {compensation.description}
+                            <Typography variant="body2" color="text.secondary">
+                              {compensation.terms || 'N/A'}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">

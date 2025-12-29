@@ -66,7 +66,7 @@ export default function SearchAndDateFilter({
     >
       <Grid container spacing={2} alignItems="center">
         {/* Search Field */}
-        <Grid item xs={12} md={showDateFilters ? 4 : 8}>
+        <Grid size={{ xs: 12, md: showDateFilters ? 4 : 8 }}>
           <TextField
             fullWidth
             placeholder={searchPlaceholder}
@@ -102,7 +102,7 @@ export default function SearchAndDateFilter({
         {/* Date Filters Toggle Button */}
         {showDateFilters && (
           <>
-            <Grid item xs={12} md={2}>
+            <Grid size={{ xs: 12, md: 2 }}>
               <Button
                 variant={showFilters ? 'contained' : 'outlined'}
                 startIcon={<FilterListIcon />}
@@ -131,7 +131,7 @@ export default function SearchAndDateFilter({
 
             {/* Clear Button */}
             {hasActiveFilters && (
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <Button
                   variant="outlined"
                   onClick={handleClear}
@@ -153,12 +153,12 @@ export default function SearchAndDateFilter({
               <>
                 {dateFilterType === 'day' ? (
                   <>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="Start Date"
                           value={startDate}
-                          onChange={onStartDateChange}
+                          onChange={(value) => onStartDateChange(value instanceof Date ? value : null)}
                           slotProps={{
                             textField: {
                               size: 'small',
@@ -171,12 +171,12 @@ export default function SearchAndDateFilter({
                         />
                       </LocalizationProvider>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="End Date"
                           value={endDate}
-                          onChange={onEndDateChange}
+                          onChange={(value) => onEndDateChange(value instanceof Date ? value : null)}
                           minDate={startDate || undefined}
                           slotProps={{
                             textField: {
@@ -193,12 +193,12 @@ export default function SearchAndDateFilter({
                   </>
                 ) : dateFilterType === 'month' ? (
                   <>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="Start Month"
                           value={startDate}
-                          onChange={onStartDateChange}
+                          onChange={(value) => onStartDateChange(value instanceof Date ? value : null)}
                           views={['year', 'month']}
                           slotProps={{
                             textField: {
@@ -212,12 +212,12 @@ export default function SearchAndDateFilter({
                         />
                       </LocalizationProvider>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="End Month"
                           value={endDate}
-                          onChange={onEndDateChange}
+                          onChange={(value) => onEndDateChange(value instanceof Date ? value : null)}
                           views={['year', 'month']}
                           minDate={startDate || undefined}
                           slotProps={{
@@ -235,12 +235,12 @@ export default function SearchAndDateFilter({
                   </>
                 ) : (
                   <>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="Start Year"
                           value={startDate}
-                          onChange={onStartDateChange}
+                          onChange={(value) => onStartDateChange(value instanceof Date ? value : null)}
                           views={['year']}
                           slotProps={{
                             textField: {
@@ -254,12 +254,12 @@ export default function SearchAndDateFilter({
                         />
                       </LocalizationProvider>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <LocalizationProvider dateAdapter={AdapterDateFns}>
                         <DatePicker
                           label="End Year"
                           value={endDate}
-                          onChange={onEndDateChange}
+                          onChange={(value) => onEndDateChange(value instanceof Date ? value : null)}
                           views={['year']}
                           minDate={startDate || undefined}
                           slotProps={{
@@ -283,7 +283,7 @@ export default function SearchAndDateFilter({
 
         {/* Spacer when filters are hidden */}
         {!showDateFilters && (
-          <Grid item xs={12} md={4} />
+          <Grid size={{ xs: 12, md: 4 }} />
         )}
       </Grid>
     </Box>

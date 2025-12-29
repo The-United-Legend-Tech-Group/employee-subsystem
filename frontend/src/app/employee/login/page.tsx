@@ -253,6 +253,8 @@ export default function EmployeeLogin() {
     return isValid;
   };
 
+
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
@@ -275,13 +277,32 @@ export default function EmployeeLogin() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: 'include', // Required to send/receive cookies
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        // Successful login - backend sets httpOnly cookies automatically
-        // via credentials: 'include'. No need to store tokens in localStorage.
+        const responseData = await response.json();
+
+        // Set cookies on the frontend domain (first-party cookies)
+        // This works reliably on deployment where cross-origin cookies are blocked
+        const cookieOptions = "path=/; max-age=86400; SameSite=Lax; Secure";
+
+        // Set access_token cookie
+        if (responseData.access_token) {
+          document.cookie = `access_token=${responseData.access_token}; ${cookieOptions}`;
+        }
+
+        // Set employeeid cookie
+        if (responseData.employeeId) {
+          document.cookie = `employeeid=${responseData.employeeId}; ${cookieOptions}`;
+        }
+
+        // Set user_roles cookie
+        if (responseData.roles) {
+          document.cookie = `user_roles=${encodeURIComponent(JSON.stringify(responseData.roles))}; ${cookieOptions}`;
+        }
+
         router.push("/employee/dashboard");
       } else {
         const errorData = await response.json();

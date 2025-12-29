@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -147,8 +147,14 @@ export function AssessmentForms() {
     }
   };
 
-  const pendingAssessments = assessments.filter(a => a.score === 0);
-  const completedAssessments = assessments.filter(a => a.score > 0);
+  const pendingAssessments = useMemo(() =>
+    assessments.filter(a => a.score === 0),
+    [assessments]
+  );
+  const completedAssessments = useMemo(() =>
+    assessments.filter(a => a.score > 0),
+    [assessments]
+  );
 
   if (loading) {
     return (

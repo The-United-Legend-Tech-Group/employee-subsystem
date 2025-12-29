@@ -43,7 +43,7 @@ export function OnboardingChecklists() {
     try {
       setLoading(true);
       const response = await recruitmentApi.getAllOnboardingChecklists();
-      setChecklists(response.data.checklists || []);
+      setChecklists((response.data as any).checklists || []);
     } catch (error: any) {
       toast.error('Failed to load checklists');
       console.error(error);
@@ -135,7 +135,7 @@ export function OnboardingChecklists() {
 
       // Refresh checklists and update selected checklist if modal is open
       const response = await recruitmentApi.getAllOnboardingChecklists();
-      const newChecklists = response.data.checklists || [];
+      const newChecklists = (response.data as any).checklists || [];
       setChecklists(newChecklists);
 
       // Update selected checklist if modal is open

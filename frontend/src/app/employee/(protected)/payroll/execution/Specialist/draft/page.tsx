@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { getCookie } from '@/lib/auth-utils';
 
 import { PageHeader } from '@/payroll/components/layout/page-header';
 import {
@@ -80,8 +81,8 @@ const ENTITY = 'Acme Corp';
  * Uses withCredentials: true to prioritize httpOnly cookies.
  */
 function getAccessToken(): string {
-  const raw = localStorage.getItem('access_token') || '';
-  return raw.replace(/^Bearer\s+/i, '').replace(/^"+|"+$/g, '').trim();
+  const token = getCookie('access_token');
+  return token ? token.replace(/^Bearer\s+/i, '').trim() : '';
 }
 
 function getAuthConfig() {
@@ -152,7 +153,7 @@ function dateToLocalMidnightISO(yyyyMMdd: string): string {
 }
 
 export default function PayrollDraftPage() {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:50000';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [approvedDate, setApprovedDate] = useState<string>('');

@@ -11,7 +11,7 @@ import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme, alpha } from '@mui/material/styles';
@@ -259,7 +259,7 @@ export default function GeneratePayrollSummaryPage() {
                     </InputLabel>
                     <Select
                       value={formData.summary_type}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, summary_type: e.target.value as 'Month-End' | 'Year-End' })}
+                      onChange={(e: SelectChangeEvent<string>) => setFormData({ ...formData, summary_type: e.target.value as 'Month-End' | 'Year-End' })}
                       label="Summary Type *"
                       sx={{
                         borderRadius: 2.5,
@@ -401,8 +401,8 @@ export default function GeneratePayrollSummaryPage() {
                         Month *
                       </InputLabel>
                       <Select
-                        value={formData.month}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, month: e.target.value as number })}
+                        value={String(formData.month)}
+                        onChange={(e: SelectChangeEvent<string>) => setFormData({ ...formData, month: parseInt(e.target.value, 10) })}
                         label="Month *"
                         sx={{
                           borderRadius: 2.5,
@@ -413,7 +413,7 @@ export default function GeneratePayrollSummaryPage() {
                         }}
                       >
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => (
-                          <MenuItem key={month} value={month}>
+                          <MenuItem key={month} value={String(month)}>
                             {new Date(2000, month - 1, 1).toLocaleDateString('en-US', { month: 'long' })}
                           </MenuItem>
                         ))}

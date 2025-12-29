@@ -11,10 +11,13 @@ import CircularProgress from '@mui/material/CircularProgress';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { configSetupApi, type PendingApprovalsResponse } from '../_api/config-setup.api';
+import { useAuth } from '@/hooks/use-auth';
+import { getConfigPermissions, ConfigEntityType } from '../_utils/config-permissions';
 
 export default function PendingDraftsDashboard() {
     const router = useRouter();
     const theme = useTheme();
+    const { roles: userRoles, loading: rolesLoading } = useAuth();
 
     const [data, setData] = React.useState<PendingApprovalsResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -40,7 +43,7 @@ export default function PendingDraftsDashboard() {
         fetchData();
     }, []);
 
-    if (loading) {
+    if (loading || rolesLoading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={24} />
@@ -52,20 +55,36 @@ export default function PendingDraftsDashboard() {
         return <Alert severity="error">{error}</Alert>;
     }
 
-    if (!data || data.total === 0) {
-        return null; // Don't show anything if no pending items
+    if (!data) {
+        return null;
     }
 
-    const items = [
-        { label: 'Allowances', count: data.allowances, path: '/employee/payroll/config_setup/allowances?status=draft' },
-        { label: 'Insurance', count: data.insuranceBrackets, path: '/employee/payroll/config_setup/insurance-brackets?status=draft' },
-        { label: 'Pay Grades', count: data.payGrades, path: '/employee/payroll/config_setup/pay-grades?status=draft' },
-        { label: 'Policies', count: data.payrollPolicies, path: '/employee/payroll/config_setup/payroll-policies?status=draft' },
-        { label: 'Pay Types', count: data.payTypes, path: '/employee/payroll/config_setup/pay-types?status=draft' },
-        { label: 'Bonuses', count: data.signingBonuses, path: '/employee/payroll/config_setup/signing-bonuses?status=draft' },
-        { label: 'Tax Rules', count: data.taxRules, path: '/employee/payroll/config_setup/tax-rules?status=draft' },
-        { label: 'Termination', count: data.terminationBenefits, path: '/employee/payroll/config_setup/termination-benefits?status=draft' },
-    ].filter(item => item.count > 0);
+    // Define all possible items with their entity types
+    const allItems = [
+        { label: 'Allowances', count: data.allowances, path: '/employee/payroll/config_setup/allowances?status=draft', type: 'allowances' as ConfigEntityType },
+        { label: 'Insurance', count: data.insuranceBrackets, path: '/employee/payroll/config_setup/insurance-brackets?status=draft', type: 'insurance-brackets' as ConfigEntityType },
+        { label: 'Pay Grades', count: data.payGrades, path: '/employee/payroll/config_setup/pay-grades?status=draft', type: 'pay-grades' as ConfigEntityType },
+        { label: 'Policies', count: data.payrollPolicies, path: '/employee/payroll/config_setup/payroll-policies?status=draft', type: 'payroll-policies' as ConfigEntityType },
+        { label: 'Pay Types', count: data.payTypes, path: '/employee/payroll/config_setup/pay-types?status=draft', type: 'pay-types' as ConfigEntityType },
+        { label: 'Bonuses', count: data.signingBonuses, path: '/employee/payroll/config_setup/signing-bonuses?status=draft', type: 'signing-bonuses' as ConfigEntityType },
+        { label: 'Tax Rules', count: data.taxRules, path: '/employee/payroll/config_setup/tax-rules?status=draft', type: 'tax-rules' as ConfigEntityType },
+        { label: 'Termination', count: data.terminationBenefits, path: '/employee/payroll/config_setup/termination-benefits?status=draft', type: 'termination-benefits' as ConfigEntityType },
+    ];
+
+    // Filter items based on user permissions and non-zero counts
+    const visibleItems = allItems.filter(item => {
+        if (item.count === 0) return false;
+        const perms = getConfigPermissions(item.type, userRoles);
+        // Show item if user can approve OR can view (for their own drafts)
+        return perms.canApprove || perms.canView;
+    });
+
+    // Calculate total of visible items only
+    const visibleTotal = visibleItems.reduce((sum, item) => sum + item.count, 0);
+
+    if (visibleTotal === 0) {
+        return null; // Don't show anything if no pending items visible to user
+    }
 
     return (
         <Card
@@ -80,15 +99,15 @@ export default function PendingDraftsDashboard() {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <PendingActionsIcon color="warning" sx={{ mr: 1 }} />
                     <Typography variant="h6" color="text.primary">
-                        Pending Actions ({data.total})
+                        Pending Actions ({visibleTotal})
                     </Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    You have {data.total} draft items waiting for review or completion.
+                    You have {visibleTotal} draft item{visibleTotal !== 1 ? 's' : ''} waiting for review or completion.
                 </Typography>
 
                 <Grid container spacing={2}>
-                    {items.map((item) => (
+                    {visibleItems.map((item) => (
                         <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.label}>
                             <Box
                                 onClick={() => router.push(item.path)}

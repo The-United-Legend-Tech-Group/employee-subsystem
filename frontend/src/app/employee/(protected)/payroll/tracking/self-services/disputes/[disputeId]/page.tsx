@@ -41,7 +41,6 @@ interface DisputeDetails {
   status: string;
   rejectionReason?: string;
   resolutionComment?: string;
-  approvedRefundAmount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -264,7 +263,7 @@ export default function DisputeDetailsPage() {
 
           {/* Employee Information */}
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <Box>
                 <Typography 
                   variant="caption" 
@@ -489,28 +488,7 @@ export default function DisputeDetailsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {dispute.approvedRefundAmount !== undefined && dispute.approvedRefundAmount !== null && (
-                  <TableRow
-                    sx={{
-                      '& td': {
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                      },
-                    }}
-                  >
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      Approved Refund Amount
-                    </TableCell>
-                    <TableCell>
-                      <Typography 
-                        variant="body1" 
-                        fontWeight={600}
-                        color="text.primary"
-                      >
-                        {formatCurrency(dispute.approvedRefundAmount)}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
+
                 {financeStaffName && (
                   <TableRow
                     sx={{

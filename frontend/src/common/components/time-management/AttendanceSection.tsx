@@ -17,6 +17,7 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import { alpha, useTheme } from "@mui/material/styles";
+import { SvgIconComponent } from "@mui/icons-material";
 
 import PendingActionsRoundedIcon from "@mui/icons-material/PendingActionsRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
@@ -287,7 +288,7 @@ type MetricCardProps = {
   value: number;
   denominator: number;
   color: "primary" | "success" | "warning" | "error" | "info";
-  icon: React.ElementType;
+  icon: SvgIconComponent;
   descriptor: string;
 };
 
@@ -389,9 +390,8 @@ function MetricCard({
           ),
           "& .MuiLinearProgress-bar": {
             borderRadius: 999,
-            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${
-              paletteColor.light || paletteColor.main
-            } 100%)`,
+            backgroundImage: `linear-gradient(90deg, ${paletteColor.main} 0%, ${paletteColor.light || paletteColor.main
+              } 100%)`,
           },
         }}
       />

@@ -1,4 +1,4 @@
-import api from '@/lib/axios';
+import { apiClient, ApiResponse } from '../../common/utils/api/client';
 
 // =================== TYPES ===================
 export interface CreateOfferDto {
@@ -194,55 +194,69 @@ export interface CreateAssessmentDto {
   comments?: string;
 }
 
+// Helper to maintain compatibility with existing UI (axios-like behavior)
+async function handleResponse<T>(promise: Promise<ApiResponse<T>>) {
+  const response = await promise;
+  if (response.error) {
+    const error: any = new Error(response.error);
+    error.response = { data: { message: response.error } };
+    throw error;
+  }
+  return response as { data: T };
+}
+
 // =================== RECRUITMENT API ===================
 
 export const recruitmentApi = {
   // =================== OFFER ENDPOINTS ===================
 
   createOffer: (data: CreateOfferDto) => {
-    return api.post('/recruitment/offer/create', data);
+    return handleResponse(apiClient.post('/recruitment/offer/create', data));
   },
 
   // Get all offers
-  getAllOffers: () => api.get('/recruitment/offers/all'),
+  getAllOffers: () => handleResponse(apiClient.get<any[]>('/recruitment/offers/all')),
 
   // Get my offers (candidate)
-  getMyOffers: () => api.get('/recruitment/offers/my'),
+  getMyOffers: () => handleResponse(apiClient.get<any[]>('/recruitment/offers/my')),
+
+  // Get offers for a specific candidate (legacy / explicit)
+  getOffersByCandidateId: () => handleResponse(apiClient.get<any[]>(`/recruitment/offers/candidate/`)),
 
   // Get offer by ID
-  getOfferById: (offerId: string) => api.get(`/recruitment/offer/${offerId}`),
+  getOfferById: (offerId: string) => handleResponse(apiClient.get<any>(`/recruitment/offer/${offerId}`)),
 
   // Get my pending approvals
-  getMyApprovals: () => api.get('/recruitment/offer/approvals/my'),
+  getMyApprovals: () => handleResponse(apiClient.get<any[]>('/recruitment/offer/approvals/my')),
 
   addOfferApprover: (data: AddOfferApproverDto) => {
-    return api.post('/recruitment/offer/add-approver', data);
+    return handleResponse(apiClient.post('/recruitment/offer/add-approver', data));
   },
 
   approveOffer: (data: ApproveOfferDto) => {
-    return api.post('/recruitment/offer/approve', data);
+    return handleResponse(apiClient.post('/recruitment/offer/approve', data));
   },
 
   sendOffer: (data: SendOfferDto) => {
-    return api.post('/recruitment/offer/send', data);
+    return handleResponse(apiClient.post('/recruitment/offer/send', data));
   },
 
   candidateRespondOffer: (data: CandidateRespondOfferDto) => {
-    return api.post('/recruitment/offer/candidate-respond', data);
+    return handleResponse(apiClient.post('/recruitment/offer/candidate-respond', data));
   },
 
   // =================== CONTRACT ENDPOINTS ===================
 
   getAllContracts: () => {
-    return api.get('/recruitment/contracts');
+    return handleResponse(apiClient.get<any[]>('/recruitment/contracts'));
   },
 
   getMyContracts: () => {
-    return api.get('/recruitment/contracts/my');
+    return handleResponse(apiClient.get<any[]>('/recruitment/contracts/my'));
   },
 
   getContractsByCandidateId: (candidateId: string) => {
-    return api.get(`/recruitment/contracts/candidate/${candidateId}`);
+    return handleResponse(apiClient.get<any[]>(`/recruitment/contracts/candidate/${candidateId}`));
   },
 
   signContract: (data: UploadSignedContractDto, files: File[]) => {
@@ -254,13 +268,11 @@ export const recruitmentApi = {
     files.forEach((file) => {
       formData.append('files', file);
     });
-    return api.post('/recruitment/contract/sign', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return handleResponse(apiClient.postFormData('/recruitment/contract/sign', formData));
   },
 
   hrSignContract: (data: HrSignContractDto) => {
-    return api.post('/recruitment/contract/hr-sign', data);
+    return handleResponse(apiClient.post('/recruitment/contract/hr-sign', data));
   },
 
   uploadComplianceDocuments: (data: UploadComplianceDocumentsDto, files: File[]) => {
@@ -279,49 +291,47 @@ export const recruitmentApi = {
     files.forEach((file) => {
       formData.append('files', file);
     });
-    return api.post('/recruitment/documents/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return handleResponse(apiClient.postFormData('/recruitment/documents/upload', formData));
   },
 
   getComplianceDocuments: (employeeId?: string) => {
-    return api.get('/recruitment/documents', { params: { employeeId } });
+    return handleResponse(apiClient.get<any[]>('/recruitment/documents', { params: { employeeId } }));
   },
 
   // =================== ONBOARDING ENDPOINTS ===================
 
   createOnboardingChecklist: (data: CreateOnboardingChecklistDto) => {
-    return api.post('/recruitment/onboarding/checklist', data);
+    return handleResponse(apiClient.post('/recruitment/onboarding/checklist', data));
   },
 
   createOnboardingWithDefaults: (data: CreateOnboardingWithDefaultsDto) => {
-    return api.post('/recruitment/onboarding/checklist/defaults', data);
+    return handleResponse(apiClient.post('/recruitment/onboarding/checklist/defaults', data));
   },
 
   getAllOnboardingChecklists: () => {
-    return api.get('/recruitment/onboarding/checklists/all');
+    return handleResponse(apiClient.get<any[]>('/recruitment/onboarding/checklists/all'));
   },
 
   getOnboardingChecklist: (data: GetOnboardingChecklistDto) => {
-    return api.get('/recruitment/onboarding/checklist', { params: data });
+    return handleResponse(apiClient.get<any>('/recruitment/onboarding/checklist', { params: data }));
   },
 
   sendOnboardingReminders: (data: SendOnboardingReminderDto) => {
-    return api.post('/recruitment/onboarding/reminders', data);
+    return handleResponse(apiClient.post('/recruitment/onboarding/reminders', data));
   },
 
   sendAllOnboardingReminders: (daysBeforeDeadline?: number) => {
-    return api.post('/recruitment/onboarding/reminders/all', {
+    return handleResponse(apiClient.post('/recruitment/onboarding/reminders/all', {
       daysBeforeDeadline: daysBeforeDeadline || 1
-    });
+    }));
   },
 
   updateTaskStatus: (data: UpdateTaskStatusDto) => {
-    return api.patch('/recruitment/onboarding/task/status', data);
+    return handleResponse(apiClient.patch('/recruitment/onboarding/task/status', data));
   },
 
   cancelOnboarding: (data: CancelOnboardingDto) => {
-    return api.post('/recruitment/onboarding/cancel', data);
+    return handleResponse(apiClient.post('/recruitment/onboarding/cancel', data));
   },
 
 
@@ -329,37 +339,35 @@ export const recruitmentApi = {
   // =================== JOB TEMPLATE ENDPOINTS ===================
 
   getAllJobTemplates: () => {
-    return api.get('/recruitment/templates');
+    return handleResponse(apiClient.get<any[]>('/recruitment/templates'));
   },
 
   createJobTemplate: (data: CreateJobTemplateDto) => {
-    return api.post('/recruitment/createTemplate', data);
+    return handleResponse(apiClient.post('/recruitment/createTemplate', data));
   },
 
   // =================== JOB REQUISITION ENDPOINTS ===================
 
   createJobRequisition: (data: CreateJobRequisitionDto) => {
-    return api.post('/recruitment/Requisition', data);
+    return handleResponse(apiClient.post('/recruitment/Requisition', data));
   },
 
   updateJobRequisition: (requisitionId: string, data: UpdateJobRequisitionDto) => {
-    return api.patch(`/recruitment/Rrequisition/${requisitionId}`, data);
+    return handleResponse(apiClient.patch(`/recruitment/Rrequisition/${requisitionId}`, data));
   },
 
   getAllPublishedRequisitions: () => {
-    return api.get('/recruitment/Requisition/published');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Requisition/published'));
   },
 
   getAllRequisitions: () => {
-    return api.get('/recruitment/Requisitions/all');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Requisitions/all'));
   },
 
   // =================== DOCUMENT ENDPOINTS ===================
 
   viewDocument: (documentId: string) => {
-    return api.get(`/recruitment/documents/${documentId}/view`, {
-      responseType: 'blob'
-    });
+    return handleResponse(apiClient.getBlob(`/recruitment/documents/${documentId}/view`));
   },
 
   uploadCVDocument: (data: CreateCVDocumentDto, file: File) => {
@@ -371,83 +379,85 @@ export const recruitmentApi = {
 
     formData.append('file', file);
 
-    return api.post('/recruitment/CVdocument', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return handleResponse(apiClient.postFormData('/recruitment/CVdocument', formData));
   },
 
   // =================== APPLICATION ENDPOINTS ===================
 
   createApplication: (data: CreateApplicationDto) => {
-    return api.post('/recruitment/Application', data);
+    return handleResponse(apiClient.post('/recruitment/Application', data));
   },
 
   getAllApplications: () => {
-    return api.get('/recruitment/Applications/all');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Applications/all'));
   },
 
   getMyApplications: () => {
-    return api.get('/recruitment/Application/my');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Application/my'));
   },
 
   getApplicationsByRequisition: (requisitionId: string) => {
-    return api.get(`/recruitment/Applications/requisition/${requisitionId}`);
+    return handleResponse(apiClient.get<any[]>(`/recruitment/Applications/requisition/${requisitionId}`));
   },
 
   getApplicationsByCandidate: (candidateId: string) => {
-    return api.get(`/recruitment/Application/${candidateId}`);
+    return handleResponse(apiClient.get<any[]>(`/recruitment/Application/${candidateId}`));
+  },
+
+  getApplicationHistory: (applicationId: string) => {
+    return handleResponse(apiClient.get<any[]>(`/recruitment/Application/${applicationId}/history`));
   },
 
   updateApplication: (applicationId: string, hrId: string, data: UpdateApplicationDto) => {
-    return api.patch(`/recruitment/Application/${applicationId}/update/${hrId}`, data);
+    return handleResponse(apiClient.patch(`/recruitment/Application/${applicationId}/update/${hrId}`, data));
   },
 
   updateApplicationStatus: (applicationId: string, data: UpdateApplicationDto) => {
-    return api.patch(`/recruitment/Application/${applicationId}/update`, data);
+    return handleResponse(apiClient.patch(`/recruitment/Application/${applicationId}/update`, data));
   },
 
   sendApplicationNotification: (applicationId: string, data?: SendNotificationDto) => {
-    return api.post(`/recruitment/Application/${applicationId}/notify`, data);
+    return handleResponse(apiClient.post(`/recruitment/Application/${applicationId}/notify`, data));
   },
 
   // =================== INTERVIEW ENDPOINTS ===================
 
   createInterview: (data: CreateInterviewDto) => {
-    return api.post('/recruitment/Interview', data);
+    return handleResponse(apiClient.post('/recruitment/Interview', data));
   },
 
   getInterviewsByApplication: (applicationId: string) => {
-    return api.get(`/recruitment/Interview/Application/${applicationId}`);
+    return handleResponse(apiClient.get<any[]>(`/recruitment/Interview/Application/${applicationId}`));
   },
 
   updateInterview: (interviewId: string, data: UpdateInterviewDto) => {
-    return api.patch(`/recruitment/Interview/${interviewId}`, data);
+    return handleResponse(apiClient.patch(`/recruitment/Interview/${interviewId}`, data));
   },
 
   // =================== REFERRAL ENDPOINTS ===================
 
   createReferral: (candidateId: string, data: CreateReferralDto) => {
-    return api.post(`/recruitment/Application/referral/${candidateId}`, data);
+    return handleResponse(apiClient.post(`/recruitment/Application/referral/${candidateId}`, data));
   },
 
   // Get all referrals
-  getAllReferrals: () => api.get('/recruitment/referrals/all'),
+  getAllReferrals: () => handleResponse(apiClient.get<any[]>('/recruitment/referrals/all')),
 
   // =================== ASSESSMENT ENDPOINTS ===================
 
   // Get assessments for current user (interviewer)
   getMyAssessments: () => {
-    return api.get('/recruitment/Assessment/MyAssessments');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Assessment/MyAssessments'));
   },
 
   // Get all assessments (HR only)
   getAllAssessments: () => {
-    return api.get('/recruitment/Assessment/All');
+    return handleResponse(apiClient.get<any[]>('/recruitment/Assessment/All'));
   },
 
   // Submit assessment (PATCH - update existing)
   submitAssessment: (assessmentId: string, data: CreateAssessmentDto) => {
-    return api.patch(`/recruitment/Assessment/${assessmentId}`, data);
+    return handleResponse(apiClient.patch(`/recruitment/Assessment/${assessmentId}`, data));
   },
 };
 
